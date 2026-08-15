@@ -1,0 +1,21 @@
+import landing from './landing'
+import common from './common'
+import dashboard from './dashboard'
+import channelMonitorV2 from './channelMonitorV2'
+import batchImage from './batchImage'
+import asyncImage from './asyncImage'
+import admin from './admin'
+import misc from './misc'
+import team from './team'
+
+export default {
+  ...landing,
+  ...common,
+  ...dashboard,
+  ...channelMonitorV2,
+  ...batchImage,
+  ...asyncImage,
+  admin,
+  ...misc,
+  ...team,
+}

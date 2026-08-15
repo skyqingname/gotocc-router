@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to verify"
+        required: false
+        type: string
+      release-tag:
+        description: "Release tag used to resolve the migration comparison base"
+        required: false
+        type: string
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Check deployment scripts
+        run: |
+          /bin/bash -n deploy/apple-container.sh
+          /bin/bash deploy/tests/apple-container-test.sh
+          /bin/sh deploy/tests/docker-compose-security-test.sh
+          /bin/sh deploy/tests/docker-runtime-resources-test.sh
+          /bin/sh deploy/test-caddyfile-cache.sh
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        working-directory: backend
+        run: |
+          test "$(go env GOVERSION)" = "go$(awk '/^go / { print $2 }' go.mod)"
+      - name: Check Go module tidiness
+        working-directory: backend
+        run: go mod tidy -diff
+      - name: Unit tests
+        working-directory: backend
+        run: make test-unit
+      - name: Integration tests
+        working-directory: backend
+        run: make test-integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          package_json_file: frontend/package.json
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Frontend lint, typecheck, and critical tests
+        run: make test-frontend
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Resolve lint version
+        id: tool-versions
+        run: |
+          VERSION="$(awk '$1 == "golangci-lint" { print $2 }' .tool-versions)"
+          test -n "$VERSION"
+          echo "golangci_lint=v$VERSION" >> "$GITHUB_OUTPUT"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+        with:
+          version: ${{ steps.tool-versions.outputs.golangci_lint }}
+          args: --timeout=30m
+          working-directory: backend
+
+  goreleaser-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Resolve GoReleaser version
+        id: tool-versions
+        run: |
+          VERSION="$(awk '$1 == "goreleaser" { print $2 }' .tool-versions)"
+          test -n "$VERSION"
+          echo "goreleaser=v${VERSION#v}" >> "$GITHUB_OUTPUT"
+          APP_VERSION="$(tr -d '[:space:]' < backend/cmd/server/VERSION)"
+          [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+custom\.[0-9]{3}$ ]]
+          echo "docker_tag_version=v${APP_VERSION/+custom./-custom.}" >> "$GITHUB_OUTPUT"
+      - name: Validate GoReleaser configuration
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          version: ${{ steps.tool-versions.outputs.goreleaser }}
+          args: check
+        env:
+          GITHUB_REPO_OWNER: validation
+          GITHUB_REPO_OWNER_LOWER: validation
+          GITHUB_REPO_NAME: sub2api-plus
+          DOCKER_TAG_VERSION: ${{ steps.tool-versions.outputs.docker_tag_version }}
+          DOCKERHUB_USERNAME: skip
+          TAG_MESSAGE: GoReleaser configuration validation only.
+
+  repository-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Lint GitHub Actions workflows
+        run: >-
+          docker run --rm -v "$PWD:/repo:ro" -w /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color
+      - name: Test release policy
+        run: python tools/test_release_policy.py
+      - name: Check OpenAI Codex outbound identity
+        run: python tools/check_openai_codex_identity.py
+      - name: Check README synchronization
+        run: python tools/check_readme_sync.py
+      - name: Check release metadata sources
+        run: python tools/check_release.py
+      - name: Check migration changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: |
+          if [ -n "$RELEASE_TAG" ]; then
+            python tools/check_new_migrations.py --target-release "$RELEASE_TAG"
+          else
+            python tools/check_new_migrations.py --base "$BASE_SHA"
+          fi

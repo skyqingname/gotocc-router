@@ -1,0 +1,86 @@
+# =============================================================================
+# Docker Ignore File for Sub2API
+# =============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!deploy/DOCKER.md
+# admin-compliance gate (LegalDocumentView.vue) build-time imports these files.
+# Do not exclude the docs/ parent and then re-include docs/legal/: Apple
+# Builder's remote context sender rejects that pattern as out-of-order changes.
+# Re-include only the required Markdown files while leaving other documents
+# excluded by the global *.md rule.
+!docs/legal/*.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+
+# Node modules (will be installed in container)
+frontend/node_modules/
+node_modules/
+
+# Go build cache (will be built in container)
+backend/vendor/
+backend/bin/
+
+# Test files
+*_test.go
+**/*.test.js
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local config
+config.yaml
+config.local.yaml
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Deploy files (not needed in image)
+deploy/install.sh
+deploy/sub2api.service
+deploy/sub2api-sudoers
+deploy/data/
+deploy/postgres_data/
+deploy/redis_data/
+# Local release binaries and build diagnostics are not part of the runtime
+# image. Excluding them keeps Apple container context synchronization bounded.
+deploy/.local/
+
+# GoReleaser
+.goreleaser.yaml
+
+# GitHub
+.github/
+
+# Claude files
+.claude/
+issues/
+CLAUDE.md
