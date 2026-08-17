@@ -153,6 +153,18 @@ func (s *SettingService) GetFrontendURL(ctx context.Context) string {
 	return s.cfg.Server.FrontendURL
 }
 
+// GetAPIBaseURL 获取公开 API 基础地址（仅读取已保存的管理设置）。
+func (s *SettingService) GetAPIBaseURL(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return ""
+	}
+	val, err := s.settingRepo.GetValue(ctx, SettingKeyAPIBaseURL)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(val)
+}
+
 // GetPublicSettings 获取公开设置（无需登录）
 func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings, error) {
 	keys := []string{
@@ -236,6 +248,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyModelPlazaRequireAuth,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
+		SettingKeyGlobalIPAccessControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
 	}
 
@@ -366,6 +379,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
+
+		GlobalIPAccessControlEnabled: settings[SettingKeyGlobalIPAccessControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
 	}, nil
@@ -617,6 +632,7 @@ type PublicSettingsInjectionPayload struct {
 	ModelPlazaRequireAuth        bool `json:"model_plaza_require_auth"`
 	AffiliateEnabled             bool `json:"affiliate_enabled"`
 	RiskControlEnabled           bool `json:"risk_control_enabled"`
+	GlobalIPAccessControlEnabled bool `json:"global_ip_access_control_enabled"`
 	AllowUserViewErrorRequests   bool `json:"allow_user_view_error_requests"`
 }
 
@@ -698,6 +714,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
+		GlobalIPAccessControlEnabled:         settings.GlobalIPAccessControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
 }

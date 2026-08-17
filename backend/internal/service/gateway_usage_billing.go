@@ -1277,6 +1277,7 @@ func (s *GatewayService) buildRecordUsageLog(
 		Stream:                result.Stream,
 		DurationMs:            &durationMs,
 		FirstTokenMs:          result.FirstTokenMs,
+		LastTokenMs:           result.LastTokenMs,
 		FirstOutputMs:         result.FirstOutputMs,
 		FirstOutputKind:       optionalTrimmedStringPtr(result.FirstOutputKind),
 		ImageCount:            result.ImageCount,

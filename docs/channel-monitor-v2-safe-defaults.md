@@ -1,7 +1,7 @@
 # Channel Monitor V2 Safe Defaults & Gentle Backfill
 
 **Date:** 2026-08-08
-**Status:** Implemented in `0.1.176+custom.003`; deployed to GotoCC production at `2026-08-15T06:21:14Z`
+**Status:** Implemented in `0.1.176+custom.003`; not deployed
 
 ## Problem
 

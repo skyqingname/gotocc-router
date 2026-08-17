@@ -18,12 +18,19 @@ MIGRATIONS = ROOT / "backend/migrations"
 NAME_RE = re.compile(r"^(\d{3})(?:[a-z])?_[a-z0-9_]+(?:_notx)?\.sql$")
 ZERO_SHA_RE = re.compile(r"^0+$")
 
-# These migrations were already deployed by GotoCC before they were imported
-# into Plus. Keep the exception exact and content-addressed: it permits the
-# released filename, not arbitrary reuse of an old numeric prefix.
+# These GotoCC migrations were already deployed before v0.1.177 introduced
+# upstream files with the same numeric prefixes. Keep every exception exact and
+# content-addressed: it permits only the released filename and bytes, never
+# arbitrary reuse of an old numeric prefix.
 REVIEWED_IMPORTED_MIGRATIONS = {
     "backend/migrations/220_reusable_invitation_codes.sql":
         "87b4518fd381c1009f19adcc02ced70af0f8a848e18f9ad0b15e7f6c2dcdb488",
+    "backend/migrations/221_add_teams.sql":
+        "eba1a35d52e7fb2cdff8f810240aea62ec04ce9d9b0b573a7be28985fe7434cb",
+    "backend/migrations/222_harden_team_lifecycle.sql":
+        "2fac2b538d5c98e64a69d283d06f2784e7e4d4084c4e1514df0b740333c16179",
+    "backend/migrations/223_add_team_attribution_indexes_notx.sql":
+        "5ec90906693a165116e3b2e845d7061036d46f969d90a9003b9f7f5c9837e75b",
 }
 
 

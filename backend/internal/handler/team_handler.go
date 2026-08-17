@@ -333,7 +333,8 @@ func (h *TeamHandler) Invite(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	invitation, err := h.service.Invite(c.Request.Context(), subject.UserID, req.Email)
+	ctx := service.WithTeamFrontendRequest(c.Request.Context(), c.GetHeader("Origin"), c.Request.Host)
+	invitation, err := h.service.Invite(ctx, subject.UserID, req.Email)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -364,7 +365,8 @@ func (h *TeamHandler) ReissueInvitation(c *gin.Context) {
 		response.BadRequest(c, "Invalid invitation ID")
 		return
 	}
-	item, err := h.service.ReissueInvitation(c.Request.Context(), subject.UserID, id)
+	ctx := service.WithTeamFrontendRequest(c.Request.Context(), c.GetHeader("Origin"), c.Request.Host)
+	item, err := h.service.ReissueInvitation(ctx, subject.UserID, id)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -524,7 +526,8 @@ func (h *TeamHandler) StartOwnershipTransfer(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	transfer, err := h.service.StartOwnershipTransfer(c.Request.Context(), subject.UserID, req.TargetUserID)
+	ctx := service.WithTeamFrontendRequest(c.Request.Context(), c.GetHeader("Origin"), c.Request.Host)
+	transfer, err := h.service.StartOwnershipTransfer(ctx, subject.UserID, req.TargetUserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

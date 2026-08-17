@@ -50,6 +50,31 @@ var (
 	ErrTeamMemberMonthlyExceeded  = infraerrors.TooManyRequests("TEAM_MEMBER_MONTHLY_LIMIT_EXCEEDED", "团队成员月限额已用完")
 )
 
+type teamFrontendRequestContextKey struct{}
+
+type teamFrontendRequestContext struct {
+	origin string
+	host   string
+}
+
+// WithTeamFrontendOrigin supplies the browser origin for invitation links when
+// no explicit public frontend URL is configured. The value is normalized and
+// validated again when the link is built. Callers that have the request host
+// should prefer WithTeamFrontendRequest so same-origin fallback can be checked.
+func WithTeamFrontendOrigin(ctx context.Context, origin string) context.Context {
+	return WithTeamFrontendRequest(ctx, origin, "")
+}
+
+// WithTeamFrontendRequest supplies the browser origin and request host for a
+// same-origin invitation-link fallback. The host is used only for comparison;
+// callers must not pass a forwarded host header unless it was already trusted.
+func WithTeamFrontendRequest(ctx context.Context, origin, host string) context.Context {
+	return context.WithValue(ctx, teamFrontendRequestContextKey{}, teamFrontendRequestContext{
+		origin: strings.TrimSpace(origin),
+		host:   strings.TrimSpace(host),
+	})
+}
+
 // Team 表示团队的公开基础信息。
 type Team struct {
 	ID                     int64      `json:"id"`
@@ -1001,17 +1026,98 @@ func (s *TeamService) sendInvitationEmail(ctx context.Context, email, teamName, 
 }
 
 func (s *TeamService) frontendLink(ctx context.Context, path, parameter, token string) (string, error) {
-	base := ""
-	// 管理后台保存的动态设置优先，未配置时兼容启动配置中的 server.frontend_url。
-	if s.settingService != nil {
-		base = strings.TrimRight(strings.TrimSpace(s.settingService.GetFrontendURL(ctx)), "/")
-	} else if s.cfg != nil {
-		base = strings.TrimRight(strings.TrimSpace(s.cfg.Server.FrontendURL), "/")
+	base := s.configuredTeamFrontendBase(ctx)
+	if base == "" {
+		if request, ok := ctx.Value(teamFrontendRequestContextKey{}).(teamFrontendRequestContext); ok {
+			base = trustedTeamFrontendOrigin(request, s.cfg)
+		}
 	}
 	if base == "" {
 		return "", ErrTeamFrontendURLUnavailable
 	}
 	return base + path + "?" + url.QueryEscape(parameter) + "=" + url.QueryEscape(token), nil
+}
+
+func (s *TeamService) configuredTeamFrontendBase(ctx context.Context) string {
+	if s.settingService != nil {
+		if base := strings.TrimRight(strings.TrimSpace(s.settingService.GetFrontendURL(ctx)), "/"); base != "" {
+			return base
+		}
+		if origin := publicOriginFromConfiguredURL(s.settingService.GetAPIBaseURL(ctx)); origin != "" {
+			return origin
+		}
+	} else if s.cfg != nil {
+		if base := strings.TrimRight(strings.TrimSpace(s.cfg.Server.FrontendURL), "/"); base != "" {
+			return base
+		}
+	}
+	return ""
+}
+
+func normalizeTeamFrontendOrigin(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return ""
+	}
+	if !strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https") {
+		return ""
+	}
+	if u.Path != "" && u.Path != "/" {
+		return ""
+	}
+	return strings.TrimRight(u.Scheme+"://"+u.Host, "/")
+}
+
+func publicOriginFromConfiguredURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil {
+		return ""
+	}
+	if !strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https") {
+		return ""
+	}
+	return strings.TrimRight(u.Scheme+"://"+u.Host, "/")
+}
+
+func trustedTeamFrontendOrigin(request teamFrontendRequestContext, cfg *config.Config) string {
+	base := normalizeTeamFrontendOrigin(request.origin)
+	if base == "" {
+		return ""
+	}
+
+	// An exact configured CORS origin is an explicit deployment trust decision.
+	// A wildcard is intentionally excluded because it does not identify a
+	// frontend capable of receiving invitation links safely.
+	if cfg != nil {
+		for _, allowed := range cfg.CORS.AllowedOrigins {
+			if strings.TrimSpace(allowed) == "*" {
+				continue
+			}
+			if normalizeTeamFrontendOrigin(allowed) == base {
+				return base
+			}
+		}
+	}
+
+	// Same-origin browser requests do not need CORS configuration. Require an
+	// HTTPS origin and an exact Host match so a cross-site Origin cannot become
+	// an email destination when frontend_url is unset.
+	u, err := url.Parse(base)
+	if err != nil || !strings.EqualFold(u.Scheme, "https") {
+		return ""
+	}
+	if request.host == "" || !strings.EqualFold(strings.TrimSpace(request.host), u.Host) {
+		return ""
+	}
+	return base
 }
 
 func normalizeTeamName(name string) (string, error) {

@@ -92,50 +92,6 @@ class ReleaseNotesTests(unittest.TestCase):
 
 
 class ReleaseBaselineTests(unittest.TestCase):
-    def test_goreleaser_version_parser_supports_current_and_legacy_output(self) -> None:
-        self.assertEqual(
-            release_preflight.parse_goreleaser_version(
-                "GitVersion:    2.17.1\nGoVersion:     go1.26.5"
-            ),
-            "2.17.1",
-        )
-        self.assertEqual(
-            release_preflight.parse_goreleaser_version(
-                "goreleaser version 2.17.1"
-            ),
-            "2.17.1",
-        )
-
-    def test_goreleaser_version_parser_rejects_go_toolchain_version(self) -> None:
-        self.assertIsNone(
-            release_preflight.parse_goreleaser_version("GoVersion: go1.26.5")
-        )
-
-    def test_docker_tag_version_uses_oci_safe_separator(self) -> None:
-        self.assertEqual(
-            release_preflight.docker_tag_version("v0.1.170+custom.002"),
-            "v0.1.170-custom.002",
-        )
-
-    def test_previous_release_uses_only_eligible_lower_versions(self) -> None:
-        tags = [
-            "v1.2.3+custom.004",
-            "v1.2.3+custom.005",
-            "v1.2.3+custom.006",
-            "v1.2.3+custom.010",
-            "v9.9.9+custom.999",
-        ]
-        statuses = {
-            "v1.2.3+custom.004": "historical",
-            "v1.2.3+custom.005": "published",
-            "v1.2.3+custom.006": "planned",
-            "v1.2.3+custom.010": "published",
-        }
-        self.assertEqual(
-            release_preflight.select_previous_release_tag(tags, statuses, TAG),
-            "v1.2.3+custom.005",
-        )
-
     def test_required_status_is_exact(self) -> None:
         errors: list[str] = []
         check_release.validate_required_status(TAG, "published", "planned", errors)
@@ -174,15 +130,17 @@ class MigrationBaselineTests(unittest.TestCase):
             )
 
     def test_reviewed_imported_migration_requires_exact_path_and_content(self) -> None:
-        relative = "backend/migrations/220_reusable_invitation_codes.sql"
-        expected = ROOT / relative
-        self.assertTrue(check_new_migrations.is_reviewed_imported_migration(expected))
+        for relative in check_new_migrations.REVIEWED_IMPORTED_MIGRATIONS:
+            with self.subTest(relative=relative):
+                expected = ROOT / relative
+                self.assertTrue(check_new_migrations.is_reviewed_imported_migration(expected))
 
         with tempfile.TemporaryDirectory() as temp_dir:
             alternate_root = Path(temp_dir)
+            relative = "backend/migrations/221_add_teams.sql"
             changed = alternate_root / relative
             changed.parent.mkdir(parents=True)
-            changed.write_bytes(expected.read_bytes() + b"\n-- changed\n")
+            changed.write_bytes((ROOT / relative).read_bytes() + b"\n-- changed\n")
             original_root = check_new_migrations.ROOT
             try:
                 check_new_migrations.ROOT = alternate_root
@@ -193,12 +151,15 @@ class MigrationBaselineTests(unittest.TestCase):
                 check_new_migrations.ROOT = original_root
 
     def test_reviewed_import_is_excluded_from_new_prefix_duplicates(self) -> None:
-        reviewed = ROOT / "backend/migrations/220_reusable_invitation_codes.sql"
+        reviewed = [
+            ROOT / relative
+            for relative in check_new_migrations.REVIEWED_IMPORTED_MIGRATIONS
+        ]
         ordinary = ROOT / "backend/migrations/220_group_model_pricing.sql"
 
         self.assertFalse(
             check_new_migrations.has_duplicate_unreviewed_prefixes(
-                [ordinary, reviewed]
+                [ordinary, *reviewed]
             )
         )
         self.assertTrue(
@@ -270,6 +231,19 @@ class WorkflowPolicyTests(unittest.TestCase):
                 r"DOCKER_TAG_VERSION:\s+v\d+\.\d+\.\d+-custom\.\d{3}",
                 workflow,
             )
+        )
+
+    def test_repository_policy_runs_both_cli_self_tests(self) -> None:
+        workflow = ROOT.joinpath(".github/workflows/backend-ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "python skills/push-cli/tests/test_push_cli.py",
+            workflow,
+        )
+        self.assertIn(
+            "python skills/release-cli/tests/test_release_cli.py",
+            workflow,
         )
 
 

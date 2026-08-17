@@ -84,8 +84,6 @@ temp/
 *.log
 *.bak
 .cache/
-__pycache__/
-*.py[cod]
 .dev/
 .serena/
 
@@ -120,11 +118,19 @@ backend/.installed
 tests
 !deploy/tests/
 !deploy/tests/**
+!skills/push-cli/tests/
+!skills/push-cli/tests/**
+!skills/release-cli/tests/
+!skills/release-cli/tests/**
 CLAUDE.md
 .claude
 scripts
 !backend/scripts/
 !backend/scripts/resolve-version.sh
+!skills/push-cli/scripts/
+!skills/push-cli/scripts/**
+!skills/release-cli/scripts/
+!skills/release-cli/scripts/**
 .code-review-state
 #openspec/
 code-reviews/
@@ -139,7 +145,6 @@ docs/*
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
-!docs/GOTOCC_PLUS_MIGRATION.md
 !docs/providers/
 !docs/providers/*.md
 !docs/protocols/
@@ -156,4 +161,7 @@ output/
 .vite/
 .pnpm-store
 .push-cli-temp-tools
-/.playwright-cli/
+
+# Keep Python interpreter caches ignored after all allowlist rules above.
+__pycache__/
+*.py[cod]

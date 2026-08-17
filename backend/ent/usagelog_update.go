@@ -781,6 +781,33 @@ func (_u *UsageLogUpdate) ClearFirstTokenMs() *UsageLogUpdate {
 	return _u
 }
 
+// SetLastTokenMs sets the "last_token_ms" field.
+func (_u *UsageLogUpdate) SetLastTokenMs(v int) *UsageLogUpdate {
+	_u.mutation.ResetLastTokenMs()
+	_u.mutation.SetLastTokenMs(v)
+	return _u
+}
+
+// SetNillableLastTokenMs sets the "last_token_ms" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableLastTokenMs(v *int) *UsageLogUpdate {
+	if v != nil {
+		_u.SetLastTokenMs(*v)
+	}
+	return _u
+}
+
+// AddLastTokenMs adds value to the "last_token_ms" field.
+func (_u *UsageLogUpdate) AddLastTokenMs(v int) *UsageLogUpdate {
+	_u.mutation.AddLastTokenMs(v)
+	return _u
+}
+
+// ClearLastTokenMs clears the value of the "last_token_ms" field.
+func (_u *UsageLogUpdate) ClearLastTokenMs() *UsageLogUpdate {
+	_u.mutation.ClearLastTokenMs()
+	return _u
+}
+
 // SetFirstOutputMs sets the "first_output_ms" field.
 func (_u *UsageLogUpdate) SetFirstOutputMs(v int) *UsageLogUpdate {
 	_u.mutation.ResetFirstOutputMs()
@@ -1475,6 +1502,15 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.FirstTokenMsCleared() {
 		_spec.ClearField(usagelog.FieldFirstTokenMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LastTokenMs(); ok {
+		_spec.SetField(usagelog.FieldLastTokenMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLastTokenMs(); ok {
+		_spec.AddField(usagelog.FieldLastTokenMs, field.TypeInt, value)
+	}
+	if _u.mutation.LastTokenMsCleared() {
+		_spec.ClearField(usagelog.FieldLastTokenMs, field.TypeInt)
 	}
 	if value, ok := _u.mutation.FirstOutputMs(); ok {
 		_spec.SetField(usagelog.FieldFirstOutputMs, field.TypeInt, value)
@@ -2511,6 +2547,33 @@ func (_u *UsageLogUpdateOne) ClearFirstTokenMs() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetLastTokenMs sets the "last_token_ms" field.
+func (_u *UsageLogUpdateOne) SetLastTokenMs(v int) *UsageLogUpdateOne {
+	_u.mutation.ResetLastTokenMs()
+	_u.mutation.SetLastTokenMs(v)
+	return _u
+}
+
+// SetNillableLastTokenMs sets the "last_token_ms" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableLastTokenMs(v *int) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetLastTokenMs(*v)
+	}
+	return _u
+}
+
+// AddLastTokenMs adds value to the "last_token_ms" field.
+func (_u *UsageLogUpdateOne) AddLastTokenMs(v int) *UsageLogUpdateOne {
+	_u.mutation.AddLastTokenMs(v)
+	return _u
+}
+
+// ClearLastTokenMs clears the value of the "last_token_ms" field.
+func (_u *UsageLogUpdateOne) ClearLastTokenMs() *UsageLogUpdateOne {
+	_u.mutation.ClearLastTokenMs()
+	return _u
+}
+
 // SetFirstOutputMs sets the "first_output_ms" field.
 func (_u *UsageLogUpdateOne) SetFirstOutputMs(v int) *UsageLogUpdateOne {
 	_u.mutation.ResetFirstOutputMs()
@@ -3235,6 +3298,15 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.FirstTokenMsCleared() {
 		_spec.ClearField(usagelog.FieldFirstTokenMs, field.TypeInt)
+	}
+	if value, ok := _u.mutation.LastTokenMs(); ok {
+		_spec.SetField(usagelog.FieldLastTokenMs, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLastTokenMs(); ok {
+		_spec.AddField(usagelog.FieldLastTokenMs, field.TypeInt, value)
+	}
+	if _u.mutation.LastTokenMsCleared() {
+		_spec.ClearField(usagelog.FieldLastTokenMs, field.TypeInt)
 	}
 	if value, ok := _u.mutation.FirstOutputMs(); ok {
 		_spec.SetField(usagelog.FieldFirstOutputMs, field.TypeInt, value)

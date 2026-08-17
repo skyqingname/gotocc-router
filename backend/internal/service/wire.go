@@ -630,11 +630,15 @@ func ProvideIPAccessControlService(
 	settings SettingRepository,
 	repo IPAccessControlRepository,
 	invalidationBus InvalidationBus,
+	settingService *SettingService,
 ) *IPAccessControlService {
 	svc := NewIPAccessControlService(settings, repo)
 	svc.SetInvalidationBus(invalidationBus)
 	svc.StartInvalidationSubscriber(context.Background())
 	svc.StartFailureStateCleanup(context.Background())
+	if settingService != nil {
+		settingService.SubscribeIPAccessRuntime(svc.invalidateAll)
+	}
 	return svc
 }
 

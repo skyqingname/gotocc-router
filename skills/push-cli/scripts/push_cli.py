@@ -19,25 +19,44 @@ from typing import Sequence
 
 
 ROOT = Path(__file__).resolve().parents[3]
+TOOLS = ROOT / "tools"
+if str(TOOLS) not in sys.path:
+    sys.path.insert(0, str(TOOLS))
+import validation_runtime
+
 DEFAULT_REMOTE = "origin"
 EXPECTED_REPOSITORY = "LuckyKuang/sub2api-plus"
+LOCAL_VALIDATION_CONTEXT = "sub2api/local-validation"
+VALIDATION_MARKER_RE = re.compile(
+    r"<!--\s*sub2api-submit-pr:\s*(\{.*?\})\s*-->", re.DOTALL
+)
 GO_VERSION_RE = re.compile(r"^go\s+(\d+\.\d+(?:\.\d+)?)\s*$", re.MULTILINE)
 VERSION_RE = re.compile(
     r"\bversion(?:\s*[:=]|\s+)(?:v)?(\d+\.\d+\.\d+)",
     re.IGNORECASE,
 )
+SCRIPT = Path(__file__).resolve()
 
 
 class PushCliError(RuntimeError):
     """A hard failure that must stop validation or pushing."""
 
 
+Runtime = validation_runtime.Runtime
+
+
 @dataclass(frozen=True)
-class Runtime:
-    name: str
-    prefix: tuple[str, ...] = ()
-    compose_root: str | None = None
-    compose_required: bool = True
+class DeclaredToolchains:
+    go: str
+    pnpm: str
+    node_major_minimum: int
+    golangci_lint: str
+
+
+@dataclass(frozen=True)
+class ValidationProof:
+    base: str
+    head: str
 
 
 def display(command: Sequence[str]) -> str:
@@ -140,6 +159,16 @@ def github_gate(remote: str) -> str:
     return repository
 
 
+def repository_default_branch(repository: str) -> str:
+    branch = capture(
+        ["gh", "api", f"repos/{repository}", "--jq", ".default_branch"]
+    )
+    if not branch or any(char.isspace() for char in branch):
+        raise PushCliError("GitHub returned an invalid repository default branch")
+    print(f"Default branch: {branch}")
+    return branch
+
+
 def current_branch() -> str:
     branch = capture(["git", "branch", "--show-current"])
     if not branch or branch == "HEAD":
@@ -148,6 +177,35 @@ def current_branch() -> str:
         raise PushCliError(f"invalid current branch name: {branch}")
     print(f"Current branch: {branch}")
     return branch
+
+
+def require_working_branch(branch: str, default_branch: str) -> None:
+    if branch == default_branch:
+        raise PushCliError(
+            f"refusing to push repository default branch {default_branch!r}; "
+            "create or switch to a working branch first"
+        )
+
+
+def require_no_git_operation() -> None:
+    git_dir = Path(capture(["git", "rev-parse", "--git-dir"]))
+    if not git_dir.is_absolute():
+        git_dir = ROOT / git_dir
+    active = [
+        name
+        for name in (
+            "MERGE_HEAD",
+            "CHERRY_PICK_HEAD",
+            "REVERT_HEAD",
+            "rebase-merge",
+            "rebase-apply",
+        )
+        if (git_dir / name).exists()
+    ]
+    if active:
+        raise PushCliError(
+            "an unfinished Git operation is present: " + ", ".join(active)
+        )
 
 
 def require_clean_worktree() -> None:
@@ -175,7 +233,7 @@ def declared_tool_version(name: str) -> str:
     raise PushCliError(f".tool-versions does not declare {name}")
 
 
-def check_toolchains() -> None:
+def declared_toolchains() -> DeclaredToolchains:
     package = json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))
     package_manager = package.get("packageManager", "")
     pnpm_match = re.fullmatch(r"pnpm@(.+)", package_manager)
@@ -186,153 +244,148 @@ def check_toolchains() -> None:
     go_match = GO_VERSION_RE.search(go_mod)
     if not go_match:
         raise PushCliError("backend/go.mod does not declare a Go version")
-    go_actual = capture(["go", "env", "GOVERSION"])
-    if go_actual != f"go{go_match.group(1)}":
-        raise PushCliError(
-            f"Go {go_match.group(1)} is required; found {go_actual}"
-        )
 
-    pnpm_actual = capture(["pnpm", "--version"])
-    if pnpm_actual != pnpm_match.group(1):
-        raise PushCliError(
-            f"pnpm {pnpm_match.group(1)} is required; found {pnpm_actual}"
-        )
-
-    node_actual = capture(["node", "--version"])
-    node_match = re.search(r"(\d+)(?:\.(\d+))?", node_actual)
     node_minimum = re.search(
         r">=\s*(\d+)(?:\.(\d+))?", package.get("engines", {}).get("node", "")
     )
-    if not node_match or not node_minimum:
+    if not node_minimum:
         raise PushCliError("unable to determine the Node.js minimum version")
-    if int(node_match.group(1)) < int(node_minimum.group(1)):
-        raise PushCliError(
-            f"Node.js {node_minimum.group(1)}+ is required; found {node_actual}"
-        )
 
-    lint_expected = declared_tool_version("golangci-lint")
+    return DeclaredToolchains(
+        go=go_match.group(1),
+        pnpm=pnpm_match.group(1),
+        node_major_minimum=int(node_minimum.group(1)),
+        golangci_lint=declared_tool_version("golangci-lint"),
+    )
+
+
+def current_go_version() -> str:
+    return capture(["go", "env", "GOVERSION"])
+
+
+def current_pnpm_version() -> str:
+    return capture(["pnpm", "--version"])
+
+
+def current_node_version() -> str:
+    return capture(["node", "--version"])
+
+
+def current_golangci_lint_version() -> str:
     lint_output = capture(["golangci-lint", "version"])
     lint_match = VERSION_RE.search(lint_output)
-    if not lint_match or lint_match.group(1) != lint_expected:
+    if not lint_match:
+        raise PushCliError(f"unable to parse golangci-lint version from {lint_output!r}")
+    return lint_match.group(1)
+
+
+def node_major(version: str) -> int:
+    match = re.search(r"(\d+)", version)
+    if not match:
+        raise PushCliError(f"unable to parse Node.js version from {version!r}")
+    return int(match.group(1))
+
+
+def check_toolchains() -> None:
+    declared = declared_toolchains()
+    go_actual = current_go_version()
+    if go_actual != f"go{declared.go}":
+        raise PushCliError(f"Go {declared.go} is required; found {go_actual}")
+
+    pnpm_actual = current_pnpm_version()
+    if pnpm_actual != declared.pnpm:
+        raise PushCliError(f"pnpm {declared.pnpm} is required; found {pnpm_actual}")
+
+    node_actual = current_node_version()
+    if node_major(node_actual) < declared.node_major_minimum:
         raise PushCliError(
-            f"golangci-lint {lint_expected} is required; found {lint_output!r}"
+            f"Node.js {declared.node_major_minimum}+ is required; found {node_actual}"
+        )
+
+    lint_actual = current_golangci_lint_version()
+    if lint_actual != declared.golangci_lint:
+        raise PushCliError(
+            f"golangci-lint {declared.golangci_lint} is required; found {lint_actual}"
         )
     print(
         "Toolchains: "
         f"Go {go_actual}; pnpm {pnpm_actual}; Node.js {node_actual}; "
-        f"golangci-lint {lint_expected}"
+        f"golangci-lint {lint_actual}"
     )
 
 
 def probe_docker(prefix: Sequence[str] = ()) -> tuple[bool, str]:
-    docker_command = [*prefix, "docker"]
-    info_ok, info_output = optional_capture([*docker_command, "info"])
-    if not info_ok:
-        return False, info_output
-    compose_ok, compose_output = optional_capture(
-        [*docker_command, "compose", "version"]
-    )
-    if not compose_ok:
-        return False, compose_output
-    return True, compose_output.splitlines()[0] if compose_output else "Docker Compose"
+    return validation_runtime.probe_docker(prefix, optional_capture=optional_capture)
+
+
+def normalize_wsl_list_output(output: str) -> str:
+    return validation_runtime.normalize_wsl_list_output(output)
 
 
 def parse_wsl_distributions(output: str) -> list[tuple[str, str]]:
-    distributions: list[tuple[str, str]] = []
-    for line in output.splitlines():
-        match = re.match(r"^\s*\*?\s*(.*?)\s+(Running|Stopped)\s+2\s*$", line)
-        if match and match.group(1):
-            distributions.append((match.group(1).strip(), match.group(2)))
-    return distributions
+    return validation_runtime.parse_wsl_distributions(output)
 
 
-def probe_windows_runtime() -> Runtime:
-    wsl = shutil.which("wsl.exe") or shutil.which("wsl")
-    if not wsl:
-        raise PushCliError("Windows push validation requires wsl.exe")
-    status = capture([wsl, "-l", "-v"])
-    distributions = parse_wsl_distributions(status)
-    running = [name for name, state in distributions if state == "Running"]
-    if not running:
-        if distributions:
-            names = ", ".join(name for name, _ in distributions)
-            raise PushCliError(
-                f"WSL2 Linux distributions exist but none are running: {names}"
-            )
-        raise PushCliError("no WSL2 Linux distribution was found")
-
-    for distro in running:
-        prefix = (wsl, "-d", distro, "--")
-        docker_ok, detail = probe_docker(prefix)
-        if not docker_ok:
-            continue
-        linux_root = capture(
-            [wsl, "-d", distro, "--", "wslpath", "-a", str(ROOT)]
-        )
-        print(f"Runtime: WSL2/{distro} with Docker ({detail})")
-        return Runtime("wsl2-docker", prefix, linux_root)
-    raise PushCliError(
-        "a running WSL2 Linux distribution was found, but Docker and Docker "
-        "Compose are not usable inside it"
-    )
+def is_debian_or_ubuntu_wsl(name: str) -> bool:
+    return validation_runtime.is_debian_or_ubuntu_wsl(name)
 
 
 def probe_runtime() -> Runtime:
-    system = platform.system()
-    if system == "Windows":
-        return probe_windows_runtime()
-
-    if system == "Darwin":
-        if shutil.which("container"):
-            version_ok, version = optional_capture(["container", "--version"])
-            if not version_ok:
-                detail = version[-500:] if version else "container --version failed"
-                raise PushCliError(
-                    "Apple Containers is installed on macOS, so it is the mandatory "
-                    "runtime, but its CLI is not usable; Colima/Docker fallback is "
-                    f"forbidden: {detail}"
-                )
-            list_ok, list_output = optional_capture(["container", "ls"])
-            if not list_ok:
-                detail = list_output[-500:] if list_output else "container ls failed"
-                raise PushCliError(
-                    "Apple Containers is installed on macOS, so it is the mandatory "
-                    "runtime, but its service is not ready; start or repair Apple "
-                    "Containers and retry. Colima/Docker fallback is forbidden: "
-                    f"{detail}"
-                )
-            version_label = version.splitlines()[0] if version else "version available"
-            print(f"Runtime: Apple Containers ({version_label})")
-            run_step(
-                "Apple Container lifecycle test",
-                ["bash", str(ROOT / "deploy/tests/apple-container-test.sh")],
-            )
-            return Runtime("apple-containers", compose_required=False)
-
-        colima_ready = False
-        if shutil.which("colima"):
-            colima_ready, colima_status = optional_capture(["colima", "status"])
-            if colima_ready:
-                print(f"Runtime: Colima ({colima_status.splitlines()[0]})")
-
-        docker_ok, docker_detail = probe_docker()
-        if docker_ok:
-            label = "colima/docker" if colima_ready else "docker"
-            print(f"Docker endpoint: {label} ({docker_detail})")
-            return Runtime(label)
-
-        raise PushCliError(
-            "Apple Containers is unavailable or not ready, and no usable Colima/"
-            "Docker Desktop endpoint was found; start one supported runtime, then retry"
+    try:
+        return validation_runtime.probe_runtime(
+            root=ROOT,
+            capture=capture,
+            optional_capture=optional_capture,
+            probe_docker_fn=probe_docker,
+            which=shutil.which,
+            system_name=platform.system(),
         )
+    except validation_runtime.ValidationRuntimeError as error:
+        raise PushCliError(str(error)) from error
 
-    docker_ok, docker_detail = probe_docker()
-    if docker_ok:
-        print(f"Runtime: Docker ({docker_detail})")
-        return Runtime("docker")
-    if system == "Linux":
-        raise PushCliError("Linux push validation requires a running Docker daemon")
-    raise PushCliError(f"unsupported host platform: {system}")
+
+def ensure_validation_image(runtime: Runtime) -> str:
+    try:
+        return validation_runtime.ensure_validation_image(
+            runtime,
+            root=ROOT,
+            optional_capture=optional_capture,
+            run_step=lambda name, command: run_step(name, command),
+        )
+    except validation_runtime.ValidationRuntimeError as error:
+        raise PushCliError(str(error)) from error
+
+
+def launch_in_validation(
+    runtime: Runtime,
+    remote: str,
+    *,
+    base_ref: str | None = None,
+) -> None:
+    repo = validation_runtime.mount_root(runtime, ROOT)
+    script = validation_runtime.container_path(SCRIPT, runtime, ROOT)
+    argv = [
+        "python3",
+        script,
+        "check",
+        "--in-validation",
+        "--remote",
+        remote,
+        "--repo-root",
+        repo,
+    ]
+    if base_ref:
+        argv.extend(["--base-ref", base_ref])
+    try:
+        validation_runtime.launch_in_validation(
+            runtime,
+            argv,
+            root=ROOT,
+            capture=capture,
+            run_step=lambda name, command: run_step(name, command),
+        )
+    except validation_runtime.ValidationRuntimeError as error:
+        raise PushCliError(str(error)) from error
 
 
 def run_step(
@@ -422,14 +475,30 @@ def run_frontend_security_check() -> None:
         audit_path.unlink(missing_ok=True)
 
 
-def run_local_checks(remote: str, branch: str, runtime: Runtime) -> None:
+def run_local_checks(
+    remote: str,
+    branch: str,
+    runtime: Runtime,
+    *,
+    base_ref: str | None = None,
+) -> None:
     python = sys.executable
     backend = ROOT / "backend"
     steps: list[tuple[str, Sequence[str], Path]] = [
+        (
+            "Apple Container lifecycle test",
+            ["bash", str(ROOT / "deploy/tests/apple-container-test.sh")],
+            ROOT,
+        ),
         ("Go module tidiness", ["go", "mod", "tidy", "-diff"], backend),
         (
             "Push CLI self-tests",
             [python, "skills/push-cli/tests/test_push_cli.py"],
+            ROOT,
+        ),
+        (
+            "Release CLI self-tests",
+            [python, "skills/release-cli/tests/test_release_cli.py"],
             ROOT,
         ),
         ("Backend unit tests", ["go", "test", "-tags=unit", "./..."], backend),
@@ -499,13 +568,15 @@ def run_local_checks(remote: str, branch: str, runtime: Runtime) -> None:
         ),
     ]
 
-    base_ref = f"{remote}/{branch}"
-    base_check = run_command(["git", "rev-parse", "--verify", base_ref], capture=True)
+    migration_base = base_ref or f"{remote}/{branch}"
+    base_check = run_command(
+        ["git", "rev-parse", "--verify", migration_base], capture=True
+    )
     if base_check.returncode == 0:
         steps.append(
             (
                 "Migration policy",
-                [python, "tools/check_new_migrations.py", "--base", base_ref],
+                [python, "tools/check_new_migrations.py", "--base", migration_base],
                 ROOT,
             )
         )
@@ -514,7 +585,6 @@ def run_local_checks(remote: str, branch: str, runtime: Runtime) -> None:
         run_step(name, command, cwd)
 
     run_frontend_security_check()
-    run_runtime_final_gate(runtime)
 
 
 def ensure_clean_after_checks() -> None:
@@ -529,6 +599,190 @@ def ensure_clean_after_checks() -> None:
 
 def pushed_sha() -> str:
     return capture(["git", "rev-parse", "HEAD"])
+
+
+def fetch_default_branch(remote: str, default_branch: str) -> str:
+    run_step(
+        f"Fetch {remote}/{default_branch}",
+        [
+            "git",
+            "fetch",
+            "--no-tags",
+            remote,
+            f"+refs/heads/{default_branch}:refs/remotes/{remote}/{default_branch}",
+        ],
+    )
+    return capture(["git", "rev-parse", f"{remote}/{default_branch}"])
+
+
+def require_latest_base(remote: str, default_branch: str) -> ValidationProof:
+    base = fetch_default_branch(remote, default_branch)
+    head = pushed_sha()
+    ancestor = run_command(
+        ["git", "merge-base", "--is-ancestor", base, head], capture=True
+    )
+    if ancestor.returncode == 1:
+        raise PushCliError(
+            f"current branch does not contain latest {remote}/{default_branch} "
+            f"({base}); update the branch before submit-pr"
+        )
+    if ancestor.returncode != 0:
+        raise PushCliError("unable to compare the pull-request base and head")
+    return ValidationProof(base=base, head=head)
+
+
+def require_unchanged_proof(
+    proof: ValidationProof,
+    remote: str,
+    default_branch: str,
+) -> None:
+    if pushed_sha() != proof.head:
+        raise PushCliError("HEAD changed while local validation was running")
+    latest_base = fetch_default_branch(remote, default_branch)
+    if latest_base != proof.base:
+        raise PushCliError(
+            f"{remote}/{default_branch} changed from {proof.base} to {latest_base} "
+            "while local validation was running; rerun submit-pr"
+        )
+
+
+def validation_marker(proof: ValidationProof) -> str:
+    payload = json.dumps(
+        {"base": proof.base, "head": proof.head},
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return f"<!-- sub2api-submit-pr: {payload} -->"
+
+
+def with_validation_marker(body: str, proof: ValidationProof) -> str:
+    cleaned = VALIDATION_MARKER_RE.sub("", body).rstrip()
+    marker = validation_marker(proof)
+    return f"{cleaned}\n\n{marker}\n" if cleaned else f"{marker}\n"
+
+
+def publish_validation_status(repository: str, proof: ValidationProof) -> None:
+    run_step(
+        "Publish local-validation commit status",
+        [
+            "gh",
+            "api",
+            "--method",
+            "POST",
+            f"repos/{repository}/statuses/{proof.head}",
+            "-f",
+            "state=success",
+            "-f",
+            f"context={LOCAL_VALIDATION_CONTEXT}",
+            "-f",
+            "description=Platform-container validation passed",
+        ],
+    )
+
+
+def open_pull_requests(
+    repository: str,
+    branch: str,
+    default_branch: str,
+) -> list[dict[str, object]]:
+    output = capture(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--repo",
+            repository,
+            "--state",
+            "open",
+            "--head",
+            branch,
+            "--base",
+            default_branch,
+            "--json",
+            "number,url,isDraft,headRefOid,baseRefOid,body",
+        ]
+    )
+    try:
+        prs = json.loads(output)
+    except json.JSONDecodeError as error:
+        raise PushCliError("gh pr list returned invalid JSON") from error
+    if not isinstance(prs, list) or any(not isinstance(pr, dict) for pr in prs):
+        raise PushCliError("gh pr list returned an unexpected JSON value")
+    return prs
+
+
+def default_pr_body(branch: str) -> str:
+    return (
+        "## Summary\n\n"
+        f"Submit `{branch}` after the repository local-validation gate.\n\n"
+        "## Validation\n\n"
+        "- Platform-container validation matrix passed.\n"
+    )
+
+
+def create_or_update_pull_request(
+    repository: str,
+    branch: str,
+    default_branch: str,
+    proof: ValidationProof,
+    *,
+    title: str | None,
+    body_file: Path | None,
+) -> str:
+    prs = open_pull_requests(repository, branch, default_branch)
+    if len(prs) > 1:
+        raise PushCliError(
+            f"multiple open pull requests exist for {branch} -> {default_branch}"
+        )
+    supplied_body = (
+        default_pr_body(branch)
+    )
+    if body_file is not None:
+        try:
+            supplied_body = body_file.read_text(encoding="utf-8")
+        except OSError as error:
+            raise PushCliError(f"cannot read pull-request body {body_file}: {error}") from error
+    if prs:
+        pr = prs[0]
+        if pr.get("headRefOid") != proof.head:
+            raise PushCliError("existing pull request head does not match validated HEAD")
+        if pr.get("baseRefOid") != proof.base:
+            raise PushCliError(
+                "existing pull request base does not match the validated default branch"
+            )
+        body = with_validation_marker(str(pr.get("body") or supplied_body), proof)
+        number = str(pr.get("number"))
+        run_step(
+            "Update pull-request validation marker",
+            ["gh", "pr", "edit", number, "--repo", repository, "--body", body],
+        )
+        url = str(pr.get("url") or number)
+        print(f"Pull request ready: {url}")
+        return url
+
+    pr_title = title or capture(["git", "log", "-1", "--format=%s"])
+    body = with_validation_marker(supplied_body, proof)
+    url = capture(
+        [
+            "gh",
+            "pr",
+            "create",
+            "--repo",
+            repository,
+            "--base",
+            default_branch,
+            "--head",
+            branch,
+            "--title",
+            pr_title,
+            "--body",
+            body,
+        ]
+    )
+    if not url:
+        raise PushCliError("gh pr create did not return a pull-request URL")
+    print(f"Pull request created: {url}")
+    return url
 
 
 def find_actions_runs(
@@ -604,8 +858,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "action",
-        choices=("check", "push", "watch"),
-        help="check locally, push after checking, or watch the current branch run",
+        choices=("check", "push", "submit-pr", "watch", "ensure"),
+        help="prepare the runtime, check locally, push quickly, submit a validated PR, or watch branch Actions",
+    )
+    parser.add_argument(
+        "--in-validation",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--repo-root",
@@ -614,6 +873,9 @@ def parse_args() -> argparse.Namespace:
         help=argparse.SUPPRESS,
     )
     parser.add_argument("--remote", default=DEFAULT_REMOTE)
+    parser.add_argument("--base-ref", help=argparse.SUPPRESS)
+    parser.add_argument("--title", help="pull-request title for submit-pr")
+    parser.add_argument("--body-file", type=Path, help="pull-request body for submit-pr")
     return parser.parse_args()
 
 
@@ -622,22 +884,83 @@ def main() -> int:
     args = parse_args()
     ROOT = args.repo_root.resolve()
     try:
+        if args.in_validation:
+            if validation_runtime.host_os_forbids_in_validation():
+                raise PushCliError(
+                    "check --in-validation cannot run on the Darwin/Windows host. "
+                    "Host validation fallback is forbidden"
+                )
+            if not validation_runtime.in_validation_container():
+                raise PushCliError(
+                    "check --in-validation is only valid inside the platform "
+                    "validation container. Host validation fallback is forbidden"
+                )
+            if args.action != "check":
+                raise PushCliError("in-container execution only supports check")
+            branch = current_branch()
+            check_toolchains()
+            run_local_checks(
+                args.remote,
+                branch,
+                Runtime("in-validation", compose_required=False),
+                base_ref=args.base_ref,
+            )
+            print("\nIn-container push checks passed.")
+            return 0
+
         repository = github_gate(args.remote)
+        if args.action == "ensure":
+            runtime = probe_runtime()
+            ensure_validation_image(runtime)
+            print("\nValidation runtime and image are ready. No checks were run.")
+            return 0
+
         branch = current_branch()
-        require_clean_worktree()
         if args.action == "watch":
             watch_actions(repository, branch)
             return 0
 
-        check_toolchains()
-        runtime = probe_runtime()
-        run_local_checks(args.remote, branch, runtime)
-        ensure_clean_after_checks()
-        print("\nLocal push checks passed. No branch was pushed.")
+        default_branch = repository_default_branch(repository)
+        if args.action in {"push", "submit-pr"}:
+            require_working_branch(branch, default_branch)
+            require_no_git_operation()
+            require_clean_worktree()
 
         if args.action == "push":
             push_branch(args.remote, branch)
-            watch_actions(repository, branch)
+            print(
+                f"\nPushed {branch} without local validation. "
+                "Use submit-pr for the final validated pull-request submission."
+            )
+            return 0
+
+        proof = None
+        base_ref = args.base_ref
+        if args.action == "submit-pr":
+            proof = require_latest_base(args.remote, default_branch)
+            base_ref = f"{args.remote}/{default_branch}"
+        else:
+            require_clean_worktree()
+        runtime = probe_runtime()
+        ensure_validation_image(runtime)
+        launch_in_validation(runtime, args.remote, base_ref=base_ref)
+        run_runtime_final_gate(runtime)
+        ensure_clean_after_checks()
+        print("\nLocal push checks passed. No branch was pushed.")
+
+        if args.action == "submit-pr":
+            assert proof is not None
+            require_unchanged_proof(proof, args.remote, default_branch)
+            push_branch(args.remote, branch)
+            publish_validation_status(repository, proof)
+            create_or_update_pull_request(
+                repository,
+                branch,
+                default_branch,
+                proof,
+                title=args.title,
+                body_file=args.body_file,
+            )
         return 0
     except PushCliError as error:
         print(f"push-cli stopped: {error}", file=sys.stderr)

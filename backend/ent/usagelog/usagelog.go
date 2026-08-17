@@ -88,6 +88,8 @@ const (
 	FieldDurationMs = "duration_ms"
 	// FieldFirstTokenMs holds the string denoting the first_token_ms field in the database.
 	FieldFirstTokenMs = "first_token_ms"
+	// FieldLastTokenMs holds the string denoting the last_token_ms field in the database.
+	FieldLastTokenMs = "last_token_ms"
 	// FieldFirstOutputMs holds the string denoting the first_output_ms field in the database.
 	FieldFirstOutputMs = "first_output_ms"
 	// FieldFirstOutputKind holds the string denoting the first_output_kind field in the database.
@@ -218,6 +220,7 @@ var Columns = []string{
 	FieldStream,
 	FieldDurationMs,
 	FieldFirstTokenMs,
+	FieldLastTokenMs,
 	FieldFirstOutputMs,
 	FieldFirstOutputKind,
 	FieldIsComplete,
@@ -514,6 +517,11 @@ func ByDurationMs(opts ...sql.OrderTermOption) OrderOption {
 // ByFirstTokenMs orders the results by the first_token_ms field.
 func ByFirstTokenMs(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFirstTokenMs, opts...).ToFunc()
+}
+
+// ByLastTokenMs orders the results by the last_token_ms field.
+func ByLastTokenMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastTokenMs, opts...).ToFunc()
 }
 
 // ByFirstOutputMs orders the results by the first_output_ms field.

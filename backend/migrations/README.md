@@ -13,10 +13,12 @@ startup. The runner records each filename and SHA256 checksum in
 - Keep each migration focused and idempotent where practical.
 
 The repository contains historical duplicate numeric prefixes. They remain
-unchanged because filenames and checksums are already deployed. A migration
-imported from a reviewed production lineage may retain its deployed filename
-only when `tools/check_new_migrations.py` binds that exact path and SHA-256.
-Do not add new duplicates.
+unchanged because filenames and checksums are already deployed. In particular,
+GotoCC's `221_add_teams.sql`, `222_harden_team_lifecycle.sql`, and
+`223_add_team_attribution_indexes_notx.sql` predate the v0.1.177 upstream
+migrations that use the same prefixes. A reviewed production-lineage migration
+may retain its deployed filename only when `tools/check_new_migrations.py`
+binds that exact path and SHA-256. Do not add new duplicates.
 
 ## File Naming
 

@@ -687,6 +687,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		OpenAIWSMode:              openAIWSMode,
 		DurationMs:                l.DurationMs,
 		FirstTokenMs:              l.FirstTokenMs,
+		LastTokenMs:               l.LastTokenMs,
 		FirstOutputMs:             l.FirstOutputMs,
 		FirstOutputKind:           l.FirstOutputKind,
 		IsComplete:                l.IsComplete,

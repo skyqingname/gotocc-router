@@ -27,6 +27,7 @@ func skipIfExternalServiceUnavailable(t *testing.T, err error) {
 		errStr := err.Error()
 		if strings.Contains(errStr, "certificate has expired") ||
 			strings.Contains(errStr, "certificate is not yet valid") ||
+			strings.Contains(errStr, "certificate signed by unknown authority") ||
 			strings.Contains(errStr, "connection refused") ||
 			strings.Contains(errStr, "connection reset") ||
 			strings.Contains(errStr, "broken pipe") ||

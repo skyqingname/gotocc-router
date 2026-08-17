@@ -1,4 +1,4 @@
 interface:
   display_name: "Sub2API Release CLI"
   short_description: "Prepare, tag, publish, and verify releases safely"
-  default_prompt: "Use $release-cli to validate, tag, publish, and verify the requested Sub2API Plus release safely."
+  default_prompt: "Use $release-cli to verify the exact push-cli submit-pr proof, promote the PR through protected GitHub auto-merge, wait for Actions at the resulting main merge commit, run focused release metadata validation, and keep tag, publish, monitor, verify, and finalize as explicit resumable actions. Never use admin bypass or repeat the full local application matrix."

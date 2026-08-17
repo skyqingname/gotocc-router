@@ -383,6 +383,97 @@ func TestTeamServiceFrontendLinkFallsBackToConfig(t *testing.T) {
 	require.Equal(t, "https://config.example/team?invitation=test-token", link)
 }
 
+func TestTeamServiceFrontendLinkFallsBackToAPIBaseURL(t *testing.T) {
+	ctx := context.Background()
+	settingRepo := newNotificationEmailMemorySettingRepo()
+	require.NoError(t, settingRepo.Set(ctx, SettingKeyAPIBaseURL, "https://gotocc.xyz/"))
+	cfg := &config.Config{}
+	settingService := NewSettingService(settingRepo, cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "https://gotocc.xyz/team?invitation=test-token", link)
+}
+
+func TestTeamServiceFrontendLinkStripsAPIBaseURLPath(t *testing.T) {
+	ctx := context.Background()
+	settingRepo := newNotificationEmailMemorySettingRepo()
+	require.NoError(t, settingRepo.Set(ctx, SettingKeyAPIBaseURL, "https://gotocc.xyz/v1"))
+	cfg := &config.Config{}
+	settingService := NewSettingService(settingRepo, cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "https://gotocc.xyz/team?invitation=test-token", link)
+}
+
+func TestTeamServiceFrontendLinkPrefersFrontendURLOverAPIBaseURL(t *testing.T) {
+	ctx := context.Background()
+	settingRepo := newNotificationEmailMemorySettingRepo()
+	require.NoError(t, settingRepo.Set(ctx, SettingKeyFrontendURL, "https://app.example"))
+	require.NoError(t, settingRepo.Set(ctx, SettingKeyAPIBaseURL, "https://gotocc.xyz/"))
+	cfg := &config.Config{}
+	settingService := NewSettingService(settingRepo, cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "https://app.example/team?invitation=test-token", link)
+}
+
+func TestTeamServiceFrontendLinkUsesValidatedRequestOriginFallback(t *testing.T) {
+	cfg := &config.Config{CORS: config.CORSConfig{AllowedOrigins: []string{"https://gotocc.xyz"}}}
+	settingService := NewSettingService(newNotificationEmailMemorySettingRepo(), cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	ctx := WithTeamFrontendOrigin(context.Background(), "https://gotocc.xyz/")
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "https://gotocc.xyz/team?invitation=test-token", link)
+}
+
+func TestTeamServiceFrontendLinkUsesSameOriginFallback(t *testing.T) {
+	cfg := &config.Config{}
+	settingService := NewSettingService(newNotificationEmailMemorySettingRepo(), cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	ctx := WithTeamFrontendRequest(context.Background(), "https://gotocc.xyz/", "gotocc.xyz")
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.NoError(t, err)
+	require.Equal(t, "https://gotocc.xyz/team?invitation=test-token", link)
+}
+
+func TestTeamServiceFrontendLinkRejectsUntrustedCrossOriginFallback(t *testing.T) {
+	cfg := &config.Config{}
+	settingService := NewSettingService(newNotificationEmailMemorySettingRepo(), cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	ctx := WithTeamFrontendRequest(context.Background(), "https://attacker.example", "gotocc.xyz")
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.ErrorIs(t, err, ErrTeamFrontendURLUnavailable)
+	require.Empty(t, link)
+}
+
+func TestTeamServiceFrontendLinkRejectsUnsafeRequestOrigin(t *testing.T) {
+	cfg := &config.Config{}
+	settingService := NewSettingService(newNotificationEmailMemorySettingRepo(), cfg)
+	svc := NewTeamService(nil, nil, nil, nil, nil, settingService, cfg)
+
+	ctx := WithTeamFrontendOrigin(context.Background(), "//attacker.example/path")
+	link, err := svc.frontendLink(ctx, "/team", "invitation", "test-token")
+
+	require.ErrorIs(t, err, ErrTeamFrontendURLUnavailable)
+	require.Empty(t, link)
+}
+
 func TestTeamServiceFrontendLinkRejectsMissingBaseURL(t *testing.T) {
 	ctx := context.Background()
 	cfg := &config.Config{}
