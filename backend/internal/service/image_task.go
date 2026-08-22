@@ -30,12 +30,13 @@ const (
 )
 
 var (
-	ErrImageTaskNotFound    = infraerrors.New(http.StatusNotFound, "IMAGE_TASK_NOT_FOUND", "image task not found")
-	ErrImageTaskForbidden   = infraerrors.New(http.StatusForbidden, "IMAGE_TASK_FORBIDDEN", "image task does not belong to this API key")
-	ErrImageTaskUnavailable = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "image task storage is unavailable")
-	ErrImageTaskNoImages    = infraerrors.New(http.StatusConflict, "IMAGE_TASK_NO_IMAGES", "image task has no generated images to download")
-	ErrImageTaskDownload    = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_DOWNLOAD_UNAVAILABLE", "generated image download is unavailable")
-	ErrImageTaskZipTooLarge = infraerrors.New(http.StatusRequestEntityTooLarge, "IMAGE_TASK_DOWNLOAD_TOO_LARGE", "generated images exceed the download size limit")
+	ErrImageTaskNotFound         = infraerrors.New(http.StatusNotFound, "IMAGE_TASK_NOT_FOUND", "image task not found")
+	ErrImageTaskForbidden        = infraerrors.New(http.StatusForbidden, "IMAGE_TASK_FORBIDDEN", "image task does not belong to this API key")
+	ErrImageTaskUnavailable      = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_UNAVAILABLE", "image task storage is unavailable")
+	ErrImageTaskDeleteNotAllowed = infraerrors.New(http.StatusConflict, "IMAGE_TASK_DELETE_NOT_ALLOWED", "only failed image tasks can be deleted")
+	ErrImageTaskNoImages         = infraerrors.New(http.StatusConflict, "IMAGE_TASK_NO_IMAGES", "image task has no generated images to download")
+	ErrImageTaskDownload         = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_TASK_DOWNLOAD_UNAVAILABLE", "generated image download is unavailable")
+	ErrImageTaskZipTooLarge      = infraerrors.New(http.StatusRequestEntityTooLarge, "IMAGE_TASK_DOWNLOAD_TOO_LARGE", "generated images exceed the download size limit")
 )
 
 // ImageTaskRecord is the private Redis representation of an asynchronous image
@@ -50,6 +51,7 @@ type ImageTaskRecord struct {
 	Status        string          `json:"status"`
 	HTTPStatus    int             `json:"http_status,omitempty"`
 	Result        json.RawMessage `json:"result,omitempty"`
+	StorageKeys   []string        `json:"storage_keys,omitempty"`
 	Error         json.RawMessage `json:"error,omitempty"`
 	CreatedAt     int64           `json:"created_at"`
 	CompletedAt   *int64          `json:"completed_at,omitempty"`
@@ -74,6 +76,32 @@ type ImageTask struct {
 	ExpiresAt     int64           `json:"expires_at"`
 }
 
+// AdminImageTask is the credential-free durable task read model used by the
+// administrator support view. APIKeyID is included for diagnosis, but no API
+// key value or mutable execution-store field is exposed.
+type AdminImageTask struct {
+	ID            string          `json:"id"`
+	TaskID        string          `json:"task_id"`
+	Object        string          `json:"object"`
+	APIKeyID      int64           `json:"api_key_id"`
+	RequestType   string          `json:"request_type,omitempty"`
+	Model         string          `json:"model,omitempty"`
+	PromptPreview string          `json:"prompt_preview,omitempty"`
+	Status        string          `json:"status"`
+	HTTPStatus    int             `json:"http_status,omitempty"`
+	ImageURL      string          `json:"image_url,omitempty"`
+	Result        json.RawMessage `json:"result,omitempty"`
+	Error         json.RawMessage `json:"error,omitempty"`
+	CreatedAt     int64           `json:"created_at"`
+	CompletedAt   *int64          `json:"completed_at,omitempty"`
+	ExpiresAt     int64           `json:"expires_at"`
+}
+
+type AdminImageTaskListResponse struct {
+	Items   []*AdminImageTask `json:"items"`
+	HasMore bool              `json:"has_more"`
+}
+
 type ImageTaskOwner struct {
 	UserID   int64
 	APIKeyID int64
@@ -82,12 +110,12 @@ type ImageTaskOwner struct {
 type ImageTaskStore interface {
 	Save(ctx context.Context, task *ImageTaskRecord, ttl time.Duration) error
 	Get(ctx context.Context, id string) (*ImageTaskRecord, error)
+	DeleteIfStatus(ctx context.Context, id, status string) (deleted bool, exists bool, err error)
 }
 
-// ImageStorageResolver reports the currently effective object-storage binding.
-// It exists so the async image feature can be switched on and off from the admin
-// UI without a restart: the wiring below is fixed at startup, but the answer to
-// "is object storage configured right now" is re-read (and cached) per call.
+// ImageStorageResolver reports the currently effective object-storage binding
+// and whether it accepts new submissions. A non-nil uploader can remain usable
+// for existing tasks while enabled is false.
 type ImageStorageResolver func() (uploader *ImageResultUploader, enabled bool)
 
 type ImageTaskService struct {
@@ -255,9 +283,92 @@ func (s *ImageTaskService) Get(ctx context.Context, owner ImageTaskOwner, id str
 	return imageTaskToPublic(task), nil
 }
 
+// ListByUser reads durable history for an administrator support view. It does
+// not consult Redis and therefore cannot repair, refresh, or otherwise mutate
+// target task state.
+func (s *ImageTaskService) ListByUser(ctx context.Context, userID int64, filter ImageTaskHistoryFilter) (*AdminImageTaskListResponse, error) {
+	if s == nil || s.history == nil {
+		return nil, ErrImageTaskUnavailable
+	}
+	filter = normalizeImageTaskHistoryFilter(filter)
+	records, hasMore, err := s.history.ListByUser(ctx, userID, filter)
+	if err != nil {
+		return nil, ErrImageTaskUnavailable.WithCause(err)
+	}
+	items := make([]*AdminImageTask, 0, len(records))
+	for _, record := range records {
+		items = append(items, imageTaskToAdmin(record))
+	}
+	return &AdminImageTaskListResponse{Items: items, HasMore: hasMore}, nil
+}
+
+// GetByUser reads one durable task scoped to the selected support target.
+func (s *ImageTaskService) GetByUser(ctx context.Context, userID int64, id string) (*AdminImageTask, error) {
+	if s == nil || s.history == nil {
+		return nil, ErrImageTaskUnavailable
+	}
+	task, err := s.history.GetByUser(ctx, userID, strings.TrimSpace(id))
+	if err != nil {
+		if errors.Is(err, ErrImageTaskNotFound) {
+			return nil, ErrImageTaskNotFound
+		}
+		return nil, ErrImageTaskUnavailable.WithCause(err)
+	}
+	return imageTaskToAdmin(task), nil
+}
+
+// Delete removes a failed task's execution state and durable history. The
+// Redis key is deleted first so an infrastructure failure leaves the history
+// row visible and the operation retryable.
+func (s *ImageTaskService) Delete(ctx context.Context, owner ImageTaskOwner, id string) error {
+	if s == nil || s.store == nil || s.history == nil {
+		return ErrImageTaskUnavailable
+	}
+	taskID := strings.TrimSpace(id)
+	task, err := s.history.Get(ctx, owner, taskID)
+	if err != nil {
+		if errors.Is(err, ErrImageTaskNotFound) {
+			return ErrImageTaskNotFound
+		}
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if task.Status != ImageTaskStatusFailed {
+		return ErrImageTaskDeleteNotAllowed
+	}
+	deleted, exists, err := s.store.DeleteIfStatus(ctx, taskID, ImageTaskStatusFailed)
+	if err != nil {
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if exists && !deleted {
+		return ErrImageTaskDeleteNotAllowed
+	}
+	deleted, err = s.history.DeleteFailed(ctx, owner, taskID)
+	if err != nil {
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if deleted {
+		return nil
+	}
+
+	// A concurrent identical deletion is already in the desired state. If the
+	// row still exists, its status changed and the failed-only rule wins.
+	current, err := s.history.Get(ctx, owner, taskID)
+	if errors.Is(err, ErrImageTaskNotFound) {
+		return nil
+	}
+	if err != nil {
+		return ErrImageTaskUnavailable.WithCause(err)
+	}
+	if current.Status != ImageTaskStatusFailed {
+		return ErrImageTaskDeleteNotAllowed
+	}
+	return ErrImageTaskUnavailable
+}
+
 // StreamDownloadZip creates one ZIP archive for every image associated with a
 // completed task. Files are opened through the configured object storage using
-// deterministic keys, never by fetching the URLs stored in the task response.
+// exact keys recorded at upload time, never by fetching the URLs stored in the
+// task response.
 func (s *ImageTaskService) StreamDownloadZip(ctx context.Context, owner ImageTaskOwner, id string, writer io.Writer) (int, error) {
 	if writer == nil {
 		return 0, ErrImageTaskDownload
@@ -282,8 +393,11 @@ func (s *ImageTaskService) StreamDownloadZip(ctx context.Context, owner ImageTas
 	if len(urls) > maxImageTaskZipImages {
 		return 0, ErrImageTaskZipTooLarge
 	}
-	uploader, enabled := s.current()
-	if !enabled || uploader == nil {
+	if len(task.StorageKeys) != len(urls) {
+		return 0, ErrImageTaskDownload
+	}
+	uploader, _ := s.current()
+	if uploader == nil {
 		return 0, ErrImageTaskDownload
 	}
 
@@ -292,8 +406,8 @@ func (s *ImageTaskService) StreamDownloadZip(ctx context.Context, owner ImageTas
 	limited := &imageTaskZipLimitWriter{writer: writer, limit: maxImageTaskZipBytes}
 	archive := zip.NewWriter(limited)
 	var sourceBytes int64
-	for index, storedURL := range urls {
-		object, extension, openErr := uploader.OpenStoredTaskImage(streamCtx, task.ID, index, storedURL)
+	for index := range urls {
+		object, extension, openErr := uploader.OpenStoredTaskImage(streamCtx, task.StorageKeys[index])
 		if openErr != nil {
 			_ = archive.Close()
 			return index, ErrImageTaskDownload.WithCause(openErr)
@@ -367,6 +481,7 @@ func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode i
 	if !json.Valid(result) {
 		return s.Fail(ctx, id, http.StatusBadGateway, imageTaskErrorJSON("api_error", "upstream returned a non-JSON image response"))
 	}
+	var storageKeys []string
 	if uploader, _ := s.current(); uploader != nil {
 		task, err := s.store.Get(ctx, id)
 		if err != nil {
@@ -388,6 +503,7 @@ func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode i
 			}
 			records := make([]ImageObjectRecord, 0, len(objects))
 			for _, object := range objects {
+				storageKeys = append(storageKeys, object.StorageKey)
 				records = append(records, ImageObjectRecord{
 					ObjectID: object.ObjectID, UserID: task.UserID, APIKeyID: task.APIKeyID,
 					TaskID: object.TaskID, StorageKey: object.StorageKey,
@@ -401,17 +517,17 @@ func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode i
 		}
 		result = rewritten
 	}
-	return s.finish(ctx, id, ImageTaskStatusCompleted, statusCode, result, nil)
+	return s.finish(ctx, id, ImageTaskStatusCompleted, statusCode, result, nil, storageKeys)
 }
 
 func (s *ImageTaskService) Fail(ctx context.Context, id string, statusCode int, taskErr json.RawMessage) error {
 	if !json.Valid(taskErr) {
 		taskErr = imageTaskErrorJSON("api_error", "image generation failed")
 	}
-	return s.finish(ctx, id, ImageTaskStatusFailed, statusCode, nil, taskErr)
+	return s.finish(ctx, id, ImageTaskStatusFailed, statusCode, nil, taskErr, nil)
 }
 
-func (s *ImageTaskService) finish(ctx context.Context, id, status string, statusCode int, result, taskErr json.RawMessage) error {
+func (s *ImageTaskService) finish(ctx context.Context, id, status string, statusCode int, result, taskErr json.RawMessage, storageKeys []string) error {
 	if s == nil || s.store == nil {
 		return ErrImageTaskUnavailable
 	}
@@ -427,6 +543,7 @@ func (s *ImageTaskService) finish(ctx context.Context, id, status string, status
 	task.Status = status
 	task.HTTPStatus = statusCode
 	task.Result = result
+	task.StorageKeys = append([]string(nil), storageKeys...)
 	task.Error = taskErr
 	task.CompletedAt = &completedAt
 	task.ExpiresAt = now.Add(s.ttl).Unix()
@@ -449,6 +566,29 @@ func imageTaskToPublic(task *ImageTaskRecord) *ImageTask {
 		ID:            task.ID,
 		TaskID:        task.ID,
 		Object:        "image.generation.task",
+		RequestType:   task.RequestType,
+		Model:         task.Model,
+		PromptPreview: task.PromptPreview,
+		Status:        task.Status,
+		HTTPStatus:    task.HTTPStatus,
+		ImageURL:      firstImageTaskURL(task.Result),
+		Result:        task.Result,
+		Error:         task.Error,
+		CreatedAt:     task.CreatedAt,
+		CompletedAt:   task.CompletedAt,
+		ExpiresAt:     task.ExpiresAt,
+	}
+}
+
+func imageTaskToAdmin(task *ImageTaskRecord) *AdminImageTask {
+	if task == nil {
+		return nil
+	}
+	return &AdminImageTask{
+		ID:            task.ID,
+		TaskID:        task.ID,
+		Object:        "image.generation.task",
+		APIKeyID:      task.APIKeyID,
 		RequestType:   task.RequestType,
 		Model:         task.Model,
 		PromptPreview: task.PromptPreview,

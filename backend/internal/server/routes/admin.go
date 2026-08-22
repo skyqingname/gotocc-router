@@ -37,6 +37,9 @@ func RegisterAdminRoutes(
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
 
+		// 用户支持视图（仅注册 GET 路由）
+		registerAdminSupportRoutes(admin, h)
+
 		// 分组管理
 		registerGroupRoutes(admin, h)
 
@@ -57,6 +60,9 @@ func RegisterAdminRoutes(
 
 		// Grok OAuth
 		registerGrokOAuthRoutes(admin, h)
+
+		// 国产供应商（kimi/zhipu/deepseek）额度与余额
+		registerCNProviderRoutes(admin, h)
 
 		// 代理管理
 		registerProxyRoutes(admin, h, stepUpAuth)
@@ -147,6 +153,25 @@ func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth 
 	}
 }
 
+func registerAdminSupportRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	support := admin.Group("/support/users/:user_id")
+	support.Use(h.Admin.User.RequireSupportTarget)
+	{
+		support.GET("", h.Admin.User.GetSupportProfile)
+		support.GET("/profile", h.Admin.User.GetSupportProfile)
+		support.GET("/api-keys", h.Admin.User.GetSupportAPIKeys)
+		support.GET("/usage", h.Usage.AdminSupportStats)
+		support.GET("/async-images", h.AsyncImage.AdminSupportList)
+		support.GET("/async-images/:task_id", h.AsyncImage.AdminSupportGet)
+		support.GET("/channels", h.AvailableChannel.AdminSupportList)
+		support.GET("/channel-status", h.ChannelMonitor.List)
+		support.GET("/channel-status/:id", h.ChannelMonitor.GetStatus)
+		support.GET("/subscriptions", h.Subscription.AdminSupportList)
+		support.GET("/orders", h.Payment.AdminSupportListOrders)
+		support.GET("/orders/:order_id", h.Payment.AdminSupportGetOrder)
+	}
+}
+
 func registerIPAccessControlRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	access := admin.Group("/ip-access-control")
 	{
@@ -160,6 +185,7 @@ func registerIPAccessControlRoutes(admin *gin.RouterGroup, h *handler.Handlers, 
 		// is enabled, require the existing sudo grant for all of them.
 		access.POST("/rules/:id/release-reset", gin.HandlerFunc(stepUpAuth), h.Admin.IPAccessControl.ReleaseRuleAndReset)
 		access.POST("/failure-state/reset", gin.HandlerFunc(stepUpAuth), h.Admin.IPAccessControl.ResetFailureState)
+		access.POST("/failure-state/block", gin.HandlerFunc(stepUpAuth), h.Admin.IPAccessControl.BlockFailureState)
 	}
 }
 
@@ -525,6 +551,17 @@ func registerGrokOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		grok.GET("/accounts/:id/quota", h.Admin.GrokOAuth.QueryQuota)
 		grok.POST("/accounts/:id/reset-quota", h.Admin.GrokOAuth.ResetQuota)
 		grok.GET("/runtime-sanity", h.Admin.GrokOAuth.RuntimeSanity)
+	}
+}
+
+// registerCNProviderRoutes 注册国产供应商（kimi/zhipu/deepseek）的额度与余额查询端点。
+func registerCNProviderRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	cn := admin.Group("/cn-providers")
+	{
+		// Coding Plan 滚动窗口用量（kimi/zhipu coding 账号）。
+		cn.GET("/accounts/:id/quota", h.Admin.CNProvider.QueryQuota)
+		// payg 账号余额（kimi/deepseek；zhipu 无余额端点）。
+		cn.GET("/accounts/:id/balance", h.Admin.CNProvider.QueryBalance)
 	}
 }
 

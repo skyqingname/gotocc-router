@@ -4,6 +4,66 @@ Sub2API Plus accepts OpenAI-compatible Responses requests over HTTP and
 client-facing WebSocket ingress. Account routing can use an upstream WebSocket
 or bridge the client WebSocket to an HTTP/SSE upstream.
 
+## Prompt Cache Identity and Usage
+
+Current Codex clients can supply the canonical `session-id`, `thread-id`, and
+`x-client-request-id` headers. The gateway also accepts the supported legacy
+session aliases, including `session_id`, for sticky routing compatibility.
+When direct session headers are absent, the stable string `session_id` inside
+`X-Codex-Turn-Metadata` is also accepted; request-scoped `turn_id` is never a
+routing key. This lets `/v1/responses` WebSocket ingress and
+`/v1/alpha/search` share one account route even when Alpha Search would
+otherwise fall back to its search ID.
+The same sanitized value is recorded as `usage_logs.session_id` and participates
+in cyber-session blocking. Endpoint fallbacks and `turn_id` remain routing
+details and are not persisted as client session IDs.
+Thread and client-request identifiers remain paired request context and never
+replace the session-scoped cache identity.
+
+For OpenAI Responses and Compact requests, the gateway resolves one opaque,
+tenant-isolated cache identity from an explicit `prompt_cache_key`, a supported
+session header, or a stable content prefix with a meaningful user/input anchor.
+It writes the finalized UUID to both the upstream `prompt_cache_key` and the
+canonical `session-id` header; the legacy `session_id` alias carries the same
+value. A model-only request does not receive a content-derived key. API-key
+Chat Completions requests converted to Responses use the same behavior, while
+raw Chat Completions forwarding does not receive Responses-only cache fields.
+
+Under the default hard-affinity mode, account priority changes do not replace a
+valid active session route. The optional sticky-weighted scheduler mode remains
+score-based by design. If the configured health/concurrency sticky escape
+temporarily bypasses a degraded account, a movable Responses continuation does
+not fall back to that account through its older response ID; the temporary
+candidate order is derived from the shared session identity, while the
+canonical sticky binding remains unchanged. Removing an account from the
+requesting group, disabling it, or making it incompatible is always a hard
+invalidation: both ordinary sticky routing and `previous_response_id` routing
+recheck the current account before reuse. Long-lived Responses WebSocket
+connections also run current billing and reload the selected account before
+every turn in `ctx_pool`, `http_bridge`, and `passthrough` modes. The refreshed
+account must still satisfy group, status, schedulability, quota, client-model,
+endpoint-capability, transport, parent-health, runtime-block, scheduling
+threshold, and proxy-quarantine gates. Follow-up image intent also repeats the
+group permission and Responses-capability checks. If any gate fails, the
+gateway closes before sending that turn upstream; a reconnect then performs
+normal account selection. The first turn is billed-eligible once before
+selection, while every later turn is checked once at its pre-turn boundary. A
+movable WebSocket continuation follows a session route that has already failed
+over to another account and removes the old account's response ID before
+forwarding. Tool-output continuations without complete call context remain on
+the response owner and keep the existing fail-closed OAuth ownership checks.
+
+`prompt_cache_options` is forwarded only for GPT-5.6-family OpenAI Platform
+API-key Responses/Compact traffic. ChatGPT OAuth and older or unknown model
+families have that field removed. Deprecated `prompt_cache_retention` is
+removed on every path.
+
+Usage ingestion treats ordinary input, cache-read input, and cache-write input
+as mutually exclusive stored buckets. The UI reports prompt-cache hit rate as
+`cache_read / (input + cache_read + cache_write)`; output tokens are excluded.
+Canonical nested usage details take priority by field presence, including an
+explicit zero, before known top-level compatibility aliases are considered.
+
 ## Codex Rate-Limit Response Headers
 
 For Codex Responses requests, successful HTTP and SSE responses can include
@@ -38,11 +98,39 @@ outside this gateway's request path.
 ## Codex Fingerprint Convergence
 
 OpenAI OAuth accounts may rewrite outbound Codex installation, session, and
-thread carriers after Plus session-policy resolution. Unset accounts use
-`session` mode. Compact requests skip that rewrite so the isolated compact
-session namespace is not replaced. Usage-log `session_id` stays the sanitized
-client-original value. User-Agent, Originator, and Version keep the account >
-global > compiled-default source order.
+thread carriers. Unset accounts use `device` mode. Ordinary Responses,
+Chat-Completions-to-Responses, Messages-to-Responses, HTTP-to-WebSocket, and
+direct Responses WebSocket turns use the configured account mode. Native
+remote Compact v2 is an ordinary Responses session for fingerprint purposes
+and therefore also uses the full configured mode. The ChatGPT Codex OAuth
+legacy compact compatibility path uses installation-only convergence for every
+non-`off` mode and preserves its own compact session, cache, and thread
+namespace.
+
+Here `legacy` refers only to the ChatGPT Codex OAuth compatibility branch used
+by this gateway. The public API-key
+[`/v1/responses/compact`](https://developers.openai.com/api/reference/java/resources/responses/methods/compact)
+endpoint remains a distinct supported OpenAI API surface. Response retrieve,
+cancel, and other non-create subpaths are not session turns and receive no
+fingerprint mutation.
+
+Fingerprint preparation runs before final request construction. Plus
+prompt-cache/session isolation is authoritative for the final `session-id` and
+`session_id` headers, while fingerprint convergence remains authoritative for
+installation and thread/turn metadata. `off` disables only fingerprint-owned
+header and body mutation; it does not disable Plus cache isolation, security,
+session sharing, or compact policy. WebSocket connection reuse compares final
+stable handshake carriers even when `off` or `device` leaves those values
+client-owned. Usage-log `session_id` stays the sanitized client-original value.
+
+Only credential-owning OpenAI OAuth accounts participate. Personal access
+token and Agent Identity accounts follow the same endpoint semantics because
+they are OpenAI OAuth credential owners. API-key, setup-token, and non-session
+endpoints such as count-tokens and alpha-search are excluded. User-Agent,
+Originator, and Version use one source chain: valid credential-owner
+`credentials.user_agent`, then valid global `openai_codex_user_agent`, then the
+compiled default. Version synchronization changes only the version declaration
+of the selected identity.
 
 ## Request Replay and Upstream Failures
 

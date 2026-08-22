@@ -185,10 +185,12 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, apiKey.User.ID)
 		c.Request = c.Request.WithContext(ctx)
 		billingInfoRequest := c.Request.URL.Path == "/v1/sub2api/billing"
-		// Async image reads only access data already owned by the authenticated
-		// subject and must remain available after generation consumes the balance.
+		// Async image task management only accesses data that already belongs to
+		// the authenticated key and must remain available after generation
+		// consumes the key's remaining balance.
 		whamUsageRequest := c.Request.Method == http.MethodGet && c.Request.URL.Path == "/backend-api/wham/usage"
 		skipBilling := c.Request.URL.Path == "/v1/usage" || billingInfoRequest || whamUsageRequest ||
+			isAsyncImageTaskManagement(c.Request.Method, c.Request.URL.Path) ||
 			isAsyncImageReadRequest(c.Request.Method, c.Request.URL.Path) ||
 			isBatchImageManagementRequest(c.Request.Method, c.Request.URL.Path)
 
@@ -353,16 +355,34 @@ func isOpenAICompatibleAPIKeyRequest(c *gin.Context) bool {
 	return false
 }
 
+func isAsyncImageTaskManagement(method, path string) bool {
+	if method != http.MethodGet && method != http.MethodDelete {
+		return false
+	}
+	path = strings.TrimSuffix(path, "/")
+	for _, root := range []string{"/v1/images/tasks", "/images/tasks"} {
+		if path == root {
+			return method == http.MethodGet
+		}
+		if !strings.HasPrefix(path, root+"/") {
+			continue
+		}
+		segments := strings.Split(strings.TrimPrefix(path, root+"/"), "/")
+		if len(segments) == 1 && segments[0] != "" {
+			return true
+		}
+		return method == http.MethodGet && len(segments) == 2 && segments[0] != "" && segments[1] == "download"
+	}
+	return false
+}
+
 func isAsyncImageReadRequest(method, path string) bool {
 	if method != http.MethodGet {
 		return false
 	}
 	path = strings.TrimRight(path, "/")
-	for _, root := range []string{"/v1/images/tasks/", "/images/tasks/"} {
-		id := strings.TrimPrefix(path, root)
-		if id != path && id != "" && !strings.Contains(id, "/") {
-			return true
-		}
+	if isAsyncImageTaskManagement(method, path) {
+		return true
 	}
 	for _, root := range []string{"/v1/images/objects/", "/images/objects/"} {
 		remainder := strings.TrimPrefix(path, root)
@@ -399,11 +419,11 @@ func isAPIKeyNonConsumingRequest(method, path string) bool {
 		if path == "/v1/usage" || path == "/antigravity/v1/usage" || path == "/v1/sub2api/billing" || path == "/backend-api/wham/usage" {
 			return true
 		}
-		if strings.HasSuffix(path, "/models") || isAsyncImageReadRequest(method, path) || isBatchImageManagementRequest(method, path) {
+		if strings.HasSuffix(path, "/models") || isAsyncImageTaskManagement(method, path) || isAsyncImageReadRequest(method, path) || isBatchImageManagementRequest(method, path) {
 			return true
 		}
 	}
-	if isBatchImageManagementRequest(method, path) {
+	if isAsyncImageTaskManagement(method, path) || isBatchImageManagementRequest(method, path) {
 		return true
 	}
 	return method == http.MethodPost && strings.HasSuffix(path, "/messages/count_tokens")

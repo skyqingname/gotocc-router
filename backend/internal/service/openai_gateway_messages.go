@@ -52,6 +52,13 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, errors.New("codex_cli_only restriction: approved Codex client profile required")
 	}
 
+	// Native Anthropic accounts must bypass OpenAI conversion entirely. The
+	// provider-specific endpoint preserves Anthropic thinking/tool semantics;
+	// keep the Codex restriction above as the shared policy boundary.
+	if account.IsAnthropicProtocol() {
+		return s.forwardAnthropicViaNativeAnthropicEndpoint(ctx, c, account, body, defaultMappedModel)
+	}
+
 	// 入口分流：APIKey 账号 + 上游不支持 Responses API → 走 CC 直转（与
 	// ForwardAsChatCompletions 对称）。缺少此分流时，/v1/messages 入站请求
 	// 会被无条件转为 Responses 格式发往上游 /v1/responses，导致只支持
@@ -238,6 +245,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		// OAuth codex transform forces stream=true upstream, so always use
 		// the streaming response handler regardless of what the client asked.
 		isStream = true
+		if _, fingerprintErr := s.prepareCodexFingerprintMap(ctx, c, account, reqBody); fingerprintErr != nil {
+			return nil, fingerprintErr
+		}
 		responsesBody, err = json.Marshal(reqBody)
 		if err != nil {
 			return nil, fmt.Errorf("remarshal after codex transform: %w", err)
@@ -339,7 +349,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			return nil, resolveErr
 		}
 		isolatedSessionID := generateSessionUUID(upstreamSessionID)
-		upstreamReq.Header.Set("session_id", isolatedSessionID)
+		setOpenAIUpstreamSessionIdentity(upstreamReq.Header, isolatedSessionID)
 		if upstreamReq.Header.Get("conversation_id") != "" {
 			upstreamReq.Header.Set("conversation_id", isolatedSessionID)
 		}

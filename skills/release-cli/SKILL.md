@@ -1,6 +1,6 @@
 ---
 name: release-cli
-description: Promote a locally validated Sub2API Plus pull request through protected GitHub auto-merge, create an immutable vX.Y.Z+custom.NNN tag at the tested main merge commit, publish and monitor the Release workflow, verify immutable assets, and submit post-publication metadata through a follow-up PR. Use for release PR promotion, tag creation/publication, protected-environment monitoring, verification, or UPSTREAM.md finalization. Require an authenticated GitHub CLI, exact submit-pr base/head proof, protected default-branch required checks, repository auto-merge, and successful Actions. Never use admin bypass, directly push main, repeat the full local application matrix, or combine tag publication with monitor/verify.
+description: Promote a locally validated Sub2API Plus pull request through protected GitHub auto-merge, create an immutable vX.Y.Z+custom.NNN tag at the tested main merge commit, publish and monitor the automatically gated Release workflow, verify immutable assets, and submit post-publication metadata through a follow-up PR. Use for release PR promotion, tag creation/publication, release-environment monitoring, verification, or UPSTREAM.md finalization. Require an authenticated GitHub CLI, exact submit-pr base/head proof, protected default-branch required checks, repository auto-merge, an automatic tag-only release Environment, immutable custom-tag rules, and successful Actions. Never use admin bypass, directly push main, repeat the full local application matrix, approve a deployment, or combine tag publication with monitor/verify.
 ---
 
 # Release CLI
@@ -43,22 +43,28 @@ match the merged commit tree. `tag` creates one verified annotated local tag at
 the PR's merge commit and never pushes it.
 
 `publish` verifies that exact annotated tag is contained by the fetched default
-branch and absent remotely, then pushes only the named tag. It returns after tag
-transfer. It never monitors, verifies, uses `git push --tags`, or creates a
-GitHub Release manually.
+branch and absent remotely. Before transfer it requires an automatic `release`
+Environment limited to `v*+custom.*` tags with administrator bypass disabled,
+plus an active no-bypass Tag ruleset that blocks custom-tag updates and
+deletion. It then pushes only the named tag and returns. It never monitors,
+verifies, uses `git push --tags`, or creates a GitHub Release manually.
 
 `monitor` resolves the canonical remote annotated tag and observes its
-tag-triggered Release workflow. Protected release-environment approval remains
-manual and returns status 2. `verify` is separate and requires that same remote
-tag, a successfully completed workflow, non-draft Release, and both immutable
-pricing assets.
+tag-triggered Release workflow through automatic `Build and publish` completion.
+A waiting Environment gate is policy drift and fails closed; the CLI never
+approves it. `verify` is separate and requires that same remote tag, a
+successfully completed workflow, non-draft Release, and both immutable pricing
+assets.
 
 ## Finalization
 
 After verification, `finalize` fetches the latest `origin/main`, creates a
-deterministic `release/finalize-<version>` branch, changes exactly one
-`UPSTREAM.md` status from `planned` to `published`, validates and commits only
-that file, then invokes `push-cli submit-pr`. It never commits or pushes main.
+deterministic `release/finalize-<version>` branch, and changes exactly one
+`UPSTREAM.md` status from `planned` to `published`. It validates that historical
+mapping independently from the current embedded version, synchronizes rollback
+examples when a newer release has already been prepared, commits only the
+mapping and those generated documentation updates, then invokes `push-cli
+submit-pr`. It never commits or pushes main.
 Promote the resulting PR through the same `promote-pr` policy after its Actions
 pass, omitting `--notes-file`; that form is accepted only for the deterministic
 finalization branch and requires `published` metadata.
@@ -71,6 +77,8 @@ finalization branch and requires `published` metadata.
   permission to skip checks.
 - Never tag an unmerged or untested commit, reuse a tag, retag, force push, or
   overwrite a published asset.
+- Never publish when the release Environment or immutable custom-tag ruleset
+  differs from the checked automatic policy.
 - Never combine `publish`, `monitor`, and `verify`; each is independently
   resumable.
 - Never switch branches with a dirty worktree or overwrite an existing

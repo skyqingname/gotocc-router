@@ -187,6 +187,34 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	if err != nil {
 		return nil, fmt.Errorf("prepare http bridge body: %w", err)
 	}
+	var clientToolMapping apicompat.ResponsesClientToolMapping
+	if account.Platform == PlatformOpenAI && account.Type == AccountTypeAPIKey {
+		body, clientToolMapping, err = adaptResponsesClientToolsForFunctionUpstream(body, "OpenAI WS HTTP bridge")
+		if err != nil {
+			return nil, fmt.Errorf("adapt OpenAI WS HTTP bridge client tools: %w", err)
+		}
+	}
+	if account.Platform != PlatformGrok {
+		effectiveModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+		if effectiveModel == "" {
+			effectiveModel = strings.TrimSpace(originalModel)
+		}
+		if normalizedBody, changed, normalizeErr := normalizeOpenAIPromptCacheControlsForAccount(body, account, effectiveModel); normalizeErr != nil {
+			return nil, normalizeErr
+		} else if changed {
+			body = normalizedBody
+		}
+		body, _, _, err = s.ensureOpenAIResponsesPromptCacheIdentity(
+			c,
+			account,
+			body,
+			strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()),
+			effectiveModel,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("resolve http bridge prompt cache identity: %w", err)
+		}
+	}
 
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	var upstreamReq *http.Request
@@ -330,11 +358,14 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		return result
 	}
 
-	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
 		maxLineSize = s.cfg.Gateway.MaxLineSize
 	}
+	if hasResponsesClientToolMapping(clientToolMapping) {
+		resp.Body = newResponsesClientToolStreamBody(resp.Body, clientToolMapping, maxLineSize)
+	}
+	scanner := bufio.NewScanner(resp.Body)
 	scanBuf := getSSEScannerBuf64K()
 	scanner.Buffer(scanBuf[:0], maxLineSize)
 	defer putSSEScannerBuf64K(scanBuf)

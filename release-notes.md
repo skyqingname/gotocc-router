@@ -1,52 +1,61 @@
-Sub2API Plus v0.1.177+custom.002
+Sub2API Plus v0.1.178+custom.002
 
 ## Highlights
 
-- Rebase all active GotoCC production contracts onto Sub2API Plus
-  v0.1.177+custom.001.
-- Preserve permanent invitations, video routing, team billing, Model Plaza,
-  asynchronous Images objects, and user ranking privacy.
-- Include upstream server-timezone group-usage rollups, Codex remote
-  compaction v2, and turn-state provenance protection.
+- Import official v0.1.178 channel-monitor quota modes, Chinese-provider
+  balance/quota support, and time-based channel pricing.
+- Preserve the latest Plus Codex mode-only behavior, including the explicit
+  `device` default, prompt-cache, compaction, and WebSocket relay safeguards,
+  while adopting the upstream protocol fixes.
+- Add the upstream account, scheduler, billing, and platform UI updates with
+  synchronized English and Chinese locales.
+- Preserve every active GotoCC production contract (LC-001 through LC-004 and
+  LC-006 through LC-011) while keeping retired LC-005 absent.
 
 ## Changed
 
-- Retain the production model-membership source and pricing fallback rules.
-- Keep user `/monitor?tab=users` routing role-aware without issuing ranking
-  requests for ordinary users.
-- Preserve the credential-owner Codex outbound identity precedence.
+- Add forward-only migrations for platform quotas, the Plus Codex mode backfill,
+  channel time pricing, and monitor quota configuration.
+- Keep the custom Go module identity and Plus outbound identity precedence
+  while importing the official v0.1.178 baseline.
+- Compose asynchronous-image failed-task deletion and private exact ZIP keys
+  with durable PostgreSQL ownership, same-user URL renewal, and streaming
+  uploads; storage keys are not exposed in public JSON.
+- Preserve atomic registration-time consumption for both one-time and reusable
+  invitation codes.
+- Make delayed release finalization resumable after a newer version has already
+  been prepared, while keeping rollback documentation synchronized.
 
 ## Fixed
 
-- Synchronize the usage-log `last_token_ms` field with GotoCC team attribution
-  across every write and read path.
-- Keep the migration release policy fail-closed for the historical GotoCC and
-  v0.1.177 numeric-prefix collisions.
-- Generate team invitation, reissue, and ownership-transfer email links from
-  the configured `api_base_url` origin when `frontend_url` is unset, then from
-  a trusted same-origin or explicit CORS origin. Untrusted Origins and
-  wildcard CORS are not accepted as email destinations.
+- Converge the selected Codex fingerprint identity across HTTP, WebSocket,
+  compaction, and account-test transports without changing source precedence.
+- Localize the dashboard prompt-cache hit-rate label consistently in English
+  and Chinese.
 
 ## Compatibility and migration
 
-- Existing GotoCC migrations remain immutable and are identified by complete
-  filenames plus SHA-256, including the historical 221/222/223 prefixes.
-- New upstream migrations add `last_token_ms`, daily group rollups, and the
-  rollup timezone state. They require a production-consistent migration and
-  rollback rehearsal before deployment.
-- No production `.env`, Compose, systemd, Redis persistence contract, DMIT,
-  or network-boundary change is included.
+- Existing data remains compatible. Startup applies migrations 224, 225, 226,
+  and 228 in lexical order; no manual migration command is required. Migration
+  224 normalizes the Codex fingerprint mode for top-level OpenAI OAuth
+  accounts (defaulting missing or invalid values to `device`) and removes that
+  field from non-applicable accounts. Migrations 225, 226, and 228 add channel
+  time pricing, monitor quota modes, and the expanded platform-quota constraint;
+  migration 227 is intentionally unused.
+- Migrations are forward-only. Rolling back the application does not undo the
+  migration or its database trigger; back up PostgreSQL before upgrading. A
+  database rollback requires restoring a backup or applying an audited
+  compensating SQL migration.
+- Existing GotoCC migrations `224_add_image_objects.sql` and
+  `225_restore_openai_video_prices.sql` remain immutable. Their full filenames
+  differ from the new Plus `224` and `225` files, so both lineages remain
+  independently tracked.
 
 ## Known issues
 
-- Daily rollups are derived data; the first startup after migration or a
-  timezone change may perform additional synchronization work.
-- Turn-state provenance falls back to process-local best effort when the
-  shared GatewayCache is unavailable.
-- A real Infinite Canvas session and paid image/video generation remain
-  separate production acceptance checks.
+- None known.
 
 ## Upstream baseline
 
-Official release: v0.1.177
-Official commit: 073e92d17178a1ccdb0a27017f572f10c9c7ab62
+Official release: v0.1.178
+Official commit: e0c48a19ed794a565e3858662520afe0a1f9f0ba

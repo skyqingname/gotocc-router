@@ -19,13 +19,90 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/apicompat"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/openai"
 	"github.com/LuckyKuang/sub2api-plus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 )
+
+const openAIResponsesClientToolMappingContextKey = "openai_responses_client_tool_mapping"
+
+func hasOpenAIResponsesClientToolMapping(mapping apicompat.ResponsesClientToolMapping) bool {
+	return len(mapping.CustomTools) > 0 || mapping.ToolSearch || len(mapping.NamespaceTools) > 0
+}
+
+func adaptOpenAIResponsesClientTools(body []byte) ([]byte, apicompat.ResponsesClientToolMapping, error) {
+	if !needsOpenAIResponsesClientToolAdaptation(body) {
+		return body, apicompat.ResponsesClientToolMapping{}, nil
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	var requestBody map[string]any
+	if err := decoder.Decode(&requestBody); err != nil {
+		return body, apicompat.ResponsesClientToolMapping{}, fmt.Errorf("decode OpenAI Responses client tools: %w", err)
+	}
+	var trailingValue any
+	if err := decoder.Decode(&trailingValue); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return body, apicompat.ResponsesClientToolMapping{}, fmt.Errorf("decode OpenAI Responses client tools trailing data: %w", err)
+	}
+	mapping, changed, err := apicompat.AdaptResponsesClientTools(requestBody)
+	if err != nil || !changed {
+		return body, mapping, err
+	}
+	rebuilt, err := marshalOpenAIUpstreamJSON(requestBody)
+	if err != nil {
+		return body, apicompat.ResponsesClientToolMapping{}, fmt.Errorf("encode OpenAI Responses client tools: %w", err)
+	}
+	return rebuilt, mapping, nil
+}
+
+func needsOpenAIResponsesClientToolAdaptation(body []byte) bool {
+	needsAdaptation := false
+	var visit func(gjson.Result) bool
+	visit = func(value gjson.Result) bool {
+		if value.IsObject() {
+			switch strings.TrimSpace(value.Get("type").String()) {
+			case "custom", "custom_tool_call", "custom_tool_call_output",
+				"tool_search", "tool_search_call", "tool_search_output":
+				needsAdaptation = true
+				return false
+			}
+		}
+		if value.IsObject() || value.IsArray() {
+			value.ForEach(func(_, child gjson.Result) bool {
+				return visit(child)
+			})
+		}
+		return !needsAdaptation
+	}
+	visit(gjson.ParseBytes(body))
+	return needsAdaptation
+}
+
+func openAIResponsesClientToolMapping(c *gin.Context) (apicompat.ResponsesClientToolMapping, bool) {
+	if c == nil {
+		return apicompat.ResponsesClientToolMapping{}, false
+	}
+	value, ok := c.Get(openAIResponsesClientToolMappingContextKey)
+	mapping, typed := value.(apicompat.ResponsesClientToolMapping)
+	return mapping, ok && typed && hasOpenAIResponsesClientToolMapping(mapping)
+}
+
+// clearOpenAIResponsesClientToolMapping removes mapping state from the prior
+// forwarding attempt. Forward retries accounts on the same Gin context.
+func clearOpenAIResponsesClientToolMapping(c *gin.Context) {
+	if c == nil {
+		return
+	}
+	if _, exists := c.Get(openAIResponsesClientToolMappingContextKey); exists {
+		c.Set(openAIResponsesClientToolMappingContextKey, apicompat.ResponsesClientToolMapping{})
+	}
+}
 
 func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	ctx context.Context,
@@ -86,31 +163,25 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		}
 		reqStream = gjson.GetBytes(body, "stream").Bool()
 
-		// 指纹收敛：与非透传路径同门控（原生与 legacy compact 都跳过）。
-		// 一次性解析收敛 ID：请求体 client_metadata 在此改写（raw 字节外科
-		// 手术，透传热路径禁全量 Unmarshal），出站头改写由请求构造器读取
-		// context 中的同一份 IDs 完成（turn_id 等随机字段两侧必须一致）。
-		if !isOpenAICodexCompactionRequest(c) {
-			fingerprintAccount, fingerprintErr := s.resolveCodexFingerprintAccount(ctx, account)
-			if fingerprintErr != nil {
-				return nil, fmt.Errorf("resolve Codex fingerprint credential account: %w", fingerprintErr)
-			}
-			var clientHeaders http.Header
-			if c != nil && c.Request != nil {
-				clientHeaders = c.Request.Header
-			}
-			fpIDs := resolveCodexFingerprintIDsFromRequest(fingerprintAccount, clientHeaders)
-			if fpIDs != nil {
-				fpBody, fpChanged, fpErr := applyCodexFingerprintClientMetadataRaw(body, fpIDs)
-				if fpErr != nil {
-					return nil, fpErr
-				}
-				if fpChanged {
-					body = fpBody
-				}
-			}
-			storeCodexFingerprintIDs(c, fpIDs)
+		// Raw-body adapter consumes the same credential-owner stage as the final
+		// header builder without decoding the complete request body.
+		fpBody, fpChanged, fpErr := s.prepareCodexFingerprintRaw(ctx, c, account, body)
+		if fpErr != nil {
+			return nil, fpErr
 		}
+		if fpChanged {
+			body = fpBody
+		}
+	}
+
+	if account != nil && account.Platform == PlatformOpenAI && account.Type == AccountTypeAPIKey &&
+		!isOpenAIResponsesCompactPath(c) && needsOpenAIResponsesClientToolAdaptation(body) {
+		adaptedBody, mapping, adaptErr := adaptOpenAIResponsesClientTools(body)
+		if adaptErr != nil {
+			return nil, adaptErr
+		}
+		body = adaptedBody
+		c.Set(openAIResponsesClientToolMappingContextKey, mapping)
 	}
 
 	sanitizedBody, sanitized, err := sanitizeEmptyBase64InputImagesInOpenAIBody(body)
@@ -140,6 +211,22 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		return nil, policyErr
 	}
 	body = updatedBody
+	if normalizedBody, changed, normalizeErr := normalizeOpenAIPromptCacheControlsForAccount(body, account, policyModel); normalizeErr != nil {
+		return nil, normalizeErr
+	} else if changed {
+		body = normalizedBody
+	}
+	var cacheIdentityErr error
+	body, _, _, cacheIdentityErr = s.ensureOpenAIResponsesPromptCacheIdentity(
+		c,
+		account,
+		body,
+		strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()),
+		policyModel,
+	)
+	if cacheIdentityErr != nil {
+		return nil, cacheIdentityErr
+	}
 
 	apiKey := getAPIKeyFromContext(c)
 	// 同一 attempt 的最终 model/body 只判定一次，权限检查与后续图片状态设置共用该结果。
@@ -267,6 +354,13 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 		return nil, s.handleErrorResponsePassthrough(ctx, resp, c, account, body, probeBody)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if mapping, ok := openAIResponsesClientToolMapping(c); ok && isEventStreamResponse(resp.Header) {
+		maxLineSize := defaultMaxLineSize
+		if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
+			maxLineSize = s.cfg.Gateway.MaxLineSize
+		}
+		resp.Body = newGrokResponsesClientToolStreamBody(resp.Body, mapping, maxLineSize)
+	}
 
 	serviceTier := extractOpenAIServiceTierFromBody(body)
 
@@ -420,10 +514,13 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 			if err != nil {
 				return nil, err
 			}
-			targetURL = buildOpenAIResponsesURL(validatedURL)
+			targetURL = buildOpenAIResponsesURLForPlatform(account.Platform, validatedURL)
 		}
 	}
 	targetURL = appendOpenAIResponsesRequestPathSuffix(targetURL, openAIResponsesRequestPathSuffix(c))
+
+	// DeepSeek 原生 Responses 端点为无状态实现（见 normalizeDeepSeekResponsesRequestBody）。
+	body = normalizeDeepSeekResponsesRequestBody(account, body)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
@@ -475,38 +572,40 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 			return nil, fmt.Errorf("resolve chatgpt account headers: %w", err)
 		}
 		// 先保存客户端原始值，再做 compact 补充，避免后续统一隔离时读到已处理的值。
-		clientSessionID := strings.TrimSpace(req.Header.Get("session_id"))
+		clientSessionID := strings.TrimSpace(req.Header.Get(codexSessionIDHeader))
+		if clientSessionID == "" {
+			clientSessionID = strings.TrimSpace(req.Header.Get("session_id"))
+		}
 		clientConversationID := strings.TrimSpace(req.Header.Get("conversation_id"))
 		if isOpenAIResponsesCompactPath(c) {
 			req.Header.Set("accept", "application/json")
-			if req.Header.Get("version") == "" {
-				req.Header.Set("version", codexCLIVersion)
-			}
 			if clientSessionID == "" {
 				clientSessionID = resolveOpenAICompactSessionID(c)
 			}
 		} else if req.Header.Get("accept") == "" {
 			req.Header.Set("accept", "text/event-stream")
 		}
-		if req.Header.Get("originator") == "" {
-			req.Header.Set("originator", openai.CodexDefaultOriginator)
-		}
-		// 用隔离后的 session 标识符覆盖客户端透传值，防止跨用户会话碰撞。
-		if clientSessionID == "" {
+		// Body key is the canonical aligned cache identity. Prefer it over raw
+		// inbound session aliases so the upstream body/header pair cannot drift.
+		if promptCacheKey != "" {
 			clientSessionID = promptCacheKey
 		}
 		if clientConversationID == "" {
 			clientConversationID = promptCacheKey
 		}
 		if clientSessionID != "" {
-			upstreamSessionID, err := s.resolveOpenAIUpstreamSessionID(c, account, clientSessionID)
-			if err != nil {
-				return nil, err
+			upstreamSessionID := clientSessionID
+			if !isOpenAIResponsesCompactPath(c) {
+				var err error
+				upstreamSessionID, err = s.resolveOpenAIUpstreamPromptCacheHeaderIdentity(c, account, clientSessionID)
+				if err != nil {
+					return nil, err
+				}
 			}
-			req.Header.Set("session_id", upstreamSessionID)
+			setOpenAIUpstreamSessionIdentity(req.Header, upstreamSessionID)
 		}
 		if clientConversationID != "" {
-			upstreamConversationID, err := s.resolveOpenAIUpstreamSessionID(c, account, clientConversationID)
+			upstreamConversationID, err := s.resolveOpenAIUpstreamPromptCacheHeaderIdentity(c, account, clientConversationID)
 			if err != nil {
 				return nil, err
 			}
@@ -518,24 +617,43 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 		// （#3777 期望行为 4）。
 		req.Header.Set("accept", "application/json")
 	}
-
-	// 指纹收敛：使用 forwardOpenAIPassthrough 中预计算的收敛 ID 改写出站头，
-	// 与请求体 client_metadata 共享同一份、且属于 credential owner 的 IDs。
-	if account.Type == AccountTypeOAuth && !isOpenAICodexCompactionRequest(c) {
-		fingerprintAccount, fingerprintErr := s.resolveCodexFingerprintAccount(ctx, account)
-		if fingerprintErr != nil {
-			return nil, fmt.Errorf("resolve Codex fingerprint credential account: %w", fingerprintErr)
-		}
-		if ids := loadCodexFingerprintIDs(c, fingerprintAccount); ids != nil {
-			applyCodexFingerprintHeaders(req.Header, ids)
+	if account.Type != AccountTypeOAuth {
+		if promptCacheKey := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()); promptCacheKey != "" {
+			identity := promptCacheKey
+			if !isOpenAIResponsesCompactPath(c) {
+				var err error
+				identity, err = s.resolveOpenAIUpstreamPromptCacheHeaderIdentity(c, account, promptCacheKey)
+				if err != nil {
+					return nil, err
+				}
+			}
+			setOpenAIUpstreamSessionIdentity(req.Header, identity)
 		}
 	}
+	alignOpenAICodexThreadHeaders(req.Header)
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
 	}
 
 	// 账号级请求头覆写（仅 openai api_key 账号启用时生效；OAuth 路径 no-op）
 	account.ApplyHeaderOverrides(req.Header)
+	// Apply the raw-body stage once, after generic header mutation and before
+	// final cache-session and outbound-identity convergence.
+	if account.Type == AccountTypeOAuth && stagedCodexFingerprintIDs(c) != nil {
+		fingerprintAccount, fingerprintErr := s.resolveCodexFingerprintAccount(ctx, account)
+		if fingerprintErr != nil {
+			return nil, fmt.Errorf("resolve Codex fingerprint credential account: %w", fingerprintErr)
+		}
+		ids := loadCodexFingerprintIDs(c, fingerprintAccount)
+		applyCodexFingerprintHeaders(req.Header, ids)
+	}
+	// Fingerprint convergence owns device/thread metadata, while the finalized
+	// body key owns the cache session. Apply the fingerprint first, then restore
+	// the body/header cache identity as the final authority.
+	if err := s.alignOpenAIUpstreamSessionIdentityFromBody(c, account, req.Header, body); err != nil {
+		return nil, err
+	}
+	alignOpenAICodexThreadHeaders(req.Header)
 	identity := s.applyOpenAIOutboundIdentity(ctx, account, req.Header, account.Type == AccountTypeOAuth)
 	SetOpsRoutingDiagnostics(c, &OpsRoutingDiagnostics{OutboundIdentitySource: identity.Source})
 	// x-codex-beta-features：按真实 Codex 的会话级行为补注（在账号级覆写之后，
@@ -1704,6 +1822,12 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(
 	body, err = restoreOpenAIResponsesNamespacePayload(c, body)
 	if err != nil {
 		return nil, fmt.Errorf("restore OpenAI passthrough namespace response: %w", err)
+	}
+	if mapping, ok := openAIResponsesClientToolMapping(c); ok && json.Valid(body) {
+		body, _, err = apicompat.RestoreResponsesClientToolPayload(body, mapping)
+		if err != nil {
+			return nil, fmt.Errorf("restore OpenAI Responses client tools: %w", err)
+		}
 	}
 	if !writeOpenAICompactSSEBridge(c, resp.StatusCode, body) {
 		c.Data(resp.StatusCode, contentType, body)

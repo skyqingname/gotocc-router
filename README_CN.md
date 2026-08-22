@@ -66,13 +66,13 @@ curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/
 标签替换为 `list-versions` 返回的标签：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.1.177+custom.002'
+curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.1.178+custom.002'
 ```
 
 将现有二进制安装回退到较早的已发布版本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.177+custom.001'
+curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.177+custom.003'
 ```
 
 卸载服务和二进制，保留 `/etc/sub2api`：
@@ -102,8 +102,9 @@ Nginx 与 Sub2API 同机部署时，应让 Sub2API 只监听 `127.0.0.1`，并�
 underscores_in_headers on;
 ```
 
-Nginx 默认会丢弃名称中包含下划线的请求头，包括 `session_id`。缺少该配置时，
-多账号场景的粘性会话路由可能失效。重载前先检查完整配置：
+当前 Codex 客户端使用带连字符的 `session-id`，旧版 Codex/CRS 兼容客户端仍可能发送
+`session_id`。Nginx 默认会丢弃带下划线的请求头，因此仍需保留该配置，避免这些客户端
+在多账号场景下的粘性会话路由失效。重载前先检查完整配置：
 
 ```bash
 sudo nginx -t

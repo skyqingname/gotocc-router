@@ -73,6 +73,22 @@ func TestNormalizeOpenAIWSRoutingAffinityPrefersCanonicalAndSortsVariants(t *tes
 	require.Equal(t, "variant-uppercase", normalizeOpenAIWSRoutingAffinity(headers))
 }
 
+func TestNormalizeOpenAIWSSessionIdentityPrefersCanonicalHeader(t *testing.T) {
+	headers := http.Header{
+		"SESSION-ID": []string{" variant-session "},
+		"Session-Id": []string{" ", " canonical-session "},
+		"session_id": []string{" legacy-session "},
+	}
+
+	require.Equal(t, "canonical-session", normalizeOpenAIWSSessionIdentity(headers))
+
+	delete(headers, "Session-Id")
+	require.Equal(t, "variant-session", normalizeOpenAIWSSessionIdentity(headers))
+
+	delete(headers, "SESSION-ID")
+	require.Equal(t, "legacy-session", normalizeOpenAIWSSessionIdentity(headers))
+}
+
 func TestOpenAIWSConnLease_WriteJSONAndGuards(t *testing.T) {
 	conn := newOpenAIWSConn("lease_write", 1, &openAIWSFakeConn{}, nil)
 	lease := &openAIWSConnLease{conn: conn}
@@ -619,6 +635,51 @@ func TestOpenAIWSConnPool_AcquireReusesOnlyMatchingBetaFeatures(t *testing.T) {
 	require.True(t, plainLease.Reused())
 	require.Equal(t, plainConnID, plainLease.ConnID())
 	plainLease.Release()
+
+	require.Equal(t, 2, dialer.DialCount())
+}
+
+func TestOpenAIWSConnPool_AcquireReusesOnlyMatchingSessionIdentity(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 2
+	cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
+	cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 2
+
+	pool := newOpenAIWSConnPool(cfg)
+	dialer := &openAIWSCountingDialer{}
+	pool.setClientDialerForTest(dialer)
+
+	account := &Account{ID: 131, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	baseReq := openAIWSAcquireRequest{
+		Account: account,
+		WSURL:   "wss://example.com/v1/responses",
+	}
+	firstReq := baseReq
+	firstReq.Headers = make(http.Header)
+	firstReq.Headers.Set(codexSessionIDHeader, "cache-session-a")
+	firstReq.Headers.Set("session_id", "cache-session-a")
+
+	firstLease, err := pool.Acquire(context.Background(), firstReq)
+	require.NoError(t, err)
+	firstConnID := firstLease.ConnID()
+	firstLease.Release()
+
+	legacyAliasReq := baseReq
+	legacyAliasReq.Headers = http.Header{"session_id": {"cache-session-a"}}
+	legacyAliasLease, err := pool.Acquire(context.Background(), legacyAliasReq)
+	require.NoError(t, err)
+	require.True(t, legacyAliasLease.Reused())
+	require.Equal(t, firstConnID, legacyAliasLease.ConnID())
+	legacyAliasLease.Release()
+
+	secondReq := baseReq
+	secondReq.Headers = make(http.Header)
+	secondReq.Headers.Set(codexSessionIDHeader, "cache-session-b")
+	secondLease, err := pool.Acquire(context.Background(), secondReq)
+	require.NoError(t, err)
+	require.False(t, secondLease.Reused())
+	require.NotEqual(t, firstConnID, secondLease.ConnID())
+	secondLease.Release()
 
 	require.Equal(t, 2, dialer.DialCount())
 }
@@ -2167,4 +2228,33 @@ func TestOpenAIWSConnPool_SnapshotTransportMetrics(t *testing.T) {
 	require.Equal(t, int64(1), snapshot.ProxyClientCacheHits)
 	require.Equal(t, int64(2), snapshot.ProxyClientCacheMisses)
 	require.InDelta(t, 1.0/3.0, snapshot.TransportReuseRatio, 0.0001)
+}
+
+func TestNormalizeOpenAIWSHandshakeCompatibilityUsesFinalStableCarriers(t *testing.T) {
+	headers := make(http.Header)
+	headers.Set("session-id", "plus-cache-session")
+	headers.Set("session_id", "plus-cache-session")
+	headers.Set("x-codex-installation-id", "owner-installation")
+	headers.Set("thread-id", "owner-thread")
+	headers.Set("x-client-request-id", "owner-thread")
+	headers.Set("x-codex-window-id", "owner-thread:0")
+
+	compatibility := normalizeOpenAIWSHandshakeCompatibility(headers)
+	require.Equal(t, "plus-cache-session", compatibility.sessionIdentity)
+	require.Equal(t, "owner-installation", compatibility.codexInstallationID)
+	require.Equal(t, "owner-thread", compatibility.threadID)
+	require.Equal(t, "owner-thread", compatibility.clientRequestID)
+	require.Equal(t, "owner-thread:0", compatibility.codexWindowID)
+
+	legacySessionAlias := headers.Clone()
+	legacySessionAlias.Del("session-id")
+	require.Equal(t, compatibility, normalizeOpenAIWSHandshakeCompatibility(legacySessionAlias))
+
+	changedThread := headers.Clone()
+	changedThread.Set("thread-id", "another-client-thread")
+	require.NotEqual(t, compatibility, normalizeOpenAIWSHandshakeCompatibility(changedThread))
+
+	changedInstallation := headers.Clone()
+	changedInstallation.Set("x-codex-installation-id", "another-client-installation")
+	require.NotEqual(t, compatibility, normalizeOpenAIWSHandshakeCompatibility(changedInstallation))
 }

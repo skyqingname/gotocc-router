@@ -34,7 +34,7 @@ type ImageObjectRepository interface {
 type ImageObjectURL struct {
 	ObjectID     string `json:"id"`
 	Object       string `json:"object"`
-	StorageKey   string `json:"storage_key"`
+	StorageKey   string `json:"-"`
 	URL          string `json:"url"`
 	URLExpiresAt int64  `json:"url_expires_at,omitempty"`
 }

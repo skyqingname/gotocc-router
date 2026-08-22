@@ -42,6 +42,14 @@ describe('AppSidebar scroll position persistence', () => {
   })
 })
 
+describe('AppSidebar version badge visibility', () => {
+  it('mounts VersionBadge only for confirmed admins', () => {
+    expect(componentSource).toContain('<VersionBadge v-if="isAdmin" />')
+    expect(componentSource).not.toContain(':version="siteVersion"')
+    expect(componentSource).not.toContain('const siteVersion')
+  })
+})
+
 describe('AppSidebar header styles', () => {
   it('does not clip the version badge dropdown', () => {
     const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
@@ -51,5 +59,17 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch).not.toBeNull()
     expect(sidebarHeaderBlockMatch?.[0]).not.toContain('@apply overflow-hidden;')
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
+  })
+})
+
+describe('AppSidebar administrator account support mode', () => {
+  it('mounts the account selector and keeps self and target navigation separate', () => {
+    expect(componentSource).toContain('<AdminSupportUserSelector')
+    expect(componentSource).toContain('buildSelfNavItems(false)')
+    expect(componentSource).toContain('buildSupportNavItems(supportTargetId.value)')
+    expect(componentSource).toContain('parseAdminSupportTargetId(route.params.user_id)')
+    expect(componentSource).toContain("adminSupportPath(userId, 'api-keys')")
+    expect(componentSource).toContain("adminSupportPath(userId, 'async-images')")
+    expect(componentSource).not.toContain("label: t('nav.myAccount')")
   })
 })

@@ -93,6 +93,8 @@ export default {
         region: 'Region',
         bucket: 'Bucket',
         prefix: 'Key Prefix',
+        appendDatePath: 'Append date path',
+        prefixPreview: 'Effective prefix: {prefix}',
         accessKeyId: 'Access Key ID',
         secretAccessKey: 'Secret Access Key',
         secretHelp: 'Before saving a new Secret, the service must already have a fixed encryption key. Testing a connection, or leaving the field empty to keep the stored secret, does not require this.',
@@ -1002,6 +1004,9 @@ export default {
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         grok: 'Grok',
+        kimi: 'Kimi',
+        zhipu: 'Zhipu GLM',
+        deepseek: 'DeepSeek',
         composite: 'Composite',
       },
       deleteConfirm:

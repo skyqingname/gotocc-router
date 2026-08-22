@@ -26,6 +26,10 @@ VALIDATION_MARKER_RE = re.compile(
 TAG_RE = re.compile(r"^v\d+\.\d+\.\d+\+custom\.(?:00[1-9]|0[1-9]\d|[1-9]\d{2})$")
 EXPECTED_SUBJECT_PREFIX = "Sub2API Plus "
 EXPECTED_MAIN_WORKFLOWS = frozenset({"CI", "Security Scan"})
+RELEASE_ENVIRONMENT = "release"
+RELEASE_TAG_POLICY = "v*+custom.*"
+RELEASE_TAG_RULESET_REF = f"refs/tags/{RELEASE_TAG_POLICY}"
+REQUIRED_RELEASE_TAG_RULES = frozenset({"deletion", "update"})
 REQUIRED_PR_STATUS_CONTEXTS = frozenset(
     {
         LOCAL_VALIDATION_CONTEXT,
@@ -40,6 +44,15 @@ REQUIRED_PR_STATUS_CONTEXTS = frozenset(
     }
 )
 PRICING_ASSETS = frozenset({"model-pricing.json", "model-pricing-manifest.json"})
+FINALIZATION_ALLOWED_PATHS = frozenset(
+    {
+        "UPSTREAM.md",
+        "README.md",
+        "README_CN.md",
+        "README_JA.md",
+        "deploy/README.md",
+    }
+)
 POLL_SECONDS = 5
 DISCOVERY_ATTEMPTS = 12
 MERGE_ATTEMPTS = 60
@@ -48,10 +61,6 @@ WATCH_SECONDS = 10
 
 class ReleaseCliError(RuntimeError):
     """A release guard failed and the command must stop."""
-
-
-class ApprovalRequired(ReleaseCliError):
-    """A maintainer must complete the protected-environment approval."""
 
 
 class PromotionPending(ReleaseCliError):
@@ -293,6 +302,183 @@ def require_protected_auto_merge(repository: str, default_branch: str) -> None:
             f"{default_branch} rules do not require all promotion checks: "
             + ", ".join(missing_contexts)
         )
+
+
+def require_automated_release_environment(repository: str) -> None:
+    data = json_capture(
+        [
+            "gh",
+            "api",
+            f"repos/{repository}/environments/{RELEASE_ENVIRONMENT}",
+        ],
+        description="GitHub release-environment API",
+    )
+    if not isinstance(data, dict) or data.get("name") != RELEASE_ENVIRONMENT:
+        raise ReleaseCliError(
+            f"GitHub environment {RELEASE_ENVIRONMENT!r} is missing or invalid"
+        )
+    if data.get("can_admins_bypass") is not False:
+        raise ReleaseCliError(
+            f"{RELEASE_ENVIRONMENT} environment must disable administrator bypass"
+        )
+
+    protection_rules = data.get("protection_rules")
+    if not isinstance(protection_rules, list):
+        raise ReleaseCliError(
+            "GitHub release-environment API returned invalid protection rules"
+        )
+    rule_types = {
+        str(rule.get("type"))
+        for rule in protection_rules
+        if isinstance(rule, dict) and rule.get("type")
+    }
+    blocking_rules = sorted(rule_types - {"branch_policy"})
+    if blocking_rules:
+        raise ReleaseCliError(
+            f"{RELEASE_ENVIRONMENT} environment is not automatic; remove blocking "
+            "protection rules: " + ", ".join(blocking_rules)
+        )
+    if "branch_policy" not in rule_types:
+        raise ReleaseCliError(
+            f"{RELEASE_ENVIRONMENT} environment lacks a deployment tag policy"
+        )
+
+    deployment_policy = data.get("deployment_branch_policy")
+    if not isinstance(deployment_policy, dict):
+        raise ReleaseCliError(
+            "GitHub release-environment API returned no deployment policy"
+        )
+    if (
+        deployment_policy.get("protected_branches") is not False
+        or deployment_policy.get("custom_branch_policies") is not True
+    ):
+        raise ReleaseCliError(
+            f"{RELEASE_ENVIRONMENT} environment must use only custom deployment "
+            "tag policies"
+        )
+
+    policies = json_capture(
+        [
+            "gh",
+            "api",
+            f"repos/{repository}/environments/{RELEASE_ENVIRONMENT}/"
+            "deployment-branch-policies?per_page=100",
+        ],
+        description="GitHub release deployment-policy API",
+    )
+    if not isinstance(policies, dict) or not isinstance(
+        policies.get("branch_policies"), list
+    ):
+        raise ReleaseCliError(
+            "GitHub release deployment-policy API returned an unexpected value"
+        )
+    branch_policies = policies["branch_policies"]
+    if policies.get("total_count") != len(branch_policies):
+        raise ReleaseCliError(
+            "GitHub release deployment-policy API returned an incomplete page"
+        )
+    actual_policies = {
+        (str(policy.get("type")), str(policy.get("name")))
+        for policy in branch_policies
+        if isinstance(policy, dict)
+    }
+    expected_policies = {("tag", RELEASE_TAG_POLICY)}
+    if actual_policies != expected_policies:
+        rendered = ", ".join(
+            f"{kind}:{name}" for kind, name in sorted(actual_policies)
+        )
+        raise ReleaseCliError(
+            f"{RELEASE_ENVIRONMENT} environment deployment policy must be exactly "
+            f"tag:{RELEASE_TAG_POLICY}; found {rendered or '<none>'}"
+        )
+
+
+def require_immutable_release_tag_ruleset(repository: str) -> None:
+    summaries = json_capture(
+        ["gh", "api", f"repos/{repository}/rulesets?per_page=100"],
+        description="GitHub rulesets API",
+    )
+    if not isinstance(summaries, list):
+        raise ReleaseCliError("GitHub rulesets API returned an unexpected value")
+
+    candidates: list[dict[str, object]] = []
+    for summary in summaries:
+        if (
+            not isinstance(summary, dict)
+            or summary.get("target") != "tag"
+            or summary.get("enforcement") != "active"
+            or summary.get("source_type") != "Repository"
+        ):
+            continue
+        ruleset_id = summary.get("id")
+        if not isinstance(ruleset_id, int):
+            raise ReleaseCliError("GitHub returned an invalid tag ruleset ID")
+        detail = json_capture(
+            ["gh", "api", f"repos/{repository}/rulesets/{ruleset_id}"],
+            description="GitHub tag-ruleset API",
+        )
+        if not isinstance(detail, dict):
+            raise ReleaseCliError(
+                "GitHub tag-ruleset API returned an unexpected value"
+            )
+        conditions = detail.get("conditions")
+        ref_name = (
+            conditions.get("ref_name") if isinstance(conditions, dict) else None
+        )
+        includes = ref_name.get("include") if isinstance(ref_name, dict) else None
+        excludes = ref_name.get("exclude") if isinstance(ref_name, dict) else None
+        if (
+            isinstance(includes, list)
+            and RELEASE_TAG_RULESET_REF in includes
+            and isinstance(excludes, list)
+            and not excludes
+        ):
+            candidates.append(detail)
+
+    if not candidates:
+        raise ReleaseCliError(
+            "no active repository tag ruleset protects " + RELEASE_TAG_RULESET_REF
+        )
+
+    def rule_types(detail: dict[str, object]) -> set[str]:
+        rules = detail.get("rules")
+        if not isinstance(rules, list):
+            raise ReleaseCliError("GitHub tag-ruleset API returned invalid rules")
+        return {
+            str(rule.get("type"))
+            for rule in rules
+            if isinstance(rule, dict) and rule.get("type")
+        }
+
+    for detail in candidates:
+        if "creation" in rule_types(detail):
+            raise ReleaseCliError(
+                f"tag ruleset {detail.get('name')!r} blocks initial release-tag creation"
+            )
+
+    protected = []
+    for detail in candidates:
+        bypass_actors = detail.get("bypass_actors")
+        if (
+            REQUIRED_RELEASE_TAG_RULES <= rule_types(detail)
+            and isinstance(bypass_actors, list)
+            and not bypass_actors
+        ):
+            protected.append(detail)
+    if not protected:
+        raise ReleaseCliError(
+            "custom release tags require an active no-bypass tag ruleset that "
+            "blocks updates and deletion"
+        )
+
+
+def require_automated_release_policy(repository: str) -> None:
+    require_automated_release_environment(repository)
+    require_immutable_release_tag_ruleset(repository)
+    print(
+        f"Automated release policy: {RELEASE_ENVIRONMENT} environment with "
+        f"immutable {RELEASE_TAG_POLICY} tags"
+    )
 
 
 def validate_tag(tag: str) -> None:
@@ -614,6 +800,18 @@ def run_metadata_preflight(
     run_step("Release metadata preflight", command)
 
 
+def finalization_metadata_command(tag: str) -> list[str]:
+    return [
+        sys.executable,
+        "tools/check_release.py",
+        "--tag",
+        tag,
+        "--require-status",
+        "published",
+        "--mapping-only",
+    ]
+
+
 def require_required_pr_checks(repository: str, number: int) -> None:
     run_step(
         "Wait for required pull-request checks",
@@ -725,14 +923,7 @@ def promote_pull_request(
         verify_release(repository, tag)
         run_step(
             "Validate finalized release metadata",
-            [
-                sys.executable,
-                "tools/check_release.py",
-                "--tag",
-                tag,
-                "--require-status",
-                "published",
-            ],
+            finalization_metadata_command(tag),
         )
     require_required_pr_checks(repository, number)
 
@@ -898,7 +1089,7 @@ def workflow_state(repository: str, run_id: int) -> dict[str, object]:
     return data
 
 
-def waiting_for_approval(state: dict[str, object]) -> bool:
+def waiting_for_release_gate(state: dict[str, object]) -> bool:
     if state.get("status") == "waiting":
         return True
     jobs = state.get("jobs", [])
@@ -920,10 +1111,11 @@ def watch_release(repository: str, tag: str, sha: str) -> None:
         status = str(state.get("status", "unknown"))
         conclusion = state.get("conclusion")
         url = str(state.get("url") or run.url or "")
-        if waiting_for_approval(state):
-            raise ApprovalRequired(
-                "Release workflow is waiting for protected release-environment "
-                f"approval. A maintainer must approve it manually: {url or run.database_id}"
+        if waiting_for_release_gate(state):
+            raise ReleaseCliError(
+                "Release workflow unexpectedly reached a waiting environment gate; "
+                "the automated release policy drifted after tag publication. Restore "
+                f"the release environment policy and rerun monitor: {url or run.database_id}"
             )
         if status == "completed":
             if conclusion == "success":
@@ -950,10 +1142,11 @@ def watch_release(repository: str, tag: str, sha: str) -> None:
             continue
         if watched.returncode != 0:
             after = workflow_state(repository, run.database_id)
-            if waiting_for_approval(after):
-                raise ApprovalRequired(
-                    "Release workflow is waiting for protected release-environment "
-                    f"approval: {after.get('url') or url or run.database_id}"
+            if waiting_for_release_gate(after):
+                raise ReleaseCliError(
+                    "Release workflow unexpectedly reached a waiting environment gate; "
+                    "restore the automated release policy and rerun monitor: "
+                    f"{after.get('url') or url or run.database_id}"
                 )
             if after.get("status") == "completed":
                 continue
@@ -1077,14 +1270,7 @@ def finalize(repository: str, tag: str, remote: str) -> None:
         )
     path.write_text(updated, encoding="utf-8")
     validation = run_command(
-        [
-            sys.executable,
-            "tools/check_release.py",
-            "--tag",
-            tag,
-            "--require-status",
-            "published",
-        ],
+        finalization_metadata_command(tag),
         capture=True,
     )
     if validation.returncode != 0:
@@ -1094,11 +1280,22 @@ def finalize(repository: str, tag: str, remote: str) -> None:
             "post-publication metadata validation failed; restored UPSTREAM.md"
             + (f": {detail[-2000:]}" if detail else "")
         )
-    run_step("Stage finalized UPSTREAM.md", ["git", "add", "--", "UPSTREAM.md"])
-    staged = capture(["git", "diff", "--cached", "--name-only"])
-    if staged != "UPSTREAM.md":
+    run_step(
+        "Synchronize release documentation",
+        [sys.executable, "tools/update_release_docs.py"],
+    )
+    run_step(
+        "Stage finalized release metadata",
+        ["git", "add", "--", *sorted(FINALIZATION_ALLOWED_PATHS)],
+    )
+    staged = frozenset(
+        capture(["git", "diff", "--cached", "--name-only"]).splitlines()
+    )
+    unexpected = staged - FINALIZATION_ALLOWED_PATHS
+    if "UPSTREAM.md" not in staged or unexpected:
         raise ReleaseCliError(
-            f"finalization staged unexpected paths: {staged or '<none>'}"
+            "finalization staged invalid paths: "
+            f"{', '.join(sorted(staged)) if staged else '<none>'}"
         )
     subject = f"docs(release): mark {tag} published"
     run_step("Commit release finalization", ["git", "commit", "-m", subject])
@@ -1216,6 +1413,7 @@ def main() -> int:
                 raise ReleaseCliError(
                     f"GitHub Release already exists for {args.tag}; refusing to republish"
                 )
+            require_automated_release_policy(repository)
             setup_git_transport()
             run_step("Push exact release tag", ["git", "push", args.remote, args.tag])
             print(
@@ -1237,7 +1435,7 @@ def main() -> int:
             verify_release(repository, args.tag)
             return 0
         raise ReleaseCliError(f"unsupported action: {args.action}")
-    except (ApprovalRequired, PromotionPending) as error:
+    except PromotionPending as error:
         print(f"release-cli paused: {error}", file=sys.stderr)
         return 2
     except ReleaseCliError as error:

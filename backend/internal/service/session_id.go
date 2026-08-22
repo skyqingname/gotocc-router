@@ -19,7 +19,7 @@ const (
 // native protocol identifiers that are safe to persist but must not alter OpenAI
 // scheduling behavior.
 var clientSessionIDHeaders = append(
-	append([]string{codexSessionIDHeader}, explicitOpenAIHeaderSessionNames...),
+	append([]string(nil), explicitOpenAIHeaderSessionNames...),
 	claudeCodeSessionHeader,
 )
 
@@ -39,6 +39,9 @@ func ExtractClientSessionID(c *gin.Context) string {
 		if sessionID := sanitizeSessionID(c.GetHeader(header)); sessionID != "" {
 			return sessionID
 		}
+	}
+	if sessionID := sanitizeSessionID(openAICodexTurnMetadataSessionID(c.GetHeader("X-Codex-Turn-Metadata"))); sessionID != "" {
+		return sessionID
 	}
 	if isGrokRequestContext(c) {
 		if sessionID := sanitizeSessionID(c.GetHeader(grokConversationIDHeader)); sessionID != "" {

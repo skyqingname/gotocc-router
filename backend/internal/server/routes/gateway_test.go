@@ -165,12 +165,14 @@ func TestGatewayRoutesAsyncImagesPathsAreRegistered(t *testing.T) {
 		"GET /v1/images/tasks",
 		"GET /v1/images/tasks/:task_id",
 		"GET /v1/images/tasks/:task_id/download",
+		"DELETE /v1/images/tasks/:task_id",
 		"GET /v1/images/objects/:object_id/url",
 		"POST /images/generations/async",
 		"POST /images/edits/async",
 		"GET /images/tasks",
 		"GET /images/tasks/:task_id",
 		"GET /images/tasks/:task_id/download",
+		"DELETE /images/tasks/:task_id",
 		"GET /images/objects/:object_id/url",
 	} {
 		require.True(t, registered[route], "%s should be registered", route)

@@ -211,6 +211,9 @@ func TestOpenAIGatewayService_OAuthMessagesBridgeDoesNotInjectDefaultInstruction
 			"access_token":       "oauth-token",
 			"chatgpt_account_id": "chatgpt-acc",
 		},
+		Extra: map[string]any{
+			CodexFingerprintModeExtraKey: string(codexFingerprintSession),
+		},
 		Status:      StatusActive,
 		Schedulable: true,
 	}
@@ -220,8 +223,16 @@ func TestOpenAIGatewayService_OAuthMessagesBridgeDoesNotInjectDefaultInstruction
 	require.Nil(t, result)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "", gjson.GetBytes(upstream.lastBody, "instructions").String())
-	require.False(t, gjson.GetBytes(upstream.lastBody, "prompt_cache_key").Exists())
-	require.NotEmpty(t, upstream.lastReq.Header.Get("Session_Id"))
+	cacheIdentity := strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
+	require.NotEmpty(t, cacheIdentity)
+	alignedIdentity, ok := getOpenAIAlignedPromptCacheIdentity(c)
+	require.True(t, ok)
+	require.Equal(t, cacheIdentity, alignedIdentity.Identity)
+	require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get(codexSessionIDHeader))
+	require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get("session_id"))
+	require.NotEmpty(t, upstream.lastReq.Header.Get("x-codex-installation-id"))
+	require.NotEmpty(t, upstream.lastReq.Header.Get("thread-id"))
+	require.Equal(t, upstream.lastReq.Header.Get("thread-id"), upstream.lastReq.Header.Get("x-client-request-id"))
 	require.Empty(t, upstream.lastReq.Header.Get("Conversation_Id"))
 	require.Empty(t, upstream.lastReq.Header.Get("OpenAI-Beta"))
 	require.Equal(t, DefaultOpenAICodexUserAgent, upstream.lastReq.Header.Get("User-Agent"))
@@ -722,6 +733,8 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactUsesJSONAndKeepsNonStreami
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses/compact", bytes.NewReader(nil))
 	c.Request.Header.Set("User-Agent", "codex_cli_rs/0.1.0")
 	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("session-id", "client-compact-session")
+	c.Request.Header.Set("x-codex-installation-id", "client-installation")
 
 	originalBody := []byte(`{"model":"gpt-5.1-codex","stream":true,"store":true,"instructions":"local-test-instructions","input":[{"type":"text","text":"compact me"}]}`)
 
@@ -749,7 +762,11 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactUsesJSONAndKeepsNonStreami
 			"model_mapping":         map[string]any{"gpt-5.1-codex": "gpt-5.1-account"},
 			"compact_model_mapping": map[string]any{"gpt-5.1-codex": "gpt-5.1-compact"},
 		},
-		Extra:          map[string]any{"openai_passthrough": true},
+		Extra: map[string]any{
+			"openai_passthrough":         true,
+			CodexFingerprintModeExtraKey: "full",
+			"openai_device_id":           "owner-installation",
+		},
 		Status:         StatusActive,
 		Schedulable:    true,
 		RateMultiplier: f64p(1),
@@ -768,9 +785,73 @@ func TestOpenAIGatewayService_OAuthPassthrough_CompactUsesJSONAndKeepsNonStreami
 	require.Equal(t, "application/json", upstream.lastReq.Header.Get("Accept"))
 	require.Equal(t, codexCLIVersion, upstream.lastReq.Header.Get("Version"))
 	require.NotEmpty(t, upstream.lastReq.Header.Get("Session_Id"))
+	require.NotEqual(t, resolveConvergedSessionID(account), upstream.lastReq.Header.Get("Session_Id"))
+	require.Equal(t, "owner-installation", upstream.lastReq.Header.Get("x-codex-installation-id"))
+	require.Equal(t, "owner-installation", gjson.GetBytes(upstream.lastBody, "client_metadata.x-codex-installation-id").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "client_metadata.session_id").Exists())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "client_metadata.thread_id").Exists())
 	require.Equal(t, "chatgpt.com", upstream.lastReq.Host)
 	require.Equal(t, "chatgpt-acc", upstream.lastReq.Header.Get("chatgpt-account-id"))
 	require.Contains(t, rec.Body.String(), `"id":"cmp_123"`)
+}
+
+func TestOpenAIGatewayService_OAuthPassthrough_NativeCompactUsesFullModeAndPlusCacheAuthority(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	originalBody := []byte(`{"model":"gpt-5.5","stream":true,"prompt_cache_key":"native-client-cache","input":[{"type":"compaction_trigger"}]}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(originalBody))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Request.Header.Set("session-id", "native-client-session")
+	c.Request.Header.Set("x-codex-installation-id", "native-client-installation")
+	c.Request.Header.Set("thread-id", "native-client-thread")
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":{"type":"invalid_request_error","message":"stop after capture"}}`)),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          &config.Config{Gateway: config.GatewayConfig{ForceCodexCLI: false}},
+		httpUpstream: upstream,
+	}
+	account := &Account{
+		ID:          124,
+		Name:        "native-compact",
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token":       "oauth-token",
+			"chatgpt_account_id": "chatgpt-acc",
+		},
+		Extra: map[string]any{
+			"openai_passthrough":         true,
+			CodexFingerprintModeExtraKey: "session",
+			"openai_device_id":           "native-owner-installation",
+		},
+		Status:         StatusActive,
+		Schedulable:    true,
+		RateMultiplier: f64p(1),
+	}
+
+	result, err := svc.Forward(context.Background(), c, account, originalBody)
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.NotNil(t, upstream.lastReq)
+
+	cacheIdentity := strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
+	require.NotEmpty(t, cacheIdentity)
+	require.NotEqual(t, "native-client-cache", cacheIdentity)
+	require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get("session-id"))
+	require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get("session_id"))
+	require.Equal(t, "native-owner-installation", upstream.lastReq.Header.Get("x-codex-installation-id"))
+	require.Equal(t, "native-owner-installation", gjson.GetBytes(upstream.lastBody, "client_metadata.x-codex-installation-id").String())
+	require.Equal(t, resolveConvergedSessionID(account), gjson.GetBytes(upstream.lastBody, "client_metadata.session_id").String())
+	require.NotEmpty(t, gjson.GetBytes(upstream.lastBody, "client_metadata.thread_id").String())
+	require.Equal(t, upstream.lastReq.Header.Get("thread-id"), upstream.lastReq.Header.Get("x-client-request-id"))
+	require.NotEqual(t, "native-client-thread", upstream.lastReq.Header.Get("thread-id"))
 }
 
 func TestOpenAIGatewayService_OAuthPassthrough_UpstreamRequestIgnoresClientCancel(t *testing.T) {
@@ -1617,7 +1698,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_Transient5xxTriggersFailover(t *
 			require.Equal(t, "rid-api-key-5xx", failoverErr.ResponseHeaders.Get("x-request-id"))
 			require.False(t, c.Writer.Written(), "failover must happen before downstream output is committed")
 			require.True(t, body.closed, "the failed upstream response body must be closed")
-			require.Equal(t, requestBody, upstream.lastBody, "the request body remains available for the outer account retry")
+			requireOpenAIAutoCacheIdentityPreservesBody(t, requestBody, upstream.lastBody, upstream.lastReq.Header)
 
 			value, ok := c.Get(OpsUpstreamErrorsKey)
 			require.True(t, ok)
@@ -2276,7 +2357,7 @@ func TestOpenAIGatewayService_APIKeyPassthrough_PreservesBodyAndUsesResponsesEnd
 	require.NotNil(t, result.ServiceTier)
 	require.Equal(t, "flex", *result.ServiceTier)
 	require.NotNil(t, upstream.lastReq)
-	require.Equal(t, originalBody, upstream.lastBody)
+	requireOpenAIAutoCacheIdentityPreservesBody(t, originalBody, upstream.lastBody, upstream.lastReq.Header)
 	require.Equal(t, "https://api.openai.com/v1/responses", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer sk-api-key", upstream.lastReq.Header.Get("Authorization"))
 	require.Equal(t, DefaultOpenAICodexUserAgent, upstream.lastReq.Header.Get("User-Agent"))

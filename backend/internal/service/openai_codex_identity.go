@@ -9,14 +9,14 @@ import (
 // 若请求携带 version 且低于该值，上游直接 404（issue #3901，2026-07 实测）。
 const codexUpstreamMinVersion = "0.144.0"
 
-// OpenAICodexUpstreamMinVersion exposes the shared lower bound to outbound
-// adapters that validate an already-resolved identity triple.
+// OpenAICodexUpstreamMinVersion is the public validation floor used by admin
+// settings and OAuth credential probes.
 const OpenAICodexUpstreamMinVersion = codexUpstreamMinVersion
 
 // codexClientVersionMaxLen 官方版本号均为短 ASCII 串，远低于此上限。
 const codexClientVersionMaxLen = 64
 
-// codexClientVersionPattern 允许 0.147.0 与 0.148.0-alpha.4 两类官方形态。
+// codexClientVersionPattern 允许 0.146.0 与 0.147.0-alpha.4 两类官方形态。
 var codexClientVersionPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+){1,3}(-[0-9A-Za-z.]+)?$`)
 
 // NormalizeCodexClientVersion 校验并归一化 Codex 客户端版本号，非法值返回空串。
@@ -31,8 +31,8 @@ func NormalizeCodexClientVersion(version string) string {
 }
 
 // normalizeStableCodexClientVersion accepts only release versions suitable for
-// the automatic synchronization setting. Explicit administrator overrides may
-// still select a prerelease through NormalizeCodexClientVersion.
+// automatic synchronization. Explicit administrator overrides may still select
+// another valid version through NormalizeCodexClientVersion.
 func normalizeStableCodexClientVersion(version string) string {
 	version = NormalizeCodexClientVersion(version)
 	if version == "" || strings.Contains(version, "-") {
@@ -47,8 +47,8 @@ const (
 	openAICodexVersionSourceCompiled = "compiled"
 )
 
-// resolveOpenAICodexClientVersion 算出站实际声明的版本及来源，必须与转发收口一致：
-// 合法且不低于上游门槛的手填覆写 → 不低于编译基线的稳定同步值 → 内置常量。
+// resolveOpenAICodexClientVersion is the single version-selection rule used by
+// settings, synchronization, and all outbound identity builders.
 func resolveOpenAICodexClientVersion(override, synced string) (string, string) {
 	if version := NormalizeCodexClientVersion(override); version != "" && CompareVersions(version, codexUpstreamMinVersion) >= 0 {
 		return version, openAICodexVersionSourceOverride

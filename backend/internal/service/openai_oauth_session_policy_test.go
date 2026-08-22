@@ -160,6 +160,7 @@ func TestOpenAIOAuthSessionPolicy_APIKeyLegacyPolicyKeepsSessionAndResponseBindi
 		Status:      StatusActive,
 		Schedulable: true,
 		Concurrency: 1,
+		GroupIDs:    []int64{groupID},
 		Extra: map[string]any{
 			"openai_apikey_responses_websockets_v2_enabled": true,
 			OpenAIOAuthSessionPolicyExtraKey: map[string]any{
@@ -445,14 +446,18 @@ func TestOpenAIOAuthSessionPolicyIsAppliedByAllOutboundBuilders(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	expected, err := service.resolveOpenAIUpstreamSessionID(ordinaryContext, &account, "shared-session")
+	namespacedExpected, err := service.resolveOpenAIUpstreamSessionID(ordinaryContext, &account, "shared-session")
 	require.NoError(t, err)
+	expected := generateSessionUUID(namespacedExpected)
 	require.Equal(t, expected, ordinary.Header.Get("session_id"))
+	require.Equal(t, expected, ordinary.Header.Get(codexSessionIDHeader))
 	require.Equal(t, expected, ordinary.Header.Get("conversation_id"))
 	require.Equal(t, expected, passthrough.Header.Get("session_id"))
+	require.Equal(t, expected, passthrough.Header.Get(codexSessionIDHeader))
 	require.Equal(t, expected, passthrough.Header.Get("conversation_id"))
 	require.Equal(t, expected, wsHeaders.Get("session_id"))
-	require.Equal(t, expected, wsHeaders.Get("conversation_id"))
+	require.Equal(t, expected, wsHeaders.Get(codexSessionIDHeader))
+	require.Equal(t, namespacedExpected, wsHeaders.Get("conversation_id"))
 }
 
 func TestOpenAIOAuthSessionPolicyOutboundBuildersRejectUnauthorizedGroup(t *testing.T) {

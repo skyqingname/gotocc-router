@@ -408,8 +408,33 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	}()
 
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
+	sessionChecked := false
+	sessionStickyEscaped := false
+	// A movable continuation may follow a session route that another endpoint
+	// already migrated after an upstream failure. Consult that canonical route
+	// before the older response binding; the handler will remove the response ID
+	// when the selected account differs from its owner.
+	if !req.StickyWeighted && req.PreviousResponseCanMove {
+		sessionChecked = true
+		selection, escapedSticky, err := s.selectBySessionHash(ctx, req)
+		if err != nil {
+			return nil, decision, err
+		}
+		if selection != nil && selection.Account != nil {
+			decision.Layer = openAIAccountScheduleLayerSessionSticky
+			decision.StickySessionHit = true
+			decision.StickyPreviousHit = req.StickyPreviousAccountID > 0 && req.StickyPreviousAccountID == selection.Account.ID
+			decision.SelectedAccountID = selection.Account.ID
+			decision.SelectedAccountType = selection.Account.Type
+			return selection, decision, nil
+		}
+		if escapedSticky {
+			req.PreserveStickyBinding = true
+			sessionStickyEscaped = true
+		}
+	}
 	if previousResponseID != "" && normalizeOpenAICompatiblePlatform(req.Platform) == PlatformOpenAI &&
-		(!req.StickyWeighted || !req.PreviousResponseCanMove) {
+		(!req.StickyWeighted || !req.PreviousResponseCanMove) && !sessionStickyEscaped {
 		selection, err := s.service.selectAccountByPreviousResponseIDForCapability(
 			ctx,
 			req.GroupID,
@@ -442,7 +467,7 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		}
 	}
 
-	if !req.StickyWeighted {
+	if !req.StickyWeighted && !sessionChecked {
 		selection, escapedSticky, err := s.selectBySessionHash(ctx, req)
 		if err != nil {
 			return nil, decision, err
@@ -513,7 +538,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, false, nil
 	}
-	if shouldClearStickySession(account, req.RequestedModel) || account.Platform != normalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
+	if shouldClearStickySession(account, req.RequestedModel) || account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, false, nil
 	}
@@ -763,8 +788,16 @@ func deriveOpenAISelectionSeed(req OpenAIAccountScheduleRequest) uint64 {
 		_, _ = hasher.Write([]byte{0})
 	}
 
-	writeValue(req.SessionHash)
-	writeValue(req.PreviousResponseID)
+	// A stable client session is the canonical cross-endpoint routing identity.
+	// previous_response_id exists only on Responses continuations, so mixing it
+	// into an already session-scoped seed would give Responses and Alpha Search
+	// different candidate orders. Keep it only as the fallback identity for
+	// callers that genuinely have no session signal.
+	if sessionHash := strings.TrimSpace(req.SessionHash); sessionHash != "" {
+		writeValue(sessionHash)
+	} else {
+		writeValue(req.PreviousResponseID)
+	}
 	writeValue(req.RequestedModel)
 	if req.GroupID != nil {
 		_, _ = hasher.Write([]byte(strconv.FormatInt(*req.GroupID, 10)))
@@ -1046,7 +1079,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
 		var primary []openAIAccountCandidateScore
 		if req.StickyWeighted {
-			for _, stickyID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
+			for _, stickyID := range []int64{req.StickyAccountID, req.StickyPreviousAccountID} {
 				if stickyID <= 0 {
 					continue
 				}
@@ -1253,7 +1286,7 @@ func (s *defaultOpenAIAccountScheduler) tryFallbackToWeightedSticky(
 	if !req.StickyWeighted {
 		return nil, nil
 	}
-	for _, accountID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
+	for _, accountID := range []int64{req.StickyAccountID, req.StickyPreviousAccountID} {
 		if accountID <= 0 {
 			continue
 		}
@@ -1448,7 +1481,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			filterStats.exclude("not_schedulable")
 			continue
 		}
-		if account.Platform != normalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() {
+		if account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() {
 			filterStats.exclude("platform_mismatch")
 			continue
 		}
@@ -2177,7 +2210,8 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 			return selection, decision, err
 		}
 		if selection == nil || selection.Account == nil || strings.TrimSpace(previousResponseID) == "" ||
-			!selection.Account.IsOpenAIOAuthSessionSharingEnabled() {
+			!selection.Account.IsOpenAIOAuthSessionSharingEnabled() ||
+			(previousResponseCanMove && !decision.StickyPreviousHit) {
 			return selection, decision, nil
 		}
 		if err := s.validateOpenAISharedPreviousResponseAccountSelection(ctx, groupID, previousResponseID, selection.Account); err == nil {
@@ -2221,7 +2255,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerAttempt(
 		return selection, decision, err
 	}
 	// The circuit only ever quarantines PlatformOpenAI accounts.
-	if normalizeOpenAICompatiblePlatform(platform) != PlatformOpenAI {
+	if NormalizeOpenAICompatiblePlatform(platform) != PlatformOpenAI {
 		return selection, decision, err
 	}
 	blocked := s.getOpenAIProxyStreamCircuit().activeBlockCount(time.Now())
@@ -2257,8 +2291,12 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	if requiredImageCapability == "" {
 		ctx = s.withOpenAIProfitControlGate(ctx, groupID)
 	}
-	platform = normalizeOpenAICompatiblePlatform(platform)
+	platform = NormalizeOpenAICompatiblePlatform(platform)
 	decision := OpenAIAccountScheduleDecision{}
+	stickyPreviousAccountID := int64(0)
+	if previousResponseCanMove && strings.TrimSpace(previousResponseID) != "" && platform == PlatformOpenAI {
+		stickyPreviousAccountID = s.ResolveAccountIDByPreviousResponseIDForScheduler(ctx, groupID, previousResponseID, requestedModel, excludedIDs, requiredCapability, requireCompact)
+	}
 	scheduler := s.getOpenAIAccountScheduler(ctx)
 	if scheduler == nil {
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
@@ -2273,6 +2311,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 					return selection, decision, s.mapOpenAIOAuthSessionPolicySelectionError(ctx, groupID, platform, requestedModel, effectiveExcludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, nil)
 				}
 				if accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+					decision.StickyPreviousHit = stickyPreviousAccountID > 0 && stickyPreviousAccountID == selection.Account.ID
 					return selection, decision, nil
 				}
 				if selection.ReleaseFunc != nil {
@@ -2299,6 +2338,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 			}
 			if s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport) &&
 				accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
+				decision.StickyPreviousHit = stickyPreviousAccountID > 0 && stickyPreviousAccountID == selection.Account.ID
 				return selection, decision, nil
 			}
 			if selection.ReleaseFunc != nil {
@@ -2329,11 +2369,6 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	}
 	stickyWeighted := s.isOpenAIAdvancedSchedulerStickyWeightedEnabled(ctx)
 	subscriptionPriority := s.isOpenAIAdvancedSchedulerSubscriptionPriorityEnabled(ctx)
-	stickyPreviousAccountID := int64(0)
-	if stickyWeighted && previousResponseCanMove && strings.TrimSpace(previousResponseID) != "" && platform == PlatformOpenAI {
-		stickyPreviousAccountID = s.ResolveAccountIDByPreviousResponseIDForScheduler(ctx, groupID, previousResponseID, requestedModel, excludedIDs, requiredCapability, requireCompact)
-	}
-
 	selection, decision, err := scheduler.Select(ctx, OpenAIAccountScheduleRequest{
 		GroupID:                 groupID,
 		Platform:                platform,

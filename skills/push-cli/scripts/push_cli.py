@@ -525,7 +525,14 @@ def run_local_checks(
         ),
         (
             "Frontend tests",
-            ["pnpm", "--dir", "frontend", "run", "test:run"],
+            [
+                "pnpm",
+                "--dir",
+                "frontend",
+                "run",
+                "test:run",
+                "--maxWorkers=4",
+            ],
             ROOT,
         ),
         (
@@ -699,7 +706,7 @@ def open_pull_requests(
             "--base",
             default_branch,
             "--json",
-            "number,url,isDraft,headRefOid,baseRefOid,body",
+            "number,url,isDraft,headRefOid,body",
         ]
     )
     try:
@@ -708,6 +715,24 @@ def open_pull_requests(
         raise PushCliError("gh pr list returned invalid JSON") from error
     if not isinstance(prs, list) or any(not isinstance(pr, dict) for pr in prs):
         raise PushCliError("gh pr list returned an unexpected JSON value")
+    for pr in prs:
+        number = pr.get("number")
+        if not isinstance(number, int):
+            raise PushCliError("gh pr list returned a pull request without a number")
+        base_oid = capture(
+            [
+                "gh",
+                "api",
+                f"repos/{repository}/pulls/{number}",
+                "--jq",
+                ".base.sha",
+            ]
+        )
+        if not re.fullmatch(r"[0-9a-f]{40}", base_oid):
+            raise PushCliError(
+                f"GitHub returned an invalid base commit for pull request #{number}"
+            )
+        pr["baseRefOid"] = base_oid
     return prs
 
 
@@ -754,7 +779,15 @@ def create_or_update_pull_request(
         number = str(pr.get("number"))
         run_step(
             "Update pull-request validation marker",
-            ["gh", "pr", "edit", number, "--repo", repository, "--body", body],
+            [
+                "gh",
+                "api",
+                "--method",
+                "PATCH",
+                f"repos/{repository}/pulls/{number}",
+                "-f",
+                f"body={body}",
+            ],
         )
         url = str(pr.get("url") or number)
         print(f"Pull request ready: {url}")

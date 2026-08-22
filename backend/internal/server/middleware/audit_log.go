@@ -59,7 +59,8 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"event_id": {}, "requested_count": {}, "deleted_events": {}, "deleted_jobs": {},
 	"matched_count": {}, "snapshot_max_id": {}, "filter_hash": {}, "confirm": {},
 	"account_count": {}, "proxy_count": {}, "include_proxies": {},
-	"failure_count": {}, "auto_block_rule_id": {}, "auto_block_expires": {}, "ip_source": {},
+	"failure_count": {}, "auto_block_rule_id": {}, "auto_block_expires": {}, "ip_source": {}, "ip_access_result": {},
+	"block_rule_id": {}, "already_blocked": {},
 }
 
 // SetAuditExtra adds allowlisted, scalar details to the current audit entry.
@@ -111,15 +112,27 @@ func truncateAuditExtraString(value string, limit int) string {
 
 // auditSensitiveReads 需要审计的敏感 GET 读取（method+FullPath → 动作名）。
 var auditSensitiveReads = map[string]string{
-	"GET /api/v1/admin/proxies/data":                     "admin.proxies.export",
-	"GET /api/v1/admin/redeem-codes/export":              "admin.redeem_codes.export",
-	"GET /api/v1/admin/backups/:id/download-url":         "admin.backups.download",
-	"GET /api/v1/admin/settings/admin-api-key":           "admin.admin_api_key.read",
-	"GET /api/v1/admin/users/:id/api-keys":               "admin.users.api_keys.read",
-	"GET /api/v1/admin/groups/:id/api-keys":              "admin.groups.api_keys.read",
-	"GET /api/v1/admin/backups/s3-config":                "admin.backups.s3_config.read",
-	"GET /api/v1/admin/data-management/s3/config":        "admin.data_management.s3_config.read",
-	"GET /api/v1/admin/ip-access-control/failure-states": "security.ip_login_failure.read",
+	"GET /api/v1/admin/proxies/data":                                 "admin.proxies.export",
+	"GET /api/v1/admin/redeem-codes/export":                          "admin.redeem_codes.export",
+	"GET /api/v1/admin/backups/:id/download-url":                     "admin.backups.download",
+	"GET /api/v1/admin/settings/admin-api-key":                       "admin.admin_api_key.read",
+	"GET /api/v1/admin/users/:id/api-keys":                           "admin.users.api_keys.read",
+	"GET /api/v1/admin/support/users/:user_id":                       "admin.support.profile.read",
+	"GET /api/v1/admin/support/users/:user_id/profile":               "admin.support.profile.read",
+	"GET /api/v1/admin/support/users/:user_id/api-keys":              "admin.support.api_keys.read",
+	"GET /api/v1/admin/support/users/:user_id/usage":                 "admin.support.usage.read",
+	"GET /api/v1/admin/support/users/:user_id/async-images":          "admin.support.async_images.read",
+	"GET /api/v1/admin/support/users/:user_id/async-images/:task_id": "admin.support.async_image.read",
+	"GET /api/v1/admin/support/users/:user_id/channels":              "admin.support.channels.read",
+	"GET /api/v1/admin/support/users/:user_id/channel-status":        "admin.support.channel_status.read",
+	"GET /api/v1/admin/support/users/:user_id/channel-status/:id":    "admin.support.channel_status_detail.read",
+	"GET /api/v1/admin/support/users/:user_id/subscriptions":         "admin.support.subscriptions.read",
+	"GET /api/v1/admin/support/users/:user_id/orders":                "admin.support.orders.read",
+	"GET /api/v1/admin/support/users/:user_id/orders/:order_id":      "admin.support.order.read",
+	"GET /api/v1/admin/groups/:id/api-keys":                          "admin.groups.api_keys.read",
+	"GET /api/v1/admin/backups/s3-config":                            "admin.backups.s3_config.read",
+	"GET /api/v1/admin/data-management/s3/config":                    "admin.data_management.s3_config.read",
+	"GET /api/v1/admin/ip-access-control/failure-states":             "security.ip_login_failure.read",
 }
 
 // auditActionOverrides 变更类请求的动作名精确映射（未命中时自动推导）。
@@ -142,6 +155,7 @@ var auditActionOverrides = map[string]string{
 	"POST /api/v1/admin/ip-access-control/rules":                   "security.ip_access_rule.create",
 	"POST /api/v1/admin/ip-access-control/rules/:id/release-reset": "security.ip_access_rule.release_reset",
 	"POST /api/v1/admin/ip-access-control/failure-state/reset":     "security.ip_login_failure.reset",
+	"POST /api/v1/admin/ip-access-control/failure-state/block":     "security.ip_login_failure.manual_block",
 	"DELETE /api/v1/admin/settings/admin-api-key":                  "admin.admin_api_key.delete",
 	"PUT /api/v1/admin/prompt-audit/config":                        "admin.prompt_audit.config.update",
 	"POST /api/v1/admin/prompt-audit/endpoints/probe":              "admin.prompt_audit.endpoint.probe",

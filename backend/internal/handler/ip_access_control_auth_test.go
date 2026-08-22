@@ -78,6 +78,10 @@ func (s *authIPAccessRepositorySpy) CreateManualIPAccessRule(context.Context, *s
 	return nil, nil
 }
 
+func (s *authIPAccessRepositorySpy) CreateManualIPBlockForFailureState(context.Context, string, string, int64) (*service.IPFailureStateBlockRepositoryResult, error) {
+	return nil, nil
+}
+
 func (s *authIPAccessRepositorySpy) ReleaseIPAccessRuleAndReset(context.Context, int64, int64) (*service.IPAccessRule, error) {
 	return nil, service.ErrIPAccessRuleNotFound
 }
@@ -101,10 +105,17 @@ func (s *authIPAccessRepositorySpy) RecordFailedLogin(_ context.Context, normali
 	s.failureCount++
 	s.recordedIPs = append(s.recordedIPs, normalizedIP)
 	s.thresholds = append(s.thresholds, threshold)
-	return &service.LoginFailureRecordResult{
+	result := &service.LoginFailureRecordResult{
 		FailureCount: s.failureCount,
 		Blocked:      s.failureCount >= threshold,
-	}, nil
+	}
+	if result.Blocked {
+		result.Rule = &service.IPAccessRule{
+			ID: 1, IPOrCIDR: normalizedIP, RuleKind: service.IPAccessRuleKindAutoBlock,
+			Status: service.IPAccessRuleStatusActive,
+		}
+	}
+	return result, nil
 }
 
 func (s *authIPAccessRepositorySpy) RecordIPAccessRuleHit(context.Context, string) error { return nil }
@@ -155,36 +166,31 @@ func TestRecordFailedLocalLoginFailsClosedWhenCounterPersistenceFails(t *testing
 	require.Contains(t, recorder.Body.String(), "IP_ACCESS_CONTROL_UNAVAILABLE")
 }
 
-func TestClearSuccessfulLocalLoginResetsFailureStreak(t *testing.T) {
+func TestRecordFailedLocalLoginBlocksAtConfiguredThreshold(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	access, repo := newAuthIPAccessControlForTest(2)
 	handler := &AuthHandler{ipAccessControl: access}
 
-	recorder := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(recorder)
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
-	request.RemoteAddr = "203.0.113.24:43123"
-	ctx.Request = request
+	attempt := func() (*httptest.ResponseRecorder, bool) {
+		recorder := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(recorder)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
+		request.RemoteAddr = "203.0.113.24:43123"
+		ctx.Request = request
+		return recorder, handler.recordFailedLocalLogin(ctx)
+	}
 
-	require.False(t, handler.clearSuccessfulLocalLogin(ctx))
-	require.Equal(t, []string{"203.0.113.24"}, repo.resetIPs)
-}
+	first, aborted := attempt()
+	require.False(t, aborted)
+	require.Equal(t, 1, repo.failureCount)
+	require.NotEqual(t, http.StatusForbidden, first.Code)
 
-func TestClearSuccessfulLocalLoginFailsClosedWhenCounterResetFails(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	access, repo := newAuthIPAccessControlForTest(2)
-	repo.resetErr = errors.New("failure state database unavailable")
-	handler := &AuthHandler{ipAccessControl: access}
-
-	recorder := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(recorder)
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
-	request.RemoteAddr = "203.0.113.24:43123"
-	ctx.Request = request
-
-	require.True(t, handler.clearSuccessfulLocalLogin(ctx))
-	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
-	require.Contains(t, recorder.Body.String(), "IP_ACCESS_CONTROL_UNAVAILABLE")
+	second, aborted := attempt()
+	require.True(t, aborted)
+	require.Equal(t, 2, repo.failureCount)
+	require.Equal(t, []string{"203.0.113.24", "203.0.113.24"}, repo.recordedIPs)
+	require.Equal(t, http.StatusForbidden, second.Code)
+	require.Contains(t, second.Body.String(), "IP_BANNED")
 }
 
 type missingLoginSessionTotpCache struct {
@@ -235,7 +241,7 @@ func (c *missingLoginSessionTotpCache) HasStepUpGrant(context.Context, int64, st
 	return false, nil
 }
 
-func TestLogin2FAInvalidSessionRecordsFailuresAndBlocksAtThreshold(t *testing.T) {
+func TestLogin2FAInvalidSessionDoesNotRecordCredentialFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	access, repo := newAuthIPAccessControlForTest(2)
 	handler := &AuthHandler{
@@ -259,12 +265,12 @@ func TestLogin2FAInvalidSessionRecordsFailuresAndBlocksAtThreshold(t *testing.T)
 	first := login()
 	require.Equal(t, http.StatusBadRequest, first.Code)
 	require.Contains(t, first.Body.String(), "Invalid or expired 2FA session")
-	require.Equal(t, []string{"203.0.113.24"}, repo.recordedIPs)
+	require.Empty(t, repo.recordedIPs)
 
 	second := login()
-	require.Equal(t, http.StatusForbidden, second.Code)
-	require.Contains(t, second.Body.String(), "IP_BANNED")
-	require.Equal(t, []string{"203.0.113.24", "203.0.113.24"}, repo.recordedIPs)
+	require.Equal(t, http.StatusBadRequest, second.Code)
+	require.Contains(t, second.Body.String(), "Invalid or expired 2FA session")
+	require.Empty(t, repo.recordedIPs)
 }
 
 func TestLogin2FASessionLookupFailureDoesNotRecordLoginFailure(t *testing.T) {

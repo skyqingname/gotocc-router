@@ -70,13 +70,13 @@ curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/
 が返す別のタグへ置き換えてください：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.1.177+custom.002'
+curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.1.178+custom.002'
 ```
 
 既存のバイナリインストールを以前の公開済みバージョンへロールバックします：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.177+custom.001'
+curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.177+custom.003'
 ```
 
 サービスとバイナリを削除し、`/etc/sub2api` は保持します：
@@ -110,9 +110,10 @@ Codex CLI または CRS 互換クライアントを使用する場合、Nginx �
 underscores_in_headers on;
 ```
 
-Nginx はデフォルトで、`session_id` を含むアンダースコア付きのリクエストヘッダーを
-破棄します。この設定がない場合、複数アカウント構成のスティッキーセッション
-ルーティングが機能しない可能性があります。リロード前に完全な設定を検証します：
+現在の Codex クライアントはハイフン形式の `session-id` を使用しますが、旧 Codex/CRS
+互換クライアントは引き続き `session_id` を送信する場合があります。Nginx はデフォルトで
+アンダースコア付きヘッダーを破棄するため、これらのクライアントのスティッキーセッションを
+維持するには、この設定を残してください。リロード前に完全な設定を検証します：
 
 ```bash
 sudo nginx -t
