@@ -2,6 +2,14 @@ import { buildGatewayUrl } from './client'
 
 export type AsyncImageTaskStatus = 'processing' | 'completed' | 'failed' | string
 
+export interface AsyncImageTaskResultItem {
+  url?: string
+  object_id?: string
+  url_expires_at?: number
+  content_type?: string
+  bytes?: number
+}
+
 export interface AsyncImageTask {
   id: string
   task_id: string
@@ -14,7 +22,7 @@ export interface AsyncImageTask {
   image_url?: string
   result?: {
     created?: number
-    data?: Array<{ url?: string }>
+    data?: AsyncImageTaskResultItem[]
   }
   error?: {
     type?: string
@@ -30,6 +38,13 @@ export interface AsyncImageTaskListResponse {
   object: string
   data: AsyncImageTask[]
   has_more: boolean
+}
+
+export interface AsyncImageObjectURL {
+  id: string
+  object: string
+  url: string
+  url_expires_at?: number
 }
 
 export interface AsyncImageListOptions {
@@ -146,6 +161,12 @@ export async function listAsyncImageTasks(apiKey: string, options: AsyncImageLis
 
 export async function getAsyncImageTask(apiKey: string, taskID: string): Promise<AsyncImageTask> {
   const response = await fetch(buildGatewayUrl(`/v1/images/tasks/${encodeURIComponent(taskID)}`), { headers: authHeaders(apiKey) })
+  if (!response.ok) throw await parseAsyncImageError(response)
+  return response.json()
+}
+
+export async function getAsyncImageObjectURL(apiKey: string, objectID: string): Promise<AsyncImageObjectURL> {
+  const response = await fetch(buildGatewayUrl(`/v1/images/objects/${encodeURIComponent(objectID)}/url`), { headers: authHeaders(apiKey) })
   if (!response.ok) throw await parseAsyncImageError(response)
   return response.json()
 }

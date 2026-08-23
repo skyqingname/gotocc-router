@@ -143,7 +143,6 @@ On success, `result` mirrors the synchronous image API body, except each image h
     "created": 1784092923,
     "data": [{
       "object_id": "imgobj_0123456789abcdef",
-      "storage_key": "images/imgtask_0123456789abcdef-0.png",
       "url": "https://...",
       "url_expires_at": 1784179323
     }]
@@ -213,6 +212,11 @@ key. Unknown objects and objects owned by another user both return `404`.
 Disabled keys, inactive users, IP restrictions, and group restrictions still
 apply. This read is not billed and remains available when generation consumed
 the key's remaining quota.
+
+The built-in async-image page renews a missing, expired, or soon-to-expire
+signed URL before rendering it. It uses the currently selected manageable API
+key, deduplicates repeated object IDs, and never falls back to a known-expired
+URL when renewal fails.
 
 `GET /v1/images/tasks` returns the submitting key's compact PostgreSQL history
 with optional `status`, `limit`, and `offset` query parameters. `GET

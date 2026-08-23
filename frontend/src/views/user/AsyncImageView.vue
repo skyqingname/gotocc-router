@@ -349,7 +349,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { keysAPI } from '@/api'
-import { AsyncImageDownloadValidationError, deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageTask, listAsyncImageModels, listAsyncImageTasks, preferredAsyncImageModel, saveAsyncImageBlob, submitAsyncImageEdit, submitAsyncImageGeneration, type AsyncImageTask } from '@/api/asyncImage'
+import { AsyncImageDownloadValidationError, deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageObjectURL, getAsyncImageTask, listAsyncImageModels, listAsyncImageTasks, preferredAsyncImageModel, saveAsyncImageBlob, submitAsyncImageEdit, submitAsyncImageGeneration, type AsyncImageTask, type AsyncImageTaskResultItem } from '@/api/asyncImage'
 import { keyAllowsAsyncImage, keyCanManageAsyncImage } from '@/composables/useAsyncImageAccess'
 import { useAppStore } from '@/stores/app'
 import { isGPTImage2, isGPTImage2ExperimentalSize, validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
@@ -357,6 +357,7 @@ import type { Column } from '@/components/common/types'
 import type { ApiKey } from '@/types'
 
 const POLL_INTERVAL_MS = 3000
+const IMAGE_URL_REFRESH_SKEW_SECONDS = 60
 const PAGE_SIZE = 20
 const MAX_EDIT_INPUT_IMAGES = 4
 const MAX_EDIT_UPLOAD_FILE_BYTES = 20 * 1024 * 1024
@@ -477,8 +478,50 @@ function requestTypeClass(requestType?: string) {
 }
 
 function taskImageUrls(task: AsyncImageTask): string[] {
-  const urls = [task.image_url, ...(task.result?.data || []).map(item => item.url)].filter((url): url is string => Boolean(url))
-  return [...new Set(urls)]
+  const items = task.result?.data || []
+  if (items.length > 0) {
+    return [...new Set(items.filter(imageResultURLIsUsable).map(item => item.url.trim()))]
+  }
+  const legacyURL = task.image_url?.trim()
+  return legacyURL ? [legacyURL] : []
+}
+
+function imageResultURLIsUsable(item: AsyncImageTaskResultItem): item is AsyncImageTaskResultItem & { url: string } {
+  if (!item.url?.trim()) return false
+  return item.url_expires_at == null || item.url_expires_at > Math.floor(Date.now() / 1000) + IMAGE_URL_REFRESH_SKEW_SECONDS
+}
+
+async function refreshTaskImageURLs(
+  task: AsyncImageTask,
+  apiKey: string,
+  renewals: Map<string, ReturnType<typeof getAsyncImageObjectURL>> = new Map(),
+): Promise<AsyncImageTask> {
+  const items = task.result?.data || []
+  if (!items.length || !items.some(item => !imageResultURLIsUsable(item))) return task
+
+  const refreshedItems = await Promise.all(items.map(async (item) => {
+    if (imageResultURLIsUsable(item)) return item
+    const objectID = item.object_id?.trim()
+    if (!objectID) return { ...item, url: undefined }
+    try {
+      let renewal = renewals.get(objectID)
+      if (!renewal) {
+        renewal = getAsyncImageObjectURL(apiKey, objectID)
+        renewals.set(objectID, renewal)
+      }
+      const refreshed = await renewal
+      const refreshedURL = refreshed.url?.trim()
+      return { ...item, url: refreshedURL || undefined, url_expires_at: refreshed.url_expires_at }
+    } catch {
+      return { ...item, url: undefined }
+    }
+  }))
+  const imageURL = refreshedItems.find(imageResultURLIsUsable)?.url.trim()
+  return {
+    ...task,
+    image_url: imageURL,
+    result: { ...task.result, data: refreshedItems },
+  }
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -627,7 +670,8 @@ async function refreshProcessingTasks() {
   if (!key) return
   const active = tasks.value.filter(task => task.status === 'processing')
   if (!active.length) return
-  const refreshed = await Promise.allSettled(active.map(task => getAsyncImageTask(key.key, task.task_id)))
+  const renewals = new Map<string, ReturnType<typeof getAsyncImageObjectURL>>()
+  const refreshed = await Promise.allSettled(active.map(async task => refreshTaskImageURLs(await getAsyncImageTask(key.key, task.task_id), key.key, renewals)))
   refreshed.forEach((result, index) => {
     if (result.status !== 'fulfilled') return
     const taskID = active[index].task_id
@@ -651,7 +695,13 @@ async function loadTasks(showError = true): Promise<boolean> {
   try {
     const response = await listAsyncImageTasks(key.key, { status: filters.status, limit: PAGE_SIZE, offset: offset.value })
     if (requestID !== taskListRequestID) return false
-    tasks.value = response.data || []
+    const renewals = new Map<string, ReturnType<typeof getAsyncImageObjectURL>>()
+    const refreshedTasks = await Promise.all((response.data || []).map(task => refreshTaskImageURLs(task, key.key, renewals)))
+    if (requestID !== taskListRequestID) return false
+    tasks.value = refreshedTasks
+    if (selectedTask.value) {
+      selectedTask.value = refreshedTasks.find(task => task.task_id === selectedTask.value?.task_id) || selectedTask.value
+    }
     hasMore.value = response.has_more === true
     return true
   } catch (error) {
