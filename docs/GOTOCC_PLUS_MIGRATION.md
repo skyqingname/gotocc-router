@@ -94,6 +94,28 @@ authorization; never use production startup as a migration probe.
 6. For production, run the same preflight, migrate once, start one candidate,
    verify sessions and critical reads, then scale out.
 
+## Unified NewAPI video group
+
+GotoCC keeps all video models exposed by the same NewAPI upstream in one
+OpenAI-compatible API key group. Model names such as `grok-imagine-video`,
+`video-ds-*`, Seedance, Kling, and MiniMax do not select a local Sub2API platform;
+the group platform remains OpenAI and the upstream performs provider routing.
+
+The canonical upstream surface is `POST /v1/videos`, followed by
+`GET /v1/videos/:task_id` and `GET /v1/videos/:task_id/content`. GotoCC also
+accepts the legacy `/videos/generations` aliases used by Infinite Canvas and
+normalizes them to the canonical NewAPI paths before forwarding. Grok-native
+edits and extensions remain restricted to a real Grok group.
+
+Channel create/update validation accepts the existing `video` billing mode, so
+per-second rules for the unified group can be maintained through the admin UI
+instead of bypassing the service with direct data writes.
+
+Before production, review the OpenAI account Base URL, credential type, model
+allowlist, channel mapping, and per-model billing mode. Changing group accounts,
+models, or pricing is a separately authorized data/configuration mutation; the
+code compatibility layer alone does not authorize it.
+
 ## User impact and rollback
 
 With the same `JWT_SECRET` and retained Redis volume, normal browser sessions

@@ -1,37 +1,47 @@
-Sub2API Plus v0.1.178+custom.002
+Sub2API Plus v0.1.178+custom.004
 
 ## Highlights
 
-- Import official v0.1.178 channel-monitor quota modes, Chinese-provider
-  balance/quota support, and time-based channel pricing.
-- Preserve the latest Plus Codex mode-only behavior, including the explicit
-  `device` default, prompt-cache, compaction, and WebSocket relay safeguards,
-  while adopting the upstream protocol fixes.
-- Add the upstream account, scheduler, billing, and platform UI updates with
-  synchronized English and Chinese locales.
+- Restore Content Moderation to current direct-user text and images so a
+  policy violation is attributed only to a user submission, not to platform
+  or tool content.
+- Keep Prompt Audit on the same canonical extraction document, including
+  instructions, tool traffic, and assistant or model items, so the security
+  boundary stays fully visible.
+- Treat incomplete extraction as a failure for both engines before either
+  selection policy is applied.
 - Preserve every active GotoCC production contract (LC-001 through LC-004 and
-  LC-006 through LC-011) while keeping retired LC-005 absent.
+  LC-006 through LC-012) while keeping retired LC-005 absent.
 
 ## Changed
 
-- Add forward-only migrations for platform quotas, the Plus Codex mode backfill,
-  channel time pricing, and monitor quota configuration.
-- Keep the custom Go module identity and Plus outbound identity precedence
-  while importing the official v0.1.178 baseline.
+- Select Chat and Anthropic user-role content, plus the protocol-defined
+  roleless user forms in Responses, Live, and Gemini, as Content Moderation
+  inputs. Direct Alpha Search queries, embedding strings, and media prompts
+  remain eligible.
+- Exclude instructions, system or developer context, reusable prompt
+  variables, assistant or model messages, reasoning, tool definitions,
+  calls, results, approval responses, and tool-produced images from Content
+  Moderation while leaving those segments available to Prompt Audit.
+- Keep the official v0.1.178 baseline and Plus customizations; this
+  iteration does not change the embedded Codex identity precedence.
 - Compose asynchronous-image failed-task deletion and private exact ZIP keys
   with durable PostgreSQL ownership, same-user URL renewal, and streaming
   uploads; storage keys are not exposed in public JSON.
 - Preserve atomic registration-time consumption for both one-time and reusable
   invitation codes.
-- Make delayed release finalization resumable after a newer version has already
-  been prepared, while keeping rollback documentation synchronized.
+- Keep all NewAPI-backed video models in one OpenAI-compatible group. Accept the
+  legacy `/videos/generations` create, status, and content aliases used by
+  Infinite Canvas and normalize them to NewAPI's canonical `/v1/videos` task
+  surface without introducing Composite or model-prefix routing. Channel
+  create/update validation now also accepts the existing `video` billing mode,
+  allowing per-second rules to be maintained through the normal admin API.
 
 ## Fixed
 
-- Converge the selected Codex fingerprint identity across HTTP, WebSocket,
-  compaction, and account-test transports without changing source precedence.
-- Localize the dashboard prompt-cache hit-rate label consistently in English
-  and Chinese.
+- Restore the `v0.1.177+custom.003` user-attribution rule that a later
+  shared-extractor expansion had broadened beyond direct-user content.
+- Satisfy audit-content lint after the extraction-scope change.
 
 ## Compatibility and migration
 

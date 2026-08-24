@@ -96,7 +96,7 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		return nil, errors.New("video generation requires an OpenAI-compatible API key account")
 	}
 
-	input.Path = sanitizeOpenAIVideoForwardPath(input.Path)
+	input.Path = normalizeOpenAIVideoForwardPath(input.Path)
 	if input.UpstreamModel == "" {
 		input.UpstreamModel = input.Model
 	}
@@ -182,29 +182,50 @@ func buildOpenAIVideosBaseURL(base string) string {
 
 func joinOpenAIVideoURL(baseURL, path string) string {
 	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	path = strings.TrimSpace(path)
-	if path == "" || path == "/v1/videos" || path == "/videos" {
+	path = normalizeOpenAIVideoForwardPath(path)
+	if path == "/v1/videos" {
 		return base
 	}
-	if index := strings.LastIndex(path, "/videos"); index >= 0 {
-		if suffix := strings.TrimLeft(path[index+len("/videos"):], "/"); suffix != "" {
-			return base + "/" + suffix
-		}
-		return base
-	}
-	return base + "/" + strings.TrimLeft(path, "/")
+	return base + strings.TrimPrefix(path, "/v1/videos")
 }
 
-func sanitizeOpenAIVideoForwardPath(path string) string {
+// normalizeOpenAIVideoForwardPath maps the legacy xAI/Canvas generations
+// surface onto NewAPI's canonical OpenAI-compatible video task surface.
+// Provider-native Grok edits/extensions never enter this service.
+func normalizeOpenAIVideoForwardPath(path string) string {
 	path = strings.TrimSpace(strings.SplitN(path, "?", 2)[0])
-	if path == "" || path == "/v1/videos" || path == "/videos" {
+	if path == "" {
 		return "/v1/videos"
 	}
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	if !strings.Contains(path, "/videos") {
+
+	videoIndex := -1
+	searchFrom := 0
+	for searchFrom < len(path) {
+		index := strings.Index(path[searchFrom:], "/videos")
+		if index < 0 {
+			break
+		}
+		index += searchFrom
+		after := index + len("/videos")
+		if after == len(path) || path[after] == '/' {
+			videoIndex = index
+			break
+		}
+		searchFrom = after
+	}
+	if videoIndex < 0 {
 		return "/v1/videos"
 	}
-	return path
+
+	suffix := path[videoIndex+len("/videos"):]
+	if suffix == "" || suffix == "/" || suffix == "/generations" || suffix == "/generations/" {
+		return "/v1/videos"
+	}
+	if strings.HasPrefix(suffix, "/generations/") {
+		suffix = strings.TrimPrefix(suffix, "/generations")
+	}
+	return "/v1/videos" + suffix
 }

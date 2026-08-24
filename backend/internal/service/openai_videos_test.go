@@ -28,13 +28,37 @@ func TestBuildOpenAIVideosBaseURL(t *testing.T) {
 	}
 }
 
-func TestJoinOpenAIVideoURLPreservesTaskSurface(t *testing.T) {
+func TestNormalizeOpenAIVideoForwardPath(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{path: "", want: "/v1/videos"},
+		{path: "/videos", want: "/v1/videos"},
+		{path: "/v1/videos", want: "/v1/videos"},
+		{path: "/videos/generations", want: "/v1/videos"},
+		{path: "/v1/videos/generations", want: "/v1/videos"},
+		{path: "/videos/generations/task-123", want: "/v1/videos/task-123"},
+		{path: "/v1/videos/generations/task-123/content", want: "/v1/videos/task-123/content"},
+		{path: "/v1/videos/task-123?model=grok-imagine-video", want: "/v1/videos/task-123"},
+		{path: "/unsupported", want: "/v1/videos"},
+	} {
+		require.Equal(t, test.want, normalizeOpenAIVideoForwardPath(test.path), "path=%s", test.path)
+	}
+}
+
+func TestJoinOpenAIVideoURLUsesCanonicalNewAPISurface(t *testing.T) {
 	t.Parallel()
 
 	base := "https://video.example.test/v1/videos"
 	require.Equal(t, base, joinOpenAIVideoURL(base, "/v1/videos"))
 	require.Equal(t, base+"/task-123", joinOpenAIVideoURL(base, "/v1/videos/task-123"))
 	require.Equal(t, base+"/task-123/content", joinOpenAIVideoURL(base, "/v1/videos/task-123/content"))
+	require.Equal(t, base, joinOpenAIVideoURL(base, "/v1/videos/generations"))
+	require.Equal(t, base+"/task-123", joinOpenAIVideoURL(base, "/videos/generations/task-123"))
+	require.Equal(t, base+"/task-123/content", joinOpenAIVideoURL(base, "/videos/generations/task-123/content"))
 }
 
 func TestBuildOpenAIVideoUpstreamRequestUsesAccountCredentialOnly(t *testing.T) {
@@ -55,7 +79,7 @@ func TestBuildOpenAIVideoUpstreamRequestUsesAccountCredentialOnly(t *testing.T) 
 	}
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
-	c.Request = httptest.NewRequest(http.MethodPost, "/v1/videos", bytes.NewReader([]byte(`{"model":"video-ds-2.0-fast"}`)))
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/videos/generations", bytes.NewReader([]byte(`{"model":"grok-imagine-video"}`)))
 	c.Request.Header.Set("Authorization", "Bearer user-secret")
 	c.Request.Header.Set("X-Api-Key", "user-secret")
 	c.Request.Header.Set("Content-Type", "application/json")
@@ -65,7 +89,7 @@ func TestBuildOpenAIVideoUpstreamRequestUsesAccountCredentialOnly(t *testing.T) 
 		context.Background(),
 		c,
 		account,
-		OpenAIVideoForwardInput{Method: http.MethodPost, Path: "/v1/videos", Body: []byte(`{"model":"video-ds-2.0-fast"}`)},
+		OpenAIVideoForwardInput{Method: http.MethodPost, Path: "/v1/videos/generations", Body: []byte(`{"model":"grok-imagine-video"}`)},
 		"upstream-secret",
 	)
 	require.NoError(t, err)
