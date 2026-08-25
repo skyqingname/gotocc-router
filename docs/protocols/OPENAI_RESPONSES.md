@@ -143,38 +143,38 @@ The canonical boundary covers top-level and `response`-nested `instructions`,
 `tools`, `input`, reusable `prompt.variables`, message text, tool definitions,
 and the arguments, input, output, result, or dynamic tools carried by function,
 custom, tool-search, local/hosted shell, apply-patch, computer, MCP,
-code-interpreter, and programmatic-tool-calling items. In particular,
-`function_call_output.output`,
-`custom_tool_call_output.output`, the compatibility
-`tool_search_output.output`, and official `tool_search_output.tools` are
-available to Prompt Audit on every HTTP or WebSocket turn. Media fields and
-encoded screenshots are removed before Prompt Audit text serialization and
-persistence; ordinary text in the same structured result is retained.
+code-interpreter, and programmatic-tool-calling items. Media fields and
+encoded screenshots are removed before text serialization and persistence;
+ordinary text in the same structured result is retained.
 
 Content Moderation consumes the same canonical result but selects only the
 current direct-user message text and images. It excludes `instructions`, tool
 definitions, reusable prompt variables, assistant/model messages, reasoning,
 tool calls/results, approval responses, and tool-produced screenshots. This
 prevents platform context or external tool content from being reported as a
-user policy violation. Prompt Audit continues to cover those excluded segments;
-its latest-turn mode treats a current client-submitted `assistant` item as
-untrusted and prioritizes it instead of falling back to an older user message.
-A supported WebSocket control frame is an explicit no-content case only when it
-contains no canonical content fields or unknown non-empty siblings. An envelope
-`type` value never suppresses `input`, `instructions`, or nested
-`response.input` that is actually present.
+user policy violation. Prompt Audit also consumes that canonical result, but
+its selection follows `v0.1.177+custom.003`: conversation text such as
+`instructions`, message text, and reusable prompt variables is scanned, while
+static `tools` schemas and structured tool-call arguments/results are not
+treated as prompt text. Latest-turn blocking scans the latest user text plus
+the nearest preceding assistant/model output.
+A supported WebSocket control frame may produce no audit input. Unknown sibling
+keys, unsupported event/item types, and valid-JSON unrecognized structures pass
+through without an audit-derived block. When the canonical extractor recognizes
+`input`, `instructions`, or nested `response.input`, an envelope `type` value
+does not suppress those extracted segments. An unsupported envelope type is
+still counted and safely logged as an extraction failure while those extracted
+segments remain auditable.
+Non-empty root, nested `response`, and session objects with no recognized field
+are counted and safely logged as extraction failures before they pass through;
+unknown sibling keys on an otherwise recognized object remain ordinary success.
 Direct passthrough runs the audit hook for every client text or binary frame,
 including `conversation.item.create` and `session.update`, before any
-non-`response.create` frame is forwarded. Invalid binary/JSON payloads fail
-closed in blocking mode.
-A recognized content-bearing item that cannot be normalized is observable and
-fails closed whenever a blocking audit mode applies.
-Top-level Responses requests, nested `response` objects, and `session.update`
-session objects reject unknown non-empty siblings as incomplete extraction;
-successfully extracted instructions or input never mask such a sibling.
-Content Moderation reports that extraction failure as HTTP `503` with
-`content_moderation_unavailable`; the coordinator classifies it as
-`unavailable`, rather than a policy block or policy-violation error. Compact
+non-`response.create` frame is forwarded. Unsupported binary/JSON content and
+recognized items that cannot be normalized are logged and pass through unless
+independent transport/basic validation rejects them. Successfully extracted
+sibling content remains auditable. Extraction failure alone never becomes a
+policy block, unavailable decision, HTTP 503, or WebSocket close. Compact
 keepalive output and channel mapping start only after this gate. The audit uses
 an immutable copy of the inbound body so compact normalization and reasoning
 policy rewrites cannot remove content from the audited view.

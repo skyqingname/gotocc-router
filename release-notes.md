@@ -1,35 +1,20 @@
-Sub2API Plus v0.1.178+custom.004
+Sub2API Plus v0.1.178+custom.006
 
 ## Highlights
 
-- Restore Content Moderation to current direct-user text and images so a
-  policy violation is attributed only to a user submission, not to platform
-  or tool content.
-- Keep Prompt Audit on the same canonical extraction document, including
-  instructions, tool traffic, and assistant or model items, so the security
-  boundary stays fully visible.
-- Treat incomplete extraction as a failure for both engines before either
-  selection policy is applied.
-- Preserve every active GotoCC production contract (LC-001 through LC-004 and
-  LC-006 through LC-012) while keeping retired LC-005 absent.
+- Keep Content Moderation on current direct-user text and images.
+- Restore Prompt Audit conversation-text selection to `v0.1.177+custom.003`, so ordinary Codex `hi` requests are not blocked by client tool schemas.
+- Continue sharing one canonical extractor, without converting extraction failures into policy blocks.
+- Preserve every active GotoCC production contract (LC-001 through LC-004 and LC-006 through LC-012) while keeping retired LC-005 absent.
+- Keep all NewAPI-backed video models in one OpenAI-compatible group and accept Infinite Canvas generation aliases without Composite or model-prefix routing.
 
 ## Changed
 
-- Select Chat and Anthropic user-role content, plus the protocol-defined
-  roleless user forms in Responses, Live, and Gemini, as Content Moderation
-  inputs. Direct Alpha Search queries, embedding strings, and media prompts
-  remain eligible.
-- Exclude instructions, system or developer context, reusable prompt
-  variables, assistant or model messages, reasoning, tool definitions,
-  calls, results, approval responses, and tool-produced images from Content
-  Moderation while leaving those segments available to Prompt Audit.
-- Keep the official v0.1.178 baseline and Plus customizations; this
-  iteration does not change the embedded Codex identity precedence.
-- Compose asynchronous-image failed-task deletion and private exact ZIP keys
-  with durable PostgreSQL ownership, same-user URL renewal, and streaming
-  uploads; storage keys are not exposed in public JSON.
-- Preserve atomic registration-time consumption for both one-time and reusable
-  invitation codes.
+- Prompt Audit full/async scans messages, instructions/system context, reusable prompt variables, reasoning, and search/embedding/media prompts.
+- Prompt Audit no longer sends static `tools`/`functions` schemas, structured tool-call arguments, or tool/function outputs to Qwen3Guard.
+- Blocking latest-turn-only again scans only the latest user text plus the nearest preceding assistant/model output.
+- Compose asynchronous-image failed-task deletion and private exact ZIP keys with durable PostgreSQL ownership, same-user URL renewal, and streaming uploads; storage keys are not exposed in public JSON.
+- Preserve atomic registration-time consumption for both one-time and reusable invitation codes.
 - Keep all NewAPI-backed video models in one OpenAI-compatible group. Accept the
   legacy `/videos/generations` create, status, and content aliases used by
   Infinite Canvas and normalize them to NewAPI's canonical `/v1/videos` task
@@ -39,27 +24,14 @@ Sub2API Plus v0.1.178+custom.004
 
 ## Fixed
 
-- Restore the `v0.1.177+custom.003` user-attribution rule that a later
-  shared-extractor expansion had broadened beyond direct-user content.
-- Satisfy audit-content lint after the extraction-scope change.
+- Stop treating Codex and other client tool definitions as jailbreak prompt text.
+- Keep `hi` plus a large tool schema from producing a Prompt Audit block while still scanning jailbreak text in user/system/assistant conversation content.
 
 ## Compatibility and migration
 
-- Existing data remains compatible. Startup applies migrations 224, 225, 226,
-  and 228 in lexical order; no manual migration command is required. Migration
-  224 normalizes the Codex fingerprint mode for top-level OpenAI OAuth
-  accounts (defaulting missing or invalid values to `device`) and removes that
-  field from non-applicable accounts. Migrations 225, 226, and 228 add channel
-  time pricing, monitor quota modes, and the expanded platform-quota constraint;
-  migration 227 is intentionally unused.
-- Migrations are forward-only. Rolling back the application does not undo the
-  migration or its database trigger; back up PostgreSQL before upgrading. A
-  database rollback requires restoring a backup or applying an audited
-  compensating SQL migration.
-- Existing GotoCC migrations `224_add_image_objects.sql` and
-  `225_restore_openai_video_prices.sql` remain immutable. Their full filenames
-  differ from the new Plus `224` and `225` files, so both lineages remain
-  independently tracked.
+- No new database migrations relative to the deployed GotoCC baseline. Existing Prompt Audit endpoints, scanners, and jailbreak policy remain compatible; only the scanned conversation-text selection is restored.
+- Content Moderation preserves compatibility with current direct-user text and images.
+- Existing GotoCC migrations remain immutable and keep their full filenames; no manual migration command is required.
 
 ## Known issues
 
