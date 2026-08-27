@@ -140,6 +140,11 @@ func TestExtractUpstreamModelIDs(t *testing.T) {
 			body: `{"data":[{"id":"canonical-id","model":"display-model"}]}`,
 			want: []string{"canonical-id"},
 		},
+		{
+			name: "codex manifest uses slug",
+			body: `{"models":[{"slug":"gpt-5.6-sol"},{"slug":"gpt-5.5-codex"}]}`,
+			want: []string{"gpt-5.5-codex", "gpt-5.6-sol"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -152,6 +157,172 @@ func TestExtractUpstreamModelIDs(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestBuildUpstreamModelsRequestSupportsOpenAIOAuth(t *testing.T) {
+	const configuredVersion = "0.200.1"
+	const accountUserAgent = "codex_cli_rs/9.9.9 (Ubuntu 22.4.0; x86_64) xterm-256color"
+	const expectedUserAgent = "codex_cli_rs/" + configuredVersion + " (Ubuntu 22.4.0; x86_64) xterm-256color"
+	cfg := upstreamModelSyncTestConfig()
+	svc := &AccountTestService{
+		cfg: cfg,
+		settingService: NewSettingService(&openAIImageSettingRepoStub{values: map[string]string{
+			SettingKeyOpenAICodexUserAgent:     "codex-tui/8.8.8 (Ubuntu 22.4.0; x86_64) xterm-256color (codex-tui; 8.8.8)",
+			SettingKeyOpenAICodexClientVersion: configuredVersion,
+		}}, cfg),
+	}
+	account := &Account{
+		ID:       11,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token":       "openai-oauth-token",
+			"chatgpt_account_id": "chatgpt-account",
+			"user_agent":         accountUserAgent,
+		},
+	}
+
+	req, err := svc.buildUpstreamModelsRequest(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, chatgptCodexModelsURL, req.URL.Scheme+"://"+req.URL.Host+req.URL.Path)
+	require.Equal(t, configuredVersion, req.URL.Query().Get("client_version"))
+	require.Equal(t, "Bearer openai-oauth-token", req.Header.Get("Authorization"))
+	require.Equal(t, "chatgpt-account", req.Header.Get("chatgpt-account-id"))
+	require.Equal(t, "codex_cli_rs", req.Header.Get("Originator"))
+	require.Equal(t, expectedUserAgent, req.Header.Get("User-Agent"))
+	require.Equal(t, configuredVersion, req.Header.Get("Version"))
+}
+
+func TestBuildOpenAIOAuthUpstreamModelsRequestIdentityFallbacks(t *testing.T) {
+	t.Run("global identity", func(t *testing.T) {
+		const version = "0.200.2"
+		const globalUA = "codex-tui/8.8.8 (Ubuntu 22.4.0; x86_64) xterm-256color (codex-tui; 8.8.8)"
+		cfg := upstreamModelSyncTestConfig()
+		svc := &AccountTestService{
+			cfg: cfg,
+			settingService: NewSettingService(&openAIImageSettingRepoStub{values: map[string]string{
+				SettingKeyOpenAICodexUserAgent:     globalUA,
+				SettingKeyOpenAICodexClientVersion: version,
+			}}, cfg),
+		}
+		req, err := svc.buildOpenAIOAuthUpstreamModelsRequest(context.Background(), &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token": "openai-oauth-token",
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, version, req.URL.Query().Get("client_version"))
+		require.Equal(t, "codex-tui/"+version+" (Ubuntu 22.4.0; x86_64) xterm-256color (codex-tui; "+version+")", req.Header.Get("User-Agent"))
+		require.Equal(t, "codex-tui", req.Header.Get("Originator"))
+		require.Equal(t, version, req.Header.Get("Version"))
+	})
+
+	t.Run("compiled default", func(t *testing.T) {
+		svc := &AccountTestService{cfg: upstreamModelSyncTestConfig()}
+		req, err := svc.buildOpenAIOAuthUpstreamModelsRequest(context.Background(), &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token": "openai-oauth-token",
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, codexCLIVersion, req.URL.Query().Get("client_version"))
+		require.Equal(t, DefaultOpenAICodexUserAgent, req.Header.Get("User-Agent"))
+		require.Equal(t, "codex-tui", req.Header.Get("Originator"))
+		require.Equal(t, codexCLIVersion, req.Header.Get("Version"))
+	})
+
+	t.Run("legacy compatibility identity", func(t *testing.T) {
+		const version = "0.200.3"
+		cfg := upstreamModelSyncTestConfig()
+		svc := &AccountTestService{
+			cfg: cfg,
+			settingService: NewSettingService(&openAIImageSettingRepoStub{values: map[string]string{
+				SettingKeyOpenAICodexUserAgent:                         "codex_exec/8.8.8 (Ubuntu 22.4.0; x86_64) xterm-256color",
+				SettingKeyCodexLegacyClientProfileCompatibilityEnabled: "true",
+				SettingKeyOpenAICodexClientVersion:                     version,
+			}}, cfg),
+		}
+		req, err := svc.buildOpenAIOAuthUpstreamModelsRequest(context.Background(), &Account{
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"access_token": "openai-oauth-token",
+			},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "codex_exec/"+version+" (Ubuntu 22.4.0; x86_64) xterm-256color", req.Header.Get("User-Agent"))
+		require.Equal(t, "codex_exec", req.Header.Get("Originator"))
+		require.Equal(t, version, req.Header.Get("Version"))
+	})
+}
+
+func TestBuildOpenAIOAuthUpstreamModelsRequestShadowUsesCredentialOwnerIdentity(t *testing.T) {
+	const version = "0.200.4"
+	const expectedUA = "codex_cli_rs/" + version + " (Ubuntu 22.4.0; x86_64) xterm-256color"
+	parentID := int64(301)
+	parent := Account{
+		ID:       parentID,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "openai-oauth-token",
+			"user_agent":   "codex_cli_rs/9.9.9 (Ubuntu 22.4.0; x86_64) xterm-256color",
+		},
+	}
+	shadow := &Account{
+		ID:              302,
+		Platform:        PlatformOpenAI,
+		Type:            AccountTypeOAuth,
+		ParentAccountID: &parentID,
+		Credentials:     map[string]any{},
+	}
+	repo := stubOpenAIAccountRepo{accounts: []Account{parent}}
+	cfg := upstreamModelSyncTestConfig()
+	settings := NewSettingService(&openAIImageSettingRepoStub{values: map[string]string{
+		SettingKeyOpenAICodexClientVersion: version,
+	}}, cfg)
+	gateway := &OpenAIGatewayService{accountRepo: repo, settingService: settings}
+	svc := &AccountTestService{
+		accountRepo:            repo,
+		cfg:                    cfg,
+		settingService:         settings,
+		openAIIdentityResolver: gateway,
+	}
+
+	req, err := svc.buildOpenAIOAuthUpstreamModelsRequest(context.Background(), shadow)
+	require.NoError(t, err)
+	require.Equal(t, expectedUA, req.Header.Get("User-Agent"))
+	require.Equal(t, "codex_cli_rs", req.Header.Get("Originator"))
+	require.Equal(t, version, req.Header.Get("Version"))
+	require.Equal(t, version, req.URL.Query().Get("client_version"))
+}
+
+func TestFetchUpstreamSupportedModelsParsesOpenAIOAuthManifest(t *testing.T) {
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"models":[{"slug":"gpt-5.6-sol"},{"slug":"gpt-5.5-codex"}]}`)),
+	}}
+	svc := &AccountTestService{
+		httpUpstream: upstream,
+		cfg:          upstreamModelSyncTestConfig(),
+	}
+
+	models, err := svc.FetchUpstreamSupportedModels(context.Background(), &Account{
+		ID:       12,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "openai-oauth-token",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-5.5-codex", "gpt-5.6-sol"}, models)
+	require.Equal(t, "Bearer openai-oauth-token", upstream.lastReq.Header.Get("Authorization"))
 }
 
 func TestExtractGrokUpstreamModelIDs(t *testing.T) {
@@ -340,6 +511,31 @@ func TestFetchUpstreamSupportedModelsParsesOpenAIResponse(t *testing.T) {
 	require.Equal(t, []string{"gpt-5", "o3"}, models)
 	require.Equal(t, "https://openai.example.com/v1/models", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer openai-key", upstream.lastReq.Header.Get("Authorization"))
+}
+
+func TestFetchUpstreamSupportedModelsUsesConfiguredBodyLimit(t *testing.T) {
+	t.Parallel()
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"data":[{"id":"gpt-5"}]}`)),
+	}}
+	cfg := upstreamModelSyncTestConfig()
+	cfg.Gateway.ModelsListReadMaxBytes = 8
+	svc := &AccountTestService{httpUpstream: upstream, cfg: cfg}
+
+	_, err := svc.FetchUpstreamSupportedModels(context.Background(), &Account{
+		ID:       7,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "openai-key",
+			"base_url": "https://openai.example.com/v1",
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "response exceeds 8 bytes")
 }
 
 func TestFetchUpstreamSupportedModelsParsesGrokAPIKeyResponse(t *testing.T) {

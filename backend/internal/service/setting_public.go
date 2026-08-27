@@ -247,6 +247,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyModelPlazaEnabled,
 		SettingKeyModelPlazaRequireAuth,
+		SettingKeyPluginManagementEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyGlobalIPAccessControlEnabled,
@@ -375,8 +376,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 
-		ModelPlazaEnabled:     settings[SettingKeyModelPlazaEnabled] == "true",
-		ModelPlazaRequireAuth: settings[SettingKeyModelPlazaRequireAuth] != "false",
+		ModelPlazaEnabled:       settings[SettingKeyModelPlazaEnabled] == "true",
+		ModelPlazaRequireAuth:   settings[SettingKeyModelPlazaRequireAuth] != "false",
+		PluginManagementEnabled: settings[SettingKeyPluginManagementEnabled] == "true",
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
@@ -641,6 +643,7 @@ type PublicSettingsInjectionPayload struct {
 	AvailableChannelsEnabled     bool `json:"available_channels_enabled"`
 	ModelPlazaEnabled            bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth        bool `json:"model_plaza_require_auth"`
+	PluginManagementEnabled      bool `json:"plugin_management_enabled"`
 	AffiliateEnabled             bool `json:"affiliate_enabled"`
 	RiskControlEnabled           bool `json:"risk_control_enabled"`
 	GlobalIPAccessControlEnabled bool `json:"global_ip_access_control_enabled"`
@@ -724,6 +727,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
 		ModelPlazaRequireAuth:                settings.ModelPlazaRequireAuth,
+		PluginManagementEnabled:              settings.PluginManagementEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		GlobalIPAccessControlEnabled:         settings.GlobalIPAccessControlEnabled,

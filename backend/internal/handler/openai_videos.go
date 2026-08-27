@@ -172,7 +172,13 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 		accountRelease()
 	}
 	service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, time.Since(forwardStart).Milliseconds())
-	h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(requestModel), openAIForwardSucceededForScheduling(forwardErr, result), nil)
+	h.gatewayService.ReportOpenAIAccountScheduleResult(
+		account,
+		openAIAccountScheduleModel(c, account, requestModel, false, result),
+		openAIForwardSucceededForScheduling(forwardErr, result),
+		nil,
+		forwardErr,
+	)
 	if forwardErr != nil {
 		h.ensureForwardErrorResponse(c, false)
 		reqLog.Warn("openai_videos.forward_failed", zap.Int64("account_id", account.ID), zap.Error(forwardErr))

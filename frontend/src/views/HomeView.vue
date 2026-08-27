@@ -27,7 +27,7 @@
 
         <div class="flex items-center gap-2 sm:gap-3">
           <div class="hidden items-center gap-5 text-sm font-medium text-gray-600 dark:text-dark-300 lg:flex">
-            <router-link to="/model-plaza" class="transition hover:text-gray-950 dark:hover:text-white">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="transition hover:text-gray-950 dark:hover:text-white">
               {{ t('home.nav.models') }}
             </router-link>
             <a
@@ -91,6 +91,7 @@
             <Icon name="arrowRight" size="sm" :stroke-width="2" />
           </router-link>
           <router-link
+            v-if="showModelPlazaEntry"
             to="/model-plaza"
             class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-sky-300 hover:text-sky-600 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100 dark:hover:border-sky-500"
           >
@@ -166,7 +167,7 @@
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.unifiedGatewayDesc') }}
             </p>
-            <router-link to="/model-plaza" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300">
               {{ t('home.features.browseAll') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
@@ -285,7 +286,7 @@
       <section class="mx-auto mt-20 max-w-7xl">
         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <router-link to="/model-plaza" class="inline-flex items-center gap-2 text-2xl font-bold text-gray-950 hover:text-sky-600 dark:text-white dark:hover:text-sky-300">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="inline-flex items-center gap-2 text-2xl font-bold text-gray-950 hover:text-sky-600 dark:text-white dark:hover:text-sky-300">
               {{ t('home.providers.title') }}
               <Icon name="chevronRight" size="md" />
             </router-link>
@@ -295,7 +296,7 @@
               {{ formatMarketplaceStat(supportedProviders.length) }} {{ t('home.stats.providerTypes') }}
             </p>
           </div>
-          <router-link to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-sky-600 dark:text-dark-400 dark:hover:text-sky-300">
+          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-sky-600 dark:text-dark-400 dark:hover:text-sky-300">
             {{ t('home.viewAll') }}
             <Icon name="arrowRight" size="xs" class="inline-block" />
           </router-link>
@@ -522,6 +523,7 @@ import { useTheme } from '@/composables/useTheme'
 import { getHomepageModelPlaza, getHomepageStats, type HomepageStats } from '@/api/home'
 import type { ModelPlazaGroup } from '@/api/modelPlaza'
 import { sanitizeUrl } from '@/utils/url'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import {
   providerBrandDisplayName,
   providerBrandFilterKey,
@@ -614,6 +616,7 @@ const siteName = computed(() => {
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
+const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const currentLanguage = computed(() => String(locale.value).toLowerCase().startsWith('zh') ? 'zh' : 'en')
 const numberLocale = computed(() => currentLanguage.value === 'zh' ? 'zh-CN' : 'en-US')
 const homeHeroTitle = computed(() => t('home.heroTitle'))
@@ -630,6 +633,12 @@ const isHomeContentUrl = computed(() => {
 const { isDark, toggleTheme } = useTheme()
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const modelPlazaRequiresAuth = computed(
+  () => appStore.cachedPublicSettings?.model_plaza_require_auth === true,
+)
+const showModelPlazaEntry = computed(
+  () => modelPlazaEnabled.value && (isAuthenticated.value || !modelPlazaRequiresAuth.value),
+)
 const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
 const userInitial = computed(() => {
@@ -644,10 +653,11 @@ const currentYear = computed(() => new Date().getFullYear())
 const footerTextLines = computed<string[]>(() => [])
 
 const footerColumns = computed(() => {
-  const quickLinks: Array<{ label: string; url: string }> = [
-    { label: t('home.nav.models'), url: '/model-plaza' },
-    { label: t('keyUsage.title'), url: '/key-usage' },
-  ]
+  const quickLinks: Array<{ label: string; url: string }> = []
+  if (showModelPlazaEntry.value) {
+    quickLinks.push({ label: t('home.nav.models'), url: '/model-plaza' })
+  }
+  quickLinks.push({ label: t('keyUsage.title'), url: '/key-usage' })
   if (docUrl.value) {
     quickLinks.push({ label: t('home.docs'), url: docUrl.value })
   }
@@ -1151,7 +1161,11 @@ onMounted(async () => {
   }
 
   if (!homeContent.value) {
-    await Promise.all([fetchHomeMarketplace(), fetchHomeStats()])
+    const requests = [fetchHomeStats()]
+    if (showModelPlazaEntry.value) {
+      requests.push(fetchHomeMarketplace())
+    }
+    await Promise.all(requests)
   }
 })
 

@@ -38,6 +38,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import auditAPI from './audit'
 import ipAccessControlAPI from './ipAccessControl'
+import pluginsAPI from './plugins'
 
 /**
  * Unified admin API object for convenient access
@@ -77,7 +78,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   audit: auditAPI,
-  ipAccessControl: ipAccessControlAPI
+  ipAccessControl: ipAccessControlAPI,
+  plugins: pluginsAPI
 }
 
 export {
@@ -115,7 +117,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   auditAPI,
-  ipAccessControlAPI
+  ipAccessControlAPI,
+  pluginsAPI
 }
 
 export default adminAPI
@@ -145,3 +148,9 @@ export type {
   TrustedProxyConfigurationState,
   TrustedProxyStatus
 } from './ipAccessControl'
+export type {
+  PluginInstallation,
+  PluginCompatibility,
+  PluginUISession,
+  PluginTestResult
+} from './plugins'

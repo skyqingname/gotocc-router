@@ -133,6 +133,28 @@ old application must be tested against the post-migration additive schema, or
 production must be restored as a matched PostgreSQL, Redis, configuration, and
 binary/image set.
 
+## Upgrade from 0.1.178+custom.006 to 0.1.183+custom.003
+
+The 0.1.183 candidate keeps every migration file already present in the
+deployed GotoCC/Plus lineage byte-equivalent and adds five Plus migrations:
+
+- 229 creates effective requested/upstream model indexes concurrently;
+- 230 widens Composite route targets to Kimi, Zhipu, and DeepSeek;
+- 231 adds nullable fast, flex, and interval pricing multipliers;
+- 232 creates disabled-by-default plugin installation and binding tables;
+- 233 adds nullable plugin artifact storage.
+
+The first health gate may restore the frozen 0.1.178 binary without reversing
+these additive or constraint-widening migrations, provided no operator has used
+the new multiplier or plugin surfaces. Once 0.1.183-only data is written, stop
+writers before rollback and preserve the matched PostgreSQL, Redis,
+configuration, binary, and plugin data-directory state. Never drop the new
+tables, columns, or indexes as an incidental rollback step.
+
+Migration 229 can leave an invalid concurrent index after interruption. Before
+retrying, inspect both target indexes in `pg_index` and verify `indisvalid` and
+`indisready`; do not assume `IF NOT EXISTS` repairs an invalid index.
+
 ## Local candidate evidence
 
 The migrated semantic source is recorded by commit

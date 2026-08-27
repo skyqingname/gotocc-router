@@ -1,43 +1,53 @@
-Sub2API Plus v0.1.178+custom.006
+Sub2API Plus v0.1.183+custom.003
 
 ## Highlights
 
-- Keep Content Moderation on current direct-user text and images.
-- Restore Prompt Audit conversation-text selection to `v0.1.177+custom.003`, so ordinary Codex `hi` requests are not blocked by client tool schemas.
-- Continue sharing one canonical extractor, without converting extraction failures into policy blocks.
-- Preserve every active GotoCC production contract (LC-001 through LC-004 and LC-006 through LC-012) while keeping retired LC-005 absent.
-- Keep all NewAPI-backed video models in one OpenAI-compatible group and accept Infinite Canvas generation aliases without Composite or model-prefix routing.
-
-## Changed
-
-- Prompt Audit full/async scans messages, instructions/system context, reusable prompt variables, reasoning, and search/embedding/media prompts.
-- Prompt Audit no longer sends static `tools`/`functions` schemas, structured tool-call arguments, or tool/function outputs to Qwen3Guard.
-- Blocking latest-turn-only again scans only the latest user text plus the nearest preceding assistant/model output.
-- Compose asynchronous-image failed-task deletion and private exact ZIP keys with durable PostgreSQL ownership, same-user URL renewal, and streaming uploads; storage keys are not exposed in public JSON.
-- Preserve atomic registration-time consumption for both one-time and reusable invitation codes.
-- Keep all NewAPI-backed video models in one OpenAI-compatible group. Accept the
-  legacy `/videos/generations` create, status, and content aliases used by
-  Infinite Canvas and normalize them to NewAPI's canonical `/v1/videos` task
-  surface without introducing Composite or model-prefix routing. Channel
-  create/update validation now also accepts the existing `video` billing mode,
-  allowing per-second rules to be maintained through the normal admin API.
+- Rebase the complete GotoCC production contract set onto the immutable
+  Sub2API Plus `v0.1.183+custom.002` release and official Sub2API `v0.1.183`.
+- Preserve reusable invitations, OpenAI and Grok video routes, CC Switch,
+  direct Images model forwarding, the GotoCC homepage, teams, model plaza,
+  durable async-image objects, ranking privacy, and JSON video billing.
+- Retain the v0.1.183 Codex session affinity, sticky spillover, OAuth 429
+  scheduling, Responses tool-call identity, account recovery, monitoring,
+  pricing, and plugin changes.
 
 ## Fixed
 
-- Stop treating Codex and other client tool definitions as jailbreak prompt text.
-- Keep `hi` plus a large tool schema from producing a Prompt Audit block while still scanning jailbreak text in user/system/assistant conversation content.
+- Model-plaza membership now follows the same schedulable account inventory as
+  the live gateway; channel pricing enriches visible models but cannot invent
+  models or leak inactive groups.
+- Model-plaza links and homepage data requests now honor both the feature flag
+  and authentication requirement.
+- OpenAI video scheduling reports the selected account through the v0.1.183
+  health-observation interface and records the effective scheduled model.
+- OpenAI Images continues forwarding the requested model directly without
+  applying account or channel model mappings.
 
 ## Compatibility and migration
 
-- No new database migrations relative to the deployed GotoCC baseline. Existing Prompt Audit endpoints, scanners, and jailbreak policy remain compatible; only the scanned conversation-text selection is restored.
-- Content Moderation preserves compatibility with current direct-user text and images.
-- Existing GotoCC migrations remain immutable and keep their full filenames; no manual migration command is required.
+- Existing migration filenames and bytes through the deployed GotoCC/Plus 228
+  lineage are unchanged.
+- Upgrades from the deployed `0.1.178+custom.006` line apply five forward-only
+  Plus migrations: 229 creates concurrent effective-model indexes, 230 widens
+  Composite routes to the CN providers, 231 adds optional pricing multipliers,
+  and 232-233 add disabled-by-default plugin metadata and artifact storage.
+- No `.env`, secret, Compose, systemd, PostgreSQL/Redis package, DMIT, network,
+  API-key group, account allowlist, channel, model, or price data change is
+  included in the local candidate.
+- Immediate health-gate rollback can use the previous binary because the new
+  schema is additive or constraint-widening. After operators configure new
+  multipliers or install/enable plugins, rollback requires a data-aware review
+  and preservation of the plugin artifact directory.
 
 ## Known issues
 
-- None known.
+- The immutable `v0.1.183+custom.002` release exists, but its own `UPSTREAM.md`
+  mapping row still says `planned`; the candidate records this metadata
+  discrepancy and pins the peeled commit instead of trusting the status word.
 
 ## Upstream baseline
 
-Official release: v0.1.178
-Official commit: e0c48a19ed794a565e3858662520afe0a1f9f0ba
+Plus release: v0.1.183+custom.002
+Plus commit: 2b5bd31478415617831d49eea9988be90111d3b7
+Official release: v0.1.183
+Official commit: e8cb019fabf8b55199436229044cbf9aa7a82564
