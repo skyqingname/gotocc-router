@@ -441,16 +441,6 @@ export default {
         accountSchedulingThresholdsDisabledHint: '100 表示禁用该平台自动停调；1–99 表示达到该利用率后暂停调度。',
         accountSchedulingThresholdsRangeHint: '整数 1–100（百分比）。仅 OpenAI / Anthropic / Grok。'
       },
-      upstreamBillingProbe: {
-        title: '上游倍率自动探测',
-        description: '定期获取 API Key 账号所连接上游 Sub2API 站点声明的计费倍率；只有另行开启“同步上游声明倍率”的账号才会更新账号倍率。',
-        enabled: '启用全局自动探测',
-        enabledHint: '开启后，仅对账号自身已启用自动检测的账号执行定时探测；关闭后停止所有定时探测，手动探测不受影响。',
-        intervalMinutes: '探测周期（分钟）',
-        intervalHint: '范围 5–1440 分钟。成功探测结果的有效期为两个探测周期。',
-        saved: '上游倍率自动探测设置已保存',
-        saveFailed: '保存上游倍率自动探测设置失败'
-      },
       ollamaCloudUsage: {
         title: 'Ollama Cloud 用量刷新',
         description: '在模型请求驱动下刷新账号在 Ollama 官方设置页展示的用量；默认关闭。无新请求时不会自动抓取。',
@@ -521,7 +511,7 @@ export default {
         codexLegacyClientProfileCompatibility: '旧版 Codex 客户端档案兼容模式',
         codexLegacyClientProfileCompatibilityHint: '默认关闭。仅临时允许 codex_app、codex_exec、codex_sdk_ts、codex_vscode_copilot 用于配置的出站身份及开启「仅允许 Codex 官方客户端档案」的账号；它们始终是旧版兼容档案，不会被标记为官方档案，仍必须精确匹配 User-Agent、originator、语义化版本和已知 Codex 证据请求头。',
         openaiCodexLocalGroupQuota: 'Codex 本地分组额度',
-        openaiCodexLocalGroupQuotaHint: '向 Codex 展示当前 API Key 所属订阅的 5 小时和 7 天额度，而不是所选上游账号的额度。关闭时保持现有上游额度透传行为。',
+        openaiCodexLocalGroupQuotaHint: '向 Codex 展示当前 API Key 所属订阅的 5 小时和 7 天额度，即使所选账号开启自动透传也会覆盖。关闭后，仅自动透传账号会展示真实账号额度，其他账号不返回额度数据。',
         openaiCodexClientVersion: 'Codex 客户端版本号',
         openaiCodexClientVersionPlaceholder: '留空则跟随自动同步',
         openaiCodexClientVersionHint: '网关对上游声明的 Codex 客户端版本号，User-Agent 与 version 头同源使用。留空表示使用自动同步到的官方最新稳定版；填写后固定为该版本，不再跟随同步。',
@@ -1199,7 +1189,7 @@ export default {
         lowRatePriorityTitle: '低倍率优先',
         lowRatePriorityDescription: '开启后优先选择计费倍率较低的账号；倍率相同时，再比较账号优先级和当前负载等。启用实验调度策略后，此开关不生效。',
         oauthRateTitle: 'OAuth 调度参考倍率',
-        oauthRatePriorityDescription: '同一分组同时包含 API Key 和 OAuth 账号时，OAuth 账号按此倍率与已探测的 API Key 计费倍率一起排序。',
+        oauthRatePriorityDescription: '同一分组同时包含 API Key 和 OAuth 账号时，OAuth 账号按此倍率与手工配置的 API Key 账号倍率一起排序。',
         oauthRateWeightedDescription: '同一分组同时包含 API Key 和 OAuth 账号时，计算“计费倍率”得分时，OAuth 账号按此倍率参与计算。',
         stickyWeightedTitle: '粘性加权',
         stickyWeightedDescription: '开启后 previous_response_id 和 session_hash 粘性进入高级调度打分；关闭时仍按旧逻辑硬命中粘性账号。',

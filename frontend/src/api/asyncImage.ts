@@ -17,6 +17,8 @@ export interface AsyncImageTask {
   request_type?: 'generation' | 'edit' | string
   model?: string
   prompt_preview?: string
+  requested_images?: number
+  actual_images?: number
   status: AsyncImageTaskStatus
   http_status?: number
   image_url?: string

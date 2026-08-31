@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"net"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -29,6 +30,13 @@ var (
 	phonePattern  = regexp.MustCompile(`(?:\+?\d[\d\s().-]{8,}\d)`)
 )
 
+var promptAuditClientWrapperTags = []string{
+	"environment_context",
+	"permission_profile",
+	"system-reminder",
+	"filesystem",
+}
+
 const promptAuditPrioritySeparator = "\x00SUB2API_PROMPT_AUDIT_PRIORITY_END\x00"
 
 type promptSegment struct {
@@ -45,7 +53,8 @@ func ExtractPromptSnapshot(req Request) (PromptSnapshot, error) {
 // ExtractBlockingPromptSnapshot builds the synchronous guard input. Blocking
 // always scans only the latest user text; the latestTurnOnly argument is kept
 // for call-site compatibility and is ignored. Asynchronous auditing always
-// uses ExtractPromptSnapshot so the complete transcript is retained for review.
+// uses ExtractPromptSnapshot and retains every user turn in this request,
+// excluding harness instructions, tool schema, and assistant output.
 func ExtractBlockingPromptSnapshot(req Request, latestTurnOnly bool) (PromptSnapshot, error) {
 	_ = latestTurnOnly
 	snapshot, _, err := extractPromptSnapshotWithDiagnostics(req, true)
@@ -64,7 +73,7 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 			Reasons: auditcontent.SanitizeIncompleteReasons(document.IncompleteReasons),
 		}
 	}
-	extracted := promptSegmentsFromAuditContent(document, latestTurnOnly)
+	extracted := promptSegmentsFromAuditContent(document, req.Protocol, latestTurnOnly)
 	var segments []string
 	if latestTurnOnly {
 		segments = blockingSegmentsLatestUser(extracted)
@@ -76,39 +85,48 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 	}
 	scanText, metadataText := buildPrioritizedScanText(segments)
 	digest := sha256.Sum256([]byte(metadataText))
+	fullPrompt := BuildFullPrompt(metadataText, DefaultFullPromptMaxRunes)
 	stage := strings.TrimSpace(req.Stage)
 	if stage == "" {
 		stage = "http"
 	}
 	return PromptSnapshot{
-		RequestID: req.RequestID, UserID: req.UserID, UsernameSnapshot: req.Username,
+		RequestID: req.RequestID, ClientIP: normalizePromptClientIP(req.ClientIP), UserID: req.UserID, UsernameSnapshot: req.Username,
 		UserEmailSnapshot: req.UserEmail, APIKeyID: req.APIKeyID, APIKeyNameSnapshot: req.APIKeyName,
 		GroupID: cloneInt64Ptr(req.GroupID), GroupName: req.GroupName, Provider: req.Provider,
 		Endpoint: req.Endpoint, Protocol: req.Protocol, Model: req.Model,
 		PromptHash: hex.EncodeToString(digest[:]), RedactedPreview: BuildPromptPreview(metadataText, DefaultPromptPreviewMaxRunes),
-		FullPrompt:   BuildFullPrompt(metadataText, DefaultFullPromptMaxRunes),
+		FullPrompt: fullPrompt, FullPromptTruncated: utf8.RuneCountInString(fullPrompt) < utf8.RuneCountInString(metadataText),
 		PromptLength: utf8.RuneCountInString(metadataText), MessageCount: len(segments), Stage: stage,
 		ScanText: scanText, BodyBytes: len(req.Body),
 	}, diagnostic, nil
 }
 
-func promptSegmentsFromAuditContent(document auditcontent.Document, latestTurnOnly bool) []promptSegment {
+func promptSegmentsFromAuditContent(document auditcontent.Document, protocol string, latestTurnOnly bool) []promptSegment {
+	allowRolelessMessage := promptAuditAllowsRolelessMessage(protocol)
 	segments := make([]promptSegment, 0, len(document.Segments))
 	for _, segment := range document.Segments {
-		if !isPromptAuditConversationSegment(segment, latestTurnOnly) {
+		if !isPromptAuditConversationSegment(segment, allowRolelessMessage, latestTurnOnly) {
 			continue
 		}
 		role := segment.Role
 		user := role == "user"
-		if role == "" && (segment.Source == auditcontent.SourceMessage ||
+		if role == "" && ((segment.Source == auditcontent.SourceMessage && allowRolelessMessage) ||
 			segment.Source == auditcontent.SourceSearchQuery ||
 			segment.Source == auditcontent.SourceEmbeddingInput ||
 			segment.Source == auditcontent.SourceMediaPrompt) {
 			user = true
 			role = "user"
 		}
+		segText := segment.Text
+		if user {
+			segText = stripPromptAuditClientWrapperBlocks(segText)
+			if segText == "" {
+				continue
+			}
+		}
 		segments = append(segments, promptSegment{
-			text: segment.Text,
+			text: segText,
 			user: user,
 			role: role,
 		})
@@ -116,24 +134,36 @@ func promptSegmentsFromAuditContent(document auditcontent.Document, latestTurnOn
 	return segments
 }
 
-func isPromptAuditConversationSegment(segment auditcontent.Segment, latestTurnOnly bool) bool {
-	if latestTurnOnly {
-		switch segment.Source {
-		case auditcontent.SourceMessage:
+func isPromptAuditConversationSegment(segment auditcontent.Segment, allowRolelessMessage bool, latestTurnOnly bool) bool {
+	switch segment.Source {
+	case auditcontent.SourceSearchQuery, auditcontent.SourceEmbeddingInput, auditcontent.SourceMediaPrompt:
+		return true
+	case auditcontent.SourceMessage:
+		if latestTurnOnly {
 			// Keep assistant/model messages as turn separators so older user
 			// text is not joined with the latest user turn. They are not emitted.
 			return true
-		case auditcontent.SourceSearchQuery, auditcontent.SourceEmbeddingInput, auditcontent.SourceMediaPrompt:
-			return true
-		default:
-			return false
 		}
+		return isPromptAuditUserRole(segment.Role, allowRolelessMessage)
+	default:
+		return false
 	}
-	switch segment.Source {
-	case auditcontent.SourceMessage, auditcontent.SourceInstruction,
-		auditcontent.SourceSearchQuery, auditcontent.SourceEmbeddingInput,
-		auditcontent.SourceMediaPrompt, auditcontent.SourcePromptVariable,
-		auditcontent.SourceReasoning:
+}
+
+func isPromptAuditUserRole(role string, allowRoleless bool) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "user":
+		return true
+	case "":
+		return allowRoleless
+	default:
+		return false
+	}
+}
+
+func promptAuditAllowsRolelessMessage(protocol string) bool {
+	switch strings.ToLower(strings.TrimSpace(protocol)) {
+	case "openai_responses", "openai_live", "gemini":
 		return true
 	default:
 		return false
@@ -143,11 +173,6 @@ func isPromptAuditConversationSegment(segment auditcontent.Segment, latestTurnOn
 // DefaultPromptPreviewMaxRunes caps how much sanitized prompt text may be
 // considered before BuildPromptPreview withholds the majority for storage/UI.
 const DefaultPromptPreviewMaxRunes = 96
-
-// DefaultFullPromptMaxRunes caps how much unredacted prompt text is persisted
-// on an audit event for admin review. It is deliberately generous so realistic
-// prompts are kept intact while bounding per-row storage.
-const DefaultFullPromptMaxRunes = 65536
 
 func normalizeSegmentsLatestUserFirst(values []promptSegment) []string {
 	normalized := normalizedPromptSegments(values)
@@ -220,6 +245,87 @@ func isUserSegment(segment promptSegment) bool {
 	return segment.user || segment.role == "user"
 }
 
+// stripPromptAuditClientWrapperBlocks removes client harness XML from user
+// text while keeping the surrounding user-authored sentences. Whole blocks
+// are dropped; leftover wrapper-only segments become empty and are omitted.
+func stripPromptAuditClientWrapperBlocks(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" || !strings.Contains(text, "<") {
+		return text
+	}
+	stripped := text
+	for {
+		next := stripOnePromptAuditClientWrapperBlock(stripped)
+		if next == stripped {
+			break
+		}
+		stripped = next
+	}
+	stripped = strings.ReplaceAll(stripped, "\r\n", "\n")
+	for strings.Contains(stripped, "\n\n\n") {
+		stripped = strings.ReplaceAll(stripped, "\n\n\n", "\n\n")
+	}
+	return strings.TrimSpace(stripped)
+}
+
+func stripOnePromptAuditClientWrapperBlock(text string) string {
+	lower := strings.ToLower(text)
+	bestStart, bestEnd := -1, -1
+	for _, name := range promptAuditClientWrapperTags {
+		openToken := "<" + name
+		searchFrom := 0
+		for {
+			openRel := strings.Index(lower[searchFrom:], openToken)
+			if openRel < 0 {
+				break
+			}
+			openAt := searchFrom + openRel
+			afterName := openAt + len(openToken)
+			if afterName < len(lower) {
+				next := lower[afterName]
+				if next != '>' && next != '/' && next != ' ' && next != '\t' && next != '\n' && next != '\r' {
+					searchFrom = afterName
+					continue
+				}
+			}
+			gt := strings.Index(text[openAt:], ">")
+			if gt < 0 {
+				break
+			}
+			tagEnd := openAt + gt + 1
+			rawTag := text[openAt:tagEnd]
+			if strings.HasSuffix(strings.TrimSpace(rawTag), "/>") {
+				if bestStart < 0 || openAt < bestStart {
+					bestStart, bestEnd = openAt, tagEnd
+				}
+				break
+			}
+			closeToken := "</" + name
+			closeRel := strings.Index(lower[tagEnd:], closeToken)
+			if closeRel < 0 {
+				if bestStart < 0 || openAt < bestStart {
+					bestStart, bestEnd = openAt, len(text)
+				}
+				break
+			}
+			closeAt := tagEnd + closeRel
+			closeGt := strings.Index(text[closeAt:], ">")
+			if closeGt < 0 {
+				break
+			}
+			end := closeAt + closeGt + 1
+			if bestStart < 0 || openAt < bestStart {
+				bestStart, bestEnd = openAt, end
+			}
+			break
+		}
+	}
+	if bestStart < 0 {
+		return text
+	}
+	return strings.TrimSpace(text[:bestStart]) + "\n\n" + strings.TrimSpace(text[bestEnd:])
+}
+
 func buildPrioritizedScanText(segments []string) (scanText string, metadataText string) {
 	metadataText = strings.Join(segments, "\n\n")
 	if len(segments) <= 1 {
@@ -279,20 +385,35 @@ func BuildPromptPreview(value string, maxRunes int) string {
 	return preview
 }
 
-// BuildFullPrompt returns the complete prompt text for audit-event storage and
-// admin review, without redaction. NUL bytes are stripped because PostgreSQL
-// TEXT rejects them, and the result is capped at maxRunes.
+// DefaultFullPromptMaxRunes bounds the existing admin-only event content.
+const DefaultFullPromptMaxRunes = 65536
+
+// BuildFullPrompt returns bounded event text for administrator review. NUL
+// bytes are stripped because PostgreSQL TEXT rejects them.
 func BuildFullPrompt(value string, maxRunes int) string {
 	if maxRunes <= 0 {
 		maxRunes = DefaultFullPromptMaxRunes
 	}
 	value = strings.ReplaceAll(value, "\x00", "")
-	return TrimRunes(strings.TrimSpace(value), maxRunes)
+	value = strings.TrimSpace(value)
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return value
+	}
+	return string(runes[:maxRunes])
 }
 
 // FullPromptFromScanText reconstructs display text from the worker payload.
 func FullPromptFromScanText(scanText string) string {
 	return BuildFullPrompt(strings.ReplaceAll(scanText, promptAuditPrioritySeparator, "\n\n"), DefaultFullPromptMaxRunes)
+}
+
+func normalizePromptClientIP(value string) string {
+	parsed := net.ParseIP(strings.TrimSpace(value))
+	if parsed == nil {
+		return ""
+	}
+	return parsed.String()
 }
 
 func TrimRunes(value string, limit int) string {

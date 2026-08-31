@@ -217,15 +217,19 @@ the disk usage of arbitrary host bind directories. Inspect and back up those
 host paths separately.
 
 The `up` and `upgrade` commands do not invoke `container build`, so they do not
-create Apple Builder cache. If an operator separately uses `container build`,
+create Apple Builder cache. Project validation retains only its current
+deterministic `sub2api-validation` image and dependency-cache generation; it
+does not own or prune the global Apple Builder. Exact application-build base
+images and Builder layers may remain reusable while their versions still match
+the repository Dockerfiles. If an operator separately uses `container build`,
 the builder can be stopped without deleting its cache:
 
 ```bash
 container builder stop
 ```
 
-Delete the builder and its reusable build cache only when a subsequent full
-rebuild is acceptable:
+Delete the builder and its reusable build cache only after confirming it is not
+shared by another project and a subsequent full rebuild is acceptable:
 
 ```bash
 container builder delete
@@ -262,22 +266,22 @@ the release workflow preserves the leading `v` and replaces only `+` with
 `-`. The current mapping is:
 
 ```text
-Git/GitHub:         v0.1.183+custom.003
-Application:        0.1.183+custom.003
-Apple/OCI image:    ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.003
+Git/GitHub:         v0.1.183+custom.005
+Application:        0.1.183+custom.005
+Apple/OCI image:    ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.005
 ```
 
 Use the following values when building or publishing this OCI image:
 
 ```bash
 docker build \
-  --build-arg VERSION=0.1.183+custom.003 \
-  --tag ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.003 \
+  --build-arg VERSION=0.1.183+custom.005 \
+  --tag ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.005 \
   .
 ```
 
 After that image is available to the Apple `container` runtime, set
-`APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.003`. Until then, keep
+`APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/luckykuang/sub2api-plus:v0.1.183-custom.005`. Until then, keep
 the published image as the runtime base and use `APPLE_CONTAINER_SUB2API_BINARY`
 for the custom binary.
 

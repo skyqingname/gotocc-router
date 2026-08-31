@@ -70,7 +70,7 @@ Git transfers only `HEAD:<current-branch>`. Never use `--force`, `--all`,
 
 Only `check`, `submit-pr`, and `ensure` access the validation runtime.
 
-- macOS: Apple Containers only; no Docker, Colima, or host-toolchain fallback.
+- macOS: directly reachable Docker Engine and Compose plugin.
 - Windows: Docker inside a running WSL2 Debian or Ubuntu distribution only.
 - Linux: directly reachable Docker Engine and Compose plugin.
 
@@ -78,6 +78,12 @@ Every full-profile Go, frontend, Python policy, installer, and lifecycle check
 runs inside `deploy/Dockerfile.validation`. Host processes may only perform
 GitHub/Git gates, runtime probes, image management, Compose parsing, container
 launch, or the deterministic finalization checks owned by release-cli.
+After every container validation attempt, push-cli relies on `--rm` to remove
+the one-shot container and its writable snapshot. It retains only the current
+deterministic project validation image and dependency-cache generation, and
+removes stale Sub2API validation generations. Cleanup is mandatory on success
+and failure and never invokes a global prune that could affect unrelated
+projects or runtime resources.
 
 ## Pull-Request Proof
 

@@ -155,6 +155,30 @@ Migration 229 can leave an invalid concurrent index after interruption. Before
 retrying, inspect both target indexes in `pg_index` and verify `indisvalid` and
 `indisready`; do not assume `IF NOT EXISTS` repairs an invalid index.
 
+## Upgrade from 0.1.183+custom.003 to 0.1.183+custom.005
+
+This candidate pins the immutable Plus `v0.1.183+custom.004` tag at
+`6c1e6d69398398022a832f869cdb70e69ba47c4d`. That commit contains
+`v0.1.183+custom.003` commit
+`e94f300b586d8ceb91ba526b13313407b99ffbff` (PR #62) as an ancestor, so the
+`.003` release was not skipped. Its retired upstream-billing-probe behavior,
+prompt-audit billing fixes, and migration 234 remain in the candidate.
+
+Migrations 235-237 then add prompt-audit observability, a concurrent client-IP
+index, Moderation endpoint attribution, and asynchronous-image storage/count
+metadata. All active GotoCC LC-001 through LC-012 contracts are adapted on top;
+LC-005 remains retired and guarded against regression.
+
+Local generation and validation run in a deterministic Docker image on the
+host, while the production artifact is built CGO-disabled for `linux/amd64`.
+This upgrade does not authorize or include changes to `.env`, secrets,
+Compose, systemd, PostgreSQL/Redis packages, DMIT, network boundaries, account
+allowlists, groups, channels, models, or price data.
+
+Migration 234 removes retired probe configuration from existing rows. After it
+has executed, a binary-only rollback cannot restore those values; production
+rollback must use the matched deployment backup or an audited forward fix.
+
 ## Local candidate evidence
 
 The migrated semantic source is recorded by commit

@@ -448,16 +448,6 @@ export default {
         accountSchedulingThresholdsDisabledHint: '100 disables platform auto-pause. Values 1–99 pause scheduling once utilization reaches that percent.',
         accountSchedulingThresholdsRangeHint: 'Integer 1–100 (percent). OpenAI/Anthropic/Grok only.'
       },
-      upstreamBillingProbe: {
-        title: 'Upstream Rate Auto Detection',
-        description: 'Periodically retrieve rates declared by upstream Sub2API sites. Account rates change only when the separate sync switch is enabled.',
-        enabled: 'Enable global auto detection',
-        enabledHint: 'When enabled, scheduled detection runs only for accounts that also enable automatic detection. Disabling stops all scheduled detection; manual detection remains available.',
-        intervalMinutes: 'Detection interval (minutes)',
-        intervalHint: 'Range: 5–1440 minutes. A successful result remains valid for two detection intervals.',
-        saved: 'Upstream rate auto detection settings saved',
-        saveFailed: 'Failed to save upstream rate auto detection settings'
-      },
       ollamaCloudUsage: {
         title: 'Ollama Cloud Usage Refresh',
         description: 'Refresh official Ollama settings-page usage driven by model requests for individually opted-in accounts. Disabled by default. Idle accounts are not polled.',
@@ -528,7 +518,7 @@ export default {
         codexLegacyClientProfileCompatibility: 'Legacy Codex Client Profile Compatibility',
         codexLegacyClientProfileCompatibilityHint: 'Default off. Temporarily allows only codex_app, codex_exec, codex_sdk_ts, and codex_vscode_copilot for configured outbound identities and “Codex official client profiles only” accounts. They remain legacy-compatible profiles, not official profiles; exact User-Agent, originator, semantic version, and known Codex evidence are still required.',
         openaiCodexLocalGroupQuota: 'Codex Local Group Quota',
-        openaiCodexLocalGroupQuotaHint: 'Show the authenticated API key\'s subscription 5-hour and 7-day quotas to Codex instead of the selected upstream account quota. Disabled keeps existing upstream quota passthrough.',
+        openaiCodexLocalGroupQuotaHint: 'Show the authenticated API key\'s subscription 5-hour and 7-day quotas to Codex, overriding the selected account even when account passthrough is enabled. When disabled, real account quotas are shown only for accounts with passthrough enabled; otherwise quota data is hidden.',
         openaiCodexClientVersion: 'Codex client version',
         openaiCodexClientVersionPlaceholder: 'Leave empty to follow auto-sync',
         openaiCodexClientVersionHint: 'The Codex client version this gateway declares upstream, shared by the User-Agent and the version header. Leave empty to use the auto-synced latest stable release; setting a value pins it and stops following auto-sync.',
@@ -1205,7 +1195,7 @@ export default {
         lowRatePriorityTitle: 'Prefer lower rates',
         lowRatePriorityDescription: 'When enabled, accounts with lower billing rates are preferred. If rates are equal, account priority, current load, and other scheduling factors are considered. This switch is ignored when the experimental scheduler is enabled.',
         oauthRateTitle: 'OAuth scheduling reference rate',
-        oauthRatePriorityDescription: 'When a group contains both API Key and OAuth accounts, this rate is used to order OAuth accounts alongside probed API Key billing rates.',
+        oauthRatePriorityDescription: 'When a group contains both API Key and OAuth accounts, this rate is used to order OAuth accounts alongside the manually configured API Key account rates.',
         oauthRateWeightedDescription: 'When a group contains both API Key and OAuth accounts, this rate is used for OAuth accounts when calculating the billing-rate score.',
         stickyWeightedTitle: 'Sticky weighting',
         stickyWeightedDescription: 'When enabled, previous_response_id and session_hash affinity are scored by the advanced scheduler. When disabled, sticky accounts keep the legacy hard-hit behavior.',
