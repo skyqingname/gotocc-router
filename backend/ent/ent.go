@@ -32,6 +32,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
 	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -138,6 +139,7 @@ func checkColumn(t, c string) error {
 			idempotencyrecord.Table:             idempotencyrecord.ValidColumn,
 			identityadoptiondecision.Table:      identityadoptiondecision.ValidColumn,
 			imageobject.Table:                   imageobject.ValidColumn,
+			openaivideotask.Table:               openaivideotask.ValidColumn,
 			paymentauditlog.Table:               paymentauditlog.ValidColumn,
 			paymentorder.Table:                  paymentorder.ValidColumn,
 			paymentproviderinstance.Table:       paymentproviderinstance.ValidColumn,

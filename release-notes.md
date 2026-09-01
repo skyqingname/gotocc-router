@@ -1,64 +1,57 @@
-Sub2API Plus v0.1.183+custom.005
+Sub2API Plus v0.1.183+custom.006
 
 ## Highlights
 
-- Rebased the complete GotoCC production contract set onto the immutable
-  Sub2API Plus `v0.1.183+custom.004` release.
-- Added configurable OpenAI-compatible Content Moderation endpoint pools with priority failover, cooldown, manual pause, and health visibility.
-- Improved Prompt Audit and Content Moderation observability and protocol coverage.
-- Added Moderation platform attribution and status semantics to audit records.
-- Improved asynchronous image task durability, requested/actual image observability, and PostgreSQL-backed ZIP download recovery.
-- Preserved reusable invitations, OpenAI and Grok video routes, CC Switch,
-  direct Images model forwarding, the GotoCC homepage, teams, model plaza,
-  durable async-image objects, ranking privacy, and JSON video billing.
+- Added a durable OpenAI-compatible video task state machine backed by
+  PostgreSQL leases.
+- Video channel pricing now uses the accepted request `seconds` and resolution
+  instead of HTTP request duration or a single request unit.
+- Balance billing reserves before upstream create, captures only on provider
+  success, and releases on create failure, provider failure, cancellation, or
+  local expiry.
+- Status, content, and background polling stay bound to the original account
+  and mapped model.
+- Preserved the complete deployed `0.1.183+custom.005` GotoCC contract set.
 
 ## Changed
 
-- Prompt Guard audits user input only.
-- Added text Moderation API strategy guidance and clarified its interaction with global moderation modes.
-- Removed the retired upstream billing probe while retaining GotoCC team and
-  usage ownership semantics.
-- Retained the complete `v0.1.183+custom.003` PR #62 ancestry, including
-  migration 234 and its prompt-audit billing fixes, before applying the
-  `v0.1.183+custom.004` changes.
-- Standardized deterministic candidate validation on Docker for macOS and
-  Linux while keeping the production output CGO-disabled for `linux/amd64`.
+- Added explicit `video_task` polling, lease, timeout, response limit, batch,
+  and terminal-status configuration.
+- Successful video usage records now carry `billing_mode=video`,
+  `video_count=1`, requested duration seconds, resolution, immutable routing,
+  and pricing snapshots.
+- Subscription video usage is deferred until successful terminal state;
+  failed tasks consume neither subscription nor successful usage.
 
 ## Fixed
 
-- Fixed manual Moderation endpoint tests being overwritten by persisted pool configuration.
-- Fixed multi-image async edit submission and durable task metadata.
-- Fixed completed async image ZIP downloads after Redis task expiry.
-- Preserved Gemini image-response normalization together with the target
-  Codex local-group quota headers.
+- Fixed video create requests priced at one configured unit even when the
+  channel is configured per generated second.
+- Fixed failed asynchronous video tasks retaining charges because no durable
+  poller or refund path existed.
+- Fixed video status/content reads being rescheduled to a default model or a
+  different account after create.
 
 ## Compatibility and migration
 
-- Existing migration filenames and bytes through the deployed GotoCC/Plus 233
-  lineage are unchanged.
-- Migration 234 removes retired upstream-billing-probe account keys and its
-  global settings row, and emits account-change outbox entries. Restoring that
-  retired configuration requires the deployment backup, not a binary-only
-  rollback.
-- Migrations 235-237 add prompt-audit observability, a concurrent client-IP
-  index, Moderation endpoint attribution, and asynchronous-image storage/count
-  metadata. Existing completed image tasks can recover actual image counts
-  from stored result data, but tasks completed before storage keys were
-  persisted cannot recover ZIP downloads after Redis expiry.
-- No `.env`, secret, Compose, systemd, PostgreSQL/Redis package, DMIT, network,
-  API-key group, account allowlist, channel, model, or price data change is
-  included in the local candidate.
+- Existing migrations 1-237 remain byte-identical.
+- Migration 238 creates an empty `openai_video_tasks` table and indexes. It
+  does not inspect, charge, refund, or backfill historical video requests.
+- Deployment must add explicit `video_task` values to `config.yaml`; no secret,
+  `.env`, Compose, systemd, PostgreSQL/Redis package, DMIT, network, account,
+  channel, model, or price-row change is included.
+- A binary-only rollback is safe only after all new video tasks are terminal
+  and no balance hold remains; migration 238 is left forward-compatible.
 
 ## Known issues
 
-- HTTP image object URLs on a different origin remain blocked by the default
-  CSP. Use an HTTPS image storage or CDN URL for browser previews.
-- The immutable `v0.1.183+custom.004` release exists, but its own `UPSTREAM.md`
-  mapping row still says `planned`; this candidate pins the peeled commit and
-  records the metadata discrepancy.
+- Provider-specific terminal status spellings must be included in the explicit
+  production `video_task` terminal sets before enabling the worker.
 
 ## Upstream baseline
 
+Deployed GotoCC baseline: 0.1.183+custom.005
+GotoCC commit: 298e1584c8916897794a5e6311c580ff56f0ed7d
 Plus release: v0.1.183+custom.004
 Plus commit: 6c1e6d69398398022a832f869cdb70e69ba47c4d
 Official release: v0.1.183

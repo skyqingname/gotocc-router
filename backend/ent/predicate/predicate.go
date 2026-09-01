@@ -66,6 +66,9 @@ type IdentityAdoptionDecision func(*sql.Selector)
 // ImageObject is the predicate function for imageobject builders.
 type ImageObject func(*sql.Selector)
 
+// OpenAIVideoTask is the predicate function for openaivideotask builders.
+type OpenAIVideoTask func(*sql.Selector)
+
 // PaymentAuditLog is the predicate function for paymentauditlog builders.
 type PaymentAuditLog func(*sql.Selector)
 

@@ -25,6 +25,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
 	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -1352,6 +1353,110 @@ func init() {
 	imageobjectDescCreatedAt := imageobjectFields[7].Descriptor()
 	// imageobject.DefaultCreatedAt holds the default value on creation for the created_at field.
 	imageobject.DefaultCreatedAt = imageobjectDescCreatedAt.Default.(func() time.Time)
+	openaivideotaskFields := schema.OpenAIVideoTask{}.Fields()
+	_ = openaivideotaskFields
+	// openaivideotaskDescLocalRequestID is the schema descriptor for local_request_id field.
+	openaivideotaskDescLocalRequestID := openaivideotaskFields[0].Descriptor()
+	// openaivideotask.LocalRequestIDValidator is a validator for the "local_request_id" field. It is called by the builders before save.
+	openaivideotask.LocalRequestIDValidator = openaivideotaskDescLocalRequestID.Validators[0].(func(string) error)
+	// openaivideotaskDescTaskID is the schema descriptor for task_id field.
+	openaivideotaskDescTaskID := openaivideotaskFields[1].Descriptor()
+	// openaivideotask.TaskIDValidator is a validator for the "task_id" field. It is called by the builders before save.
+	openaivideotask.TaskIDValidator = openaivideotaskDescTaskID.Validators[0].(func(string) error)
+	// openaivideotaskDescRequestedModel is the schema descriptor for requested_model field.
+	openaivideotaskDescRequestedModel := openaivideotaskFields[10].Descriptor()
+	// openaivideotask.RequestedModelValidator is a validator for the "requested_model" field. It is called by the builders before save.
+	openaivideotask.RequestedModelValidator = openaivideotaskDescRequestedModel.Validators[0].(func(string) error)
+	// openaivideotaskDescUpstreamModel is the schema descriptor for upstream_model field.
+	openaivideotaskDescUpstreamModel := openaivideotaskFields[11].Descriptor()
+	// openaivideotask.UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
+	openaivideotask.UpstreamModelValidator = openaivideotaskDescUpstreamModel.Validators[0].(func(string) error)
+	// openaivideotaskDescResolution is the schema descriptor for resolution field.
+	openaivideotaskDescResolution := openaivideotaskFields[13].Descriptor()
+	// openaivideotask.ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
+	openaivideotask.ResolutionValidator = openaivideotaskDescResolution.Validators[0].(func(string) error)
+	// openaivideotaskDescStatus is the schema descriptor for status field.
+	openaivideotaskDescStatus := openaivideotaskFields[14].Descriptor()
+	// openaivideotask.DefaultStatus holds the default value on creation for the status field.
+	openaivideotask.DefaultStatus = openaivideotaskDescStatus.Default.(string)
+	// openaivideotask.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	openaivideotask.StatusValidator = openaivideotaskDescStatus.Validators[0].(func(string) error)
+	// openaivideotaskDescUpstreamStatus is the schema descriptor for upstream_status field.
+	openaivideotaskDescUpstreamStatus := openaivideotaskFields[15].Descriptor()
+	// openaivideotask.UpstreamStatusValidator is a validator for the "upstream_status" field. It is called by the builders before save.
+	openaivideotask.UpstreamStatusValidator = openaivideotaskDescUpstreamStatus.Validators[0].(func(string) error)
+	// openaivideotaskDescBillingStatus is the schema descriptor for billing_status field.
+	openaivideotaskDescBillingStatus := openaivideotaskFields[17].Descriptor()
+	// openaivideotask.DefaultBillingStatus holds the default value on creation for the billing_status field.
+	openaivideotask.DefaultBillingStatus = openaivideotaskDescBillingStatus.Default.(string)
+	// openaivideotask.BillingStatusValidator is a validator for the "billing_status" field. It is called by the builders before save.
+	openaivideotask.BillingStatusValidator = openaivideotaskDescBillingStatus.Validators[0].(func(string) error)
+	// openaivideotaskDescTotalCost is the schema descriptor for total_cost field.
+	openaivideotaskDescTotalCost := openaivideotaskFields[18].Descriptor()
+	// openaivideotask.DefaultTotalCost holds the default value on creation for the total_cost field.
+	openaivideotask.DefaultTotalCost = openaivideotaskDescTotalCost.Default.(float64)
+	// openaivideotaskDescHoldAmount is the schema descriptor for hold_amount field.
+	openaivideotaskDescHoldAmount := openaivideotaskFields[20].Descriptor()
+	// openaivideotask.DefaultHoldAmount holds the default value on creation for the hold_amount field.
+	openaivideotask.DefaultHoldAmount = openaivideotaskDescHoldAmount.Default.(float64)
+	// openaivideotaskDescGroupRateMultiplier is the schema descriptor for group_rate_multiplier field.
+	openaivideotaskDescGroupRateMultiplier := openaivideotaskFields[21].Descriptor()
+	// openaivideotask.DefaultGroupRateMultiplier holds the default value on creation for the group_rate_multiplier field.
+	openaivideotask.DefaultGroupRateMultiplier = openaivideotaskDescGroupRateMultiplier.Default.(float64)
+	// openaivideotaskDescAccountRateMultiplier is the schema descriptor for account_rate_multiplier field.
+	openaivideotaskDescAccountRateMultiplier := openaivideotaskFields[22].Descriptor()
+	// openaivideotask.DefaultAccountRateMultiplier holds the default value on creation for the account_rate_multiplier field.
+	openaivideotask.DefaultAccountRateMultiplier = openaivideotaskDescAccountRateMultiplier.Default.(float64)
+	// openaivideotaskDescAllowanceReserved is the schema descriptor for allowance_reserved field.
+	openaivideotaskDescAllowanceReserved := openaivideotaskFields[23].Descriptor()
+	// openaivideotask.DefaultAllowanceReserved holds the default value on creation for the allowance_reserved field.
+	openaivideotask.DefaultAllowanceReserved = openaivideotaskDescAllowanceReserved.Default.(bool)
+	// openaivideotaskDescRequestPayloadHash is the schema descriptor for request_payload_hash field.
+	openaivideotaskDescRequestPayloadHash := openaivideotaskFields[24].Descriptor()
+	// openaivideotask.RequestPayloadHashValidator is a validator for the "request_payload_hash" field. It is called by the builders before save.
+	openaivideotask.RequestPayloadHashValidator = openaivideotaskDescRequestPayloadHash.Validators[0].(func(string) error)
+	// openaivideotaskDescInboundEndpoint is the schema descriptor for inbound_endpoint field.
+	openaivideotaskDescInboundEndpoint := openaivideotaskFields[25].Descriptor()
+	// openaivideotask.InboundEndpointValidator is a validator for the "inbound_endpoint" field. It is called by the builders before save.
+	openaivideotask.InboundEndpointValidator = openaivideotaskDescInboundEndpoint.Validators[0].(func(string) error)
+	// openaivideotaskDescUpstreamEndpoint is the schema descriptor for upstream_endpoint field.
+	openaivideotaskDescUpstreamEndpoint := openaivideotaskFields[26].Descriptor()
+	// openaivideotask.UpstreamEndpointValidator is a validator for the "upstream_endpoint" field. It is called by the builders before save.
+	openaivideotask.UpstreamEndpointValidator = openaivideotaskDescUpstreamEndpoint.Validators[0].(func(string) error)
+	// openaivideotaskDescModelMappingChain is the schema descriptor for model_mapping_chain field.
+	openaivideotaskDescModelMappingChain := openaivideotaskFields[27].Descriptor()
+	// openaivideotask.ModelMappingChainValidator is a validator for the "model_mapping_chain" field. It is called by the builders before save.
+	openaivideotask.ModelMappingChainValidator = openaivideotaskDescModelMappingChain.Validators[0].(func(string) error)
+	// openaivideotaskDescIPAddress is the schema descriptor for ip_address field.
+	openaivideotaskDescIPAddress := openaivideotaskFields[29].Descriptor()
+	// openaivideotask.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
+	openaivideotask.IPAddressValidator = openaivideotaskDescIPAddress.Validators[0].(func(string) error)
+	// openaivideotaskDescRetryCount is the schema descriptor for retry_count field.
+	openaivideotaskDescRetryCount := openaivideotaskFields[30].Descriptor()
+	// openaivideotask.DefaultRetryCount holds the default value on creation for the retry_count field.
+	openaivideotask.DefaultRetryCount = openaivideotaskDescRetryCount.Default.(int)
+	// openaivideotaskDescLeaseToken is the schema descriptor for lease_token field.
+	openaivideotaskDescLeaseToken := openaivideotaskFields[33].Descriptor()
+	// openaivideotask.LeaseTokenValidator is a validator for the "lease_token" field. It is called by the builders before save.
+	openaivideotask.LeaseTokenValidator = openaivideotaskDescLeaseToken.Validators[0].(func(string) error)
+	// openaivideotaskDescLastErrorCode is the schema descriptor for last_error_code field.
+	openaivideotaskDescLastErrorCode := openaivideotaskFields[34].Descriptor()
+	// openaivideotask.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
+	openaivideotask.LastErrorCodeValidator = openaivideotaskDescLastErrorCode.Validators[0].(func(string) error)
+	// openaivideotaskDescUsageRecorded is the schema descriptor for usage_recorded field.
+	openaivideotaskDescUsageRecorded := openaivideotaskFields[36].Descriptor()
+	// openaivideotask.DefaultUsageRecorded holds the default value on creation for the usage_recorded field.
+	openaivideotask.DefaultUsageRecorded = openaivideotaskDescUsageRecorded.Default.(bool)
+	// openaivideotaskDescCreatedAt is the schema descriptor for created_at field.
+	openaivideotaskDescCreatedAt := openaivideotaskFields[37].Descriptor()
+	// openaivideotask.DefaultCreatedAt holds the default value on creation for the created_at field.
+	openaivideotask.DefaultCreatedAt = openaivideotaskDescCreatedAt.Default.(func() time.Time)
+	// openaivideotaskDescUpdatedAt is the schema descriptor for updated_at field.
+	openaivideotaskDescUpdatedAt := openaivideotaskFields[38].Descriptor()
+	// openaivideotask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	openaivideotask.DefaultUpdatedAt = openaivideotaskDescUpdatedAt.Default.(func() time.Time)
+	// openaivideotask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	openaivideotask.UpdateDefaultUpdatedAt = openaivideotaskDescUpdatedAt.UpdateDefault.(func() time.Time)
 	paymentauditlogFields := schema.PaymentAuditLog{}.Fields()
 	_ = paymentauditlogFields
 	// paymentauditlogDescOrderID is the schema descriptor for order_id field.

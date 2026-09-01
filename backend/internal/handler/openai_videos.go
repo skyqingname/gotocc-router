@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -17,6 +18,13 @@ import (
 )
 
 const defaultOpenAIVideoModel = "video-ds-2.0-fast"
+
+func valueOrZeroInt64(value *int64) int64 {
+	if value == nil {
+		return 0
+	}
+	return *value
+}
 
 // Videos handles OpenAI-compatible video task creation.
 func (h *OpenAIGatewayHandler) Videos(c *gin.Context) {
@@ -59,6 +67,8 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 
 	var body []byte
 	var err error
+	var persistedTask *service.OpenAIVideoTask
+	var persistedAccount *service.Account
 	requestModel := strings.TrimSpace(c.Query("model"))
 	if chargeRequest {
 		body, err = pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
@@ -85,6 +95,25 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 		}
 		requestModel = strings.TrimSpace(modelResult.String())
 	}
+	if !chargeRequest && h.gatewayService.OpenAIVideoTaskLifecycleEnabled() {
+		taskID := strings.TrimSpace(c.Param("request_id"))
+		if taskID == "" {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "video task id is required")
+			return
+		}
+		persistedTask, persistedAccount, err = h.gatewayService.GetOpenAIVideoTaskForAPIKey(c.Request.Context(), taskID, apiKey.ID)
+		if err != nil {
+			status := http.StatusBadGateway
+			message := "Failed to load video task"
+			if errors.Is(err, service.ErrOpenAIVideoTaskNotFound) {
+				status = http.StatusNotFound
+				message = "Video task not found"
+			}
+			h.errorResponse(c, status, "invalid_request_error", message)
+			return
+		}
+		requestModel = persistedTask.RequestedModel
+	}
 	if requestModel == "" {
 		requestModel = defaultOpenAIVideoModel
 	}
@@ -100,7 +129,14 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, requestModel)
 	forwardBody := body
 	forwardModel := requestModel
-	if channelMapping.Mapped {
+	if persistedTask != nil {
+		forwardModel = persistedTask.UpstreamModel
+		channelMapping = service.ChannelMappingResult{
+			MappedModel: forwardModel,
+			ChannelID:   valueOrZeroInt64(persistedTask.ChannelID),
+			Mapped:      forwardModel != requestModel,
+		}
+	} else if channelMapping.Mapped {
 		forwardModel = channelMapping.MappedModel
 		if len(body) > 0 {
 			forwardBody = h.gatewayService.ReplaceModelInBody(body, forwardModel)
@@ -133,33 +169,63 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 
 	routingStart := time.Now()
 	sessionHash := "openai-video-" + requestModel
-	selection, _, err := h.gatewayService.SelectAccountWithScheduler(
-		c.Request.Context(),
-		apiKey.GroupID,
-		"",
-		sessionHash,
-		forwardModel,
-		nil,
-		service.OpenAIUpstreamTransportHTTPSSE,
-		false,
-	)
-	if err != nil || selection == nil || selection.Account == nil {
-		reqLog.Warn("openai_videos.account_select_failed", zap.Error(err))
-		classification := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, forwardModel, service.PlatformOpenAI)
-		if !classification.ModelNotFound {
-			markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
+	var selection *service.AccountSelectionResult
+	account := persistedAccount
+	if persistedTask == nil {
+		selection, _, err = h.gatewayService.SelectAccountWithScheduler(
+			c.Request.Context(), apiKey.GroupID, "", sessionHash, forwardModel, nil,
+			service.OpenAIUpstreamTransportHTTPSSE, false,
+		)
+		if err != nil || selection == nil || selection.Account == nil {
+			reqLog.Warn("openai_videos.account_select_failed", zap.Error(err))
+			classification := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, forwardModel, service.PlatformOpenAI)
+			if !classification.ModelNotFound {
+				markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
+			}
+			h.errorResponse(c, classification.Status, classification.ErrType, classification.Message)
+			return
 		}
-		h.errorResponse(c, classification.Status, classification.ErrType, classification.Message)
-		return
+		account = selection.Account
 	}
-	account := selection.Account
 	setOpsSelectedAccount(c, account.ID, account.Platform)
-	accountRelease, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
-	if slotResult != openAISlotAcquireOK {
-		return
+	var accountRelease func()
+	if persistedTask == nil {
+		var slotResult openAISlotAcquireResult
+		accountRelease, slotResult = h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
+		if slotResult != openAISlotAcquireOK {
+			return
+		}
 	}
 
 	service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
+	userAgent := c.GetHeader("User-Agent")
+	clientIP := ip.GetClientIP(c)
+	var preparedTask *service.OpenAIVideoTask
+	if chargeRequest && h.gatewayService.OpenAIVideoTaskLifecycleEnabled() {
+		preparedTask, err = h.gatewayService.PrepareOpenAIVideoTask(c.Request.Context(), service.OpenAIVideoTaskCreateInput{
+			APIKey: apiKey, Subscription: subscription, Account: account,
+			RequestedModel: requestModel, UpstreamModel: forwardModel, Body: body,
+			ChannelFields:   channelMapping.ToUsageFields(requestModel, forwardModel),
+			InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: "/v1/videos",
+			UserAgent: userAgent, IPAddress: clientIP,
+		})
+		if err != nil {
+			if accountRelease != nil {
+				accountRelease()
+			}
+			if errors.Is(err, service.ErrOpenAIVideoSecondsInvalid) || errors.Is(err, service.ErrOpenAIVideoResolutionInvalid) {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
+			status, code, message, retryAfter := billingErrorDetails(err)
+			applyBillingQuotaHeaders(c, err, retryAfter)
+			if status == http.StatusInternalServerError {
+				status, code, message = http.StatusBadGateway, "billing_error", "Failed to reserve video billing"
+			}
+			h.errorResponse(c, status, code, message)
+			return
+		}
+	}
 	forwardStart := time.Now()
 	result, forwardErr := h.gatewayService.ForwardVideo(c.Request.Context(), c, account, service.OpenAIVideoForwardInput{
 		Method:        c.Request.Method,
@@ -167,29 +233,49 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 		Body:          forwardBody,
 		Model:         requestModel,
 		UpstreamModel: forwardModel,
+		LocalRequestID: func() string {
+			if preparedTask != nil {
+				return preparedTask.LocalRequestID
+			}
+			return ""
+		}(),
+		DeferResponseWrite: preparedTask != nil,
 	})
 	if accountRelease != nil {
 		accountRelease()
 	}
 	service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, time.Since(forwardStart).Milliseconds())
-	h.gatewayService.ReportOpenAIAccountScheduleResult(
-		account,
-		openAIAccountScheduleModel(c, account, requestModel, false, result),
-		openAIForwardSucceededForScheduling(forwardErr, result),
-		nil,
-		forwardErr,
-	)
+	if persistedTask == nil {
+		h.gatewayService.ReportOpenAIAccountScheduleResult(
+			account, openAIAccountScheduleModel(c, account, requestModel, false, result),
+			openAIForwardSucceededForScheduling(forwardErr, result), nil, forwardErr,
+		)
+	}
 	if forwardErr != nil {
+		if preparedTask != nil {
+			if releaseErr := h.gatewayService.FailOpenAIVideoCreate(context.Background(), preparedTask, "VIDEO_CREATE_FAILED", forwardErr); releaseErr != nil {
+				reqLog.Error("openai_videos.create_failure_release_failed", zap.Error(releaseErr))
+			}
+		}
 		h.ensureForwardErrorResponse(c, false)
 		reqLog.Warn("openai_videos.forward_failed", zap.Int64("account_id", account.ID), zap.Error(forwardErr))
+		return
+	}
+	if preparedTask != nil {
+		if _, err := h.gatewayService.BindOpenAIVideoTaskResponse(c.Request.Context(), preparedTask, result.ResponseBody); err != nil {
+			_ = h.gatewayService.FailOpenAIVideoCreate(context.Background(), preparedTask, "VIDEO_CREATE_RESPONSE_INVALID", err)
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream video response did not contain a trackable task id")
+			return
+		}
+		if err := h.gatewayService.WriteOpenAIVideoForwardResponse(c, result); err != nil {
+			reqLog.Warn("openai_videos.response_write_failed", zap.Error(err))
+		}
 		return
 	}
 	if !chargeRequest || result == nil {
 		return
 	}
 
-	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
 	requestPayloadHash := service.HashUsageRequestPayload(body)
 	h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
 		if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{

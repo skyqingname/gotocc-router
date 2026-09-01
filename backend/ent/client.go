@@ -35,6 +35,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
 	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -110,6 +111,8 @@ type Client struct {
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
 	// ImageObject is the client for interacting with the ImageObject builders.
 	ImageObject *ImageObjectClient
+	// OpenAIVideoTask is the client for interacting with the OpenAIVideoTask builders.
+	OpenAIVideoTask *OpenAIVideoTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -193,6 +196,7 @@ func (c *Client) init() {
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
 	c.ImageObject = NewImageObjectClient(c.config)
+	c.OpenAIVideoTask = NewOpenAIVideoTaskClient(c.config)
 	c.PaymentAuditLog = NewPaymentAuditLogClient(c.config)
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
 	c.PaymentProviderInstance = NewPaymentProviderInstanceClient(c.config)
@@ -331,6 +335,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
 		ImageObject:                   NewImageObjectClient(cfg),
+		OpenAIVideoTask:               NewOpenAIVideoTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -396,6 +401,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
 		ImageObject:                   NewImageObjectClient(cfg),
+		OpenAIVideoTask:               NewOpenAIVideoTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -456,11 +462,12 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.ImageObject, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.ReusableInvitationCode, c.ReusableInvitationCodeUse,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
-		c.Team, c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
+		c.IdentityAdoptionDecision, c.ImageObject, c.OpenAIVideoTask,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.ReusableInvitationCode, c.ReusableInvitationCodeUse, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.Team,
+		c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
 		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
 		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
 		c.UserSubscription,
@@ -478,11 +485,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.ImageObject, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.ReusableInvitationCode, c.ReusableInvitationCodeUse,
-		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
-		c.Team, c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
+		c.IdentityAdoptionDecision, c.ImageObject, c.OpenAIVideoTask,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.ReusableInvitationCode, c.ReusableInvitationCodeUse, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.Team,
+		c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
 		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
 		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
 		c.UserSubscription,
@@ -534,6 +542,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.IdentityAdoptionDecision.mutate(ctx, m)
 	case *ImageObjectMutation:
 		return c.ImageObject.mutate(ctx, m)
+	case *OpenAIVideoTaskMutation:
+		return c.OpenAIVideoTask.mutate(ctx, m)
 	case *PaymentAuditLogMutation:
 		return c.PaymentAuditLog.mutate(ctx, m)
 	case *PaymentOrderMutation:
@@ -3783,6 +3793,139 @@ func (c *ImageObjectClient) mutate(ctx context.Context, m *ImageObjectMutation) 
 		return (&ImageObjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ImageObject mutation op: %q", m.Op())
+	}
+}
+
+// OpenAIVideoTaskClient is a client for the OpenAIVideoTask schema.
+type OpenAIVideoTaskClient struct {
+	config
+}
+
+// NewOpenAIVideoTaskClient returns a client for the OpenAIVideoTask from the given config.
+func NewOpenAIVideoTaskClient(c config) *OpenAIVideoTaskClient {
+	return &OpenAIVideoTaskClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `openaivideotask.Hooks(f(g(h())))`.
+func (c *OpenAIVideoTaskClient) Use(hooks ...Hook) {
+	c.hooks.OpenAIVideoTask = append(c.hooks.OpenAIVideoTask, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `openaivideotask.Intercept(f(g(h())))`.
+func (c *OpenAIVideoTaskClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OpenAIVideoTask = append(c.inters.OpenAIVideoTask, interceptors...)
+}
+
+// Create returns a builder for creating a OpenAIVideoTask entity.
+func (c *OpenAIVideoTaskClient) Create() *OpenAIVideoTaskCreate {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpCreate)
+	return &OpenAIVideoTaskCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OpenAIVideoTask entities.
+func (c *OpenAIVideoTaskClient) CreateBulk(builders ...*OpenAIVideoTaskCreate) *OpenAIVideoTaskCreateBulk {
+	return &OpenAIVideoTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OpenAIVideoTaskClient) MapCreateBulk(slice any, setFunc func(*OpenAIVideoTaskCreate, int)) *OpenAIVideoTaskCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OpenAIVideoTaskCreateBulk{err: fmt.Errorf("calling to OpenAIVideoTaskClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OpenAIVideoTaskCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OpenAIVideoTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Update() *OpenAIVideoTaskUpdate {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdate)
+	return &OpenAIVideoTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OpenAIVideoTaskClient) UpdateOne(_m *OpenAIVideoTask) *OpenAIVideoTaskUpdateOne {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdateOne, withOpenAIVideoTask(_m))
+	return &OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OpenAIVideoTaskClient) UpdateOneID(id int64) *OpenAIVideoTaskUpdateOne {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdateOne, withOpenAIVideoTaskID(id))
+	return &OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Delete() *OpenAIVideoTaskDelete {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpDelete)
+	return &OpenAIVideoTaskDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OpenAIVideoTaskClient) DeleteOne(_m *OpenAIVideoTask) *OpenAIVideoTaskDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OpenAIVideoTaskClient) DeleteOneID(id int64) *OpenAIVideoTaskDeleteOne {
+	builder := c.Delete().Where(openaivideotask.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OpenAIVideoTaskDeleteOne{builder}
+}
+
+// Query returns a query builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Query() *OpenAIVideoTaskQuery {
+	return &OpenAIVideoTaskQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOpenAIVideoTask},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OpenAIVideoTask entity by its id.
+func (c *OpenAIVideoTaskClient) Get(ctx context.Context, id int64) (*OpenAIVideoTask, error) {
+	return c.Query().Where(openaivideotask.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OpenAIVideoTaskClient) GetX(ctx context.Context, id int64) *OpenAIVideoTask {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OpenAIVideoTaskClient) Hooks() []Hook {
+	return c.hooks.OpenAIVideoTask
+}
+
+// Interceptors returns the client interceptors.
+func (c *OpenAIVideoTaskClient) Interceptors() []Interceptor {
+	return c.inters.OpenAIVideoTask
+}
+
+func (c *OpenAIVideoTaskClient) mutate(ctx context.Context, m *OpenAIVideoTaskMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OpenAIVideoTaskCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OpenAIVideoTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OpenAIVideoTaskDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OpenAIVideoTask mutation op: %q", m.Op())
 	}
 }
 
@@ -8079,10 +8222,10 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, ImageObject,
-		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
-		PromoCode, PromoCodeUsage, Proxy, RedeemCode, ReusableInvitationCode,
-		ReusableInvitationCodeUse, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
+		OpenAIVideoTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ReusableInvitationCode, ReusableInvitationCodeUse, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
 		TeamOwnershipTransfer, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Hook
@@ -8093,10 +8236,10 @@ type (
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
 		Group, IdempotencyRecord, IdentityAdoptionDecision, ImageObject,
-		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
-		PromoCode, PromoCodeUsage, Proxy, RedeemCode, ReusableInvitationCode,
-		ReusableInvitationCodeUse, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
+		OpenAIVideoTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ReusableInvitationCode, ReusableInvitationCodeUse, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
 		TeamOwnershipTransfer, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Interceptor

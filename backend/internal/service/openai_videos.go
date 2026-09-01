@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 const openAIPlatformVideosURL = "https://api.openai.com/v1/videos"
@@ -24,11 +26,13 @@ var openAIVideoAllowedHeaders = map[string]bool{
 
 // OpenAIVideoForwardInput describes the OpenAI-compatible video task surface.
 type OpenAIVideoForwardInput struct {
-	Method        string
-	Path          string
-	Body          []byte
-	Model         string
-	UpstreamModel string
+	Method             string
+	Path               string
+	Body               []byte
+	Model              string
+	UpstreamModel      string
+	LocalRequestID     string
+	DeferResponseWrite bool
 }
 
 func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
@@ -78,6 +82,9 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	request.Header.Del("Authorization")
 	request.Header.Del("X-Api-Key")
 	request.Header.Set("Authorization", "Bearer "+token)
+	if idempotencyKey := strings.TrimSpace(input.LocalRequestID); idempotencyKey != "" {
+		request.Header.Set("Idempotency-Key", idempotencyKey)
+	}
 	if method == http.MethodPost && request.Header.Get("Content-Type") == "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
@@ -148,6 +155,20 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		return s.handleErrorResponse(ctx, response, c, account, input.Body, input.Model)
 	}
 
+	result := &OpenAIForwardResult{
+		RequestID: response.Header.Get("x-request-id"), Usage: OpenAIUsage{},
+		Model: input.Model, UpstreamModel: input.UpstreamModel,
+		UpstreamEndpoint: input.Path, ResponseHeaders: response.Header.Clone(),
+		StatusCode: response.StatusCode, Duration: time.Since(startTime),
+	}
+	if input.DeferResponseWrite {
+		body, readErr := s.readOpenAIVideoJSONResponse(response.Body)
+		if readErr != nil {
+			return nil, readErr
+		}
+		result.ResponseBody = body
+		return result, nil
+	}
 	if c != nil && c.Writer != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), response.Header, s.responseHeaderFilter)
 		c.Status(response.StatusCode)
@@ -155,11 +176,121 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 			return nil, err
 		}
 	}
-	return &OpenAIForwardResult{
-		RequestID: response.Header.Get("x-request-id"), Usage: OpenAIUsage{},
-		Model: input.Model, UpstreamModel: input.UpstreamModel,
-		UpstreamEndpoint: input.Path, ResponseHeaders: response.Header.Clone(), Duration: time.Since(startTime),
+	return result, nil
+}
+
+func (s *OpenAIGatewayService) WriteOpenAIVideoForwardResponse(c *gin.Context, result *OpenAIForwardResult) error {
+	if c == nil || c.Writer == nil || result == nil {
+		return errors.New("openai video response is incomplete")
+	}
+	responseheaders.WriteFilteredHeaders(c.Writer.Header(), result.ResponseHeaders, s.responseHeaderFilter)
+	status := result.StatusCode
+	if status <= 0 {
+		status = http.StatusOK
+	}
+	c.Status(status)
+	_, err := c.Writer.Write(result.ResponseBody)
+	return err
+}
+
+func (s *OpenAIGatewayService) readOpenAIVideoJSONResponse(body io.Reader) ([]byte, error) {
+	if body == nil {
+		return nil, errors.New("upstream video response body is empty")
+	}
+	maxBytes := int64(0)
+	if s != nil && s.cfg != nil {
+		maxBytes = s.cfg.VideoTask.MaxResponseBytes
+	}
+	if maxBytes <= 0 {
+		return nil, errors.New("video_task.max_response_bytes is not configured")
+	}
+	limited := io.LimitReader(body, maxBytes+1)
+	payload, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(payload)) > maxBytes {
+		return nil, errors.New("upstream video response exceeds configured limit")
+	}
+	return payload, nil
+}
+
+type OpenAIVideoPollResult struct {
+	ProviderStatus string
+	ErrorCode      string
+	ErrorMessage   string
+	Body           []byte
+	StatusCode     int
+}
+
+func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *OpenAIVideoTask, account *Account) (*OpenAIVideoPollResult, error) {
+	if task == nil || task.TaskID == nil || strings.TrimSpace(*task.TaskID) == "" {
+		return nil, ErrOpenAIVideoTaskIDMissing
+	}
+	if account == nil || account.ID != task.AccountID {
+		return nil, ErrOpenAIVideoTaskConflict
+	}
+	token, _, err := s.GetAccessToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	path := "/v1/videos/" + url.PathEscape(strings.TrimSpace(*task.TaskID))
+	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
+		Method: http.MethodGet, Path: path, Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+	}, token)
+	if err != nil {
+		return nil, err
+	}
+	proxyURL := ""
+	if account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	response, err := s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = response.Body.Close() }()
+	body, err := s.readOpenAIVideoJSONResponse(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode >= http.StatusBadRequest {
+		message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+		return nil, fmt.Errorf("video status upstream returned %d: %s", response.StatusCode, message)
+	}
+	_, providerStatus := parseOpenAIVideoTaskIdentity(body)
+	if providerStatus == "" {
+		return nil, errors.New("upstream video status response is missing status")
+	}
+	errorCode, errorMessage := parseOpenAIVideoProviderError(body)
+	return &OpenAIVideoPollResult{
+		ProviderStatus: providerStatus,
+		ErrorCode:      errorCode,
+		ErrorMessage:   errorMessage,
+		Body:           body,
+		StatusCode:     response.StatusCode,
 	}, nil
+}
+
+func parseOpenAIVideoProviderError(body []byte) (string, string) {
+	var code string
+	for _, path := range []string{"error.code", "data.error.code", "code", "data.code"} {
+		if value := strings.TrimSpace(gjson.GetBytes(body, path).String()); value != "" {
+			code = sanitizeUpstreamErrorMessage(value)
+			if len(code) > 128 {
+				code = code[:128]
+			}
+			break
+		}
+	}
+	var message string
+	for _, path := range []string{"error.message", "data.error.message", "fail_reason", "data.fail_reason", "message", "data.message"} {
+		if value := strings.TrimSpace(gjson.GetBytes(body, path).String()); value != "" {
+			message = sanitizeUpstreamErrorMessage(value)
+			break
+		}
+	}
+	return code, truncateOpenAIVideoError(message)
 }
 
 func writeOpenAIVideoError(c *gin.Context, status int, errorType, message string) {

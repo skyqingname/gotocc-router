@@ -111,6 +111,22 @@ Channel create/update validation accepts the existing `video` billing mode, so
 per-second rules for the unified group can be maintained through the admin UI
 instead of bypassing the service with direct data writes.
 
+With `video_task.enabled`, create validates the numeric JSON `seconds` field
+and resolves `size` to the configured video resolution tier before forwarding.
+Balance-mode requests reserve the exact seconds-based quote first; successful
+provider terminal state captures it, while create failure, provider failure,
+cancellation, or local expiry releases it. Subscription usage is applied only
+after success. PostgreSQL stores the task owner and original account, and both
+the worker and client status/content reads use that account instead of running
+the scheduler again. `NOT_START`, `IN_PROGRESS`, and other unknown states stay
+non-terminal; only values in the explicit success/failure/cancelled sets can
+settle or release a task.
+
+Migration 238 only creates the empty `openai_video_tasks` table and indexes. It
+does not scan or reinterpret historical usage. Before rollback, all new tasks
+must be terminal and no row may retain a balance hold; an older binary cannot
+poll or settle the new task records.
+
 Before production, review the OpenAI account Base URL, credential type, model
 allowlist, channel mapping, and per-model billing mode. Changing group accounts,
 models, or pricing is a separately authorized data/configuration mutation; the

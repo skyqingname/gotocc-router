@@ -1202,6 +1202,23 @@ update:
   proxy_url: ""
 
 # =============================================================================
+# OpenAI-compatible Video Tasks (异步视频任务与终态计费)
+# =============================================================================
+video_task:
+  # 开启后，POST /v1/videos 先按请求 seconds 预占余额，后台使用创建时的原账号
+  # 轮询；只有成功终态才结算，失败/取消/超时释放预占。
+  enabled: false
+  scan_interval_seconds: 5
+  task_timeout_seconds: 7200
+  lease_seconds: 30
+  request_timeout_seconds: 15
+  claim_batch_size: 20
+  max_response_bytes: 1048576
+  success_statuses: ["completed", "succeeded", "success"]
+  failure_statuses: ["failed", "failure", "error"]
+  cancelled_statuses: ["cancelled", "canceled"]
+
+# =============================================================================
 # Image Storage (异步图片任务结果对象存储)
 # =============================================================================
 # 长耗时生图套 Cloudflare 会 524 超时，异步图片任务接口（/v1/images/generations/async

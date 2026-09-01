@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -18,6 +21,10 @@ type usageBillingRepository struct {
 }
 
 func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
+	return &usageBillingRepository{db: sqlDB}
+}
+
+func NewOpenAIVideoBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.OpenAIVideoBillingRepository {
 	return &usageBillingRepository{db: sqlDB}
 }
 
@@ -121,6 +128,182 @@ func (r *usageBillingRepository) CaptureBatchImageBalance(ctx context.Context, c
 
 func (r *usageBillingRepository) ReleaseBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
 	return r.applyBatchImageBalanceHold(ctx, cmd, batchImageAllowanceRelease, releaseUsageBillingBatchImageBalance)
+}
+
+func (r *usageBillingRepository) ReserveOpenAIVideoBalance(ctx context.Context, cmd *service.OpenAIVideoBalanceHoldCommand) error {
+	return r.applyOpenAIVideoBalance(ctx, cmd, "hold")
+}
+
+func (r *usageBillingRepository) CaptureOpenAIVideoBalance(ctx context.Context, cmd *service.OpenAIVideoBalanceHoldCommand) error {
+	return r.applyOpenAIVideoBalance(ctx, cmd, "capture")
+}
+
+func (r *usageBillingRepository) ReleaseOpenAIVideoBalance(ctx context.Context, cmd *service.OpenAIVideoBalanceHoldCommand) error {
+	return r.applyOpenAIVideoBalance(ctx, cmd, "release")
+}
+
+func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cmd *service.OpenAIVideoBalanceHoldCommand, operation string) (err error) {
+	if cmd == nil {
+		return nil
+	}
+	if r == nil || r.db == nil {
+		return errors.New("openai video billing repository db is nil")
+	}
+	cmd.LocalRequestID = strings.TrimSpace(cmd.LocalRequestID)
+	cmd.HoldAmount = service.QuantizeUsageBillingAmount(cmd.HoldAmount)
+	cmd.ActualAmount = service.QuantizeUsageBillingAmount(cmd.ActualAmount)
+	requestID := service.OpenAIVideoHoldRequestID(cmd.LocalRequestID)
+	switch operation {
+	case "capture":
+		requestID = service.OpenAIVideoCaptureRequestID(cmd.LocalRequestID)
+	case "release":
+		requestID = service.OpenAIVideoReleaseRequestID(cmd.LocalRequestID)
+	}
+	if cmd.LocalRequestID == "" || cmd.TaskID <= 0 || cmd.APIKeyID <= 0 || cmd.UserID <= 0 {
+		return service.ErrOpenAIVideoTaskConflict
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if tx != nil {
+			_ = tx.Rollback()
+		}
+	}()
+	fingerprint := openAIVideoBillingFingerprint(cmd, operation)
+	applied, err := r.claimUsageBillingRequest(ctx, tx, requestID, cmd.APIKeyID, fingerprint)
+	if err != nil {
+		return err
+	}
+	if !applied {
+		return nil
+	}
+
+	var billingStatus string
+	err = tx.QueryRowContext(ctx, `SELECT billing_status FROM openai_video_tasks
+		WHERE id=$1 AND local_request_id=$2 AND api_key_id=$3 FOR UPDATE`,
+		cmd.TaskID, cmd.LocalRequestID, cmd.APIKeyID).Scan(&billingStatus)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrOpenAIVideoTaskNotFound
+	}
+	if err != nil {
+		return err
+	}
+
+	batchCmd := &service.BatchImageBalanceHoldCommand{
+		APIKeyID: cmd.APIKeyID, UserID: cmd.UserID, ActorUserID: cmd.ActorUserID,
+		TeamID: cmd.TeamID, BatchID: cmd.LocalRequestID, HoldAmount: cmd.HoldAmount,
+		ActualAmount: cmd.ActualAmount, AllowanceReserved: cmd.AllowanceReserved,
+		ReservedAt: cmd.ReservedAt, RequestPayloadHash: cmd.RequestPayloadHash,
+	}
+	switch operation {
+	case "hold":
+		if billingStatus != service.OpenAIVideoBillingStatusNone {
+			return service.ErrOpenAIVideoTaskConflict
+		}
+		if _, err = reserveUsageBillingBatchImageBalance(ctx, tx, batchCmd); err != nil {
+			return err
+		}
+		if cmd.HoldAmount > 0 {
+			if err = reserveBatchImageAPIKeyAllowance(ctx, tx, cmd.APIKeyID, cmd.HoldAmount, cmd.ReservedAt); err != nil {
+				return err
+			}
+			if err = reserveBatchImageMemberAllowance(ctx, tx, batchCmd, cmd.HoldAmount); err != nil {
+				return err
+			}
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE openai_video_tasks SET
+			billing_status='held', allowance_reserved=$2, updated_at=NOW() WHERE id=$1`,
+			cmd.TaskID, cmd.HoldAmount > 0)
+	case "capture":
+		if billingStatus != service.OpenAIVideoBillingStatusHeld {
+			return service.ErrOpenAIVideoTaskConflict
+		}
+		if _, err = captureUsageBillingBatchImageBalance(ctx, tx, batchCmd); err != nil {
+			return err
+		}
+		adjustment := cmd.HoldAmount - cmd.ActualAmount
+		if adjustment > 0 && cmd.AllowanceReserved {
+			if err = releaseBatchImageAPIKeyAllowance(ctx, tx, cmd.APIKeyID, adjustment, cmd.ReservedAt); err != nil {
+				return err
+			}
+			if err = releaseBatchImageMemberAllowance(ctx, tx, batchCmd, adjustment); err != nil {
+				return err
+			}
+		}
+		if cmd.AccountQuotaCost > 0 {
+			if _, err = incrementUsageBillingAccountQuota(ctx, tx, cmd.AccountID, cmd.AccountQuotaCost); err != nil {
+				return err
+			}
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE openai_video_tasks SET
+			billing_status='captured', actual_cost=$2, allowance_reserved=FALSE,
+			settled_at=NOW(), next_poll_at=NOW(), lease_until=NULL, lease_token=NULL,
+			updated_at=NOW() WHERE id=$1`, cmd.TaskID, cmd.ActualAmount)
+	case "release":
+		if billingStatus != service.OpenAIVideoBillingStatusHeld {
+			return service.ErrOpenAIVideoTaskConflict
+		}
+		held, heldErr := usageBillingClaimExists(ctx, tx, service.OpenAIVideoHoldRequestID(cmd.LocalRequestID), cmd.APIKeyID)
+		if heldErr != nil {
+			return heldErr
+		}
+		if held && cmd.HoldAmount > 0 {
+			var balance, frozen float64
+			err = tx.QueryRowContext(ctx, `UPDATE users SET
+				balance=balance+$1, frozen_balance=COALESCE(frozen_balance,0)-$1,
+				updated_at=NOW() WHERE id=$2 AND deleted_at IS NULL
+				AND COALESCE(frozen_balance,0)>=$1 RETURNING balance,frozen_balance`,
+				cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
+			if err != nil {
+				return err
+			}
+			if err = releaseBatchImageAPIKeyAllowance(ctx, tx, cmd.APIKeyID, cmd.HoldAmount, cmd.ReservedAt); err != nil {
+				return err
+			}
+			if err = releaseBatchImageMemberAllowance(ctx, tx, batchCmd, cmd.HoldAmount); err != nil {
+				return err
+			}
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE openai_video_tasks SET
+			billing_status='released', actual_cost=0, allowance_reserved=FALSE,
+			settled_at=NOW(), next_poll_at=NULL, lease_until=NULL, lease_token=NULL,
+			updated_at=NOW() WHERE id=$1`, cmd.TaskID)
+	default:
+		return fmt.Errorf("unsupported openai video billing operation %q", operation)
+	}
+	if err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	tx = nil
+	return nil
+}
+
+func openAIVideoBillingFingerprint(cmd *service.OpenAIVideoBalanceHoldCommand, operation string) string {
+	raw := fmt.Sprintf("%s|%s|%d|%d|%d|%0.10f|%0.10f|%s",
+		operation, strings.TrimSpace(cmd.LocalRequestID), cmd.TaskID, cmd.APIKeyID,
+		cmd.UserID, cmd.HoldAmount, cmd.ActualAmount, strings.TrimSpace(cmd.RequestPayloadHash))
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+func usageBillingClaimExists(ctx context.Context, tx *sql.Tx, requestID string, apiKeyID int64) (bool, error) {
+	var exists int
+	for _, table := range []string{"usage_billing_dedup", "usage_billing_dedup_archive"} {
+		err := tx.QueryRowContext(ctx, `SELECT 1 FROM `+table+` WHERE request_id=$1 AND api_key_id=$2`, requestID, apiKeyID).Scan(&exists)
+		if err == nil {
+			return true, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return false, err
+		}
+	}
+	return false, nil
 }
 
 type batchImageAllowanceOperation int

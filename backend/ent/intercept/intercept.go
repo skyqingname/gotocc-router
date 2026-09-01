@@ -28,6 +28,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
 	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -651,6 +652,33 @@ func (f TraverseImageObject) Traverse(ctx context.Context, q ent.Query) error {
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.ImageObjectQuery", q)
+}
+
+// The OpenAIVideoTaskFunc type is an adapter to allow the use of ordinary function as a Querier.
+type OpenAIVideoTaskFunc func(context.Context, *ent.OpenAIVideoTaskQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f OpenAIVideoTaskFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.OpenAIVideoTaskQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.OpenAIVideoTaskQuery", q)
+}
+
+// The TraverseOpenAIVideoTask type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseOpenAIVideoTask func(context.Context, *ent.OpenAIVideoTaskQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseOpenAIVideoTask) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseOpenAIVideoTask) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.OpenAIVideoTaskQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.OpenAIVideoTaskQuery", q)
 }
 
 // The PaymentAuditLogFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1398,6 +1426,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.IdentityAdoptionDecisionQuery, predicate.IdentityAdoptionDecision, identityadoptiondecision.OrderOption]{typ: ent.TypeIdentityAdoptionDecision, tq: q}, nil
 	case *ent.ImageObjectQuery:
 		return &query[*ent.ImageObjectQuery, predicate.ImageObject, imageobject.OrderOption]{typ: ent.TypeImageObject, tq: q}, nil
+	case *ent.OpenAIVideoTaskQuery:
+		return &query[*ent.OpenAIVideoTaskQuery, predicate.OpenAIVideoTask, openaivideotask.OrderOption]{typ: ent.TypeOpenAIVideoTask, tq: q}, nil
 	case *ent.PaymentAuditLogQuery:
 		return &query[*ent.PaymentAuditLogQuery, predicate.PaymentAuditLog, paymentauditlog.OrderOption]{typ: ent.TypePaymentAuditLog, tq: q}, nil
 	case *ent.PaymentOrderQuery:

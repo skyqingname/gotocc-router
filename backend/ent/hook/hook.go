@@ -249,6 +249,18 @@ func (f ImageObjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageObjectMutation", m)
 }
 
+// The OpenAIVideoTaskFunc type is an adapter to allow the use of ordinary
+// function as OpenAIVideoTask mutator.
+type OpenAIVideoTaskFunc func(context.Context, *ent.OpenAIVideoTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OpenAIVideoTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OpenAIVideoTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OpenAIVideoTaskMutation", m)
+}
+
 // The PaymentAuditLogFunc type is an adapter to allow the use of ordinary
 // function as PaymentAuditLog mutator.
 type PaymentAuditLogFunc func(context.Context, *ent.PaymentAuditLogMutation) (ent.Value, error)

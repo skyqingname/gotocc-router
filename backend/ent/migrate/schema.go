@@ -1155,6 +1155,84 @@ var (
 			},
 		},
 	}
+	// OpenaiVideoTasksColumns holds the columns for the "openai_video_tasks" table.
+	OpenaiVideoTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "local_request_id", Type: field.TypeString, Size: 128},
+		{Name: "task_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "actor_user_id", Type: field.TypeInt64},
+		{Name: "billing_user_id", Type: field.TypeInt64},
+		{Name: "team_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "api_key_id", Type: field.TypeInt64},
+		{Name: "group_id", Type: field.TypeInt64},
+		{Name: "channel_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "account_id", Type: field.TypeInt64},
+		{Name: "subscription_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "requested_model", Type: field.TypeString, Size: 128},
+		{Name: "upstream_model", Type: field.TypeString, Size: 128},
+		{Name: "request_seconds", Type: field.TypeInt},
+		{Name: "resolution", Type: field.TypeString, Size: 16},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "creating"},
+		{Name: "upstream_status", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "billing_type", Type: field.TypeInt8},
+		{Name: "billing_status", Type: field.TypeString, Size: 32, Default: "none"},
+		{Name: "total_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "actual_cost", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "hold_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "group_rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "account_rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "allowance_reserved", Type: field.TypeBool, Default: false},
+		{Name: "request_payload_hash", Type: field.TypeString, Size: 64},
+		{Name: "inbound_endpoint", Type: field.TypeString, Size: 255},
+		{Name: "upstream_endpoint", Type: field.TypeString, Size: 255},
+		{Name: "model_mapping_chain", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "next_poll_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "lease_until", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "lease_token", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "last_error_code", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "last_error_message", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "usage_recorded", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "submitted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "settled_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "usage_recorded_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// OpenaiVideoTasksTable holds the schema information for the "openai_video_tasks" table.
+	OpenaiVideoTasksTable = &schema.Table{
+		Name:       "openai_video_tasks",
+		Columns:    OpenaiVideoTasksColumns,
+		PrimaryKey: []*schema.Column{OpenaiVideoTasksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "openaivideotask_local_request_id",
+				Unique:  true,
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[1]},
+			},
+			{
+				Name:    "openaivideotask_task_id",
+				Unique:  true,
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[2]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "task_id IS NOT NULL",
+				},
+			},
+			{
+				Name:    "openaivideotask_api_key_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[6], OpenaiVideoTasksColumns[38]},
+			},
+			{
+				Name:    "openaivideotask_billing_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[18], OpenaiVideoTasksColumns[39]},
+			},
+		},
+	}
 	// PaymentAuditLogsColumns holds the columns for the "payment_audit_logs" table.
 	PaymentAuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2438,6 +2516,7 @@ var (
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
 		ImageObjectsTable,
+		OpenaiVideoTasksTable,
 		PaymentAuditLogsTable,
 		PaymentOrdersTable,
 		PaymentProviderInstancesTable,
@@ -2544,6 +2623,9 @@ func init() {
 	}
 	ImageObjectsTable.Annotation = &entsql.Annotation{
 		Table: "image_objects",
+	}
+	OpenaiVideoTasksTable.Annotation = &entsql.Annotation{
+		Table: "openai_video_tasks",
 	}
 	PaymentAuditLogsTable.Annotation = &entsql.Annotation{
 		Table: "payment_audit_logs",

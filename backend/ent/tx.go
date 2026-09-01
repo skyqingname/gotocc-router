@@ -54,6 +54,8 @@ type Tx struct {
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
 	// ImageObject is the client for interacting with the ImageObject builders.
 	ImageObject *ImageObjectClient
+	// OpenAIVideoTask is the client for interacting with the OpenAIVideoTask builders.
+	OpenAIVideoTask *OpenAIVideoTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -257,6 +259,7 @@ func (tx *Tx) init() {
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)
 	tx.ImageObject = NewImageObjectClient(tx.config)
+	tx.OpenAIVideoTask = NewOpenAIVideoTaskClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)
