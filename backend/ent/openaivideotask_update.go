@@ -297,6 +297,20 @@ func (_u *OpenAIVideoTaskUpdate) SetNillableResolution(v *string) *OpenAIVideoTa
 	return _u
 }
 
+// SetBillingMode sets the "billing_mode" field.
+func (_u *OpenAIVideoTaskUpdate) SetBillingMode(v string) *OpenAIVideoTaskUpdate {
+	_u.mutation.SetBillingMode(v)
+	return _u
+}
+
+// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
+func (_u *OpenAIVideoTaskUpdate) SetNillableBillingMode(v *string) *OpenAIVideoTaskUpdate {
+	if v != nil {
+		_u.SetBillingMode(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *OpenAIVideoTaskUpdate) SetStatus(v string) *OpenAIVideoTaskUpdate {
 	_u.mutation.SetStatus(v)
@@ -877,6 +891,11 @@ func (_u *OpenAIVideoTaskUpdate) check() error {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.resolution": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingMode(); ok {
+		if err := openaivideotask.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.billing_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := openaivideotask.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.status": %w`, err)}
@@ -1019,6 +1038,9 @@ func (_u *OpenAIVideoTaskUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.Resolution(); ok {
 		_spec.SetField(openaivideotask.FieldResolution, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingMode(); ok {
+		_spec.SetField(openaivideotask.FieldBillingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(openaivideotask.FieldStatus, field.TypeString, value)
@@ -1452,6 +1474,20 @@ func (_u *OpenAIVideoTaskUpdateOne) SetResolution(v string) *OpenAIVideoTaskUpda
 func (_u *OpenAIVideoTaskUpdateOne) SetNillableResolution(v *string) *OpenAIVideoTaskUpdateOne {
 	if v != nil {
 		_u.SetResolution(*v)
+	}
+	return _u
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (_u *OpenAIVideoTaskUpdateOne) SetBillingMode(v string) *OpenAIVideoTaskUpdateOne {
+	_u.mutation.SetBillingMode(v)
+	return _u
+}
+
+// SetNillableBillingMode sets the "billing_mode" field if the given value is not nil.
+func (_u *OpenAIVideoTaskUpdateOne) SetNillableBillingMode(v *string) *OpenAIVideoTaskUpdateOne {
+	if v != nil {
+		_u.SetBillingMode(*v)
 	}
 	return _u
 }
@@ -2049,6 +2085,11 @@ func (_u *OpenAIVideoTaskUpdateOne) check() error {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.resolution": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingMode(); ok {
+		if err := openaivideotask.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.billing_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := openaivideotask.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.status": %w`, err)}
@@ -2208,6 +2249,9 @@ func (_u *OpenAIVideoTaskUpdateOne) sqlSave(ctx context.Context) (_node *OpenAIV
 	}
 	if value, ok := _u.mutation.Resolution(); ok {
 		_spec.SetField(openaivideotask.FieldResolution, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingMode(); ok {
+		_spec.SetField(openaivideotask.FieldBillingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(openaivideotask.FieldStatus, field.TypeString, value)

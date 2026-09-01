@@ -24,7 +24,7 @@
           <th colspan="3" class="pz-bg pt-2 text-center">
             <div class="pz-title border-b pb-2 font-semibold">
               {{ t('modelPlaza.table.paidPrice') }}
-              <span class="pz-unit ml-1 normal-case font-normal">{{ t('modelPlaza.table.unitPerMillion') }}</span>
+              <span class="pz-unit ml-1 normal-case font-normal">{{ paidPriceUnit }}</span>
             </div>
           </th>
           <th
@@ -292,6 +292,8 @@ import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/u
 import {
   BILLING_MODE_TOKEN,
   BILLING_MODE_IMAGE,
+  BILLING_MODE_PER_REQUEST,
+  BILLING_MODE_VIDEO,
   type BillingMode
 } from '@/constants/channel'
 import type { PlazaModel, PlazaTimePricingPeriod } from '@/api/modelPlaza'
@@ -354,10 +356,30 @@ function billingMode(m: PlazaModel): BillingMode {
 }
 
 function billingModeLabel(m: PlazaModel): string {
-  return billingMode(m) === BILLING_MODE_IMAGE
-    ? t('modelPlaza.table.perImage')
-    : t('modelPlaza.table.perRequest')
+  switch (billingMode(m)) {
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.perImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.perSecondVideo')
+    default:
+      return t('modelPlaza.table.perRequest')
+  }
 }
+
+const paidPriceUnit = computed(() => {
+  const modes = new Set(props.models.map((model) => billingMode(model)))
+  if (modes.size !== 1) return t('modelPlaza.table.unitMixed')
+  switch ([...modes][0]) {
+    case BILLING_MODE_PER_REQUEST:
+      return t('modelPlaza.table.unitPerRequest')
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.unitPerImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.unitPerSecond')
+    default:
+      return t('modelPlaza.table.unitPerMillion')
+  }
+})
 
 /** 价格统一保底 2 位小数,更长的有效小数原样保留。 */
 const MIN_DECIMALS = 2
@@ -415,11 +437,16 @@ function official(value: number | null | undefined): string {
   return formatScaled(value, PER_MILLION, MIN_DECIMALS)
 }
 
-/** 非 token 计费的单位后缀:按图片 → “/ 张”,按次 → “/ 次”。 */
+/** 非 token 计费的单位后缀：按图片 / 按秒视频 / 按次。 */
 function perUnitSuffix(m: PlazaModel): string {
-  return billingMode(m) === BILLING_MODE_IMAGE
-    ? t('modelPlaza.table.perUnitImage')
-    : t('modelPlaza.table.perUnitRequest')
+  switch (billingMode(m)) {
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.perUnitImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.perUnitSecond')
+    default:
+      return t('modelPlaza.table.perUnitRequest')
+  }
 }
 
 function hasCachePricing(m: PlazaModel): boolean {

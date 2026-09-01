@@ -138,6 +138,12 @@ func (_c *OpenAIVideoTaskCreate) SetResolution(v string) *OpenAIVideoTaskCreate 
 	return _c
 }
 
+// SetBillingMode sets the "billing_mode" field.
+func (_c *OpenAIVideoTaskCreate) SetBillingMode(v string) *OpenAIVideoTaskCreate {
+	_c.mutation.SetBillingMode(v)
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *OpenAIVideoTaskCreate) SetStatus(v string) *OpenAIVideoTaskCreate {
 	_c.mutation.SetStatus(v)
@@ -650,6 +656,14 @@ func (_c *OpenAIVideoTaskCreate) check() error {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.resolution": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.BillingMode(); !ok {
+		return &ValidationError{Name: "billing_mode", err: errors.New(`ent: missing required field "OpenAIVideoTask.billing_mode"`)}
+	}
+	if v, ok := _c.mutation.BillingMode(); ok {
+		if err := openaivideotask.BillingModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.billing_mode": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "OpenAIVideoTask.status"`)}
 	}
@@ -827,6 +841,10 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 	if value, ok := _c.mutation.Resolution(); ok {
 		_spec.SetField(openaivideotask.FieldResolution, field.TypeString, value)
 		_node.Resolution = value
+	}
+	if value, ok := _c.mutation.BillingMode(); ok {
+		_spec.SetField(openaivideotask.FieldBillingMode, field.TypeString, value)
+		_node.BillingMode = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(openaivideotask.FieldStatus, field.TypeString, value)
@@ -1227,6 +1245,18 @@ func (u *OpenAIVideoTaskUpsert) SetResolution(v string) *OpenAIVideoTaskUpsert {
 // UpdateResolution sets the "resolution" field to the value that was provided on create.
 func (u *OpenAIVideoTaskUpsert) UpdateResolution() *OpenAIVideoTaskUpsert {
 	u.SetExcluded(openaivideotask.FieldResolution)
+	return u
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *OpenAIVideoTaskUpsert) SetBillingMode(v string) *OpenAIVideoTaskUpsert {
+	u.Set(openaivideotask.FieldBillingMode, v)
+	return u
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsert) UpdateBillingMode() *OpenAIVideoTaskUpsert {
+	u.SetExcluded(openaivideotask.FieldBillingMode)
 	return u
 }
 
@@ -2010,6 +2040,20 @@ func (u *OpenAIVideoTaskUpsertOne) SetResolution(v string) *OpenAIVideoTaskUpser
 func (u *OpenAIVideoTaskUpsertOne) UpdateResolution() *OpenAIVideoTaskUpsertOne {
 	return u.Update(func(s *OpenAIVideoTaskUpsert) {
 		s.UpdateResolution()
+	})
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *OpenAIVideoTaskUpsertOne) SetBillingMode(v string) *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetBillingMode(v)
+	})
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertOne) UpdateBillingMode() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateBillingMode()
 	})
 }
 
@@ -3036,6 +3080,20 @@ func (u *OpenAIVideoTaskUpsertBulk) SetResolution(v string) *OpenAIVideoTaskUpse
 func (u *OpenAIVideoTaskUpsertBulk) UpdateResolution() *OpenAIVideoTaskUpsertBulk {
 	return u.Update(func(s *OpenAIVideoTaskUpsert) {
 		s.UpdateResolution()
+	})
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (u *OpenAIVideoTaskUpsertBulk) SetBillingMode(v string) *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetBillingMode(v)
+	})
+}
+
+// UpdateBillingMode sets the "billing_mode" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertBulk) UpdateBillingMode() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateBillingMode()
 	})
 }
 

@@ -953,14 +953,16 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 	resolution := NormalizeVideoBillingResolutionOrDefault(result.VideoResolution)
 	durationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
 	resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)
-	if resolved != nil && resolved.Source == PricingSourceGroup && resolved.Mode == BillingModeVideo {
+	if resolved != nil && resolved.Source == PricingSourceGroup && isOpenAIVideoRequestBillingMode(resolved.Mode) {
 		gid := apiKey.Group.ID
+		units, effectiveMode := openAIVideoBillingUnits(resolved.Mode, videoCount, durationSeconds)
 		cost, err := s.billingService.CalculateCostUnified(CostInput{
 			Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
-			UsageUnits: float64(videoCount * durationSeconds), SizeTier: resolution,
+			RequestCount: videoCount, UsageUnits: units, SizeTier: resolution,
 			RateMultiplier: multiplier, Resolver: s.resolver, Resolved: resolved,
 		})
 		if err == nil {
+			cost.BillingMode = string(effectiveMode)
 			return cost
 		}
 	}
@@ -975,14 +977,9 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 			return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 		}
 	}
-	if resolved != nil && resolved.Source == PricingSourceChannel &&
-		(resolved.Mode == BillingModePerRequest || resolved.Mode == BillingModeImage || resolved.Mode == BillingModeVideo) {
-		// 渠道 per_request/image 定价保持"按请求次数"口径（价格由管理员按次配置），不乘视频时长。
+	if resolved != nil && resolved.Source == PricingSourceChannel && isOpenAIVideoRequestBillingMode(resolved.Mode) {
 		gid := apiKey.Group.ID
-		units := float64(videoCount)
-		if resolved.Mode == BillingModeVideo {
-			units = float64(videoCount * durationSeconds)
-		}
+		units, effectiveMode := openAIVideoBillingUnits(resolved.Mode, videoCount, durationSeconds)
 		cost, err := s.billingService.CalculateCostUnified(CostInput{
 			Ctx:            ctx,
 			Model:          billingModel,
@@ -996,13 +993,28 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 			Resolved:       resolved,
 		})
 		if err == nil {
-			cost.BillingMode = string(BillingModeVideo)
+			cost.BillingMode = string(effectiveMode)
 			return cost
 		}
 		logger.LegacyPrintf("service.openai_gateway", "Calculate video channel cost failed: %v", err)
 	}
 
 	return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
+}
+
+func isOpenAIVideoRequestBillingMode(mode BillingMode) bool {
+	return mode == BillingModePerRequest || mode == BillingModeImage || mode == BillingModeVideo
+}
+
+// openAIVideoBillingUnits keeps the configured unit explicit on a video
+// endpoint. The legacy image mode is still a request-count price when attached
+// to a video model, so its usage record is normalized to per_request rather
+// than being mislabeled as either an image or per-second charge.
+func openAIVideoBillingUnits(mode BillingMode, videoCount, durationSeconds int) (float64, BillingMode) {
+	if mode == BillingModeVideo {
+		return float64(videoCount * durationSeconds), BillingModeVideo
+	}
+	return float64(videoCount), BillingModePerRequest
 }
 
 func (s *OpenAIGatewayService) apiKeyWithFreshGroupMediaPricing(ctx context.Context, apiKey *APIKey) *APIKey {

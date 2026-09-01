@@ -124,6 +124,11 @@ func Resolution(v string) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldResolution, v))
 }
 
+// BillingMode applies equality check predicate on the "billing_mode" field. It's identical to BillingModeEQ.
+func BillingMode(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldBillingMode, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldStatus, v))
@@ -992,6 +997,71 @@ func ResolutionEqualFold(v string) predicate.OpenAIVideoTask {
 // ResolutionContainsFold applies the ContainsFold predicate on the "resolution" field.
 func ResolutionContainsFold(v string) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldContainsFold(FieldResolution, v))
+}
+
+// BillingModeEQ applies the EQ predicate on the "billing_mode" field.
+func BillingModeEQ(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldBillingMode, v))
+}
+
+// BillingModeNEQ applies the NEQ predicate on the "billing_mode" field.
+func BillingModeNEQ(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldNEQ(FieldBillingMode, v))
+}
+
+// BillingModeIn applies the In predicate on the "billing_mode" field.
+func BillingModeIn(vs ...string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldIn(FieldBillingMode, vs...))
+}
+
+// BillingModeNotIn applies the NotIn predicate on the "billing_mode" field.
+func BillingModeNotIn(vs ...string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldNotIn(FieldBillingMode, vs...))
+}
+
+// BillingModeGT applies the GT predicate on the "billing_mode" field.
+func BillingModeGT(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldGT(FieldBillingMode, v))
+}
+
+// BillingModeGTE applies the GTE predicate on the "billing_mode" field.
+func BillingModeGTE(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldGTE(FieldBillingMode, v))
+}
+
+// BillingModeLT applies the LT predicate on the "billing_mode" field.
+func BillingModeLT(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldLT(FieldBillingMode, v))
+}
+
+// BillingModeLTE applies the LTE predicate on the "billing_mode" field.
+func BillingModeLTE(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldLTE(FieldBillingMode, v))
+}
+
+// BillingModeContains applies the Contains predicate on the "billing_mode" field.
+func BillingModeContains(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldContains(FieldBillingMode, v))
+}
+
+// BillingModeHasPrefix applies the HasPrefix predicate on the "billing_mode" field.
+func BillingModeHasPrefix(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldHasPrefix(FieldBillingMode, v))
+}
+
+// BillingModeHasSuffix applies the HasSuffix predicate on the "billing_mode" field.
+func BillingModeHasSuffix(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldHasSuffix(FieldBillingMode, v))
+}
+
+// BillingModeEqualFold applies the EqualFold predicate on the "billing_mode" field.
+func BillingModeEqualFold(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldEqualFold(FieldBillingMode, v))
+}
+
+// BillingModeContainsFold applies the ContainsFold predicate on the "billing_mode" field.
+func BillingModeContainsFold(v string) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldContainsFold(FieldBillingMode, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

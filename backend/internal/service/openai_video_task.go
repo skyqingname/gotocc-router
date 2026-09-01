@@ -48,6 +48,7 @@ type OpenAIVideoTask struct {
 	UpstreamModel         string
 	RequestSeconds        int
 	Resolution            string
+	BillingMode           string
 	Status                string
 	UpstreamStatus        *string
 	BillingType           int8
@@ -93,6 +94,7 @@ type CreateOpenAIVideoTaskParams struct {
 	UpstreamModel         string
 	RequestSeconds        int
 	Resolution            string
+	BillingMode           string
 	BillingType           int8
 	TotalCost             float64
 	HoldAmount            float64

@@ -26,16 +26,18 @@ export default {
         billingModeToken: '按 Token',
         billingModePerRequest: '按次',
         billingModeImage: '按图片',
-        billingModeVideo: '按视频',
+        billingModeVideo: '按秒（视频）',
         inputPrice: '输入',
         outputPrice: '输出',
         cacheWritePrice: '缓存写入',
         cacheReadPrice: '缓存读取',
         imageOutputPrice: '图片输出',
         perRequestPrice: '每次请求',
+        perSecondPrice: '每秒视频',
         intervals: '阶梯定价',
         unitPerMillion: '/ 1M token',
-        unitPerRequest: '/ 次'
+        unitPerRequest: '/ 次',
+        unitPerSecond: '/ 秒'
       }
     },
 

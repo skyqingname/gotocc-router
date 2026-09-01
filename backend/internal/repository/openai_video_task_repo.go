@@ -21,7 +21,7 @@ func NewOpenAIVideoTaskRepository(db *sql.DB) service.OpenAIVideoTaskRepository 
 const openAIVideoTaskColumns = `
 	id, local_request_id, task_id, actor_user_id, billing_user_id, team_id,
 	api_key_id, group_id, channel_id, account_id, subscription_id,
-	requested_model, upstream_model, request_seconds, resolution, status,
+	requested_model, upstream_model, request_seconds, resolution, billing_mode, status,
 	upstream_status, billing_type, billing_status, total_cost, actual_cost,
 	hold_amount, group_rate_multiplier, account_rate_multiplier,
 	allowance_reserved, request_payload_hash, inbound_endpoint,
@@ -39,7 +39,7 @@ func scanOpenAIVideoTask(row openAIVideoTaskScanner) (*service.OpenAIVideoTask, 
 		&task.BillingUserID, &task.TeamID, &task.APIKeyID, &task.GroupID,
 		&task.ChannelID, &task.AccountID, &task.SubscriptionID,
 		&task.RequestedModel, &task.UpstreamModel, &task.RequestSeconds,
-		&task.Resolution, &task.Status, &task.UpstreamStatus, &task.BillingType,
+		&task.Resolution, &task.BillingMode, &task.Status, &task.UpstreamStatus, &task.BillingType,
 		&task.BillingStatus, &task.TotalCost, &task.ActualCost, &task.HoldAmount,
 		&task.GroupRateMultiplier, &task.AccountRateMultiplier,
 		&task.AllowanceReserved, &task.RequestPayloadHash, &task.InboundEndpoint,
@@ -63,20 +63,20 @@ func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.Create
 		INSERT INTO openai_video_tasks (
 			local_request_id, actor_user_id, billing_user_id, team_id, api_key_id,
 			group_id, channel_id, account_id, subscription_id, requested_model,
-			upstream_model, request_seconds, resolution, billing_type, total_cost,
+			upstream_model, request_seconds, resolution, billing_mode, billing_type, total_cost,
 			hold_amount, group_rate_multiplier, account_rate_multiplier,
 			request_payload_hash, inbound_endpoint, upstream_endpoint,
 			model_mapping_chain, user_agent, ip_address, next_poll_at
 		) VALUES (
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-			$19,$20,$21,$22,$23,$24,$25
+			$19,$20,$21,$22,$23,$24,$25,$26
 		)
 		RETURNING `+openAIVideoTaskColumns,
 		strings.TrimSpace(p.LocalRequestID), p.ActorUserID, p.BillingUserID,
 		p.TeamID, p.APIKeyID, p.GroupID, p.ChannelID, p.AccountID,
 		p.SubscriptionID, strings.TrimSpace(p.RequestedModel),
 		strings.TrimSpace(p.UpstreamModel), p.RequestSeconds,
-		strings.TrimSpace(p.Resolution), p.BillingType, p.TotalCost,
+		strings.TrimSpace(p.Resolution), strings.TrimSpace(p.BillingMode), p.BillingType, p.TotalCost,
 		p.HoldAmount, p.GroupRateMultiplier, p.AccountRateMultiplier,
 		strings.TrimSpace(p.RequestPayloadHash), strings.TrimSpace(p.InboundEndpoint),
 		strings.TrimSpace(p.UpstreamEndpoint), p.ModelMappingChain, p.UserAgent,

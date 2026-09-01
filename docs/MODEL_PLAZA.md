@@ -39,6 +39,18 @@ Image-input-only prices count as configured prices. Image models continue to
 use the existing group image-tier composition, so group 1K/2K/4K overrides
 and independent image multipliers match the billing display.
 
+Media billing units remain explicit in the response and presentation:
+
+- `per_request` displays one price per request;
+- `image` displays one price per image;
+- `video` displays one price per requested video second.
+
+The existing `per_request_price` response field carries the configured unit
+price for all three non-token modes; `billing_mode` determines its unit. A
+single-mode table labels the paid-price header with that unit. A group that
+mixes video models billed per request and per second uses a neutral billing-unit
+header, while every model row keeps its own badge and suffix.
+
 `official_pricing` remains a separate reference field. It does not determine
 whether the model appears in the catalog.
 
@@ -62,4 +74,6 @@ pricing data, verify:
 - unpriced models remain visible with `pricing: null`;
 - group prices override channel prices, and channel prices override official
   fallback prices;
+- `per_request` video rows display `/ request`, `video` rows display `/ second`,
+  and a mixed table does not claim one incompatible unit;
 - composite groups do not leak prices across concrete platforms.

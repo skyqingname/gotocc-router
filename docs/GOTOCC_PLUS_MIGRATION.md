@@ -107,9 +107,11 @@ accepts the legacy `/videos/generations` aliases used by Infinite Canvas and
 normalizes them to the canonical NewAPI paths before forwarding. Grok-native
 edits and extensions remain restricted to a real Grok group.
 
-Channel create/update validation accepts the existing `video` billing mode, so
-per-second rules for the unified group can be maintained through the admin UI
-instead of bypassing the service with direct data writes.
+Channel create/update validation accepts both video pricing contracts without
+introducing another persisted enum: `per_request` means one unit per generated
+video, while `video` means one unit per requested video second. The admin UI
+labels the latter as per-second video billing so operators do not confuse the
+two units.
 
 With `video_task.enabled`, create validates the numeric JSON `seconds` field
 and resolves `size` to the configured video resolution tier before forwarding.
@@ -121,6 +123,13 @@ the worker and client status/content reads use that account instead of running
 the scheduler again. `NOT_START`, `IN_PROGRESS`, and other unknown states stay
 non-terminal; only values in the explicit success/failure/cancelled sets can
 settle or release a task.
+
+The resolved billing mode is part of the immutable asynchronous-task quote.
+Task settlement and terminal usage recording read that frozen value rather
+than re-resolving mutable channel pricing. Migration 239 adds the required
+`billing_mode` column, backfills pre-existing task rows as `video`, removes the
+temporary default, and restricts future rows to `per_request` or `video`. It
+does not rewrite existing usage logs, balances, price rows, routes, or Redis.
 
 Migration 238 only creates the empty `openai_video_tasks` table and indexes. It
 does not scan or reinterpret historical usage. Before rollback, all new tasks
@@ -194,6 +203,19 @@ allowlists, groups, channels, models, or price data.
 Migration 234 removes retired probe configuration from existing rows. After it
 has executed, a binary-only rollback cannot restore those values; production
 rollback must use the matched deployment backup or an audited forward fix.
+
+## Upgrade from 0.1.183+custom.007 to 0.1.183+custom.008
+
+This release extends LC-012 and LC-013 without adding a new protocol or billing
+enum. It preserves `.007` durable polling and terminal hold/capture/refund,
+fixes the unit identity carried from quote to usage, and makes every pricing
+surface distinguish per-request from per-second video models.
+
+Migration 239 is an additive task-table migration but its new column has no
+steady-state default. An older binary cannot safely resume video-task writes
+against the migrated schema. Rollback therefore requires stopping video
+writers and restoring the matched PostgreSQL, Redis, configuration, frontend,
+and binary set, or applying a reviewed forward repair.
 
 ## Local candidate evidence
 

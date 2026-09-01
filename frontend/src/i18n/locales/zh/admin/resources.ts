@@ -635,7 +635,7 @@ export default {
       billingModeToken: '按量',
       billingModePerRequest: '按次',
       billingModeImage: '按次(图片)',
-      billingModeVideo: '按次(视频)',
+      billingModeVideo: '按秒（视频）',
       allBillingModes: '全部计费模式',
 	  upstreamModelAudit: '上游模型审计',
 	  allUpstreamModelAudit: '全部响应模型状态',

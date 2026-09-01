@@ -311,7 +311,7 @@ func (s *OpenAIGatewayService) recordOpenAIVideoTaskUsage(ctx context.Context, t
 	if task.ActualCost != nil {
 		actualCost = *task.ActualCost
 	}
-	billingMode := string(BillingModeVideo)
+	billingMode := task.BillingMode
 	durationMs := int(time.Since(task.CreatedAt).Milliseconds())
 	complete := true
 	usage := &UsageLog{

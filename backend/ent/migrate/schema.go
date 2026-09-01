@@ -1172,6 +1172,7 @@ var (
 		{Name: "upstream_model", Type: field.TypeString, Size: 128},
 		{Name: "request_seconds", Type: field.TypeInt},
 		{Name: "resolution", Type: field.TypeString, Size: 16},
+		{Name: "billing_mode", Type: field.TypeString, Size: 32},
 		{Name: "status", Type: field.TypeString, Size: 32, Default: "creating"},
 		{Name: "upstream_status", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "billing_type", Type: field.TypeInt8},
@@ -1224,12 +1225,12 @@ var (
 			{
 				Name:    "openaivideotask_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[6], OpenaiVideoTasksColumns[38]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[6], OpenaiVideoTasksColumns[39]},
 			},
 			{
 				Name:    "openaivideotask_billing_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[18], OpenaiVideoTasksColumns[39]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[19], OpenaiVideoTasksColumns[40]},
 			},
 		},
 	}

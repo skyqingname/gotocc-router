@@ -573,7 +573,7 @@ export default {
       billingModeToken: 'Per Token',
       billingModePerRequest: 'Per Request',
       billingModeImage: 'Per Image',
-      billingModeVideo: 'Per Video',
+      billingModeVideo: 'Per Second (Video)',
       inputPrice: 'Input',
       outputPrice: 'Output',
       cacheWritePrice: 'Cache Write',
@@ -581,9 +581,11 @@ export default {
       imageInputPrice: 'Image Input',
       imageOutputPrice: 'Image Output',
       perRequestPrice: 'Per Request',
+      perSecondPrice: 'Video per Second',
       intervals: 'Tiered Pricing',
       unitPerMillion: '/ 1M tokens',
-      unitPerRequest: '/ request'
+      unitPerRequest: '/ request',
+      unitPerSecond: '/ second'
     }
   },
 
@@ -637,10 +639,16 @@ export default {
       officialPrice: 'Official Price',
       rate: 'Rate',
       unitPerMillion: '$ / 1M tokens',
+      unitPerRequest: '$ / request',
+      unitPerImage: '$ / image',
+      unitPerSecond: '$ / second',
+      unitMixed: '$ / billing unit',
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
+      perUnitSecond: '/ second',
       perRequest: 'Per request',
-      perImage: 'Per image'
+      perImage: 'Per image',
+      perSecondVideo: 'Per second'
     },
     nav: {
       login: 'Sign In',

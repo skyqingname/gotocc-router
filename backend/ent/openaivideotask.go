@@ -45,6 +45,8 @@ type OpenAIVideoTask struct {
 	RequestSeconds int `json:"request_seconds,omitempty"`
 	// Resolution holds the value of the "resolution" field.
 	Resolution string `json:"resolution,omitempty"`
+	// BillingMode holds the value of the "billing_mode" field.
+	BillingMode string `json:"billing_mode,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// UpstreamStatus holds the value of the "upstream_status" field.
@@ -117,7 +119,7 @@ func (*OpenAIVideoTask) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case openaivideotask.FieldID, openaivideotask.FieldActorUserID, openaivideotask.FieldBillingUserID, openaivideotask.FieldTeamID, openaivideotask.FieldAPIKeyID, openaivideotask.FieldGroupID, openaivideotask.FieldChannelID, openaivideotask.FieldAccountID, openaivideotask.FieldSubscriptionID, openaivideotask.FieldRequestSeconds, openaivideotask.FieldBillingType, openaivideotask.FieldRetryCount:
 			values[i] = new(sql.NullInt64)
-		case openaivideotask.FieldLocalRequestID, openaivideotask.FieldTaskID, openaivideotask.FieldRequestedModel, openaivideotask.FieldUpstreamModel, openaivideotask.FieldResolution, openaivideotask.FieldStatus, openaivideotask.FieldUpstreamStatus, openaivideotask.FieldBillingStatus, openaivideotask.FieldRequestPayloadHash, openaivideotask.FieldInboundEndpoint, openaivideotask.FieldUpstreamEndpoint, openaivideotask.FieldModelMappingChain, openaivideotask.FieldUserAgent, openaivideotask.FieldIPAddress, openaivideotask.FieldLeaseToken, openaivideotask.FieldLastErrorCode, openaivideotask.FieldLastErrorMessage:
+		case openaivideotask.FieldLocalRequestID, openaivideotask.FieldTaskID, openaivideotask.FieldRequestedModel, openaivideotask.FieldUpstreamModel, openaivideotask.FieldResolution, openaivideotask.FieldBillingMode, openaivideotask.FieldStatus, openaivideotask.FieldUpstreamStatus, openaivideotask.FieldBillingStatus, openaivideotask.FieldRequestPayloadHash, openaivideotask.FieldInboundEndpoint, openaivideotask.FieldUpstreamEndpoint, openaivideotask.FieldModelMappingChain, openaivideotask.FieldUserAgent, openaivideotask.FieldIPAddress, openaivideotask.FieldLeaseToken, openaivideotask.FieldLastErrorCode, openaivideotask.FieldLastErrorMessage:
 			values[i] = new(sql.NullString)
 		case openaivideotask.FieldNextPollAt, openaivideotask.FieldLeaseUntil, openaivideotask.FieldCreatedAt, openaivideotask.FieldUpdatedAt, openaivideotask.FieldSubmittedAt, openaivideotask.FieldFinishedAt, openaivideotask.FieldSettledAt, openaivideotask.FieldUsageRecordedAt:
 			values[i] = new(sql.NullTime)
@@ -229,6 +231,12 @@ func (_m *OpenAIVideoTask) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field resolution", values[i])
 			} else if value.Valid {
 				_m.Resolution = value.String
+			}
+		case openaivideotask.FieldBillingMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_mode", values[i])
+			} else if value.Valid {
+				_m.BillingMode = value.String
 			}
 		case openaivideotask.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -503,6 +511,9 @@ func (_m *OpenAIVideoTask) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("resolution=")
 	builder.WriteString(_m.Resolution)
+	builder.WriteString(", ")
+	builder.WriteString("billing_mode=")
+	builder.WriteString(_m.BillingMode)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

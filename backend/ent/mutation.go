@@ -30739,6 +30739,7 @@ type OpenAIVideoTaskMutation struct {
 	request_seconds            *int
 	addrequest_seconds         *int
 	resolution                 *string
+	billing_mode               *string
 	status                     *string
 	upstream_status            *string
 	billing_type               *int8
@@ -31616,6 +31617,42 @@ func (m *OpenAIVideoTaskMutation) OldResolution(ctx context.Context) (v string, 
 // ResetResolution resets all changes to the "resolution" field.
 func (m *OpenAIVideoTaskMutation) ResetResolution() {
 	m.resolution = nil
+}
+
+// SetBillingMode sets the "billing_mode" field.
+func (m *OpenAIVideoTaskMutation) SetBillingMode(s string) {
+	m.billing_mode = &s
+}
+
+// BillingMode returns the value of the "billing_mode" field in the mutation.
+func (m *OpenAIVideoTaskMutation) BillingMode() (r string, exists bool) {
+	v := m.billing_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingMode returns the old "billing_mode" field's value of the OpenAIVideoTask entity.
+// If the OpenAIVideoTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OpenAIVideoTaskMutation) OldBillingMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingMode: %w", err)
+	}
+	return oldValue.BillingMode, nil
+}
+
+// ResetBillingMode resets all changes to the "billing_mode" field.
+func (m *OpenAIVideoTaskMutation) ResetBillingMode() {
+	m.billing_mode = nil
 }
 
 // SetStatus sets the "status" field.
@@ -33019,7 +33056,7 @@ func (m *OpenAIVideoTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OpenAIVideoTaskMutation) Fields() []string {
-	fields := make([]string, 0, 43)
+	fields := make([]string, 0, 44)
 	if m.local_request_id != nil {
 		fields = append(fields, openaivideotask.FieldLocalRequestID)
 	}
@@ -33061,6 +33098,9 @@ func (m *OpenAIVideoTaskMutation) Fields() []string {
 	}
 	if m.resolution != nil {
 		fields = append(fields, openaivideotask.FieldResolution)
+	}
+	if m.billing_mode != nil {
+		fields = append(fields, openaivideotask.FieldBillingMode)
 	}
 	if m.status != nil {
 		fields = append(fields, openaivideotask.FieldStatus)
@@ -33185,6 +33225,8 @@ func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestSeconds()
 	case openaivideotask.FieldResolution:
 		return m.Resolution()
+	case openaivideotask.FieldBillingMode:
+		return m.BillingMode()
 	case openaivideotask.FieldStatus:
 		return m.Status()
 	case openaivideotask.FieldUpstreamStatus:
@@ -33280,6 +33322,8 @@ func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (en
 		return m.OldRequestSeconds(ctx)
 	case openaivideotask.FieldResolution:
 		return m.OldResolution(ctx)
+	case openaivideotask.FieldBillingMode:
+		return m.OldBillingMode(ctx)
 	case openaivideotask.FieldStatus:
 		return m.OldStatus(ctx)
 	case openaivideotask.FieldUpstreamStatus:
@@ -33444,6 +33488,13 @@ func (m *OpenAIVideoTaskMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResolution(v)
+		return nil
+	case openaivideotask.FieldBillingMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingMode(v)
 		return nil
 	case openaivideotask.FieldStatus:
 		v, ok := value.(string)
@@ -34044,6 +34095,9 @@ func (m *OpenAIVideoTaskMutation) ResetField(name string) error {
 		return nil
 	case openaivideotask.FieldResolution:
 		m.ResetResolution()
+		return nil
+	case openaivideotask.FieldBillingMode:
+		m.ResetBillingMode()
 		return nil
 	case openaivideotask.FieldStatus:
 		m.ResetStatus()

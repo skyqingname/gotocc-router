@@ -31,6 +31,7 @@ func (OpenAIVideoTask) Fields() []ent.Field {
 		field.Int64("account_id"), field.Int64("subscription_id").Optional().Nillable(),
 		field.String("requested_model").MaxLen(128), field.String("upstream_model").MaxLen(128),
 		field.Int("request_seconds"), field.String("resolution").MaxLen(16),
+		field.String("billing_mode").MaxLen(32),
 		field.String("status").MaxLen(32).Default("creating"),
 		field.String("upstream_status").MaxLen(64).Optional().Nillable(),
 		field.Int8("billing_type"), field.String("billing_status").MaxLen(32).Default("none"),

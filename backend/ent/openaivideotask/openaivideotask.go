@@ -41,6 +41,8 @@ const (
 	FieldRequestSeconds = "request_seconds"
 	// FieldResolution holds the string denoting the resolution field in the database.
 	FieldResolution = "resolution"
+	// FieldBillingMode holds the string denoting the billing_mode field in the database.
+	FieldBillingMode = "billing_mode"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldUpstreamStatus holds the string denoting the upstream_status field in the database.
@@ -120,6 +122,7 @@ var Columns = []string{
 	FieldUpstreamModel,
 	FieldRequestSeconds,
 	FieldResolution,
+	FieldBillingMode,
 	FieldStatus,
 	FieldUpstreamStatus,
 	FieldBillingType,
@@ -172,6 +175,8 @@ var (
 	UpstreamModelValidator func(string) error
 	// ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
 	ResolutionValidator func(string) error
+	// BillingModeValidator is a validator for the "billing_mode" field. It is called by the builders before save.
+	BillingModeValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -294,6 +299,11 @@ func ByRequestSeconds(opts ...sql.OrderTermOption) OrderOption {
 // ByResolution orders the results by the resolution field.
 func ByResolution(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolution, opts...).ToFunc()
+}
+
+// ByBillingMode orders the results by the billing_mode field.
+func ByBillingMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingMode, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

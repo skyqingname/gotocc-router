@@ -99,3 +99,34 @@ func TestBuildOpenAIVideoUpstreamRequestUsesAccountCredentialOnly(t *testing.T) 
 	require.Empty(t, request.Header.Get("X-Unsafe-Forward"))
 	require.NotEmpty(t, request.Header.Get("User-Agent"))
 }
+
+func TestOpenAIVideoBillingUnitsDistinguishPerRequestAndPerSecond(t *testing.T) {
+	t.Parallel()
+
+	perRequestUnits, perRequestMode := openAIVideoBillingUnits(BillingModePerRequest, 2, 15)
+	require.Equal(t, float64(2), perRequestUnits)
+	require.Equal(t, BillingModePerRequest, perRequestMode)
+
+	perSecondUnits, perSecondMode := openAIVideoBillingUnits(BillingModeVideo, 2, 15)
+	require.Equal(t, float64(30), perSecondUnits)
+	require.Equal(t, BillingModeVideo, perSecondMode)
+
+	legacyImageUnits, legacyImageMode := openAIVideoBillingUnits(BillingModeImage, 2, 15)
+	require.Equal(t, float64(2), legacyImageUnits)
+	require.Equal(t, BillingModePerRequest, legacyImageMode)
+}
+
+func TestNormalizeOpenAIVideoTaskBillingMode(t *testing.T) {
+	t.Parallel()
+
+	mode, err := normalizeOpenAIVideoTaskBillingMode(string(BillingModePerRequest))
+	require.NoError(t, err)
+	require.Equal(t, string(BillingModePerRequest), mode)
+
+	mode, err = normalizeOpenAIVideoTaskBillingMode(string(BillingModeVideo))
+	require.NoError(t, err)
+	require.Equal(t, string(BillingModeVideo), mode)
+
+	_, err = normalizeOpenAIVideoTaskBillingMode(string(BillingModeToken))
+	require.Error(t, err)
+}

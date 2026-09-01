@@ -229,6 +229,49 @@ describe('PlazaModelPricingTable', () => {
     expect(text).toContain('modelPlaza.table.perUnitRequest')
   })
 
+  it('混合视频价卡分别展示按次与按秒单位,表头不误称同一单位', () => {
+    const perRequest = tokenModel({
+      name: 'minimax-h3',
+      pricing: {
+        billing_mode: 'per_request',
+        input_price: null,
+        output_price: null,
+        cache_write_price: null,
+        cache_read_price: null,
+        image_input_price: null,
+        image_output_price: null,
+        per_request_price: 5,
+        intervals: []
+      },
+      official_pricing: null
+    })
+    const perSecond = tokenModel({
+      name: 'seedance2.5',
+      pricing: {
+        billing_mode: 'video',
+        input_price: null,
+        output_price: null,
+        cache_write_price: null,
+        cache_read_price: null,
+        image_input_price: null,
+        image_output_price: null,
+        per_request_price: 0.6,
+        intervals: []
+      },
+      official_pricing: null
+    })
+
+    const wrapper = mountTable([perRequest, perSecond], 1)
+    const rows = wrapper.findAll('tbody tr')
+    const byModel = new Map(rows.map((row) => [row.find('td').text(), row.text()]))
+
+    expect(wrapper.find('thead').text()).toContain('modelPlaza.table.unitMixed')
+    expect(byModel.get('minimax-h3modelPlaza.table.perRequest')).toContain('$5.00')
+    expect(byModel.get('minimax-h3modelPlaza.table.perRequest')).toContain('modelPlaza.table.perUnitRequest')
+    expect(byModel.get('seedance2.5modelPlaza.table.perSecondVideo')).toContain('$0.60')
+    expect(byModel.get('seedance2.5modelPlaza.table.perSecondVideo')).toContain('modelPlaza.table.perUnitSecond')
+  })
+
   it('token 模型阶梯定价内联进输入/输出列,按倍率折算', () => {
     const model = tokenModel({
       pricing: {

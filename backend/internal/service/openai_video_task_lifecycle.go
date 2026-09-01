@@ -61,6 +61,10 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 	}
 	cost.TotalCost = QuantizeUsageBillingAmount(cost.TotalCost)
 	cost.ActualCost = QuantizeUsageBillingAmount(cost.ActualCost)
+	billingMode, err := normalizeOpenAIVideoTaskBillingMode(cost.BillingMode)
+	if err != nil {
+		return nil, err
+	}
 
 	billingType := int8(BillingTypeBalance)
 	var subscriptionID *int64
@@ -93,6 +97,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		UpstreamModel:         strings.TrimSpace(input.UpstreamModel),
 		RequestSeconds:        seconds,
 		Resolution:            resolution,
+		BillingMode:           billingMode,
 		BillingType:           billingType,
 		TotalCost:             cost.TotalCost,
 		HoldAmount:            holdAmount,
@@ -122,8 +127,20 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		zap.Int64("task_row_id", task.ID), zap.String("local_request_id", task.LocalRequestID),
 		zap.Int64("api_key_id", task.APIKeyID), zap.Int64("account_id", task.AccountID),
 		zap.Int("request_seconds", task.RequestSeconds), zap.String("resolution", task.Resolution),
+		zap.String("billing_mode", task.BillingMode),
 		zap.Float64("hold_amount", task.HoldAmount), zap.Int8("billing_type", task.BillingType))
 	return task, nil
+}
+
+func normalizeOpenAIVideoTaskBillingMode(mode string) (string, error) {
+	switch BillingMode(strings.TrimSpace(mode)) {
+	case BillingModePerRequest:
+		return string(BillingModePerRequest), nil
+	case BillingModeVideo:
+		return string(BillingModeVideo), nil
+	default:
+		return "", fmt.Errorf("openai video billing mode is invalid: %q", mode)
+	}
 }
 
 func (s *OpenAIGatewayService) BindOpenAIVideoTaskResponse(_ context.Context, task *OpenAIVideoTask, body []byte) (*OpenAIVideoTask, error) {
