@@ -147,7 +147,7 @@ func (r *openAIVideoTaskRepository) ClaimDue(ctx context.Context, now time.Time,
 		UPDATE openai_video_tasks t
 		SET lease_until=$1 + ($3 * INTERVAL '1 second'), lease_token=$4, updated_at=NOW()
 		FROM due WHERE t.id=due.id
-		RETURNING `+openAIVideoTaskColumns,
+		RETURNING `+qualifiedOpenAIVideoTaskColumns("t"),
 		now, limit, int(leaseDuration.Seconds()), leaseToken)
 	if err != nil {
 		return nil, err
@@ -162,6 +162,14 @@ func (r *openAIVideoTaskRepository) ClaimDue(ctx context.Context, now time.Time,
 		tasks = append(tasks, task)
 	}
 	return tasks, rows.Err()
+}
+
+func qualifiedOpenAIVideoTaskColumns(alias string) string {
+	columns := strings.Fields(openAIVideoTaskColumns)
+	for i := range columns {
+		columns[i] = alias + "." + columns[i]
+	}
+	return strings.Join(columns, " ")
 }
 
 func (r *openAIVideoTaskRepository) RecordPollState(ctx context.Context, id int64, leaseToken, status, upstreamStatus, errorCode, errorMessage string, nextPollAt *time.Time, finishedAt *time.Time) error {
