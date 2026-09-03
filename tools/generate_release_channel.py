@@ -13,6 +13,39 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "release-channel.json"
 TARGET = ROOT / "backend/internal/releasechannel/channel_gen.go"
 INSTALLER = ROOT / "deploy/install.sh"
+CHANNEL_TEXT_FILES = (
+    ROOT / "Dockerfile",
+    ROOT / "Dockerfile.goreleaser",
+    ROOT / "README.md",
+    ROOT / "README_CN.md",
+    ROOT / "README_JA.md",
+    ROOT / "deploy/APPLE_CONTAINER.md",
+    ROOT / "deploy/CLOUDFLARE_IP_ACCESS_CONTROL_CN.md",
+    ROOT / "deploy/DOCKER.md",
+    ROOT / "deploy/Dockerfile",
+    ROOT / "deploy/README.md",
+    ROOT / "deploy/docker-deploy.sh",
+    ROOT / "deploy/sub2api.service",
+    ROOT / "deploy/config.example.yaml",
+    ROOT / "docs/ADMIN_PAYMENT_INTEGRATION_API.md",
+    ROOT / "frontend/src/components/admin/AdminComplianceDialog.vue",
+    ROOT / "frontend/src/components/layout/AppHeader.vue",
+    ROOT / "frontend/src/stores/adminCompliance.ts",
+    ROOT / "frontend/src/views/KeyUsageView.vue",
+    ROOT / "frontend/src/views/admin/SettingsView.vue",
+    ROOT / "frontend/src/views/admin/__tests__/SettingsView.spec.ts",
+    ROOT / "skills/push-cli/SKILL.md",
+    ROOT / "skills/release-cli/references/release-cli.md",
+)
+CHANNEL_IMAGE_FILES = (
+    ROOT / "deploy/.env.example",
+    ROOT / "deploy/tests/fixtures/bin/container",
+    ROOT / "deploy/docker-compose.yml",
+    ROOT / "deploy/docker-compose.local.yml",
+    ROOT / "deploy/docker-compose.standalone.yml",
+    ROOT / "deploy/apple-container.sh",
+    ROOT / "UPSTREAM.md",
+)
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+\+custom\.\d{3}$")
 RUNTIME_PATH_RE = re.compile(r"^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$")
@@ -61,6 +94,8 @@ def load_config() -> dict[str, object]:
         required = item["required"]
         if not isinstance(path, str) or RUNTIME_PATH_RE.fullmatch(path) is None:
             raise ValueError(f"invalid runtime file path: {path!r}")
+        if any(part in {".", ".."} for part in path.split("/")):
+            raise ValueError(f"runtime file path contains a dot segment: {path}")
         if path in seen:
             raise ValueError(f"duplicate runtime file path: {path}")
         if not isinstance(required, bool):
@@ -92,6 +127,7 @@ const (
 \tReleaseImage       = {quoted(data["release_image"])}
 \tUpstreamRepository = {quoted(data["upstream_repository"])}
 \tUpstreamBaseline   = {quoted(data["upstream_baseline"])}
+\tPricingManifestURL = "https://github.com/" + ReleaseRepository + "/releases/latest/download/model-pricing-manifest.json"
 )
 
 type RuntimeFile struct {{
@@ -126,6 +162,24 @@ def render_installer(data: dict[str, object]) -> str:
     return updated
 
 
+def render_channel_text(path: Path, data: dict[str, object]) -> str:
+    repository = str(data["release_repository"])
+    release_image = str(data["release_image"])
+    return (
+        path.read_text(encoding="utf-8")
+        .replace(f"ghcr.io/{repository.lower()}", release_image)
+        .replace("ghcr.io/luckykuang/sub2api-plus", release_image)
+        .replace("LuckyKuang/sub2api-plus", repository)
+        .replace("luckykuang/sub2api-plus", repository.lower())
+    )
+
+
+def render_channel_image(path: Path, data: dict[str, object]) -> str:
+    return path.read_text(encoding="utf-8").replace(
+        "ghcr.io/luckykuang/sub2api-plus", str(data["release_image"])
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true")
@@ -134,6 +188,8 @@ def main() -> int:
     data = load_config()
     generated = render(data)
     installer = render_installer(data)
+    channel_text = {path: render_channel_text(path, data) for path in CHANNEL_TEXT_FILES}
+    channel_images = {path: render_channel_image(path, data) for path in CHANNEL_IMAGE_FILES}
     if args.check:
         if not TARGET.exists() or TARGET.read_text(encoding="utf-8") != generated:
             raise SystemExit(
@@ -145,11 +201,31 @@ def main() -> int:
                 "generated installer release channel is stale; run: "
                 "python3 tools/generate_release_channel.py"
             )
+        stale = [
+            str(path.relative_to(ROOT))
+            for path, rendered in channel_text.items()
+            if path.read_text(encoding="utf-8") != rendered
+        ]
+        stale.extend(
+            str(path.relative_to(ROOT))
+            for path, rendered in channel_images.items()
+            if path.read_text(encoding="utf-8") != rendered
+        )
+        if stale:
+            raise SystemExit(
+                "release-channel documentation is stale: "
+                + ", ".join(stale)
+                + "; run: python3 tools/generate_release_channel.py"
+            )
         return 0
 
     TARGET.parent.mkdir(parents=True, exist_ok=True)
     TARGET.write_text(generated, encoding="utf-8")
     INSTALLER.write_text(installer, encoding="utf-8")
+    for path, rendered in channel_text.items():
+        path.write_text(rendered, encoding="utf-8")
+    for path, rendered in channel_images.items():
+        path.write_text(rendered, encoding="utf-8")
     return 0
 
 

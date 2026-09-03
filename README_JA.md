@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/LuckyKuang/sub2api-plus/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/LuckyKuang/sub2api-plus/actions/workflows/backend-ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **サブスクリプションクォータ配分向け AI API ゲートウェイ**
@@ -56,13 +56,13 @@ Sub2API Plus は、プラットフォーム発行の API キーを通じて対�
 `vX.Y.Z+custom.NNN` タグ形式を使用します。
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash
 ```
 
 公開済みバージョンを一覧表示します：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | bash -s -- list-versions
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | bash -s -- list-versions
 ```
 
 指定した公開済みバージョンを新規インストール、またはそのバージョンへ切り替えます。
@@ -70,25 +70,25 @@ curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/
 が返す別のタグへ置き換えてください：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.002'
 ```
 
 既存のバイナリインストールを以前の公開済みバージョンへロールバックします：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 サービスとバイナリを削除し、`/etc/sub2api` は保持します：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- uninstall --yes
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- uninstall --yes
 ```
 
 `/etc/sub2api` も削除します。事前にバックアップを確認してください。元に戻せません：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- uninstall --yes --purge
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- uninstall --yes --purge
 ```
 
 インストール後、`http://YOUR_SERVER_IP:8080` を開いてセットアップウィザードを
@@ -174,7 +174,7 @@ sudo systemctl reload nginx
 ```text
 Git/GitHub: vX.Y.Z+custom.NNN
 アプリ:      X.Y.Z+custom.NNN
-GHCR:       ghcr.io/luckykuang/sub2api-plus:vX.Y.Z-custom.NNN
+GHCR:       ghcr.io/skyqingname/sub2api-plus:vX.Y.Z-custom.NNN
 ```
 
 再現可能な本番デプロイでは不変の GHCR バージョンタグを固定してください。

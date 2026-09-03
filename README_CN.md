@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/LuckyKuang/sub2api-plus/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/LuckyKuang/sub2api-plus/actions/workflows/backend-ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **用于订阅配额分发的 AI API 网关**
@@ -53,38 +53,38 @@ Sub2API Plus 通过平台签发的 API Key 分发和管理多个 AI 服务商账
 `vX.Y.Z+custom.NNN` 标签格式。
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash
 ```
 
 列出已发布版本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | bash -s -- list-versions
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | bash -s -- list-versions
 ```
 
 全新安装或切换到指定版本。下面的命令可以直接执行；需要其他版本时，将其中的不可变
 标签替换为 `list-versions` 返回的标签：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.002'
 ```
 
 将现有二进制安装回退到较早的已发布版本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 卸载服务和二进制，保留 `/etc/sub2api`：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- uninstall --yes
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- uninstall --yes
 ```
 
 同时删除 `/etc/sub2api`；请先确认备份，此操作不可恢复：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash -s -- uninstall --yes --purge
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- uninstall --yes --purge
 ```
 
 安装后访问 `http://你的服务器IP:8080`，完成初始化向导。
@@ -164,7 +164,7 @@ sudo systemctl reload nginx
 ```text
 Git/GitHub: vX.Y.Z+custom.NNN
 应用版本:    X.Y.Z+custom.NNN
-GHCR:       ghcr.io/luckykuang/sub2api-plus:vX.Y.Z-custom.NNN
+GHCR:       ghcr.io/skyqingname/sub2api-plus:vX.Y.Z-custom.NNN
 ```
 
 生产环境建议固定不可变的 GHCR 版本标签；`latest` 只是滚动标签。上游映射见

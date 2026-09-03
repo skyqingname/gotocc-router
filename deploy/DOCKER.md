@@ -10,7 +10,7 @@ docker run -d \
   -p 8080:8080 \
   -e DATABASE_URL="postgres://user:pass@host:5432/sub2api" \
   -e REDIS_URL="redis://host:6379" \
-  ghcr.io/luckykuang/sub2api-plus:latest
+  ghcr.io/skyqingname/sub2api-plus:latest
 ```
 
 ## Docker Compose
@@ -20,7 +20,7 @@ version: '3.8'
 
 services:
   sub2api:
-    image: ghcr.io/luckykuang/sub2api-plus:latest
+    image: ghcr.io/skyqingname/sub2api-plus:latest
     ports:
       - "8080:8080"
     environment:
@@ -98,7 +98,7 @@ OCI-compatible image tag. For example:
 
 ```text
 Git/GitHub: v0.2.0+custom.002
-GHCR:       ghcr.io/luckykuang/sub2api-plus:v0.2.0-custom.002
+GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.0-custom.002
 ```
 
 Pin the immutable release tag in production. Use `latest` only when automatic
@@ -106,5 +106,5 @@ movement to the newest custom release is intentional.
 
 ## Links
 
-- [GitHub Repository](https://github.com/luckykuang/sub2api-plus)
-- [Documentation](https://github.com/luckykuang/sub2api-plus#readme)
+- [GitHub Repository](https://github.com/skyqingname/gotocc-router)
+- [Documentation](https://github.com/skyqingname/gotocc-router#readme)

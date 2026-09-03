@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
+
+ROOT = Path(__file__).resolve().parents[1]
+RELEASE_CHANNEL = json.loads(
+    ROOT.joinpath("release-channel.json").read_text(encoding="utf-8")
+)
+RELEASE_IMAGE = RELEASE_CHANNEL["release_image"]
 
 TAG_TEXT = r"v\d+\.\d+\.\d+\+custom\.\d{3}"
 APPLICATION_VERSION_TEXT = r"\d+\.\d+\.\d+\+custom\.\d{3}"
@@ -29,7 +36,7 @@ APPLICATION_MAPPING_RE = re.compile(
     re.MULTILINE,
 )
 GHCR_IMAGE_RE = re.compile(
-    rf"(ghcr\.io/luckykuang/sub2api-plus:)({OCI_TAG_TEXT})()"
+    rf"({re.escape(RELEASE_IMAGE)}:)({OCI_TAG_TEXT})()"
 )
 APPLE_CONTAINER_SOURCE_IMAGE_RE = re.compile(
     rf"(this source revision is tagged sub2api-plus:)({OCI_TAG_TEXT})(; use that value)"

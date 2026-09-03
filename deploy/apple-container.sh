@@ -599,7 +599,7 @@ ensure_minio_credentials() {
 prepare_environment() {
     validate_env_file_security
 
-    APP_IMAGE="$(read_env_value APPLE_CONTAINER_SUB2API_IMAGE ghcr.io/luckykuang/sub2api-plus:latest)"
+    APP_IMAGE="$(read_env_value APPLE_CONTAINER_SUB2API_IMAGE ghcr.io/skyqingname/sub2api-plus:latest)"
     APP_LOCAL_BINARY="$(read_env_value APPLE_CONTAINER_SUB2API_BINARY)"
     APP_LOCAL_RESOURCES="$(read_env_value APPLE_CONTAINER_SUB2API_RESOURCES_DIR)"
     POSTGRES_IMAGE="$(read_env_value APPLE_CONTAINER_POSTGRES_IMAGE postgres:18-alpine)"
@@ -1328,7 +1328,7 @@ cmd_upgrade() {
 
     ensure_system
     validate_env_file_security
-    APP_IMAGE="$(read_env_value APPLE_CONTAINER_SUB2API_IMAGE ghcr.io/luckykuang/sub2api-plus:latest)"
+    APP_IMAGE="$(read_env_value APPLE_CONTAINER_SUB2API_IMAGE ghcr.io/skyqingname/sub2api-plus:latest)"
     [[ -n "${APP_IMAGE}" ]] || die "APPLE_CONTAINER_SUB2API_IMAGE must not be empty."
     [[ "${APP_IMAGE}" != "${APP_ROLLBACK_IMAGE}" ]] || \
         die "APPLE_CONTAINER_SUB2API_IMAGE must not use the reserved rollback reference ${APP_ROLLBACK_IMAGE}."

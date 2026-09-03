@@ -30,9 +30,10 @@ var (
 )
 
 const (
-	updateCacheTTL = 1200 // 20 minutes
-	githubRepo     = releasechannel.ReleaseRepository
-	upstreamRepo   = releasechannel.UpstreamRepository
+	updateCacheTTL       = 1200 // 20 minutes
+	githubRepo           = releasechannel.ReleaseRepository
+	upstreamRepo         = releasechannel.UpstreamRepository
+	upstreamCheckTimeout = 5 * time.Second
 
 	// Security: allowed download domains for updates
 	allowedDownloadHost = "github.com"
@@ -276,6 +277,7 @@ type rollbackReleaseFile struct {
 	targetPath string
 	backupPath string
 	currentTmp string
+	hadCurrent bool
 }
 
 // Rollback restores the previous matched release set.
@@ -401,23 +403,6 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 }
 
 func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, error) {
-	upstreamBaseline := strings.TrimPrefix(releasechannel.UpstreamBaseline, "v")
-	upstreamLatest := upstreamBaseline
-	upstreamWarning := ""
-	upstreamRelease, upstreamErr := s.githubClient.FetchLatestRelease(ctx, upstreamRepo)
-	if upstreamErr != nil {
-		upstreamWarning = upstreamErr.Error()
-	} else if upstreamRelease == nil {
-		upstreamWarning = "GitHub returned an empty upstream latest release"
-	} else {
-		candidate := strings.TrimPrefix(upstreamRelease.TagName, "v")
-		if _, ok := parseForkReleaseVersion(candidate); !ok {
-			upstreamWarning = fmt.Sprintf("upstream latest release tag %q is not a valid fork version", upstreamRelease.TagName)
-		} else {
-			upstreamLatest = candidate
-		}
-	}
-
 	release, err := s.githubClient.FetchLatestRelease(ctx, githubRepo)
 	if err != nil {
 		return nil, err
@@ -437,6 +422,25 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 			Name:        a.Name,
 			DownloadURL: a.BrowserDownloadURL,
 			Size:        a.Size,
+		}
+	}
+
+	upstreamBaseline := strings.TrimPrefix(releasechannel.UpstreamBaseline, "v")
+	upstreamLatest := upstreamBaseline
+	upstreamWarning := ""
+	upstreamCtx, cancelUpstream := context.WithTimeout(ctx, upstreamCheckTimeout)
+	defer cancelUpstream()
+	upstreamRelease, upstreamErr := s.githubClient.FetchLatestRelease(upstreamCtx, upstreamRepo)
+	if upstreamErr != nil {
+		upstreamWarning = upstreamErr.Error()
+	} else if upstreamRelease == nil {
+		upstreamWarning = "GitHub returned an empty upstream latest release"
+	} else {
+		candidate := strings.TrimPrefix(upstreamRelease.TagName, "v")
+		if _, ok := parseForkReleaseVersion(candidate); !ok {
+			upstreamWarning = fmt.Sprintf("upstream latest release tag %q is not a valid fork version", upstreamRelease.TagName)
+		} else {
+			upstreamLatest = candidate
 		}
 	}
 
@@ -742,16 +746,25 @@ func restoreReleaseBackups(targets []string) error {
 			return fmt.Errorf("prepare rollback failed for %s: %w", file.targetPath, err)
 		}
 		if err := os.Rename(file.targetPath, file.currentTmp); err != nil {
-			return fmt.Errorf("stage current file for rollback failed: %w", err)
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("stage current file for rollback failed: %w", err)
+			}
+		} else {
+			file.hadCurrent = true
 		}
 		if err := os.Rename(file.backupPath, file.targetPath); err != nil {
-			_ = os.Rename(file.currentTmp, file.targetPath)
+			if file.hadCurrent {
+				_ = os.Rename(file.currentTmp, file.targetPath)
+			}
 			return undoRestoredBackups(restored, fmt.Errorf("rollback failed for %s: %w", file.targetPath, err))
 		}
 		restored = append(restored, file)
 	}
 
 	for _, file := range restored {
+		if !file.hadCurrent {
+			continue
+		}
 		if err := os.Remove(file.currentTmp); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("rollback completed but cleanup failed for %s: %w", file.targetPath, err)
 		}
@@ -765,8 +778,10 @@ func undoRestoredBackups(restored []rollbackReleaseFile, cause error) error {
 		if err := os.Rename(file.targetPath, file.backupPath); err != nil {
 			return fmt.Errorf("%w; rollback recovery failed for %s: %v", cause, file.targetPath, err)
 		}
-		if err := os.Rename(file.currentTmp, file.targetPath); err != nil {
-			return fmt.Errorf("%w; rollback recovery failed for %s: %v", cause, file.targetPath, err)
+		if file.hadCurrent {
+			if err := os.Rename(file.currentTmp, file.targetPath); err != nil {
+				return fmt.Errorf("%w; rollback recovery failed for %s: %v", cause, file.targetPath, err)
+			}
 		}
 	}
 	return cause

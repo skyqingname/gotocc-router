@@ -49,7 +49,7 @@ sudo nginx -V 2>&1 | grep -- --with-http_realip_module
 运行二进制安装脚本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LuckyKuang/sub2api-plus/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash
 ```
 
 安装器询问服务器监听地址时输入 `127.0.0.1`，端口使用 `8080`。应用不得

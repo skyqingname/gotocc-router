@@ -57,7 +57,7 @@ branch and SHA.
 ## Mandatory GitHub CLI Gate
 
 Every action requires an installed and authenticated GitHub CLI. Resolve the
-origin repository exactly as `LuckyKuang/sub2api-plus`, verify repository
+origin repository exactly as `skyqingname/gotocc-router`, verify repository
 access and push permission, and resolve the default branch from GitHub. Never
 run `gh auth login` automatically or fall back to another credential or HTTP
 client.
