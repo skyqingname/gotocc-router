@@ -29,6 +29,8 @@ export interface PromptAuditConfig {
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
+  audit_prompt: string
+  default_audit_prompt: string
   scanners: string[]
   all_groups: boolean
   group_ids: number[]
@@ -52,6 +54,7 @@ export interface PromptAuditUpdateRequest {
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
+  audit_prompt: string
   scanners: string[]
   all_groups: boolean
   group_ids: number[]

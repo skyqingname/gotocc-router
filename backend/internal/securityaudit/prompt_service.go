@@ -344,7 +344,13 @@ func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeRe
 		return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点连接正常", HTTPStatus: resp.StatusCode, TokenApplied: tokenApplied})
 	}
 	if (resp.StatusCode >= 200 && resp.StatusCode < 300) || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
-		result, scanErr := s.scanner.Scan(ctx, endpoint, "Hello", AllScannerIDs)
+		auditPrompt := DefaultAuditPrompt
+		if s.config != nil {
+			if active, ok := s.config.Active(); ok {
+				auditPrompt = active.AuditPrompt
+			}
+		}
+		result, scanErr := s.scanner.Scan(ctx, endpoint, auditPrompt, "Hello", AllScannerIDs)
 		if scanErr == nil && result != nil {
 			return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点模型调用正常", HTTPStatus: http.StatusOK, TokenApplied: tokenApplied})
 		}

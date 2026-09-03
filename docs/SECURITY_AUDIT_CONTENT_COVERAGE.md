@@ -86,6 +86,22 @@ extraction failure rather than an ordinary empty request. Both engines count
 and safely log that failure before allowing it. Unknown sibling keys remain
 ignored when the containing object has at least one recognized field.
 
+Call-less Codex automation and delegation bootstrap items are a documented
+Responses exception to ordinary tool-output attribution. When the shared strict
+wire validator confirms the supported namespace/name, envelope, missing call
+anchor, unique JSON-member, and empty `previous_response_id` requirements, the
+canonical extractor classifies the output as a current client-controlled user
+message because the post-audit protocol adapter sends that exact text upstream
+as `role=user`. Ordinary function/tool outputs, unsafe or ambiguous bootstrap
+shapes, and outputs with a real call/reference anchor remain tool output and are
+excluded by both engines. The handler still audits the immutable inbound bytes
+before applying the actual request transform.
+
+Anthropic and Bedrock `fallbacks` are outbound routing/control fields rather
+than prompt text. Sanitizing them for upstream beta compatibility happens only
+after ingress audit; recognized message, system, and tool-definition siblings
+retain the canonical attribution in the protocol matrix above.
+
 ## Engine Selection
 
 Both engines consume the same canonical document:
@@ -159,6 +175,24 @@ empty. Endpoint URLs, API keys, raw content, and unsanitized upstream errors are
 not added to audit records.
 
 ## Prompt Audit Operations
+
+Prompt Audit configuration includes one global audit prompt. Missing legacy
+values normalize to the built-in defensive template before an active snapshot
+is installed, so an upgraded deployment does not send unframed user content
+while waiting for an administrator save. Administrators may edit the template
+or restore the current built-in value in the configuration page. The trimmed
+value is required and limited to 20,000 Unicode code points; config audit logs
+and change summaries retain only its SHA-256, never its text.
+
+Every OpenAI-compatible Guard model call sends exactly two messages. The audit
+prompt is the `system` message. The bounded audit chunk is JSON-string encoded,
+wrapped in `<user_input>...</user_input>`, and sent as the separate `user`
+message. JSON encoding prevents text inside the chunk from closing that tag or
+claiming a new message role. Blocking evaluation, asynchronous workers, and
+the fallback model call used by endpoint probes all use the active audit
+prompt. The existing Qwen3Guard `Safety` and `Categories` response parser,
+scanner selection, escalation rules, and failure semantics remain
+authoritative; a custom prompt cannot introduce a second response protocol.
 
 Prompt Audit events retain at most 65,536 runes of canonical selected content;
 `full_prompt_truncated` states whether the retained value reached that bound.

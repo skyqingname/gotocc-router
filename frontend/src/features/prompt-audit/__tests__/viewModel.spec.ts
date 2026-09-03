@@ -19,6 +19,8 @@ const config = (): PromptAuditConfig => ({
   strategy: 'priority',
   worker_count: 4,
   queue_capacity: 100,
+  audit_prompt: 'audit prompt',
+  default_audit_prompt: 'default audit prompt',
   scanners: SCANNER_CATALOG.map((item) => item.id),
   all_groups: true,
   group_ids: [],

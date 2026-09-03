@@ -193,7 +193,7 @@ type OpenAICompatibleScanner struct {
 
 func NewOpenAICompatibleScanner() *OpenAICompatibleScanner { return &OpenAICompatibleScanner{} }
 
-func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
 	client, err := s.clientFor(endpoint)
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}
@@ -203,8 +203,11 @@ func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpo
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}
 	}
 	payload := map[string]any{
-		"model":       endpoint.Model,
-		"messages":    []map[string]string{{"role": "user", "content": chunk}},
+		"model": endpoint.Model,
+		"messages": []map[string]string{
+			{"role": "system", "content": strings.TrimSpace(auditPrompt)},
+			{"role": "user", "content": formatAuditUserInput(chunk)},
+		},
 		"temperature": 0,
 		"max_tokens":  64,
 		"seed":        42,
@@ -254,6 +257,11 @@ func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpo
 	result.GuardEndpointID = endpoint.ID
 	result.ScannerVersion = endpoint.Model
 	return result, nil
+}
+
+func formatAuditUserInput(chunk string) string {
+	encoded, _ := json.Marshal(chunk)
+	return "<user_input>\n" + string(encoded) + "\n</user_input>"
 }
 
 func (s *OpenAICompatibleScanner) clientFor(endpoint ActiveEndpoint) (*http.Client, error) {

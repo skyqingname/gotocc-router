@@ -300,5 +300,5 @@ type Metrics interface {
 }
 
 type PromptScanner interface {
-	Scan(ctx context.Context, endpoint ActiveEndpoint, chunk string, enabledScanners []string) (*NormalizedResult, error)
+	Scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error)
 }

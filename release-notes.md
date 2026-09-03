@@ -1,59 +1,57 @@
-Sub2API Plus v0.1.183+custom.008
+Sub2API Plus v0.2.0+custom.002
 
 ## Highlights
 
-- Video pricing now keeps the configured unit explicit: `per_request` charges
-  once per generated video, while `video` charges once per requested second.
-- Asynchronous video tasks freeze that resolved billing mode together with the
-  existing price and routing snapshot, then reuse it for terminal usage logs.
-- Usage filters, available-channel pricing, and Model Plaza now distinguish
-  per-request video prices from per-second video prices.
-- Preserved the complete deployed `0.1.183+custom.007` GotoCC video task,
-  billing hold/capture/refund, and original-account polling contracts.
+- Imported official Sub2API v0.2.0 while preserving the complete GotoCC
+  production contract set, including teams, permanent image objects, unified
+  OpenAI-compatible video routing, and terminal-state video billing.
+- Added per-group OpenAI reasoning-effort over-limit handling, Force Fast /
+  Free Fast controls, one-hour cache-write pricing, native compaction usage,
+  requested reasoning-effort visibility, and per-user public-group controls.
+- Added a configurable Prompt Audit defense template, delivered as an isolated
+  system message while audited content remains JSON-encoded untrusted data.
 
 ## Changed
 
-- Added `billing_mode` to durable OpenAI-compatible video tasks and restricted
-  stored values to `per_request` or `video`.
-- Model Plaza displays `/ request` and `/ second` row units, uses matching
-  badges, and shows a neutral billing-unit header for mixed-mode groups.
-- Channel pricing details expose `video` prices as per-second values instead of
-  omitting the price or presenting it as a per-request value.
-- Chinese and English usage labels identify `video` as per-second video
-  billing without changing the persisted API enum.
+- Added Codex automation and delegation bootstrap normalization after the
+  immutable ingress security-audit gate.
+- Added Kimi-native Responses routing, fallback sanitization, upstream session
+  isolation, and the v0.2.0 model and reasoning policy updates.
+- Administrators can edit or restore the Prompt Audit template; synchronous
+  blocking, asynchronous workers, and endpoint probes share the active value.
+- API-key authentication snapshot v23 combines team attribution and billing
+  state with the v0.2.0 Free Fast group field.
 
 ## Fixed
 
-- Fixed per-request video quotes being rewritten to `billing_mode=video` even
-  though their cost used one unit per generated video.
-- Fixed terminal asynchronous usage records always being labeled as
-  per-second, regardless of the frozen quote.
-- Fixed Model Plaza presenting all non-image video models as per-request and
-  labeling a mixed table with a token unit.
+- Preserved requested and effective reasoning effort, native compaction, team
+  actor/billing-owner attribution, and video billing units in the same usage
+  record and query contract.
+- Preserved image input pricing and per-second video pricing alongside the new
+  one-hour cache-write price in channel and Model Plaza fallbacks.
+- Kept audited content unable to override the configured Guard system prompt;
+  configuration summaries record only the prompt hash.
 
 ## Compatibility and migration
 
-- Existing migrations 1-238 remain byte-identical.
-- Migration 239 adds `billing_mode` to `openai_video_tasks`, backfills any
-  existing task as `video`, removes the temporary default, and adds a check
-  constraint for `per_request` and `video`.
-- The migration does not change usage logs, balances, channel prices, group
-  prices, model membership, account routing, configuration, or Redis data.
-- Because the new non-defaulted column is required by task inserts, rollback
-  is not binary-only. Stop video writers and restore the matched PostgreSQL,
-  Redis, configuration, frontend, and binary set, or apply a reviewed forward
-  repair.
+- Existing production migrations through 239 remain byte-identical, including
+  the durable video task table and its frozen billing mode.
+- The v0.2.0 schema additions use migration identities 240 through 246 for
+  native compaction, requested reasoning effort, public-group restrictions,
+  one-hour cache-write pricing, Force Fast, reasoning over-limit behavior, and
+  Free Fast. This avoids reusing production migration identities 238 and 239.
+- Existing Prompt Audit configurations without `audit_prompt` load the built-in
+  template. No new environment variable, Redis format, Compose, or systemd
+  change is required.
 
 ## Known issues
 
-- Provider-specific terminal status spellings must remain in the explicit
-  production `video_task` terminal sets before enabling the worker.
+- The published upstream `v0.2.0+custom.001` tag still records its own mapping
+  as `planned`; this release pins the published tag and peeled commit.
 
 ## Upstream baseline
 
-Deployed GotoCC baseline: 0.1.183+custom.007
-GotoCC commit: 81486f4b459ad631f0bddb736f19684cc8e1e0e5
-Plus release: v0.1.183+custom.004
-Plus commit: 6c1e6d69398398022a832f869cdb70e69ba47c4d
-Official release: v0.1.183
-Official commit: e8cb019fabf8b55199436229044cbf9aa7a82564
+Plus release: v0.2.0+custom.001
+Plus commit: 2b921d7bf09c0484678862b854b52a4a0fb08dda
+Official release: v0.2.0
+Official commit: aa236488351eb71e120fc2b6fb32e36b0374c918

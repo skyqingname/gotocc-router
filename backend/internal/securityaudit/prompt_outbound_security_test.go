@@ -61,7 +61,7 @@ func TestOpenAICompatibleScannerRequestContract(t *testing.T) {
 	}))
 	defer server.Close()
 	scanner := NewOpenAICompatibleScanner()
-	result, err := scanner.Scan(context.Background(), ActiveEndpoint{ID: "one", BaseURL: server.URL, Model: DefaultGuardModel, Token: "token", TimeoutMS: 1000}, "hello", AllScannerIDs)
+	result, err := scanner.Scan(context.Background(), ActiveEndpoint{ID: "one", BaseURL: server.URL, Model: DefaultGuardModel, Token: "token", TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	require.NoError(t, err)
 	require.Equal(t, EventPass, result.Decision)
 }
@@ -73,14 +73,14 @@ func TestOpenAICompatibleScannerFollowsRedirectAndRejectsOversize(t *testing.T) 
 	defer target.Close()
 	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, target.URL, http.StatusFound) }))
 	defer redirect.Close()
-	result, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "redirect", BaseURL: redirect.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, "hello", AllScannerIDs)
+	result, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "redirect", BaseURL: redirect.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	require.NoError(t, err)
 	require.Equal(t, EventPass, result.Decision)
 	oversize := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(strings.Repeat("x", int(maxGuardResponseBytes)+1)))
 	}))
 	defer oversize.Close()
-	_, err = NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "large", BaseURL: oversize.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, "hello", AllScannerIDs)
+	_, err = NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "large", BaseURL: oversize.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	require.Error(t, err)
 }
 
@@ -102,7 +102,7 @@ func TestOpenAICompatibleScannerClassifiesHTTPConnectionAndTimeoutFailures(t *te
 				w.WriteHeader(tt.status)
 			}))
 			defer server.Close()
-			_, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "status", BaseURL: server.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, "hello", AllScannerIDs)
+			_, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "status", BaseURL: server.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 			var guardErr *GuardError
 			require.ErrorAs(t, err, &guardErr)
 			require.Equal(t, ErrorCodeUnavailable, guardErr.Code)
@@ -115,7 +115,7 @@ func TestOpenAICompatibleScannerClassifiesHTTPConnectionAndTimeoutFailures(t *te
 	closed := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	closedURL := closed.URL
 	closed.Close()
-	_, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "closed", BaseURL: closedURL, Model: DefaultGuardModel, TimeoutMS: 100}, "hello", AllScannerIDs)
+	_, err := NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "closed", BaseURL: closedURL, Model: DefaultGuardModel, TimeoutMS: 100}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	var connectionErr *GuardError
 	require.ErrorAs(t, err, &connectionErr)
 	require.True(t, connectionErr.Retryable)
@@ -125,7 +125,7 @@ func TestOpenAICompatibleScannerClassifiesHTTPConnectionAndTimeoutFailures(t *te
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer timeout.Close()
-	_, err = NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "timeout", BaseURL: timeout.URL, Model: DefaultGuardModel, TimeoutMS: 20}, "hello", AllScannerIDs)
+	_, err = NewOpenAICompatibleScanner().Scan(context.Background(), ActiveEndpoint{ID: "timeout", BaseURL: timeout.URL, Model: DefaultGuardModel, TimeoutMS: 20}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	var timeoutErr *GuardError
 	require.ErrorAs(t, err, &timeoutErr)
 	require.True(t, timeoutErr.Retryable)

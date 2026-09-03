@@ -208,7 +208,7 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 			}
 			continue
 		}
-		result, err := callPromptScanner(ctx, g.scanner, endpoint, chunk, cfg.Scanners)
+		result, err := callPromptScanner(ctx, g.scanner, endpoint, cfg.AuditPrompt, chunk, cfg.Scanners)
 		<-semaphore
 		if err == nil && result != nil {
 			return result, nil
@@ -231,14 +231,14 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 	return nil, lastErr
 }
 
-func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint ActiveEndpoint, chunk string, scanners []string) (result *NormalizedResult, err error) {
+func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint ActiveEndpoint, auditPrompt, chunk string, scanners []string) (result *NormalizedResult, err error) {
 	defer func() {
 		if recover() != nil {
 			result = nil
 			err = &GuardError{Code: ErrorCodeUnavailable, Retryable: false}
 		}
 	}()
-	return scanner.Scan(ctx, endpoint, chunk, scanners)
+	return scanner.Scan(ctx, endpoint, auditPrompt, chunk, scanners)
 }
 
 func (g *GuardEvaluator) nodeSemaphore(id string) chan struct{} {

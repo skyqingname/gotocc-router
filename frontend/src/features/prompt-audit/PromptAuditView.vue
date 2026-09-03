@@ -51,6 +51,7 @@
               />
               <div v-if="loadErrors.groups" role="alert" class="mt-5 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">{{ loadErrors.groups }}</div>
               <PolicyPanel :draft="draft" :groups="groups" @update:draft="replaceDraft" />
+              <AuditPromptPanel :draft="draft" @update:draft="replaceDraft" />
             </template>
           </div>
 
@@ -103,7 +104,7 @@
             {{ dirty ? t('admin.promptAudit.saveBar.dirty') : t('admin.promptAudit.saveBar.synced') }}
           </span>
           <button type="button" class="btn btn-secondary" :disabled="!dirty || loading.saving" @click="resetDraft">{{ t('common.reset') }}</button>
-          <button type="button" class="btn btn-primary" :disabled="!dirty || loading.saving" data-test="save-config" @click="saveConfig">
+          <button type="button" class="btn btn-primary" :disabled="!dirty || loading.saving || !auditPromptValid" data-test="save-config" @click="saveConfig">
             {{ loading.saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>
@@ -153,6 +154,7 @@ import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import RuntimeOverview from './components/RuntimeOverview.vue'
 import EndpointPool from './components/EndpointPool.vue'
 import PolicyPanel from './components/PolicyPanel.vue'
+import AuditPromptPanel from './components/AuditPromptPanel.vue'
 import EventWorkspace from './components/EventWorkspace.vue'
 import EventDetailDialog from './components/EventDetailDialog.vue'
 import FilterDeleteDialog from './components/FilterDeleteDialog.vue'
@@ -169,7 +171,7 @@ import type {
   PromptLoadErrors,
   PromptProbeResult,
 } from './types'
-import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEventFilters } from './viewModel'
+import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEventFilters, MAX_AUDIT_PROMPT_RUNES } from './viewModel'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -199,6 +201,11 @@ const deleteRequest = reactive<{ mode: '' | 'single' | 'batch'; ids: number[] }>
 const loading = reactive({ config: false, runtime: false, groups: false, events: false, saving: false, detail: false, deleting: false, previewing: false })
 const loadErrors = reactive<PromptLoadErrors>({ config: '', runtime: '', groups: '', events: '' })
 const dirty = computed(() => draftFingerprint(draft.value) !== draftFingerprint(serverConfig.value))
+const auditPromptValid = computed(() => {
+  const value = draft.value?.audit_prompt ?? ''
+  const length = Array.from(value).length
+  return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES
+})
 
 const SaveToggle = defineComponent({
   inheritAttrs: false,

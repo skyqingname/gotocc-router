@@ -169,7 +169,7 @@ func (r *Runner) processJob(ctx context.Context, workerID int, cfg ActiveConfig,
 		}
 		chunkStarted := r.clock.Now()
 		LogInfo(EventChunkStarted, mergeLogFields(baseFields, map[string]any{"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks), "chunk_chars": len([]rune(chunk)), "input_chars": job.Snapshot.PromptLength, "input_limit": inputLimit, "status": "started"}))
-		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.Scanners, endpoints, chunk, r.metrics)
+		result, scanErr := scanWithFailover(ctx, r.scanner, cfg.AuditPrompt, cfg.Scanners, endpoints, chunk, r.metrics)
 		if scanErr != nil {
 			LogWarn(EventChunkFailed, mergeLogFields(baseFields, map[string]any{
 				"worker_id": workerID, "chunk_index": index + 1, "chunk_total": len(chunks),
@@ -349,10 +349,10 @@ func (r *Runner) setLastError(code, _ string) {
 	r.runtime.lastErrorMu.Unlock()
 }
 
-func scanWithFailover(ctx context.Context, scanner PromptScanner, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics) (*NormalizedResult, error) {
+func scanWithFailover(ctx context.Context, scanner PromptScanner, auditPrompt string, scanners []string, endpoints []ActiveEndpoint, chunk string, metrics Metrics) (*NormalizedResult, error) {
 	var lastErr error
 	for index, endpoint := range endpoints {
-		result, err := scanner.Scan(ctx, endpoint, chunk, scanners)
+		result, err := scanner.Scan(ctx, endpoint, auditPrompt, chunk, scanners)
 		if err == nil && result != nil {
 			return result, nil
 		}

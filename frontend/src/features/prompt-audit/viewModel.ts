@@ -11,6 +11,7 @@ export const MIN_GUARD_TIMEOUT_MS = 100
 export const MAX_GUARD_TIMEOUT_MS = 30000
 export const MIN_GUARD_INPUT_LIMIT = 128
 export const MAX_GUARD_INPUT_LIMIT = 100000
+export const MAX_AUDIT_PROMPT_RUNES = 20000
 
 export const SCANNER_CATALOG = [
   { id: 'violent', label: 'Violent' },
@@ -71,6 +72,7 @@ export function buildUpdateRequest(draft: PromptAuditDraft): PromptAuditUpdateRe
     strategy: 'priority',
     worker_count: Number(draft.worker_count),
     queue_capacity: Number(draft.queue_capacity),
+    audit_prompt: draft.audit_prompt.trim(),
     scanners: [...draft.scanners],
     all_groups: draft.all_groups,
     group_ids: draft.all_groups ? [] : [...draft.group_ids].sort((a, b) => a - b),
