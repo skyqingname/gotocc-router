@@ -20,8 +20,16 @@ export default {
 
   // Version Badge
   version: {
+    releaseOverview: 'Release Versions',
     currentVersion: 'Current Version',
     latestVersion: 'Latest Version',
+    ownCurrentVersion: 'Installed Release',
+    ownLatestVersion: 'Latest Own Release',
+    upstreamBaseline: 'Adopted Upstream',
+    upstreamLatestVersion: 'Latest Upstream',
+    upstreamUpdateAvailable: 'New Upstream Release',
+    upstreamUpdateHint: 'Informational only; publish an adapted own release before updating.',
+    upstreamCheckFailed: 'Upstream version check failed',
     upToDate: "You're running the latest version.",
     updateAvailable: 'A new version is available!',
     releaseNotes: 'Release Notes',

@@ -1,0 +1,16 @@
+{
+  "release_repository": "skyqingname/gotocc-router",
+  "release_image": "ghcr.io/skyqingname/sub2api-plus",
+  "upstream_repository": "LuckyKuang/sub2api-plus",
+  "upstream_baseline": "v0.2.0+custom.001",
+  "runtime_files": [
+    {
+      "path": "release-channel.json",
+      "required": true
+    },
+    {
+      "path": "resources/model-pricing/model_prices_and_context_window.json",
+      "required": true
+    }
+  ]
+}

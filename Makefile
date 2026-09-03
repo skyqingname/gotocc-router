@@ -44,6 +44,7 @@ test-frontend-critical:
 	@pnpm --dir frontend exec vitest run $(FRONTEND_CRITICAL_VITEST)
 
 test-docs:
+	@$(PYTHON) tools/generate_release_channel.py --check
 	@$(PYTHON) skills/compress-cli/tests/test_compress_cli.py
 	@$(PYTHON) tools/test_release_policy.py
 	@$(PYTHON) tools/check_openai_codex_identity.py

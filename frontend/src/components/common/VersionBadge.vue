@@ -6,9 +6,17 @@
         :class="[
           hasUpdate
             ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
+            : upstreamHasUpdate
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-dark-400 dark:hover:bg-dark-700'
         ]"
-        :title="hasUpdate ? t('version.updateAvailable') : t('version.upToDate')"
+        :title="
+          hasUpdate
+            ? t('version.updateAvailable')
+            : upstreamHasUpdate
+              ? t('version.upstreamUpdateAvailable')
+              : t('version.upToDate')
+        "
       >
         <span v-if="currentVersion" class="font-medium">v{{ currentVersion }}</span>
         <span
@@ -21,6 +29,12 @@
             class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"
           ></span>
           <span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
+        </span>
+        <span v-if="upstreamHasUpdate" class="relative flex h-2 w-2">
+          <span
+            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
+          ></span>
+          <span class="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
         </span>
       </button>
 
@@ -36,7 +50,7 @@
             class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700"
           >
             <span class="text-sm font-medium text-gray-700 dark:text-dark-300">{{
-              t('version.currentVersion')
+              t('version.releaseOverview')
             }}</span>
             <button
               @click="refreshVersion(true)"
@@ -75,40 +89,41 @@
 
             <!-- Content -->
             <template v-else>
-              <!-- Version display - centered and prominent -->
-              <div class="mb-4 text-center">
-                <div class="inline-flex items-center gap-2">
-                  <span
-                    v-if="currentVersion"
-                    class="text-2xl font-bold text-gray-900 dark:text-white"
-                    >v{{ currentVersion }}</span
-                  >
-                  <span v-else class="text-2xl font-bold text-gray-400 dark:text-dark-500">--</span>
-                  <!-- Show check mark when up to date -->
-                  <span
-                    v-if="!hasUpdate"
-                    class="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30"
-                  >
-                    <svg
-                      class="h-3 w-3 text-green-600 dark:text-green-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
+              <div class="mb-4 overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
+                <div
+                  v-for="row in versionRows"
+                  :key="row.label"
+                  class="flex items-center justify-between gap-4 border-b border-gray-100 px-3 py-2 last:border-b-0 dark:border-dark-700"
+                >
+                  <span class="text-xs text-gray-500 dark:text-dark-400">{{ row.label }}</span>
+                  <span class="text-xs font-medium tabular-nums text-gray-800 dark:text-dark-100">
+                    {{ row.version ? 'v' + row.version : '--' }}
                   </span>
                 </div>
-                <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
-                  {{
-                    hasUpdate
-                      ? t('version.latestVersion') + ': v' + latestVersion
-                      : t('version.upToDate')
-                  }}
-                </p>
+              </div>
+
+              <a
+                v-if="upstreamHasUpdate"
+                :href="upstreamReleaseURL"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 transition-colors hover:bg-blue-100 dark:border-blue-800/50 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
+              >
+                <div>
+                  <p class="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    {{ t('version.upstreamUpdateAvailable') }}
+                  </p>
+                  <p class="text-xs text-blue-600/70 dark:text-blue-400/70">
+                    {{ t('version.upstreamUpdateHint') }}
+                  </p>
+                </div>
+                <Icon name="externalLink" size="xs" :stroke-width="2" class="text-blue-500" />
+              </a>
+              <div
+                v-else-if="upstreamWarning"
+                class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
+              >
+                {{ t('version.upstreamCheckFailed') }}: {{ upstreamWarning }}
               </div>
 
               <!-- Priority 1: Update error (must check before hasUpdate) -->
@@ -643,10 +658,6 @@ import { useClipboard } from '@/composables/useClipboard'
 import Icon from '@/components/icons/Icon.vue'
 import { normalizeDisplayVersion, toDockerImageTag } from '@/utils/version'
 
-const GITHUB_REPO = 'luckykuang/sub2api-plus'
-// GHCR tags carry no "v" prefix and replace SemVer build metadata's + with -.
-const DOCKER_IMAGE = 'ghcr.io/luckykuang/sub2api-plus'
-
 const { t } = useI18n()
 
 const authStore = useAuthStore()
@@ -664,6 +675,26 @@ const latestVersion = computed(() => normalizeDisplayVersion(appStore.latestVers
 const hasUpdate = computed(() => appStore.hasUpdate)
 const releaseInfo = computed(() => appStore.releaseInfo)
 const buildType = computed(() => appStore.buildType)
+const releaseRepository = computed(() => appStore.releaseRepository)
+const releaseImage = computed(() => appStore.releaseImage)
+const upstreamRepository = computed(() => appStore.upstreamRepository)
+const upstreamBaseline = computed(() => normalizeDisplayVersion(appStore.upstreamBaseline))
+const upstreamLatestVersion = computed(() =>
+  normalizeDisplayVersion(appStore.upstreamLatestVersion)
+)
+const upstreamHasUpdate = computed(() => appStore.upstreamHasUpdate)
+const upstreamWarning = computed(() => appStore.upstreamWarning)
+const upstreamReleaseURL = computed(() =>
+  upstreamRepository.value
+    ? `https://github.com/${upstreamRepository.value}/releases/latest`
+    : '#'
+)
+const versionRows = computed(() => [
+  { label: t('version.ownCurrentVersion'), version: currentVersion.value },
+  { label: t('version.ownLatestVersion'), version: latestVersion.value },
+  { label: t('version.upstreamBaseline'), version: upstreamBaseline.value },
+  { label: t('version.upstreamLatestVersion'), version: upstreamLatestVersion.value }
+])
 
 // Update process states (local to this component)
 const updating = ref(false)
@@ -696,16 +727,16 @@ const manualTabs = computed(() => [
 ])
 
 const scriptRollbackCommand = computed(() => {
-  if (!selectedRollbackVersion.value) return ''
+  if (!selectedRollbackVersion.value || !releaseRepository.value) return ''
   const tag = `v${selectedRollbackVersion.value}`
-  return `curl -sSL https://raw.githubusercontent.com/${GITHUB_REPO}/${tag}/deploy/install.sh | sudo bash -s -- rollback ${tag}`
+  return `curl -sSL https://raw.githubusercontent.com/${releaseRepository.value}/${tag}/deploy/install.sh | sudo bash -s -- rollback ${tag}`
 })
 
 const dockerRollbackCommand = computed(() => {
-  if (!selectedRollbackVersion.value) return ''
+  if (!selectedRollbackVersion.value || !releaseImage.value) return ''
   return [
     `# ${t('version.dockerEditCompose')}`,
-    `image: ${DOCKER_IMAGE}:${toDockerImageTag(selectedRollbackVersion.value)}`,
+    `image: ${releaseImage.value}:${toDockerImageTag(selectedRollbackVersion.value)}`,
     '',
     `# ${t('version.dockerRecreate')}`,
     'docker compose up -d'

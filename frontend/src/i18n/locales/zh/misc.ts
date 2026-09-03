@@ -20,8 +20,16 @@ export default {
 
   // Version Badge
   version: {
+    releaseOverview: '发行版本',
     currentVersion: '当前版本',
     latestVersion: '最新版本',
+    ownCurrentVersion: '当前自有版本',
+    ownLatestVersion: '最新自有发行版',
+    upstreamBaseline: '已适配上游版本',
+    upstreamLatestVersion: '最新上游版本',
+    upstreamUpdateAvailable: '上游已有新版本',
+    upstreamUpdateHint: '仅提示，完成本地适配并发布自有版本后才能更新',
+    upstreamCheckFailed: '上游版本检查失败',
     upToDate: '已是最新版本',
     updateAvailable: '有新版本可用！',
     releaseNotes: '更新日志',

@@ -264,6 +264,9 @@ jobs:
       - name: Check release metadata sources
         if: steps.validation-profile.outputs.profile == 'full'
         run: python tools/check_release.py
+      - name: Check generated release channel
+        if: steps.validation-profile.outputs.profile == 'full'
+        run: python tools/generate_release_channel.py --check
       - name: Check migration changes
         if: steps.validation-profile.outputs.profile == 'full'
         env:
