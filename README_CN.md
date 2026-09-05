@@ -71,8 +71,10 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 
 将现有二进制安装回退到较早的已发布版本：
 
+下面保留的历史回滚示例用于说明命令语法。执行前，请从自有仓库选择实际存在且与当前数据库兼容的发行版。
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 卸载服务和二进制，保留 `/etc/sub2api`：

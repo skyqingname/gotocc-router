@@ -549,8 +549,10 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 
 Roll back an existing binary installation to an earlier published version:
 
+These inherited rollback examples illustrate command syntax. Choose an available, database-compatible release from the owned repository before running them.
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 Upgrade to the latest release:
@@ -580,7 +582,7 @@ sudo ./install.sh install --version 'v0.2.0+custom.003'
 Roll back a downloaded-script installation one operation at a time:
 
 ```bash
-sudo ./install.sh rollback 'v0.2.0+custom.002'
+sudo ./install.sh rollback 'v0.1.183+custom.004'
 ```
 
 Or uninstall while preserving `/etc/sub2api`:

@@ -77,8 +77,10 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 
 Roll back an existing binary installation to an earlier published version:
 
+This inherited rollback example illustrates command syntax. Choose an available, database-compatible release from the owned repository before running it.
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 Remove the service and binary while preserving `/etc/sub2api`:

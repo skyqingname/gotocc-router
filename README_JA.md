@@ -75,8 +75,10 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 
 既存のバイナリインストールを以前の公開済みバージョンへロールバックします：
 
+以下の旧ロールバック例はコマンド構文を示しています。実行前に、自有リポジトリに存在し、現在のデータベースと互換性のあるリリースを選択してください。
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.0+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
 ```
 
 サービスとバイナリを削除し、`/etc/sub2api` は保持します：
