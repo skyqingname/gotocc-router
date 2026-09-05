@@ -1,9 +1,13 @@
 ---
 name: release-cli
-description: Promote a locally validated Sub2API Plus pull request through protected GitHub auto-merge, create an immutable vX.Y.Z+custom.NNN tag at the tested main merge commit, publish and monitor the automatically gated Release workflow, verify immutable assets, and submit post-publication metadata through a follow-up PR. Use for release PR promotion, tag creation/publication, release-environment monitoring, verification, or UPSTREAM.md finalization. Require an authenticated GitHub CLI, exact submit-pr base/head proof, protected default-branch required checks, repository auto-merge, an automatic tag-only release Environment, immutable custom-tag rules, and successful Actions. Never use admin bypass, directly push main, repeat the full local application matrix, approve a deployment, or combine tag publication with monitor/verify.
+description: Legacy GitHub Actions release mode only. Promote a locally validated Sub2API Plus pull request through protected GitHub auto-merge, create an immutable vX.Y.Z+custom.NNN tag at the tested main merge commit, publish and monitor the automatically gated Release workflow, verify immutable assets, and submit post-publication metadata through a follow-up PR. Use for release PR promotion, tag creation/publication, release-environment monitoring, verification, or UPSTREAM.md finalization. Require an authenticated GitHub CLI, exact submit-pr base/head proof, protected default-branch required checks, repository auto-merge, an automatic tag-only release Environment, immutable custom-tag rules, and successful Actions. Never use admin bypass, directly push main, repeat the full local application matrix, approve a deployment, or combine tag publication with monitor/verify.
 ---
 
 # Release CLI
+
+The default is local publication documented in `docs/RELEASING.md`. Do not run
+this Actions-dependent CLI in local mode. Use it only when the user explicitly
+requests the legacy GitHub build workflow; it intentionally requires remote CI.
 
 Run from the repository root with an explicit custom tag:
 

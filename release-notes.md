@@ -18,7 +18,7 @@ Sub2API Plus v0.2.0+custom.004
 
 ## Fixed
 
-- Keep the release as a draft until every platform archive and standalone pricing asset is uploaded, then publish the complete immutable release.
+- Publish the locally built Linux/amd64 archive and both pricing assets together, then make the complete release immutable.
 
 - Added explicit confidence JSON parsing with a configurable inclusive threshold; custom scoring prompts no longer fail the Qwen3Guard response parser. Legacy configurations keep their original format.
 - Node probes now execute and parse a model response, and latest-turn audit includes tool results from that turn.
@@ -33,6 +33,8 @@ Sub2API Plus v0.2.0+custom.004
 Database migrations 247 through 252 add client-disconnect lifecycle state and events, usage completion metadata, durable Content Moderation session blocks, and persisted moderation input.
 
 ## Known issues
+
+- This release provides the locally verified Linux/amd64 binary package used by the production service. Container images and other platform archives are not published for this version.
 
 - Local request verification uses synthetic models and data; real-provider behavior and production-volume migration duration require deployment-specific verification.
 

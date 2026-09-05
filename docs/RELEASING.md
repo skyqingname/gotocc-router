@@ -1,11 +1,9 @@
 # Release Process
 
-This is the canonical pull-request-first process for custom Sub2API Plus
-releases. Ordinary branch pushes are fast. The release-candidate PR uses the
-typed `full` proof and performs the complete local validation matrix once.
-Release-cli then relies on that exact commit proof plus protected GitHub Actions
-before merging and tagging; post-publication finalization uses a separate,
-strictly deterministic proof profile.
+The default is local validation and local artifact publication. GitHub hosts the
+source, pull requests and immutable Release assets; a GitHub build or repeated
+merged-main CI run is not required. The repository Release workflow is disabled
+and has no automatic tag trigger. Ordinary CI may run as background feedback.
 
 ## Version Format
 
@@ -30,11 +28,55 @@ continues through a locally adapted owned release.
 
 ## Immutable Asset Publication
 
-GoReleaser creates a draft containing the platform archives. The workflow then
-attaches both pricing assets and publishes the complete draft as the final step.
-Publishing first locks the assets and prevents later pricing uploads. Failed
-drafts can be resumed; an already published incomplete version needs a new
-version and must retain its original tag and assets.
+Create a draft, upload the Linux/amd64 program archive, `checksums.txt`,
+`model-pricing.json` and `model-pricing-manifest.json`, then publish the complete
+draft. Published assets and tags are immutable. An incomplete published version
+must keep its original assets and receive a new version number.
+
+## Default Local Publication
+
+1. Keep the version, owned repository, upstream baseline, source commit, build
+   target, output paths and validation image in the task's parameter JSON.
+2. Run the existing full application matrix in the pinned local Docker runtime
+   for application changes. Reuse that successful exact tree; do not repeat the
+   matrix just to publish. Metadata/documentation-only follow-ups use relevant
+   focused Docker checks.
+3. Submit and merge a PR with a successful `sub2api/local-validation` status.
+   `main` requires a PR, an up-to-date branch and that local status. GitHub CI
+   and Security Scan are background feedback, not merge or release gates.
+4. Verify the actual merged commit has the locally validated tree. Build the
+   embedded frontend and `go build -tags=embed` inside the pinned Docker runtime
+   with Linux/amd64, CGO disabled, `main.Commit` set to that merge commit,
+   `main.Date` to the build time and `main.BuildType=release`.
+5. Package `sub2api`, `release-channel.json` and
+   `resources/model-pricing/model_prices_and_context_window.json` at those exact
+   archive paths. Use the name `sub2api_<version>_linux_amd64.tar.gz`. Generate the
+   existing updater's archive checksum file and both standalone pricing assets;
+   `go -C backend run ./cmd/pricing-manifest-build` creates the manifest from
+   `--data`, `--repository`, `--tag` and `--manifest` arguments.
+6. Create an annotated tag at the actual merge commit with
+   `git tag -a --cleanup=verbatim -F <notes-file> <tag> <merge-commit>`, and push
+   only `refs/tags/<tag>`. Keep the GitHub Release workflow disabled.
+7. Use `gh release create <tag> --verify-tag --draft` with the reviewed notes and
+   all four assets. Inspect the completed draft, then use
+   `gh release edit <tag> --draft=false --latest`.
+8. Download the published archive, compare its identity and pricing resources,
+   and run that exact binary against the retained local acceptance environment.
+   Deploy only after local runtime/API/browser verification. Production needs
+   its own backup, upgrade and runtime acceptance; publication is not deployment.
+9. Mark the version `published` in `UPSTREAM.md` through a separate locally
+   checked PR. Preserve incomplete versions as `invalid` or `withdrawn`.
+
+Only platforms and images actually built are listed in Release notes. A
+Linux/amd64 binary publication must not claim that new OCI images or other
+platform archives exist. Existing channel and pricing overrides keep priority.
+
+## Legacy GitHub Actions Mode (Explicit Opt-in)
+
+The remainder describes the retained Actions-dependent CLI. It is not the
+default and must not be used to impose remote waits on local publication.
+Re-enabling the disabled workflow or restoring its remote required checks needs
+an explicit request to use this mode.
 
 ## Repository Prerequisites
 
