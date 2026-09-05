@@ -336,6 +336,8 @@ class RuntimeFinalGateTest(unittest.TestCase):
             [
                 "docker",
                 "compose",
+                "--env-file",
+                "deploy/.env.example",
                 "-f",
                 "deploy/docker-compose.dev.yml",
                 "config",

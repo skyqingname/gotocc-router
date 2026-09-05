@@ -447,14 +447,18 @@ def run_runtime_final_gate(runtime: Runtime) -> None:
         return
 
     compose_path = "deploy/docker-compose.dev.yml"
+    compose_env_path = "deploy/.env.example"
     if runtime.compose_root:
         compose_path = f"{runtime.compose_root}/deploy/docker-compose.dev.yml"
+        compose_env_path = f"{runtime.compose_root}/deploy/.env.example"
     run_step(
         "Docker Compose final gate",
         [
             *runtime.prefix,
             "docker",
             "compose",
+            "--env-file",
+            compose_env_path,
             "-f",
             compose_path,
             "config",
