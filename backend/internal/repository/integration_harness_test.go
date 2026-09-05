@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -25,6 +24,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
 	redisclient "github.com/redis/go-redis/v9"
+	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 )
@@ -179,9 +179,12 @@ func runIntegrationTestsWithExternalServices(ctx context.Context, m *testing.M, 
 }
 
 func dockerIsAvailable(ctx context.Context) bool {
-	cmd := exec.CommandContext(ctx, "docker", "info")
-	cmd.Env = os.Environ()
-	return cmd.Run() == nil
+	provider, err := testcontainers.NewDockerProvider()
+	if err != nil {
+		return false
+	}
+	defer func() { _ = provider.Close() }()
+	return provider.Health(ctx) == nil
 }
 
 // selectDockerImage resolves the container image for the harness.
@@ -198,19 +201,7 @@ func selectDockerImage(ctx context.Context, preferred string) string {
 		strings.HasPrefix(preferred, "postgres:") {
 		return override
 	}
-	if dockerImageExists(ctx, preferred) {
-		return preferred
-	}
-
 	return preferred
-}
-
-func dockerImageExists(ctx context.Context, image string) bool {
-	cmd := exec.CommandContext(ctx, "docker", "image", "inspect", image)
-	cmd.Env = os.Environ()
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
 }
 
 func openSQLWithRetry(ctx context.Context, dsn string, timeout time.Duration) (*sql.DB, error) {

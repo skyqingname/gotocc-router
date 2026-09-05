@@ -164,7 +164,12 @@ func TestUsageBillingRepositoryCaptureBatchImage_PersistsUsageAtomically(t *test
 		Name: "batch-capture-account-" + uuid.NewString(), Type: service.AccountTypeAPIKey,
 	})
 	batchID := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
-	_, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+	_, err := NewBatchImageRepository(integrationDB).CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID: batchID, UserID: user.ID, APIKeyID: &apiKey.ID,
+		Provider: service.BatchImageProviderGeminiAPI, Model: "imagen-batch", ItemCount: 1,
+	})
+	require.NoError(t, err)
+	_, err = repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
 		RequestID: service.BatchImageHoldRequestID(batchID), APIKeyID: apiKey.ID,
 		UserID: user.ID, BatchID: batchID, HoldAmount: 2,
 	})
@@ -205,7 +210,12 @@ func TestUsageBillingRepositoryCaptureBatchImage_RollsBackWhenUsageInsertFails(t
 		UserID: user.ID, Key: "sk-batch-rollback-" + uuid.NewString(), Name: "batch-rollback",
 	})
 	batchID := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
-	_, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+	_, err := NewBatchImageRepository(integrationDB).CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID: batchID, UserID: user.ID, APIKeyID: &apiKey.ID,
+		Provider: service.BatchImageProviderGeminiAPI, Model: "imagen-batch", ItemCount: 1,
+	})
+	require.NoError(t, err)
+	_, err = repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
 		RequestID: service.BatchImageHoldRequestID(batchID), APIKeyID: apiKey.ID,
 		UserID: user.ID, BatchID: batchID, HoldAmount: 2,
 	})
@@ -344,6 +354,7 @@ func cleanupPersistedUsageLogFixture(t *testing.T, ctx context.Context, userID, 
 			{"DELETE FROM usage_logs WHERE request_id = $1 AND api_key_id = $2", []any{requestID, apiKeyID}},
 			{"DELETE FROM usage_billing_dedup_archive WHERE api_key_id = $1", []any{apiKeyID}},
 			{"DELETE FROM usage_billing_dedup WHERE api_key_id = $1", []any{apiKeyID}},
+			{"DELETE FROM batch_image_jobs WHERE api_key_id = $1", []any{apiKeyID}},
 			{"DELETE FROM api_keys WHERE id = $1", []any{apiKeyID}},
 			{"DELETE FROM accounts WHERE id = $1", []any{accountID}},
 			{"DELETE FROM users WHERE id = $1", []any{userID}},
