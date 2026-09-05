@@ -1,6 +1,8 @@
-Sub2API Plus v0.2.0+custom.003
+Sub2API Plus v0.2.0+custom.004
 
 ## Highlights
+
+- Completes the owned update channel with immutable binary and pricing assets published together. Supersedes the incomplete custom.003 release.
 
 - Preserved GotoCC teams, permanent image objects, video terminal billing, and configurable audit policies on the upstream v0.2.0+custom.002 baseline.
 
@@ -15,6 +17,8 @@ Sub2API Plus v0.2.0+custom.003
 - Empty IP last-seen times no longer display as permanent bans for unhit automatic blocks.
 
 ## Fixed
+
+- Keep the release as a draft until every platform archive and standalone pricing asset is uploaded, then publish the complete immutable release.
 
 - Added explicit confidence JSON parsing with a configurable inclusive threshold; custom scoring prompts no longer fail the Qwen3Guard response parser. Legacy configurations keep their original format.
 - Node probes now execute and parse a model response, and latest-turn audit includes tool results from that turn.

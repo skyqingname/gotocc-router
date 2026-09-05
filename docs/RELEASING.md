@@ -28,6 +28,14 @@ metadata and shows the adopted baseline, latest upstream version and upstream
 release/changelog link. Its refresh action fetches information only; installation
 continues through a locally adapted owned release.
 
+## Immutable Asset Publication
+
+GoReleaser creates a draft containing the platform archives. The workflow then
+attaches both pricing assets and publishes the complete draft as the final step.
+Publishing first locks the assets and prevents later pricing uploads. Failed
+drafts can be resumed; an already published incomplete version needs a new
+version and must retain its original tag and assets.
+
 ## Repository Prerequisites
 
 Before automatic PR promotion is enabled, repository administrators must:
