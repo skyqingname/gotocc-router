@@ -295,3 +295,9 @@ jobs:
           if [ "${#uploads[@]}" -gt 0 ]; then
             gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" "${uploads[@]}"
           fi
+
+      - name: Publish complete immutable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
