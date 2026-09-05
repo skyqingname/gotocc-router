@@ -221,6 +221,7 @@ func TestUsageBillingRepositoryCaptureBatchImage_RollsBackWhenUsageInsertFails(t
 	})
 	require.NoError(t, err)
 	requestID := service.BatchImageCaptureRequestID(batchID)
+	cleanupPersistedUsageLogFixture(t, ctx, user.ID, apiKey.ID, 0, requestID)
 	_, err = repo.CaptureBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
 		RequestID: requestID, APIKeyID: apiKey.ID, UserID: user.ID, BatchID: batchID,
 		HoldAmount: 2, ActualAmount: 1.25,
