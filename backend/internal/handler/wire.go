@@ -126,6 +126,12 @@ func ProvideOpsHandler(opsService *service.OpsService, ipAccessControl *service.
 	return h
 }
 
+func ProvideAdminUsageHandler(usageService *service.UsageService, apiKeyService *service.APIKeyService, adminService service.AdminService, cleanupService *service.UsageCleanupService, risk *service.ClientDisconnectRiskService) *admin.UsageHandler {
+	h := admin.NewUsageHandler(usageService, apiKeyService, adminService, cleanupService)
+	h.SetClientDisconnectRiskService(risk)
+	return h
+}
+
 func ProvideGatewayHandler(
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
@@ -142,12 +148,14 @@ func ProvideGatewayHandler(
 	userMsgQueueService *service.UserMessageQueueService,
 	cfg *config.Config,
 	settingService *service.SettingService,
+	clientDisconnectRisk *service.ClientDisconnectRiskService,
 	coordinator *securityaudit.Coordinator,
 ) *GatewayHandler {
 	h := NewGatewayHandler(gatewayService, openAIGatewayService, geminiCompatService, antigravityGatewayService,
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
+	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h
 }
 
@@ -163,6 +171,7 @@ func ProvideOpenAIGatewayHandler(
 	opsService *service.OpsService,
 	grokQuotaService *service.GrokQuotaService,
 	ipAccessControl *service.IPAccessControlService,
+	clientDisconnectRisk *service.ClientDisconnectRiskService,
 	cfg *config.Config,
 	coordinator *securityaudit.Coordinator,
 ) *OpenAIGatewayHandler {
@@ -172,6 +181,7 @@ func ProvideOpenAIGatewayHandler(
 	h.securityAuditCoordinator = coordinator
 	h.grokMediaEligibilityProber = grokQuotaService
 	h.SetIPAccessControlService(ipAccessControl)
+	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h
 }
 
@@ -321,7 +331,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsHandler,
 	ProvideSystemHandler,
 	admin.NewSubscriptionHandler,
-	admin.NewUsageHandler,
+	ProvideAdminUsageHandler,
 	admin.NewUserAttributeHandler,
 	admin.NewErrorPassthroughHandler,
 	admin.NewTLSFingerprintProfileHandler,

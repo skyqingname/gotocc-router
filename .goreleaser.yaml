@@ -43,6 +43,8 @@ archives:
       - LICENSE*
       - README*
       - deploy/*
+      - src: release-channel.json
+        dst: .
       # Pricing must be available at this exact relative path when a direct
       # binary archive runs without a remote pricing catalog.
       - src: backend/resources/model-pricing/model_prices_and_context_window.json

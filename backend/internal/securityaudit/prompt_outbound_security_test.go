@@ -133,7 +133,7 @@ func TestOpenAICompatibleScannerClassifiesHTTPConnectionAndTimeoutFailures(t *te
 }
 
 func TestPromptAuditProbeModelsFallbackAndResponseSafety(t *testing.T) {
-	t.Run("models contains configured model", func(t *testing.T) {
+	t.Run("models contains configured model still verifies audit response", func(t *testing.T) {
 		var chatCalls atomic.Int64
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			require.Equal(t, "Bearer temporary-token", r.Header.Get("Authorization"))
@@ -142,13 +142,14 @@ func TestPromptAuditProbeModelsFallbackAndResponseSafety(t *testing.T) {
 				return
 			}
 			chatCalls.Add(1)
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Safety: Safe\nCategories: None"}}]}`))
 		}))
 		defer server.Close()
 		result := newProbeTestService().Probe(context.Background(), ProbeRequest{Endpoint: probeEndpoint(server.URL, "temporary-token")})
 		require.True(t, result.OK)
 		require.True(t, result.TokenApplied)
 		require.Equal(t, http.StatusOK, result.HTTPStatus)
-		require.Zero(t, chatCalls.Load())
+		require.Equal(t, int64(1), chatCalls.Load())
 	})
 
 	t.Run("invalid models response performs real guard fallback", func(t *testing.T) {

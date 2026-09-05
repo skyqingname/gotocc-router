@@ -5,7 +5,7 @@ This directory contains the Sub2API Plus bundled model-pricing fallback copy.
 ## Source
 Remote refresh discovers the latest GitHub Release through a manifest:
 
-- Manifest: `https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json`
+- Manifest: `https://github.com/skyqingname/gotocc-router/releases/latest/download/model-pricing-manifest.json`
 - Immutable release asset: declared by the manifest
 - Upstream data source for maintainers: https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json
 
@@ -72,6 +72,21 @@ curl -fsS https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_an
 ```
 
 ## File Format
+
+Explicit model adaptations are maintained in the repository-root
+`model-pricing-defaults.json`. Run `python3 tools/generate_model_pricing_defaults.py`
+from the repository root to synchronize them into the bundled catalog;
+`make test-docs` checks synchronization. These entries add catalog defaults and
+do not override explicit group, channel, or configured runtime prices.
+
+GPT-6 Astra prices were verified against the
+[official model page](https://developers.openai.com/api/docs/models/gpt-6-astra)
+on 2026-09-05. Per million tokens, Standard input/output/cache read/cache write
+are $10/$50/$1/$12.50. Above 272K input tokens, input and cache rates double
+and output uses 1.5x for the full request. Fast rates are 2x Standard;
+Batch/Flex catalog rates are half Standard. Existing endpoint support and
+service-tier selection determine which rate applies.
+
 The file contains JSON data with model pricing information including:
 - Model names and identifiers
 - Input/output token costs

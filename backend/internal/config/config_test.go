@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/releasechannel"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -868,7 +869,7 @@ func TestLoadDefaultPricingReleaseConfig(t *testing.T) {
 	cfg, err := Load()
 	require.NoError(t, err)
 	require.Equal(t,
-		"https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json",
+		releasechannel.PricingManifestURL,
 		cfg.Pricing.ManifestURL,
 	)
 	require.Empty(t, cfg.Pricing.RemoteURL)

@@ -275,7 +275,7 @@ class PublishedReleaseCheckTests(unittest.TestCase):
         argv = [
             "check_published_release.py",
             "--repository",
-            "LuckyKuang/sub2api-plus",
+            check_published_release.release_cli.EXPECTED_REPOSITORY,
             "--tag",
             TAG,
         ]
@@ -303,13 +303,17 @@ class PublishedReleaseCheckTests(unittest.TestCase):
             self.assertEqual(check_published_release.main(), 0)
 
         validate.assert_called_once_with(TAG)
-        remote_tag.assert_called_once_with("LuckyKuang/sub2api-plus", TAG)
+        remote_tag.assert_called_once_with(
+            check_published_release.release_cli.EXPECTED_REPOSITORY, TAG
+        )
         workflow.assert_called_once_with(
-            "LuckyKuang/sub2api-plus",
+            check_published_release.release_cli.EXPECTED_REPOSITORY,
             TAG,
             OFFICIAL_COMMIT,
         )
-        release.assert_called_once_with("LuckyKuang/sub2api-plus", TAG)
+        release.assert_called_once_with(
+            check_published_release.release_cli.EXPECTED_REPOSITORY, TAG
+        )
         github_gate.assert_not_called()
 
 class WorkflowPolicyTests(unittest.TestCase):
@@ -527,20 +531,20 @@ class ReleaseDocumentTests(unittest.TestCase):
         current_value_fixtures = {
             "deploy/README.md": (
                 f"Git/GitHub: {old}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/DOCKER.md": (
                 f"Immutable release, for example `{old_oci}`",
                 f"Git/GitHub: {old}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/APPLE_CONTAINER.md": (
                 f"Git/GitHub: {old}",
                 f"Application: {old_application}",
-                f"Apple/OCI image: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"Apple/OCI image: {release_docs.RELEASE_IMAGE}:{old_oci}",
                 f"--build-arg VERSION={old_application} \\",
-                f"--tag ghcr.io/luckykuang/sub2api-plus:{old_oci} \\",
-                f"APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"--tag {release_docs.RELEASE_IMAGE}:{old_oci} \\",
+                f"APPLE_CONTAINER_SUB2API_IMAGE={release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/.env.example": (
                 f"this source revision is tagged sub2api-plus:{old_oci}; use that value",
@@ -548,7 +552,7 @@ class ReleaseDocumentTests(unittest.TestCase):
             "UPSTREAM.md": (
                 f"Git/GitHub: {old}",
                 f"Application: {old_application}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
         }
         lines.extend(current_value_fixtures.get(rule.path, ()))

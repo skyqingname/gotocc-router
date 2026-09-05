@@ -20,7 +20,7 @@ const config = (): PromptAuditConfig => ({
   worker_count: 4,
   queue_capacity: 100,
   audit_prompt: 'audit prompt',
-  default_audit_prompt: 'default audit prompt',
+  default_audit_prompt: 'default audit prompt', response_format: 'qwen3guard', confidence_threshold: 0.8, default_confidence_audit_prompt: 'confidence prompt',
   scanners: SCANNER_CATALOG.map((item) => item.id),
   all_groups: true,
   group_ids: [],

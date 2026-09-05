@@ -18,6 +18,16 @@ strictly deterministic proof profile.
 Increment `NNN` on the same upstream baseline and reset it to `001` after
 merging a newer official baseline. `NNN` is always three digits.
 
+## Console Release Indicators
+
+The gray version badge opens the owned repository's release panel. Its update,
+download and rollback actions use the owned release channel. The adjacent
+upstream badge is gray when the adopted upstream release is current and amber
+when a newer upstream release is available. Opening it refreshes release
+metadata and shows the adopted baseline, latest upstream version and upstream
+release/changelog link. Its refresh action fetches information only; installation
+continues through a locally adapted owned release.
+
 ## Repository Prerequisites
 
 Before automatic PR promotion is enabled, repository administrators must:

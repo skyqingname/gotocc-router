@@ -4,7 +4,7 @@
 # Copy this file to /etc/sub2api/config.yaml and modify as needed
 # 复制此文件到 /etc/sub2api/config.yaml 并根据需要修改
 #
-# Documentation / 文档: https://github.com/luckykuang/sub2api-plus
+# Documentation / 文档: https://github.com/skyqingname/gotocc-router
 
 # =============================================================================
 # Server Configuration
@@ -1068,7 +1068,7 @@ pricing:
   # refresh keeps the last validated cache or bundled fallback.
   # 最新 Release 发现地址。默认启用远程刷新；manifest 绑定固定版本资源 URL 和
   # SHA-256。刷新失败时保留上次校验通过的缓存或使用内置数据。
-  manifest_url: "https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json"
+  manifest_url: "https://github.com/skyqingname/gotocc-router/releases/latest/download/model-pricing-manifest.json"
   # Local data directory for caching
   # 本地数据缓存目录
   data_dir: "./data"

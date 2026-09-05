@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
+	"github.com/LuckyKuang/sub2api-plus/internal/releasechannel"
 	"github.com/spf13/viper"
 	"golang.org/x/net/http/httpguts"
 )
@@ -2348,7 +2349,7 @@ func setDefaults() {
 
 	// Pricing - Release manifest is a discovery pointer. The application
 	// validates its immutable asset URL, version, SHA-256, size, and JSON data.
-	viper.SetDefault("pricing.manifest_url", "https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json")
+	viper.SetDefault("pricing.manifest_url", releasechannel.PricingManifestURL)
 	viper.SetDefault("pricing.remote_url", "")
 	viper.SetDefault("pricing.hash_url", "")
 	viper.SetDefault("pricing.data_dir", "./data")
