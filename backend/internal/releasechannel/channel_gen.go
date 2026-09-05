@@ -6,7 +6,7 @@ const (
 	ReleaseRepository  = "skyqingname/gotocc-router"
 	ReleaseImage       = "ghcr.io/skyqingname/sub2api-plus"
 	UpstreamRepository = "LuckyKuang/sub2api-plus"
-	UpstreamBaseline   = "v0.2.0+custom.001"
+	UpstreamBaseline   = "v0.2.0+custom.002"
 	PricingManifestURL = "https://github.com/" + ReleaseRepository + "/releases/latest/download/model-pricing-manifest.json"
 )
 

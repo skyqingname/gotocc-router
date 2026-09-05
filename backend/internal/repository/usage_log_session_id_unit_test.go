@@ -1,5 +1,3 @@
-//go:build unit
-
 package repository
 
 import (
@@ -18,9 +16,9 @@ func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 		APIKeyID:     2,
 		AccountID:    3,
 		RequestID:    "req-session-id",
-		Model:        "claude-3",
+		Model:        "gpt-5.4",
 		InputTokens:  10,
-		OutputTokens: 5,
+		OutputTokens: 20,
 		TotalCost:    1.0,
 		ActualCost:   1.0,
 		SessionID:    sessionID,
@@ -29,10 +27,10 @@ func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 }
 
 // TestPrepareUsageLogInsert_SessionIDArgWiring pins the session_id column to the
-// arg slice / arg-type table so the five INSERT column lists stay in sync. session_id
-// precedes native_compaction_v2, created_at, billing_user_id, and team_id.
+// arg slice / arg-type table so the INSERT column lists stay in sync. session_id
+// precedes completion metadata, compaction, created_at and team attribution.
 func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
-	require.Len(t, usageLogInsertArgTypes, 68, "arg-type table must include upstream audit fields, native compaction, and team attribution")
+	require.Len(t, usageLogInsertArgTypes, 70, "arg-type table must include completion metadata, native compaction and requested reasoning effort")
 
 	sessionID := "sess-persisted-123"
 	prepared := prepareUsageLogInsert(newSessionIDUsageLog(&sessionID))
@@ -41,14 +39,16 @@ func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
 		"prepared args must match the arg-type table length")
 
 	// Team attribution stays at the tail while upstream compaction fields retain their order.
-	sessionArg := prepared.args[len(prepared.args)-5]
+	sessionArg := prepared.args[len(prepared.args)-7]
 	ns, ok := sessionArg.(sql.NullString)
 	require.True(t, ok, "session_id arg should be a sql.NullString, got %T", sessionArg)
 	require.True(t, ns.Valid)
 	require.Equal(t, sessionID, ns.String)
 
-	require.Equal(t, "text", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-5],
+	require.Equal(t, "text", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-7],
 		"session_id arg type must be text")
+	require.Equal(t, service.UsageCompletionUnknown, prepared.args[len(prepared.args)-6])
+	require.Equal(t, service.UsageSourceUnknown, prepared.args[len(prepared.args)-5])
 	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-4],
 		"native_compaction_v2 arg type must be boolean")
 	require.Equal(t, int64(1), prepared.args[len(prepared.args)-2],
@@ -61,14 +61,16 @@ func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
 // persisted as SQL NULL rather than an empty string.
 func TestPrepareUsageLogInsert_SessionIDNullWhenAbsent(t *testing.T) {
 	prepared := prepareUsageLogInsert(newSessionIDUsageLog(nil))
-	sessionArg := prepared.args[len(prepared.args)-5]
+	sessionArg := prepared.args[len(prepared.args)-7]
 	ns, ok := sessionArg.(sql.NullString)
 	require.True(t, ok, "session_id arg should be a sql.NullString, got %T", sessionArg)
 	require.False(t, ns.Valid, "absent session id must be NULL, not empty string")
 
 	empty := ""
 	preparedEmpty := prepareUsageLogInsert(newSessionIDUsageLog(&empty))
-	nsEmpty := preparedEmpty.args[len(preparedEmpty.args)-5].(sql.NullString)
+	emptySessionArg := preparedEmpty.args[len(preparedEmpty.args)-7]
+	nsEmpty, ok := emptySessionArg.(sql.NullString)
+	require.True(t, ok, "session_id arg should be a sql.NullString, got %T", emptySessionArg)
 	require.False(t, nsEmpty.Valid, "empty session id must also be NULL")
 }
 
@@ -108,6 +110,12 @@ func TestUsageLogInsertQueries_IncludeSessionID(t *testing.T) {
 		"SELECT column list must include requested_reasoning_effort")
 	require.Contains(t, usageLogSelectColumns, "session_id",
 		"SELECT column list must include session_id")
+	require.Contains(t, usageLogSelectColumns, "completion_status",
+		"SELECT column list must include completion_status")
+	require.Contains(t, usageLogSelectColumns, "usage_source",
+		"SELECT column list must include usage_source")
+	require.Contains(t, usageLogSelectColumns, "native_compaction_v2",
+		"SELECT column list must include native_compaction_v2")
 
 	sessionID := "sess-in-query"
 	log := newSessionIDUsageLog(&sessionID)
@@ -118,12 +126,10 @@ func TestUsageLogInsertQueries_IncludeSessionID(t *testing.T) {
 		map[string]usageLogInsertPrepared{key: prepared})
 	require.Contains(t, batchQuery, "session_id")
 	require.Contains(t, batchQuery, "requested_reasoning_effort")
+	require.Contains(t, batchQuery, "completion_status")
+	require.Contains(t, batchQuery, "native_compaction_v2")
 	// Two column references (INSERT column list + SELECT ... FROM input) plus the CTE def.
 	require.GreaterOrEqual(t, strings.Count(batchQuery, "session_id"), 3)
 	require.Len(t, batchArgs, len(prepared.args)+1,
 		"batch args include the synthetic input_index before usage-log values")
-
-	bestEffortQuery, bestEffortArgs := buildUsageLogBestEffortInsertQuery([]usageLogInsertPrepared{prepared})
-	require.Contains(t, bestEffortQuery, "session_id")
-	require.Len(t, bestEffortArgs, len(prepared.args))
 }

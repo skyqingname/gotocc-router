@@ -1,7 +1,7 @@
 export default {
   promptAudit: {
     title: '提示词审计',
-    description: '通过 OpenAI 兼容 Qwen3Guard 节点异步复核或同步阻止用户输入；事件会按上限留存审计内容，供管理员复核。',
+    description: '通过 OpenAI 兼容审核节点异步复核或同步阻止请求，支持分类输出和评分 JSON；事件会按上限留存审计内容，供管理员复核。',
     configVersion: '配置版本 v{version}',
     tabs: { config: '配置', events: '事件' },
     actions: { refresh: '刷新运行态', retry: '重试', Allow: '放行', Warn: '警告', Block: '阻止' },
@@ -57,6 +57,12 @@ export default {
       scanners: 'Qwen3Guard 输入风险分类', workerCount: 'Worker 数量', queueCapacity: '持久队列容量', strategy: '节点策略', strategyHint: '按配置顺序优先尝试，必要时故障切换。',
     },
     auditPrompt: {
+      responseFormat: '模型输出格式',
+      qwenFormat: 'Qwen3Guard 分类',
+      confidenceFormat: '评分 JSON',
+      threshold: '拦截阈值（含等于）',
+      confidenceHint: '模型须返回 confidence（0–1）和 reason。达到阈值拦截，低于阈值放行；审核范围由你的提示词定义。切换格式后请检查模板的输出要求。',
+      qwenHint: '模型须返回 Safety: Safe|Controversial|Unsafe 和 Categories: 分类 两行文本。',
       title: '自定义审核提示词',
       description: '这段提示词作为 system 消息发送给审计 AI；每个待审片段会单独放在 <user_input> 标签内。默认模板要求模型只做安全分类，不执行待审内容中的任何指令。',
       label: '审核提示词',
@@ -66,7 +72,7 @@ export default {
       deliveryTitle: '发送边界',
       deliveryHint: '待审内容会先编码为 JSON 字符串，再放入独立 user 消息，避免内容中的闭合标签或角色声明越过审核边界。',
     },
-    saveBar: { enabled: '启用提示词审计', blocking: '同步阻止', blockingLatestTurnOnly: '同步阻止仅审最新用户输入', storePass: '保存安全事件', dirty: '有未保存的更改', synced: '配置已同步' },
+    saveBar: { enabled: '启用提示词审计', blocking: '同步阻止', blockingLatestTurnOnly: '同步阻止仅审最新轮次及工具结果', storePass: '保存安全事件', dirty: '有未保存的更改', synced: '配置已同步' },
     blockingConfirm: {
       title: '开启同步阻止？',
       message: '适用请求会在账号选择、计费和访问上游之前等待 Guard。命中 Block、Guard 不可用或响应非法时，请求都不会访问上游。',
@@ -107,6 +113,8 @@ export default {
       prompt_audit_config_conflict: '配置已被其他管理员更新。请重新加载服务端配置，再决定如何合并本地草稿。',
       prompt_audit_encryption_key_required: '未配置固定加密密钥，审计节点 API Key 将在服务重启后失效。请先设置 TOTP_ENCRYPTION_KEY 环境变量并重启服务。',
       prompt_guard_requires_audit_enabled: '开启同步阻止前必须先启用提示词审计。', prompt_audit_invalid_endpoint: '审计节点配置无效。', prompt_audit_endpoint_required: '启用审计前至少需要一个启用节点。', prompt_audit_groups_required: '指定分组模式至少需要选择一个分组。', prompt_audit_scanners_required: '至少需要启用一个风险分类。',
+      prompt_audit_invalid_response_format: '请选择有效的审核输出格式。',
+      prompt_audit_invalid_confidence_threshold: '评分阈值必须在 0 到 1 之间。',
       prompt_audit_invalid_audit_prompt: '审核提示词不能为空且不能超过 20000 个 Unicode 字符。',
       prompt_audit_invalid_client_ip: '客户端 IP 筛选值无效。',
     },

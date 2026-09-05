@@ -250,7 +250,15 @@ func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpo
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeInvalidResponse, Cause: err}
 	}
-	result, err := ParseQwen3Guard(content, enabledScanners)
+	var result *NormalizedResult
+	switch endpoint.ResponseFormat {
+	case "confidence_json":
+		result, err = ParseConfidenceJSON(content, endpoint.ConfidenceThreshold)
+	case "", "qwen3guard": // Empty denotes legacy Qwen3Guard configuration.
+		result, err = ParseQwen3Guard(content, enabledScanners)
+	default:
+		return nil, &GuardError{Code: ErrorCodeInvalidResponse}
+	}
 	if err != nil {
 		return nil, err
 	}

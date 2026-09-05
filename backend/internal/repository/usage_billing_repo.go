@@ -63,6 +63,16 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 	if err := r.applyUsageBillingEffects(ctx, tx, cmd, result); err != nil {
 		return nil, err
 	}
+	if cmd.UsageLog != nil {
+		// Keep the displayed charge on the same NUMERIC(20,8) boundary as the
+		// balance/quota mutations committed by this transaction.
+		cmd.UsageLog.ActualCost = service.QuantizeUsageBillingAmount(cmd.UsageLog.ActualCost)
+		usageRepo := newUsageLogRepositoryWithSQL(nil, tx)
+		if _, err := usageRepo.createSingle(ctx, tx, cmd.UsageLog); err != nil {
+			return nil, err
+		}
+		result.UsageLogPersisted = true
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -346,7 +356,19 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 		return nil, err
 	}
 	if !applied {
-		return &service.BatchImageBalanceHoldResult{Applied: false}, nil
+		result := &service.BatchImageBalanceHoldResult{Applied: false}
+		if cmd.UsageLog != nil {
+			usageRepo := newUsageLogRepositoryWithSQL(nil, tx)
+			if _, err := usageRepo.createSingle(ctx, tx, cmd.UsageLog); err != nil {
+				return nil, err
+			}
+			result.UsageLogPersisted = true
+			if err := tx.Commit(); err != nil {
+				return nil, err
+			}
+			tx = nil
+		}
+		return result, nil
 	}
 
 	result, err := apply(ctx, tx, cmd)
@@ -359,6 +381,13 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 	result.Applied = true
 	if err := applyBatchImageAllowance(ctx, tx, cmd, operation); err != nil {
 		return nil, err
+	}
+	if cmd.UsageLog != nil {
+		usageRepo := newUsageLogRepositoryWithSQL(nil, tx)
+		if _, err := usageRepo.createSingle(ctx, tx, cmd.UsageLog); err != nil {
+			return nil, err
+		}
+		result.UsageLogPersisted = true
 	}
 
 	if err := tx.Commit(); err != nil {

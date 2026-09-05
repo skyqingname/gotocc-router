@@ -875,6 +875,34 @@ func (_u *UsageLogUpdate) ClearIsComplete() *UsageLogUpdate {
 	return _u
 }
 
+// SetCompletionStatus sets the "completion_status" field.
+func (_u *UsageLogUpdate) SetCompletionStatus(v string) *UsageLogUpdate {
+	_u.mutation.SetCompletionStatus(v)
+	return _u
+}
+
+// SetNillableCompletionStatus sets the "completion_status" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableCompletionStatus(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetCompletionStatus(*v)
+	}
+	return _u
+}
+
+// SetUsageSource sets the "usage_source" field.
+func (_u *UsageLogUpdate) SetUsageSource(v string) *UsageLogUpdate {
+	_u.mutation.SetUsageSource(v)
+	return _u
+}
+
+// SetNillableUsageSource sets the "usage_source" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableUsageSource(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetUsageSource(*v)
+	}
+	return _u
+}
+
 // SetUserAgent sets the "user_agent" field.
 func (_u *UsageLogUpdate) SetUserAgent(v string) *UsageLogUpdate {
 	_u.mutation.SetUserAgent(v)
@@ -1255,6 +1283,16 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "first_output_kind", err: fmt.Errorf(`ent: validator failed for field "UsageLog.first_output_kind": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CompletionStatus(); ok {
+		if err := usagelog.CompletionStatusValidator(v); err != nil {
+			return &ValidationError{Name: "completion_status", err: fmt.Errorf(`ent: validator failed for field "UsageLog.completion_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UsageSource(); ok {
+		if err := usagelog.UsageSourceValidator(v); err != nil {
+			return &ValidationError{Name: "usage_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.usage_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -1532,6 +1570,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.IsCompleteCleared() {
 		_spec.ClearField(usagelog.FieldIsComplete, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CompletionStatus(); ok {
+		_spec.SetField(usagelog.FieldCompletionStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageSource(); ok {
+		_spec.SetField(usagelog.FieldUsageSource, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)
@@ -2641,6 +2685,34 @@ func (_u *UsageLogUpdateOne) ClearIsComplete() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetCompletionStatus sets the "completion_status" field.
+func (_u *UsageLogUpdateOne) SetCompletionStatus(v string) *UsageLogUpdateOne {
+	_u.mutation.SetCompletionStatus(v)
+	return _u
+}
+
+// SetNillableCompletionStatus sets the "completion_status" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableCompletionStatus(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetCompletionStatus(*v)
+	}
+	return _u
+}
+
+// SetUsageSource sets the "usage_source" field.
+func (_u *UsageLogUpdateOne) SetUsageSource(v string) *UsageLogUpdateOne {
+	_u.mutation.SetUsageSource(v)
+	return _u
+}
+
+// SetNillableUsageSource sets the "usage_source" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableUsageSource(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetUsageSource(*v)
+	}
+	return _u
+}
+
 // SetUserAgent sets the "user_agent" field.
 func (_u *UsageLogUpdateOne) SetUserAgent(v string) *UsageLogUpdateOne {
 	_u.mutation.SetUserAgent(v)
@@ -3034,6 +3106,16 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "first_output_kind", err: fmt.Errorf(`ent: validator failed for field "UsageLog.first_output_kind": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CompletionStatus(); ok {
+		if err := usagelog.CompletionStatusValidator(v); err != nil {
+			return &ValidationError{Name: "completion_status", err: fmt.Errorf(`ent: validator failed for field "UsageLog.completion_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.UsageSource(); ok {
+		if err := usagelog.UsageSourceValidator(v); err != nil {
+			return &ValidationError{Name: "usage_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.usage_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -3328,6 +3410,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.IsCompleteCleared() {
 		_spec.ClearField(usagelog.FieldIsComplete, field.TypeBool)
+	}
+	if value, ok := _u.mutation.CompletionStatus(); ok {
+		_spec.SetField(usagelog.FieldCompletionStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UsageSource(); ok {
+		_spec.SetField(usagelog.FieldUsageSource, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)

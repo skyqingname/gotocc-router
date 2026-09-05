@@ -88,6 +88,8 @@ var usageLogInsertArgTypes = [...]string{
 	"text",        // billing_mode
 	"numeric",     // account_stats_cost
 	"text",        // session_id
+	"text",        // completion_status
+	"text",        // usage_source
 	"boolean",     // native_compaction_v2
 	"timestamptz", // created_at
 	"bigint",      // billing_user_id
@@ -295,6 +297,8 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -305,7 +309,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -761,6 +765,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -769,7 +775,7 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 
 	// Each batch row prepends the synthetic input_index before the 68
 	// usage-log column values.
-	args := make([]any, 0, len(keys)*69)
+	args := make([]any, 0, len(keys)*(len(usageLogInsertArgTypes)+1))
 	argPos := 1
 	for idx, key := range keys {
 		if idx > 0 {
@@ -862,6 +868,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				billing_mode,
 				account_stats_cost,
 				session_id,
+				completion_status,
+				usage_source,
 				native_compaction_v2,
 				created_at,
 				billing_user_id,
@@ -932,6 +940,8 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				billing_mode,
 				account_stats_cost,
 				session_id,
+				completion_status,
+				usage_source,
 				native_compaction_v2,
 				created_at,
 				billing_user_id,
@@ -1042,6 +1052,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -1138,6 +1150,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -1208,6 +1222,8 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -1286,6 +1302,8 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			billing_mode,
 			account_stats_cost,
 			session_id,
+			completion_status,
+			usage_source,
 			native_compaction_v2,
 			created_at,
 			billing_user_id,
@@ -1296,7 +1314,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1304,6 +1322,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 }
 
 func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
+	log.SyncCompletionMetadata()
 	createdAt := log.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now()
@@ -1436,6 +1455,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			billingMode,
 			log.AccountStatsCost, // account_stats_cost
 			sessionID,            // session_id
+			log.CompletionStatus,
+			log.UsageSource,
 			log.NativeCompactionV2,
 			createdAt,
 			billingUserID,

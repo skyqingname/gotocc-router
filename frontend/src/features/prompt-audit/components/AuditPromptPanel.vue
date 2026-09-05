@@ -15,6 +15,23 @@
         </button>
       </div>
 
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <label class="text-sm text-gray-700 dark:text-dark-200">
+          {{ t('admin.promptAudit.auditPrompt.responseFormat') }}
+          <select :value="draft.response_format" class="input mt-2 w-full" @change="updateFormat(($event.target as HTMLSelectElement).value as AuditResponseFormat)">
+            <option value="qwen3guard">{{ t('admin.promptAudit.auditPrompt.qwenFormat') }}</option>
+            <option value="confidence_json">{{ t('admin.promptAudit.auditPrompt.confidenceFormat') }}</option>
+          </select>
+        </label>
+        <label v-if="draft.response_format === 'confidence_json'" class="text-sm text-gray-700 dark:text-dark-200">
+          {{ t('admin.promptAudit.auditPrompt.threshold') }}
+          <input :value="draft.confidence_threshold" type="number" min="0" max="1" step="0.01" class="input mt-2 w-full" @input="updateThreshold(Number(($event.target as HTMLInputElement).value))" />
+        </label>
+      </div>
+      <p class="mt-2 text-xs text-gray-500 dark:text-dark-400">
+        {{ t(draft.response_format === 'confidence_json' ? 'admin.promptAudit.auditPrompt.confidenceHint' : 'admin.promptAudit.auditPrompt.qwenHint') }}
+      </p>
+
       <div class="mt-4 flex items-center justify-between gap-3">
         <label for="prompt-audit-template" class="text-sm text-gray-700 dark:text-dark-200">
           {{ t('admin.promptAudit.auditPrompt.label') }}
@@ -52,7 +69,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { PromptAuditDraft } from '../types'
+import type { AuditResponseFormat, PromptAuditDraft } from '../types'
 import { cloneData, MAX_AUDIT_PROMPT_RUNES } from '../viewModel'
 
 const props = defineProps<{ draft: PromptAuditDraft }>()
@@ -67,6 +84,14 @@ function updatePrompt(value: string) {
 }
 
 function restoreDefault() {
-  updatePrompt(props.draft.default_audit_prompt)
+  updatePrompt(props.draft.response_format === 'confidence_json' ? props.draft.default_confidence_audit_prompt : props.draft.default_audit_prompt)
+}
+
+function updateFormat(response_format: AuditResponseFormat) {
+  emit('update:draft', { ...cloneData(props.draft), response_format })
+}
+
+function updateThreshold(confidence_threshold: number) {
+  emit('update:draft', { ...cloneData(props.draft), confidence_threshold })
 }
 </script>

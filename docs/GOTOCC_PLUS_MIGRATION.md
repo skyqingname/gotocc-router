@@ -249,3 +249,32 @@ Real-browser checks covered `/home`, `/team`, `/keys?scope=team`,
 was zero, `/models` redirected to `/model-plaza`, and the team onboarding flow
 completed all nine steps. PostgreSQL/Redis clone rehearsal and rollback-asset
 restoration remain separately authorized and have not been performed.
+
+## Upgrade from GotoCC 0.2.0+custom.002 to 0.2.0+custom.003
+
+The candidate imports Plus v0.2.0+custom.002 at
+`cd1d8438cbe19358936605af7e6b20954283bf15`, including PR #70.
+All GotoCC production SQL through 246 remains unchanged. Newly imported SQL
+uses the following filename mapping; file contents are retained from the
+upstream release.
+
+| Upstream filename | GotoCC filename |
+| --- | --- |
+| `245_client_disconnect_risk.sql` | `247_client_disconnect_risk.sql` |
+| `246_client_disconnect_lifecycle_observability.sql` | `248_client_disconnect_lifecycle_observability.sql` |
+| `247_usage_log_completion_metadata.sql` | `249_usage_log_completion_metadata.sql` |
+| `248_content_moderation_session_blocks.sql` | `250_content_moderation_session_blocks.sql` |
+| `249_content_moderation_session_blocks_unique.sql` | `251_content_moderation_session_blocks_unique.sql` |
+| `250_content_moderation_input_content.sql` | `252_content_moderation_input_content.sql` |
+
+The six migrations create disconnect state/event tables and session-block
+tables, add usage completion/source and moderation-input columns, backfill
+existing usage completion metadata, and create the session-block identity
+constraint. PostgreSQL remains authoritative; no Redis format migration is
+required. Existing users, credentials, balances, team ownership and frozen
+video billing units are preserved.
+
+Take a matched database/runtime backup before production startup and stop the
+old writer before starting the candidate. Backfill and index creation require
+a measured local rehearsal and a production size/lock review. After forward
+migration or new writes, a binary-only downgrade is not a data rollback.

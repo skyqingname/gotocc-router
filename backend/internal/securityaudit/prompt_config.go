@@ -73,6 +73,8 @@ type storageConfig struct {
 	WorkerCount            int               `json:"worker_count"`
 	QueueCapacity          int               `json:"queue_capacity"`
 	AuditPrompt            string            `json:"audit_prompt"`
+	ResponseFormat         string            `json:"response_format"`
+	ConfidenceThreshold    float64           `json:"confidence_threshold"`
 	Scanners               []string          `json:"scanners"`
 	AllGroups              bool              `json:"all_groups"`
 	GroupIDs               []int64           `json:"group_ids"`
@@ -84,15 +86,17 @@ type storageConfig struct {
 }
 
 type ActiveEndpoint struct {
-	ID         string
-	Name       string
-	Protocol   string
-	BaseURL    string
-	Model      string
-	Token      string
-	TimeoutMS  int
-	InputLimit int
-	Enabled    bool
+	ResponseFormat      string
+	ConfidenceThreshold float64
+	ID                  string
+	Name                string
+	Protocol            string
+	BaseURL             string
+	Model               string
+	Token               string
+	TimeoutMS           int
+	InputLimit          int
+	Enabled             bool
 	// TokenInvalid marks an endpoint whose persisted token ciphertext cannot be
 	// decrypted with the current encryption key (key changed or auto-generated
 	// on restart). The endpoint is kept visible for admins but excluded from
@@ -104,14 +108,16 @@ type ActiveConfig struct {
 	RiskControlEnabled bool
 	Enabled            bool
 	BlockingEnabled    bool
-	// BlockingLatestTurnOnly is retained for config round-trip compatibility.
-	// Synchronous Evaluate always scans the latest user text only.
+	// BlockingLatestTurnOnly selects the latest user turn, its tool outputs and
+	// the nearest preceding assistant/model turn; false scans the full transcript.
 	BlockingLatestTurnOnly bool
 	StorePassEvents        bool
 	Strategy               string
 	WorkerCount            int
 	QueueCapacity          int
 	AuditPrompt            string
+	ResponseFormat         string
+	ConfidenceThreshold    float64
 	Scanners               []string
 	AllGroups              bool
 	GroupIDs               []int64
@@ -136,24 +142,27 @@ type PublicEndpoint struct {
 }
 
 type PublicConfig struct {
-	Enabled                bool             `json:"enabled"`
-	BlockingEnabled        bool             `json:"blocking_enabled"`
-	BlockingLatestTurnOnly bool             `json:"blocking_latest_turn_only"`
-	StorePassEvents        bool             `json:"store_pass_events"`
-	EffectiveMode          Mode             `json:"effective_mode"`
-	Strategy               string           `json:"strategy"`
-	WorkerCount            int              `json:"worker_count"`
-	QueueCapacity          int              `json:"queue_capacity"`
-	AuditPrompt            string           `json:"audit_prompt"`
-	DefaultAuditPrompt     string           `json:"default_audit_prompt"`
-	Scanners               []string         `json:"scanners"`
-	AllGroups              bool             `json:"all_groups"`
-	GroupIDs               []int64          `json:"group_ids"`
-	Endpoints              []PublicEndpoint `json:"endpoints"`
-	ConfigVersion          int64            `json:"config_version"`
-	UpdatedAt              time.Time        `json:"updated_at"`
-	UpdatedBy              int64            `json:"updated_by"`
-	ChangeSummary          string           `json:"change_summary"`
+	Enabled                      bool             `json:"enabled"`
+	BlockingEnabled              bool             `json:"blocking_enabled"`
+	BlockingLatestTurnOnly       bool             `json:"blocking_latest_turn_only"`
+	StorePassEvents              bool             `json:"store_pass_events"`
+	EffectiveMode                Mode             `json:"effective_mode"`
+	Strategy                     string           `json:"strategy"`
+	WorkerCount                  int              `json:"worker_count"`
+	QueueCapacity                int              `json:"queue_capacity"`
+	AuditPrompt                  string           `json:"audit_prompt"`
+	ResponseFormat               string           `json:"response_format"`
+	ConfidenceThreshold          float64          `json:"confidence_threshold"`
+	DefaultAuditPrompt           string           `json:"default_audit_prompt"`
+	DefaultConfidenceAuditPrompt string           `json:"default_confidence_audit_prompt"`
+	Scanners                     []string         `json:"scanners"`
+	AllGroups                    bool             `json:"all_groups"`
+	GroupIDs                     []int64          `json:"group_ids"`
+	Endpoints                    []PublicEndpoint `json:"endpoints"`
+	ConfigVersion                int64            `json:"config_version"`
+	UpdatedAt                    time.Time        `json:"updated_at"`
+	UpdatedBy                    int64            `json:"updated_by"`
+	ChangeSummary                string           `json:"change_summary"`
 }
 
 type UpdateEndpoint struct {
@@ -179,6 +188,8 @@ type UpdateConfigRequest struct {
 	WorkerCount            int              `json:"worker_count"`
 	QueueCapacity          int              `json:"queue_capacity"`
 	AuditPrompt            string           `json:"audit_prompt"`
+	ResponseFormat         *string          `json:"response_format"`
+	ConfidenceThreshold    *float64         `json:"confidence_threshold"`
 	Scanners               []string         `json:"scanners"`
 	AllGroups              bool             `json:"all_groups"`
 	GroupIDs               []int64          `json:"group_ids"`
@@ -195,6 +206,8 @@ func DefaultStorageConfig() storageConfig {
 		WorkerCount:            DefaultWorkerCount,
 		QueueCapacity:          DefaultQueueCapacity,
 		AuditPrompt:            DefaultAuditPrompt,
+		ResponseFormat:         DefaultAuditResponseFormat,
+		ConfidenceThreshold:    DefaultConfidenceThreshold,
 		Scanners:               append([]string(nil), AllScannerIDs...),
 		AllGroups:              true,
 		GroupIDs:               []int64{},
@@ -268,6 +281,9 @@ func normalizeStorageConfig(cfg *storageConfig) {
 }
 
 func validateStorageConfig(cfg storageConfig) error {
+	if err := validateAuditResponsePolicy(cfg.ResponseFormat, cfg.ConfidenceThreshold); err != nil {
+		return err
+	}
 	if cfg.BlockingEnabled && !cfg.Enabled {
 		return infraerrors.BadRequest(ErrorCodeRequiresEnabled, "开启同步阻止前必须先启用提示词审计")
 	}
@@ -435,6 +451,7 @@ func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenE
 		Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
 		EffectiveMode: active.EffectiveMode(), Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, AuditPrompt: cfg.AuditPrompt, DefaultAuditPrompt: DefaultAuditPrompt,
+		DefaultConfidenceAuditPrompt: DefaultConfidenceAuditPrompt, ResponseFormat: cfg.ResponseFormat, ConfidenceThreshold: cfg.ConfidenceThreshold,
 		Scanners: scanners, AllGroups: cfg.AllGroups,
 		GroupIDs: groupIDs, Endpoints: endpoints, ConfigVersion: cfg.ConfigVersion,
 		UpdatedAt: cfg.UpdatedAt, UpdatedBy: cfg.UpdatedBy, ChangeSummary: cfg.ChangeSummary,
@@ -446,7 +463,7 @@ func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor Sec
 		RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled,
 		BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly,
 		StorePassEvents:        cfg.StorePassEvents, Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
-		QueueCapacity: cfg.QueueCapacity, AuditPrompt: cfg.AuditPrompt,
+		QueueCapacity: cfg.QueueCapacity, AuditPrompt: cfg.AuditPrompt, ResponseFormat: cfg.ResponseFormat, ConfidenceThreshold: cfg.ConfidenceThreshold,
 		Scanners: append([]string(nil), cfg.Scanners...), AllGroups: cfg.AllGroups,
 		GroupIDs: append([]int64(nil), cfg.GroupIDs...), ConfigVersion: cfg.ConfigVersion,
 		UpdatedAt: cfg.UpdatedAt, UpdatedBy: cfg.UpdatedBy, ChangeSummary: cfg.ChangeSummary,
@@ -473,7 +490,7 @@ func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor Sec
 		}
 		active.Endpoints = append(active.Endpoints, ActiveEndpoint{
 			ID: ep.ID, Name: ep.Name, Protocol: ep.Protocol, BaseURL: ep.BaseURL, Model: ep.Model,
-			Token: token, TimeoutMS: ep.TimeoutMS, InputLimit: ep.InputLimit,
+			Token: token, TimeoutMS: ep.TimeoutMS, InputLimit: ep.InputLimit, ResponseFormat: cfg.ResponseFormat, ConfidenceThreshold: cfg.ConfidenceThreshold,
 			Enabled: ep.Enabled && !tokenInvalid, TokenInvalid: tokenInvalid,
 		})
 	}
@@ -482,17 +499,19 @@ func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor Sec
 
 func changeSummary(cfg storageConfig) string {
 	summary := struct {
-		Enabled                bool   `json:"enabled"`
-		BlockingEnabled        bool   `json:"blocking_enabled"`
-		BlockingLatestTurnOnly bool   `json:"blocking_latest_turn_only"`
-		StorePassEvents        bool   `json:"store_pass_events"`
-		EndpointCount          int    `json:"endpoint_count"`
-		AuditPromptHash        string `json:"audit_prompt_hash"`
-		ScannerCount           int    `json:"scanner_count"`
-		AllGroups              bool   `json:"all_groups"`
-		GroupCount             int    `json:"group_count"`
-		GroupHash              string `json:"group_hash"`
-	}{cfg.Enabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, len(cfg.Endpoints), "", len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), ""}
+		Enabled                bool    `json:"enabled"`
+		BlockingEnabled        bool    `json:"blocking_enabled"`
+		BlockingLatestTurnOnly bool    `json:"blocking_latest_turn_only"`
+		StorePassEvents        bool    `json:"store_pass_events"`
+		EndpointCount          int     `json:"endpoint_count"`
+		AuditPromptHash        string  `json:"audit_prompt_hash"`
+		ScannerCount           int     `json:"scanner_count"`
+		AllGroups              bool    `json:"all_groups"`
+		GroupCount             int     `json:"group_count"`
+		GroupHash              string  `json:"group_hash"`
+		ResponseFormat         string  `json:"response_format"`
+		ConfidenceThreshold    float64 `json:"confidence_threshold"`
+	}{cfg.Enabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, len(cfg.Endpoints), "", len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), "", cfg.ResponseFormat, cfg.ConfidenceThreshold}
 	promptDigest := sha256.Sum256([]byte(cfg.AuditPrompt))
 	summary.AuditPromptHash = hex.EncodeToString(promptDigest[:])
 	rawGroups, _ := json.Marshal(cfg.GroupIDs)

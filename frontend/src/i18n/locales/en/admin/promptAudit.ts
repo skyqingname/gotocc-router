@@ -1,7 +1,7 @@
 export default {
   promptAudit: {
     title: 'Prompt Audit',
-    description: 'Review user input asynchronously or block it synchronously through OpenAI-compatible Qwen3Guard nodes. Bounded retained content is available for admin review.',
+    description: 'Review requests asynchronously or block them synchronously through OpenAI-compatible audit nodes with classification or confidence JSON output. Bounded retained content is available for admin review.',
     configVersion: 'Config version v{version}',
     tabs: { config: 'Configuration', events: 'Events' },
     actions: { refresh: 'Refresh runtime', retry: 'Retry', Allow: 'Allow', Warn: 'Warn', Block: 'Block' },
@@ -57,6 +57,12 @@ export default {
       scanners: 'Qwen3Guard input-risk categories', workerCount: 'Worker count', queueCapacity: 'Persistent queue capacity', strategy: 'Node strategy', strategyHint: 'Try nodes in configuration order and fail over when allowed.',
     },
     auditPrompt: {
+      responseFormat: 'Model response format',
+      qwenFormat: 'Qwen3Guard categories',
+      confidenceFormat: 'Confidence JSON',
+      threshold: 'Blocking threshold (inclusive)',
+      confidenceHint: 'Return confidence (0–1) and reason. Scores at or above the threshold are blocked; lower scores pass. Your prompt defines the audit policy. Check its output instructions after changing format.',
+      qwenHint: 'Return two lines: Safety: Safe|Controversial|Unsafe and Categories: category names.',
       title: 'Custom audit prompt',
       description: 'This prompt is sent to the audit AI as a system message. Each audited chunk is isolated inside <user_input> tags. The default template permits classification only and never follows instructions in the audited content.',
       label: 'Audit prompt',
@@ -66,7 +72,7 @@ export default {
       deliveryTitle: 'Delivery boundary',
       deliveryHint: 'Audited content is JSON-string encoded inside a separate user message so closing tags and role claims cannot cross the audit boundary.',
     },
-    saveBar: { enabled: 'Enable prompt audit', blocking: 'Synchronous blocking', blockingLatestTurnOnly: 'Synchronous blocking scans only the latest user input', storePass: 'Store safe events', dirty: 'Unsaved changes', synced: 'Configuration synced' },
+    saveBar: { enabled: 'Enable prompt audit', blocking: 'Synchronous blocking', blockingLatestTurnOnly: 'Block on latest turn and tool results', storePass: 'Store safe events', dirty: 'Unsaved changes', synced: 'Configuration synced' },
     blockingConfirm: {
       title: 'Enable synchronous blocking?',
       message: 'Applicable requests wait for Guard before account selection, billing, or upstream access. Block, unavailable Guard, and invalid responses all prevent upstream access.',
@@ -107,6 +113,8 @@ export default {
       prompt_audit_config_conflict: 'Another administrator updated this configuration. Reload the server version before deciding how to merge your draft.',
       prompt_audit_encryption_key_required: 'No fixed encryption key is configured, so audit node API Keys would be lost on restart. Set the TOTP_ENCRYPTION_KEY environment variable and restart the service first.',
       prompt_guard_requires_audit_enabled: 'Enable Prompt Audit before synchronous blocking.', prompt_audit_invalid_endpoint: 'The audit node configuration is invalid.', prompt_audit_endpoint_required: 'Enable at least one audit node before enabling Prompt Audit.', prompt_audit_groups_required: 'Select at least one group in selected-group mode.', prompt_audit_scanners_required: 'Enable at least one risk category.',
+      prompt_audit_invalid_response_format: 'Choose a valid audit response format.',
+      prompt_audit_invalid_confidence_threshold: 'Confidence threshold must be between 0 and 1.',
       prompt_audit_invalid_audit_prompt: 'The audit prompt cannot be empty or exceed 20,000 Unicode characters.',
       prompt_audit_invalid_client_ip: 'The client IP filter is invalid.',
     },

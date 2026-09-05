@@ -20,6 +20,13 @@ export default {
 
   // Version Badge
   version: {
+    ownReleaseOverview: 'Owned Releases',
+    upstreamBadge: 'Upstream',
+    upstreamReleaseOverview: 'Upstream Releases',
+    fetchLatestRelease: 'Fetch latest release information',
+    upstreamUpToDate: 'Up to date with the upstream release',
+    viewUpstreamRelease: 'View upstream release and changelog',
+
     releaseOverview: 'Release Versions',
     currentVersion: 'Current Version',
     latestVersion: 'Latest Version',

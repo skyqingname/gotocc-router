@@ -290,6 +290,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
+		UsageLog:           usageLog,
 	}
 	if p.APIKey.TeamID != nil {
 		teamID := *p.APIKey.TeamID
@@ -354,7 +355,7 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 			return false, ErrTeamBillingUnavailable
 		}
 		postUsageBilling(ctx, p, deps)
-		return true, nil
+		return false, nil
 	}
 
 	billingCtx, cancel := detachedBillingContext(ctx)
@@ -377,7 +378,7 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	finalizePostUsageBilling(billingCtx, p, deps, result)
-	return true, nil
+	return result.UsageLogPersisted, nil
 }
 
 func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
@@ -559,13 +560,17 @@ func detachedBillingContext(ctx context.Context) (context.Context, context.Cance
 }
 
 func detachStreamUpstreamContext(ctx context.Context, stream bool) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		return context.Background(), func() {}
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
 	}
-	if !stream {
-		return ctx, func() {}
+	if stream {
+		return base, func() {}
 	}
-	return context.WithoutCancel(ctx), func() {}
+	// Non-stream requests must survive a downstream disconnect long enough to
+	// collect the upstream result and usage, but must not occupy an account slot
+	// forever. Response body size remains bounded by ReadUpstreamResponseBody.
+	return context.WithTimeout(base, 15*time.Minute)
 }
 
 func detachUpstreamContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -891,7 +896,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		}
 	}
 	requestID := usageLog.RequestID
-	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+	usageLogPersisted, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 		Cost:                  cost,
 		User:                  user,
 		APIKey:                apiKey,
@@ -909,7 +914,11 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		return billingErr
 	}
-	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+	if !usageLogPersisted {
+		// Legacy dedup rows created before atomic usage persistence can still be
+		// repaired idempotently through the existing synchronous fallback.
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+	}
 
 	return nil
 }
@@ -1228,6 +1237,14 @@ func (s *GatewayService) buildRecordUsageLog(
 		SubscriptionID:           optionalSubscriptionID(subscription),
 		CreatedAt:                time.Now(),
 	}
+	if result.ClientDisconnect {
+		usageLog.CompletionStatus = UsageCompletionClientDisconnected
+		usageLog.UsageSource = result.ClientDisconnectUsageSource
+		if usageLog.UsageSource == "" {
+			usageLog.UsageSource = UsageSourcePartial
+		}
+	}
+	usageLog.SyncCompletionMetadata()
 	if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
 	}

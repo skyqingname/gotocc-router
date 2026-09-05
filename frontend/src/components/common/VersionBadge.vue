@@ -1,56 +1,81 @@
 <template>
-  <div v-if="isAdmin" class="relative">
+  <div v-if="isAdmin" ref="badgeRef" class="relative flex items-center gap-1.5">
       <button
         @click="toggleDropdown"
-        class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-colors"
-        :class="[
-          hasUpdate
-            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50'
-            : upstreamHasUpdate
-              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50'
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-dark-400 dark:hover:bg-dark-700'
-        ]"
-        :title="
-          hasUpdate
-            ? t('version.updateAvailable')
-            : upstreamHasUpdate
-              ? t('version.upstreamUpdateAvailable')
-              : t('version.upToDate')
-        "
+        class="flex shrink-0 items-center gap-1.5 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-200 dark:bg-dark-800 dark:text-dark-400 dark:hover:bg-dark-700"
+        :title="hasUpdate ? t('version.updateAvailable') : t('version.ownReleaseOverview')"
+        :aria-expanded="dropdownOpen"
       >
         <span v-if="currentVersion" class="font-medium">v{{ currentVersion }}</span>
-        <span
-          v-else
-          class="h-3 w-12 animate-pulse rounded bg-gray-200 font-medium dark:bg-dark-600"
-        ></span>
-        <!-- Update indicator -->
-        <span v-if="hasUpdate" class="relative flex h-2 w-2">
-          <span
-            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"
-          ></span>
-          <span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
-        </span>
-        <span v-if="upstreamHasUpdate" class="relative flex h-2 w-2">
-          <span
-            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
-          ></span>
-          <span class="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
-        </span>
+        <span v-else class="h-3 w-12 animate-pulse rounded bg-gray-200 font-medium dark:bg-dark-600"></span>
+        <span v-if="hasUpdate" class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
       </button>
+      <button
+        @click="toggleUpstreamDropdown"
+        class="flex shrink-0 items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-medium leading-4 transition-colors"
+        :class="upstreamHasUpdate
+          ? 'border-amber-200 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+          : 'border-gray-200 bg-gray-100 text-gray-500 hover:bg-gray-200 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-400'"
+        :title="upstreamHasUpdate ? t('version.upstreamUpdateAvailable') : t('version.upstreamReleaseOverview')"
+        :aria-expanded="upstreamDropdownOpen"
+      >
+        <span v-if="upstreamHasUpdate" class="h-1 w-1 rounded-full bg-amber-500"></span>
+        {{ t('version.upstreamBadge') }}
+      </button>
+
+      <transition name="dropdown">
+        <div
+          v-if="upstreamDropdownOpen"
+          class="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden whitespace-normal rounded-xl border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
+        >
+          <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700">
+            <span class="text-sm font-medium text-gray-700 dark:text-dark-300">{{ t('version.upstreamReleaseOverview') }}</span>
+            <button
+              @click="appStore.fetchVersion(true)"
+              :disabled="loading"
+              :title="t('version.fetchLatestRelease')"
+              :aria-label="t('version.fetchLatestRelease')"
+              class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50 dark:hover:bg-dark-700"
+            >
+              <Icon name="refresh" size="sm" :stroke-width="2" :class="{ 'animate-spin': loading }" />
+            </button>
+          </div>
+          <div class="space-y-4 p-4" :aria-busy="loading">
+            <p class="text-xs text-gray-500 dark:text-dark-400">{{ upstreamRepository }}</p>
+            <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
+              <div v-for="row in upstreamVersionRows" :key="row.label" class="flex items-center justify-between gap-4 border-b border-gray-100 px-3 py-2 last:border-b-0 dark:border-dark-700">
+                <span class="text-xs text-gray-500 dark:text-dark-400">{{ row.label }}</span>
+                <span class="text-xs font-medium tabular-nums text-gray-800 dark:text-dark-100">{{ row.version ? 'v' + row.version : '--' }}</span>
+              </div>
+            </div>
+            <div v-if="upstreamWarning" class="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 dark:bg-dark-900 dark:text-dark-400">
+              {{ t('version.upstreamCheckFailed') }}: {{ upstreamWarning }}
+            </div>
+            <div v-else class="rounded-lg p-3" :class="upstreamHasUpdate ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-gray-50 text-gray-500 dark:bg-dark-900 dark:text-dark-400'">
+              <p class="text-xs font-medium">{{ t(upstreamHasUpdate ? 'version.upstreamUpdateAvailable' : 'version.upstreamUpToDate') }}</p>
+              <p v-if="upstreamHasUpdate" class="mt-1 text-xs opacity-80">{{ t('version.upstreamUpdateHint') }}</p>
+            </div>
+            <a v-if="upstreamReleaseURL" :href="upstreamReleaseURL" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 dark:border-dark-700 dark:text-dark-300 dark:hover:bg-dark-700">
+              <Icon name="externalLink" size="sm" :stroke-width="2" />
+              {{ t('version.viewUpstreamRelease') }}
+            </a>
+          </div>
+        </div>
+      </transition>
 
       <!-- Dropdown -->
       <transition name="dropdown">
         <div
           v-if="dropdownOpen"
           ref="dropdownRef"
-          class="absolute left-0 z-50 mt-2 w-80 overflow-hidden whitespace-normal rounded-xl border border-gray-200 bg-white shadow-lg transition-all duration-200 dark:border-dark-700 dark:bg-dark-800"
+          class="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden whitespace-normal rounded-xl border border-gray-200 bg-white shadow-lg transition-all duration-200 dark:border-dark-700 dark:bg-dark-800"
         >
           <!-- Header with refresh button -->
           <div
             class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700"
           >
             <span class="text-sm font-medium text-gray-700 dark:text-dark-300">{{
-              t('version.releaseOverview')
+              t('version.ownReleaseOverview')
             }}</span>
             <button
               @click="refreshVersion(true)"
@@ -100,30 +125,6 @@
                     {{ row.version ? 'v' + row.version : '--' }}
                   </span>
                 </div>
-              </div>
-
-              <a
-                v-if="upstreamHasUpdate"
-                :href="upstreamReleaseURL"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 transition-colors hover:bg-blue-100 dark:border-blue-800/50 dark:bg-blue-900/20 dark:hover:bg-blue-900/30"
-              >
-                <div>
-                  <p class="text-sm font-medium text-blue-700 dark:text-blue-300">
-                    {{ t('version.upstreamUpdateAvailable') }}
-                  </p>
-                  <p class="text-xs text-blue-600/70 dark:text-blue-400/70">
-                    {{ t('version.upstreamUpdateHint') }}
-                  </p>
-                </div>
-                <Icon name="externalLink" size="xs" :stroke-width="2" class="text-blue-500" />
-              </a>
-              <div
-                v-else-if="upstreamWarning"
-                class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
-              >
-                {{ t('version.upstreamCheckFailed') }}: {{ upstreamWarning }}
               </div>
 
               <!-- Priority 1: Update error (must check before hasUpdate) -->
@@ -665,7 +666,9 @@ const appStore = useAppStore()
 
 const isAdmin = computed(() => authStore.isAdmin)
 
+const badgeRef = ref<HTMLElement | null>(null)
 const dropdownOpen = ref(false)
+const upstreamDropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 
 // Use store's cached version state
@@ -687,11 +690,13 @@ const upstreamWarning = computed(() => appStore.upstreamWarning)
 const upstreamReleaseURL = computed(() =>
   upstreamRepository.value
     ? `https://github.com/${upstreamRepository.value}/releases/latest`
-    : '#'
+    : ''
 )
 const versionRows = computed(() => [
   { label: t('version.ownCurrentVersion'), version: currentVersion.value },
-  { label: t('version.ownLatestVersion'), version: latestVersion.value },
+  { label: t('version.ownLatestVersion'), version: latestVersion.value }
+])
+const upstreamVersionRows = computed(() => [
   { label: t('version.upstreamBaseline'), version: upstreamBaseline.value },
   { label: t('version.upstreamLatestVersion'), version: upstreamLatestVersion.value }
 ])
@@ -753,10 +758,19 @@ const isReleaseBuild = computed(() => buildType.value === 'release')
 function toggleDropdown() {
   if (!isAdmin.value) return
   dropdownOpen.value = !dropdownOpen.value
+  upstreamDropdownOpen.value = false
+}
+
+function toggleUpstreamDropdown() {
+  if (!isAdmin.value) return
+  upstreamDropdownOpen.value = !upstreamDropdownOpen.value
+  dropdownOpen.value = false
+  if (upstreamDropdownOpen.value) void appStore.fetchVersion(true)
 }
 
 function closeDropdown() {
   dropdownOpen.value = false
+  upstreamDropdownOpen.value = false
 }
 
 async function refreshVersion(force = true) {
@@ -920,11 +934,7 @@ async function checkServiceAndReload() {
 }
 
 function handleClickOutside(event: MouseEvent) {
-  const target = event.target as Node
-  const button = (event.target as Element).closest('button')
-  if (dropdownRef.value && !dropdownRef.value.contains(target) && !button?.contains(target)) {
-    closeDropdown()
-  }
+  if (badgeRef.value && !badgeRef.value.contains(event.target as Node)) closeDropdown()
 }
 
 watch(

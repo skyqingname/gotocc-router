@@ -186,7 +186,7 @@ func (s *PromptService) Evaluate(ctx context.Context, req Request) (*PromptDecis
 	if cfg.EffectiveMode() != ModeBlocking || !cfg.IncludesGroup(req.GroupID) {
 		return &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}, nil
 	}
-	snapshot, diagnostic, err := extractPromptSnapshotWithDiagnostics(req, true)
+	snapshot, diagnostic, err := extractPromptSnapshotWithDiagnostics(req, cfg.BlockingLatestTurnOnly)
 	if diagnostic.Failed {
 		if s.metrics != nil {
 			s.metrics.ObserveExtraction(ExtractionFailed)
@@ -301,7 +301,10 @@ func applyRuntimeError(runtime *RuntimeSnapshot, code, message string, occurredA
 }
 
 type ProbeRequest struct {
-	Endpoint UpdateEndpoint `json:"endpoint"`
+	Endpoint            UpdateEndpoint `json:"endpoint"`
+	AuditPrompt         *string        `json:"audit_prompt"`
+	ResponseFormat      *string        `json:"response_format"`
+	ConfidenceThreshold *float64       `json:"confidence_threshold"`
 }
 
 func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeResult {
@@ -340,15 +343,29 @@ func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeRe
 	if int64(len(responseBody)) > maxGuardResponseBytes {
 		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "response_too_large", Message: "审计节点响应无效", HTTPStatus: resp.StatusCode, TokenApplied: tokenApplied})
 	}
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 && modelsResponseReady(responseBody, endpoint.Model) {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点连接正常", HTTPStatus: resp.StatusCode, TokenApplied: tokenApplied})
-	}
+
 	if (resp.StatusCode >= 200 && resp.StatusCode < 300) || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
 		auditPrompt := DefaultAuditPrompt
+		endpoint.ResponseFormat = DefaultAuditResponseFormat
+		endpoint.ConfidenceThreshold = DefaultConfidenceThreshold
 		if s.config != nil {
 			if active, ok := s.config.Active(); ok {
 				auditPrompt = active.AuditPrompt
+				endpoint.ResponseFormat = active.ResponseFormat
+				endpoint.ConfidenceThreshold = active.ConfidenceThreshold
 			}
+		}
+		if request.AuditPrompt != nil {
+			auditPrompt = strings.TrimSpace(*request.AuditPrompt)
+		}
+		if request.ResponseFormat != nil {
+			endpoint.ResponseFormat = *request.ResponseFormat
+		}
+		if request.ConfidenceThreshold != nil {
+			endpoint.ConfidenceThreshold = *request.ConfidenceThreshold
+		}
+		if err := validateAuditResponsePolicy(endpoint.ResponseFormat, endpoint.ConfidenceThreshold); err != nil {
+			return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "audit_policy_invalid", Message: "审核输出协议或阈值无效"})
 		}
 		result, scanErr := s.scanner.Scan(ctx, endpoint, auditPrompt, "Hello", AllScannerIDs)
 		if scanErr == nil && result != nil {
@@ -369,27 +386,6 @@ func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeRe
 		code = "authentication_failed"
 	}
 	return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: code, Message: "审计节点探测失败", HTTPStatus: resp.StatusCode, Retryable: retryable, TokenApplied: tokenApplied})
-}
-
-func modelsResponseReady(body []byte, model string) bool {
-	var response struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(body, &response) != nil || response.Data == nil {
-		return false
-	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return true
-	}
-	for _, item := range response.Data {
-		if strings.TrimSpace(item.ID) == model {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *PromptService) resolveProbeEndpoint(input UpdateEndpoint) (ActiveEndpoint, bool, error) {

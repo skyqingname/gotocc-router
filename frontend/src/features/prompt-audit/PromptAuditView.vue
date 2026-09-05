@@ -204,7 +204,9 @@ const dirty = computed(() => draftFingerprint(draft.value) !== draftFingerprint(
 const auditPromptValid = computed(() => {
   const value = draft.value?.audit_prompt ?? ''
   const length = Array.from(value).length
-  return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES
+  const threshold = draft.value?.confidence_threshold
+  const policyValid = draft.value?.response_format !== 'confidence_json' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
+  return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES && policyValid
 })
 
 const SaveToggle = defineComponent({
@@ -337,7 +339,7 @@ async function runProbe(endpoint: PromptAuditEndpointDraft) {
   if (probingIds.value.includes(endpoint.id)) return
   probingIds.value = [...probingIds.value, endpoint.id]
   try {
-    const result = await promptAuditAPI.probeEndpoint(endpoint)
+    const result = await promptAuditAPI.probeEndpoint(endpoint, draft.value ?? undefined)
     probeResults[endpoint.id] = result
     if (result.ok) appStore.showSuccess(t('admin.promptAudit.messages.probeSucceeded'))
     else appStore.showError(`${result.error_code || result.status}: ${result.message}`)

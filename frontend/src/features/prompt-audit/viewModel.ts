@@ -73,6 +73,8 @@ export function buildUpdateRequest(draft: PromptAuditDraft): PromptAuditUpdateRe
     worker_count: Number(draft.worker_count),
     queue_capacity: Number(draft.queue_capacity),
     audit_prompt: draft.audit_prompt.trim(),
+    response_format: draft.response_format,
+    confidence_threshold: Number(draft.confidence_threshold),
     scanners: [...draft.scanners],
     all_groups: draft.all_groups,
     group_ids: draft.all_groups ? [] : [...draft.group_ids].sort((a, b) => a - b),

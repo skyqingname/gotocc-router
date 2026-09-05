@@ -20,6 +20,13 @@ export default {
 
   // Version Badge
   version: {
+    ownReleaseOverview: '自有发行版本',
+    upstreamBadge: '上游',
+    upstreamReleaseOverview: '上游发行版本',
+    fetchLatestRelease: '拉取最新发行信息',
+    upstreamUpToDate: '已跟进上游最新发行版',
+    viewUpstreamRelease: '查看上游发行与更新日志',
+
     releaseOverview: '发行版本',
     currentVersion: '当前版本',
     latestVersion: '最新版本',

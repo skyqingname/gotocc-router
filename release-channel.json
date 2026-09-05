@@ -2,7 +2,7 @@
   "release_repository": "skyqingname/gotocc-router",
   "release_image": "ghcr.io/skyqingname/sub2api-plus",
   "upstream_repository": "LuckyKuang/sub2api-plus",
-  "upstream_baseline": "v0.2.0+custom.001",
+  "upstream_baseline": "v0.2.0+custom.002",
   "runtime_files": [
     {
       "path": "release-channel.json",
