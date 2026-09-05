@@ -5,7 +5,7 @@ This directory contains the Sub2API Plus bundled model-pricing fallback copy.
 ## Source
 Remote refresh discovers the latest GitHub Release through a manifest:
 
-- Manifest: `https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json`
+- Manifest: `https://github.com/skyqingname/gotocc-router/releases/latest/download/model-pricing-manifest.json`
 - Immutable release asset: declared by the manifest
 - Upstream data source for maintainers: https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json
 
