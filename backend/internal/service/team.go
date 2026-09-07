@@ -237,6 +237,7 @@ type TeamAPIKeyItem struct {
 	OwnerDisabled bool       `json:"team_owner_disabled"`
 	GroupID       *int64     `json:"group_id"`
 	GroupName     string     `json:"group_name"`
+	RoutingMode   string     `json:"routing_mode"`
 	LastUsedAt    *time.Time `json:"last_used_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	Key           string     `json:"-"`

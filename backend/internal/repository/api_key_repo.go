@@ -50,6 +50,7 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetName(key.Name).
 		SetStatus(key.Status).
 		SetNillableGroupID(key.GroupID).
+		SetRoutingMode(key.EffectiveRoutingMode()).
 		SetNillableLastUsedAt(key.LastUsedAt).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
@@ -138,6 +139,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldTeamOwnerDisabled,
 			apikey.FieldCreatedAt,
 			apikey.FieldGroupID,
+			apikey.FieldRoutingMode,
 			apikey.FieldName,
 			apikey.FieldStatus,
 			apikey.FieldIPWhitelist,
@@ -311,6 +313,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fiel
 			builder.ClearGroupID()
 		}
 	}
+	if fields.RoutingMode {
+		builder.SetRoutingMode(key.EffectiveRoutingMode())
+	}
 
 	// Expiration time
 	if fields.ExpiresAt {
@@ -451,10 +456,13 @@ func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service
 	}
 	if filters.GroupID != nil {
 		if *filters.GroupID == 0 {
-			q = q.Where(apikey.GroupIDIsNil())
+			q = q.Where(apikey.GroupIDIsNil(), apikey.RoutingModeEQ(service.APIKeyRoutingFixed))
 		} else {
 			q = q.Where(apikey.GroupIDEQ(*filters.GroupID))
 		}
+	}
+	if filters.RoutingMode != "" {
+		q = q.Where(apikey.RoutingModeEQ(filters.RoutingMode))
 	}
 	switch filters.Scope {
 	case "personal":
@@ -897,6 +905,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		CreatedAt:         m.CreatedAt,
 		UpdatedAt:         m.UpdatedAt,
 		GroupID:           m.GroupID,
+		RoutingMode:       m.RoutingMode,
 		Quota:             m.Quota,
 		QuotaUsed:         m.QuotaUsed,
 		ExpiresAt:         m.ExpiresAt,

@@ -113,6 +113,11 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	if apiKey.Group != nil {
 		platform = apiKey.Group.Platform
 	}
+	if apiKey.IsAutoRouting() {
+		if decision, ok := service.AutoRouteDecisionFromContext(c.Request.Context()); ok {
+			platform = decision.Platform
+		}
+	}
 	if platform != service.PlatformOpenAI && platform != service.PlatformGrok {
 		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "Images API is not supported for this platform")
 		return
@@ -162,6 +167,12 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 	if !h.checkSecurityAuditBeforeSubmit(c, apiKey, platform, body) {
+		return
+	}
+	if apiKey.IsAutoRouting() && (h.openAI == nil || !admitAutoHTTPRoute(c, h.openAI.autoGroupResolver, &apiKey)) {
+		if !c.IsAborted() {
+			middleware2.WriteAutoRoutingError(c, service.ErrAutoRouteUnavailable)
+		}
 		return
 	}
 	requestedImages := h.requestedImages(c, platform, body)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/handler/dto"
+	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
@@ -32,14 +33,15 @@ func NewAPIKeyHandler(apiKeyService *service.APIKeyService) *APIKeyHandler {
 
 // CreateAPIKeyRequest represents the create API key request payload
 type CreateAPIKeyRequest struct {
-	Name          string   `json:"name" binding:"required"`
-	Scope         string   `json:"scope" binding:"omitempty,oneof=personal team"`
-	GroupID       *int64   `json:"group_id"`        // nullable
-	CustomKey     *string  `json:"custom_key"`      // 可选的自定义key
-	IPWhitelist   []string `json:"ip_whitelist"`    // IP 白名单
-	IPBlacklist   []string `json:"ip_blacklist"`    // IP 黑名单
-	Quota         *float64 `json:"quota"`           // 配额限制 (USD)
-	ExpiresInDays *int     `json:"expires_in_days"` // 过期天数
+	RoutingMode   dto.NullableStringField `json:"routing_mode"`
+	Name          string                  `json:"name" binding:"required"`
+	Scope         string                  `json:"scope" binding:"omitempty,oneof=personal team"`
+	GroupID       *int64                  `json:"group_id"`        // nullable
+	CustomKey     *string                 `json:"custom_key"`      // 可选的自定义key
+	IPWhitelist   []string                `json:"ip_whitelist"`    // IP 白名单
+	IPBlacklist   []string                `json:"ip_blacklist"`    // IP 黑名单
+	Quota         *float64                `json:"quota"`           // 配额限制 (USD)
+	ExpiresInDays *int                    `json:"expires_in_days"` // 过期天数
 
 	// Rate limit fields (0 = unlimited)
 	RateLimit5h *float64 `json:"rate_limit_5h"`
@@ -49,14 +51,15 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest represents the update API key request payload
 type UpdateAPIKeyRequest struct {
-	Name        string    `json:"name"`
-	GroupID     *int64    `json:"group_id"`
-	Status      string    `json:"status" binding:"omitempty,oneof=active inactive"`
-	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
-	IPBlacklist *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
-	Quota       *float64  `json:"quota"`        // 配额限制 (USD), 0=无限制
-	ExpiresAt   *string   `json:"expires_at"`   // 过期时间 (ISO 8601)
-	ResetQuota  *bool     `json:"reset_quota"`  // 重置已用配额
+	RoutingMode dto.NullableStringField `json:"routing_mode"`
+	Name        string                  `json:"name"`
+	GroupID     dto.NullableInt64Field  `json:"group_id"`
+	Status      string                  `json:"status" binding:"omitempty,oneof=active inactive"`
+	IPWhitelist *[]string               `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
+	IPBlacklist *[]string               `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
+	Quota       *float64                `json:"quota"`        // 配额限制 (USD), 0=无限制
+	ExpiresAt   *string                 `json:"expires_at"`   // 过期时间 (ISO 8601)
+	ResetQuota  *bool                   `json:"reset_quota"`  // 重置已用配额
 
 	// Rate limit fields (nil = no change, 0 = unlimited)
 	RateLimit5h         *float64 `json:"rate_limit_5h"`
@@ -68,6 +71,9 @@ type UpdateAPIKeyRequest struct {
 func validAPIKeyLimit(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 }
 
 func validateAPIKeyCreateRequest(req CreateAPIKeyRequest) error {
+	if err := service.ValidateAPIKeyRoutingInput(req.RoutingMode.Value, req.RoutingMode.Set, req.GroupID); err != nil {
+		return err
+	}
 	if req.Quota != nil && !validAPIKeyLimit(*req.Quota) {
 		return errors.New("invalid quota")
 	}
@@ -87,6 +93,9 @@ func validateAPIKeyCreateRequest(req CreateAPIKeyRequest) error {
 }
 
 func validateAPIKeyUpdateRequest(req UpdateAPIKeyRequest) error {
+	if err := service.ValidateAPIKeyRoutingInput(req.RoutingMode.Value, req.RoutingMode.Set, req.GroupID.Value); err != nil {
+		return err
+	}
 	if req.Quota != nil && !validAPIKeyLimit(*req.Quota) {
 		return errors.New("invalid quota")
 	}
@@ -128,6 +137,13 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 		filters.Search = search
 	}
 	filters.Status = c.Query("status")
+	filters.RoutingMode = c.Query("routing_mode")
+	if filters.RoutingMode != "" {
+		if err := service.ValidateAPIKeyRoutingInput(&filters.RoutingMode, true, nil); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
 	filters.Scope = strings.ToLower(strings.TrimSpace(c.Query("scope")))
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		gid, err := strconv.ParseInt(groupIDStr, 10, 64)
@@ -194,7 +210,11 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		return
 	}
 	if err := validateAPIKeyCreateRequest(req); err != nil {
-		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative, and expires_in_days must be greater than zero")
+		if infraerrors.Code(err) == 400 {
+			response.ErrorFrom(c, err)
+		} else {
+			response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative, and expires_in_days must be greater than zero")
+		}
 		return
 	}
 
@@ -209,6 +229,9 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 	if req.Quota != nil {
 		svcReq.Quota = *req.Quota
+	}
+	if req.RoutingMode.Value != nil {
+		svcReq.RoutingMode = *req.RoutingMode.Value
 	}
 	if req.RateLimit5h != nil {
 		svcReq.RateLimit5h = *req.RateLimit5h
@@ -250,11 +273,17 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		return
 	}
 	if err := validateAPIKeyUpdateRequest(req); err != nil {
-		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative")
+		if infraerrors.Code(err) == 400 {
+			response.ErrorFrom(c, err)
+		} else {
+			response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative")
+		}
 		return
 	}
 
 	svcReq := service.UpdateAPIKeyRequest{
+		RoutingMode:         req.RoutingMode.Value,
+		GroupIDSet:          req.GroupID.Set,
 		IPWhitelist:         req.IPWhitelist,
 		IPBlacklist:         req.IPBlacklist,
 		Quota:               req.Quota,
@@ -267,7 +296,7 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	if req.Name != "" {
 		svcReq.Name = &req.Name
 	}
-	svcReq.GroupID = req.GroupID
+	svcReq.GroupID = req.GroupID.Value
 	if req.Status != "" {
 		svcReq.Status = &req.Status
 	}

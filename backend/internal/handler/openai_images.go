@@ -111,6 +111,18 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &requestModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	if apiKey.IsAutoRouting() {
+		parsed, err = h.gatewayService.ParseOpenAIImagesRequest(c, body)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
+		routingModel = requestModel
+	}
 	imageReleaseFunc, acquired := h.acquireImageGenerationSlot(c, streamStarted)
 	if !acquired {
 		return

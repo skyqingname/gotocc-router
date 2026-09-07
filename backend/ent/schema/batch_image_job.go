@@ -34,6 +34,7 @@ func (BatchImageJob) Fields() []ent.Field {
 		field.Int64("team_id").Optional().Nillable(),
 		field.Int64("api_key_id").Optional().Nillable(),
 		field.Int64("account_id").Optional().Nillable(),
+		field.Int64("group_id").Optional().Nillable().Immutable(),
 		field.String("provider").MaxLen(32),
 		field.String("model").MaxLen(128),
 		field.String("task_name").MaxLen(255).Default(""),

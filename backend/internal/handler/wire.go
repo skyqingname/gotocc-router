@@ -133,6 +133,7 @@ func ProvideAdminUsageHandler(usageService *service.UsageService, apiKeyService 
 }
 
 func ProvideGatewayHandler(
+	autoGroupResolver *service.AutoGroupResolver,
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
 	geminiCompatService *service.GeminiMessagesCompatService,
@@ -155,11 +156,13 @@ func ProvideGatewayHandler(
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
+	h.autoGroupResolver = autoGroupResolver
 	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h
 }
 
 func ProvideOpenAIGatewayHandler(
+	autoGroupResolver *service.AutoGroupResolver,
 	gatewayService *service.OpenAIGatewayService,
 	pluginManager *service.PluginManager,
 	concurrencyService *service.ConcurrencyService,
@@ -180,6 +183,7 @@ func ProvideOpenAIGatewayHandler(
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.securityAuditCoordinator = coordinator
 	h.grokMediaEligibilityProber = grokQuotaService
+	h.autoGroupResolver = autoGroupResolver
 	h.SetIPAccessControlService(ipAccessControl)
 	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h

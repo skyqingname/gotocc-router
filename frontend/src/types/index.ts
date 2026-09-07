@@ -535,6 +535,16 @@ export interface PaginationConfig {
 // ==================== API Key & Group Types ====================
 
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'composite'
+export type ApiKeyRoutingMode = 'fixed' | 'auto'
+
+// The server owns the calculation of these capabilities. They are advisory for
+// UI affordances only; each API request still performs full authorization.
+export interface ApiKeyRoutingCapabilities {
+  routing_mode: ApiKeyRoutingMode
+  protocols: string[]
+  async_image_submit: boolean
+  batch_image_submit: boolean
+}
 
 export type VideoModelPrices = Record<string, Record<string, number>>
 
@@ -732,6 +742,9 @@ export interface ApiKey {
   key: string
   name: string
   group_id: number | null
+  // Older API responses may not contain this field during a rolling upgrade.
+  // Missing mode remains the legacy fixed-group behavior.
+  routing_mode?: ApiKeyRoutingMode
   status: 'active' | 'inactive' | 'disabled' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
@@ -762,6 +775,7 @@ export interface CreateApiKeyRequest {
   name: string
   scope?: 'personal' | 'team'
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -775,6 +789,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]

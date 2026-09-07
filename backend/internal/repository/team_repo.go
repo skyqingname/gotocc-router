@@ -896,7 +896,7 @@ func (r *teamRepository) ListTeamKeys(ctx context.Context, teamID int64, actorUs
 	actorCondition, args := teamKeyActorCondition(actorUserID, args)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT k.id, k.user_id, COALESCE(u.email, ''), k.name, k.key, k.status, k.team_owner_disabled, k.group_id,
-		       COALESCE(g.name, ''), k.last_used_at, k.created_at
+		       COALESCE(g.name, ''), k.routing_mode, k.last_used_at, k.created_at
 		FROM api_keys k
 		LEFT JOIN users u ON u.id = k.user_id
 		LEFT JOIN groups g ON g.id = k.group_id
@@ -912,7 +912,7 @@ func (r *teamRepository) ListTeamKeys(ctx context.Context, teamID int64, actorUs
 		var item service.TeamAPIKeyItem
 		var groupID sql.NullInt64
 		var lastUsedAt sql.NullTime
-		if err := rows.Scan(&item.ID, &item.UserID, &item.UserEmail, &item.Name, &item.Key, &item.Status, &item.OwnerDisabled, &groupID, &item.GroupName, &lastUsedAt, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.UserEmail, &item.Name, &item.Key, &item.Status, &item.OwnerDisabled, &groupID, &item.GroupName, &item.RoutingMode, &lastUsedAt, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		item.GroupID = batchImageNullInt64Ptr(groupID)

@@ -100,6 +100,11 @@ func GroupID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldGroupID, v))
 }
 
+// RoutingMode applies equality check predicate on the "routing_mode" field. It's identical to RoutingModeEQ.
+func RoutingMode(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRoutingMode, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldStatus, v))
@@ -518,6 +523,71 @@ func GroupIDIsNil() predicate.APIKey {
 // GroupIDNotNil applies the NotNil predicate on the "group_id" field.
 func GroupIDNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldGroupID))
+}
+
+// RoutingModeEQ applies the EQ predicate on the "routing_mode" field.
+func RoutingModeEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRoutingMode, v))
+}
+
+// RoutingModeNEQ applies the NEQ predicate on the "routing_mode" field.
+func RoutingModeNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldRoutingMode, v))
+}
+
+// RoutingModeIn applies the In predicate on the "routing_mode" field.
+func RoutingModeIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldRoutingMode, vs...))
+}
+
+// RoutingModeNotIn applies the NotIn predicate on the "routing_mode" field.
+func RoutingModeNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldRoutingMode, vs...))
+}
+
+// RoutingModeGT applies the GT predicate on the "routing_mode" field.
+func RoutingModeGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldRoutingMode, v))
+}
+
+// RoutingModeGTE applies the GTE predicate on the "routing_mode" field.
+func RoutingModeGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldRoutingMode, v))
+}
+
+// RoutingModeLT applies the LT predicate on the "routing_mode" field.
+func RoutingModeLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldRoutingMode, v))
+}
+
+// RoutingModeLTE applies the LTE predicate on the "routing_mode" field.
+func RoutingModeLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldRoutingMode, v))
+}
+
+// RoutingModeContains applies the Contains predicate on the "routing_mode" field.
+func RoutingModeContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldRoutingMode, v))
+}
+
+// RoutingModeHasPrefix applies the HasPrefix predicate on the "routing_mode" field.
+func RoutingModeHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldRoutingMode, v))
+}
+
+// RoutingModeHasSuffix applies the HasSuffix predicate on the "routing_mode" field.
+func RoutingModeHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldRoutingMode, v))
+}
+
+// RoutingModeEqualFold applies the EqualFold predicate on the "routing_mode" field.
+func RoutingModeEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldRoutingMode, v))
+}
+
+// RoutingModeContainsFold applies the ContainsFold predicate on the "routing_mode" field.
+func RoutingModeContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldRoutingMode, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

@@ -42,8 +42,8 @@ func RegisterGatewayRoutes(
 	compositeGeminiTarget := compositeGeminiTargetPlatformMiddleware(compositeResolver)
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
-	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
-	requireGroupGoogle := middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter)
+	requireGroupAnthropic := autoKeyGroupMiddleware(h.Gateway, middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter))
+	requireGroupGoogle := autoKeyGroupMiddleware(h.Gateway, middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter))
 
 	isOpenAIResponsesCompatibleGatewayPlatform := func(c *gin.Context) bool {
 		switch getGroupPlatform(c) {
@@ -521,7 +521,7 @@ func RegisterGatewayRoutes(
 	})
 
 	// Antigravity 模型列表
-	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
+	r.GET("/antigravity/models", middleware.ForcePlatform(service.PlatformAntigravity), gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
 
 	// Antigravity 专用路由（仅使用 antigravity 账户，不混合调度）
 	antigravityV1 := r.Group("/antigravity/v1")
@@ -553,6 +553,17 @@ func RegisterGatewayRoutes(
 		antigravityV1Beta.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
 	}
 
+}
+
+func autoKeyGroupMiddleware(gateway *handler.GatewayHandler, fixed gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key, ok := middleware.GetAPIKeyFromContext(c)
+		if ok && key != nil && key.IsAutoRouting() {
+			gateway.RouteAutoAPIKey(c)
+			return
+		}
+		fixed(c)
+	}
 }
 
 func dispatchCodexModelsGateway(c *gin.Context, openAIHandler, generatedHandler gin.HandlerFunc) {

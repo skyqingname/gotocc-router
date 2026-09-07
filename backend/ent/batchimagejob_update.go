@@ -1023,6 +1023,9 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.AccountIDCleared() {
 		_spec.ClearField(batchimagejob.FieldAccountID, field.TypeInt64)
 	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(batchimagejob.FieldGroupID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)
 	}
@@ -2268,6 +2271,9 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if _u.mutation.AccountIDCleared() {
 		_spec.ClearField(batchimagejob.FieldAccountID, field.TypeInt64)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(batchimagejob.FieldGroupID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)

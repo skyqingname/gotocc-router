@@ -99,6 +99,7 @@ var (
 )
 
 type BatchImageJob struct {
+	GroupID           *int64
 	ID                int64
 	BatchID           string
 	UserID            int64
@@ -163,6 +164,7 @@ type BatchImageJob struct {
 }
 
 type CreateBatchImageJobParams struct {
+	GroupID           *int64
 	BatchID           string
 	UserID            int64
 	BillingUserID     int64

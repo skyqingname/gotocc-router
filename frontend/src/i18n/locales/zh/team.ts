@@ -55,6 +55,7 @@ export default {
     disable: '禁用',
     enable: '启用',
     ownerDisabled: 'Owner 已禁用',
+    routingAuto: '智能路由',
     noGroup: '未绑定分组',
     disableKeyTitle: '禁用团队密钥',
     disableKeyMessage: '禁用后该密钥将立即停止认证。',

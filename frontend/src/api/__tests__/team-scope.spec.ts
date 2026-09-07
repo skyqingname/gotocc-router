@@ -10,7 +10,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { getAvailable, getUserGroupRates } from '@/api/groups'
-import { create, list } from '@/api/keys'
+import { create, getRoutingCapabilities, list } from '@/api/keys'
 
 describe('team scope API contracts', () => {
   beforeEach(() => {
@@ -35,8 +35,50 @@ describe('team scope API contracts', () => {
     expect(post).toHaveBeenCalledWith('/keys', {
       name: 'team-key',
       group_id: 7,
+      routing_mode: 'fixed',
       scope: 'team',
     })
+  })
+
+  it('sends the automatic-routing mode with an explicit null group', async () => {
+    const createAutoKey = create as unknown as (
+      name: string,
+      groupId?: number | null,
+      customKey?: string,
+      ipWhitelist?: string[],
+      ipBlacklist?: string[],
+      quota?: number,
+      expiresInDays?: number,
+      rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
+      scope?: 'personal' | 'team',
+      routingMode?: 'fixed' | 'auto',
+    ) => Promise<unknown>
+
+    await createAutoKey('team-auto-key', null, undefined, undefined, undefined, undefined, undefined, undefined, 'team', 'auto')
+
+    expect(post).toHaveBeenCalledWith('/keys', {
+      name: 'team-auto-key',
+      group_id: null,
+      routing_mode: 'auto',
+      scope: 'team',
+    })
+  })
+
+  it('loads routing capabilities by key ID without sending a credential value', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        routing_mode: 'auto',
+        protocols: ['openai', 'anthropic'],
+        async_image_submit: true,
+        batch_image_submit: false,
+      },
+    })
+
+    await expect(getRoutingCapabilities(17)).resolves.toMatchObject({
+      routing_mode: 'auto',
+      protocols: ['openai', 'anthropic'],
+    })
+    expect(get).toHaveBeenLastCalledWith('/keys/17/routing-capabilities')
   })
 
   it('requests team-specific groups and rates', async () => {

@@ -753,7 +753,7 @@ INSERT INTO batch_image_jobs (
     batch_discount_multiplier, hold_multiplier, billable_unit_price, hold_unit_price,
     pricing_snapshot_version,
     currency, hold_id,
-    idempotency_key, request_hash, manifest_hash, retry_count, session_id, output_expires_at
+    idempotency_key, request_hash, manifest_hash, retry_count, session_id, output_expires_at, group_id
 ) VALUES (
 	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
 	$12, $13, $14, $15, $16,
@@ -763,7 +763,7 @@ INSERT INTO batch_image_jobs (
 	$27, $28, $29, $30,
 	$31,
 	$32, $33,
-	$34, $35, $36, $37, $38, $39
+	$34, $35, $36, $37, $38, $39, $40
 )
 RETURNING `+batchImageJobColumns,
 		params.BatchID, params.UserID, params.BillingUserID, params.TeamID, params.APIKeyID, params.AccountID, params.Provider, params.Model, params.TaskName, params.ParentBatchID, params.Status,
@@ -775,6 +775,7 @@ RETURNING `+batchImageJobColumns,
 		params.PricingSnapshotVersion,
 		params.Currency, params.HoldID,
 		params.IdempotencyKey, params.RequestHash, params.ManifestHash, params.RetryCount, params.SessionID, params.OutputExpiresAt,
+		params.GroupID,
 	))
 }
 
@@ -830,13 +831,13 @@ currency, hold_id,
 idempotency_key, request_hash, manifest_hash,
 retry_count, version, session_id, output_expires_at, input_deleted_at, output_deleted_at, downloaded_at, user_deleted_at,
 last_error_code, last_error_message,
-created_at, updated_at, submitted_at, started_at, finished_at, settled_at`
+created_at, updated_at, submitted_at, started_at, finished_at, settled_at, group_id`
 
 const batchImageJobSelectSQL = `SELECT ` + batchImageJobColumns + ` FROM batch_image_jobs`
 
 func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 	var job service.BatchImageJob
-	var billingUserID, teamID, apiKeyID, accountID sql.NullInt64
+	var billingUserID, teamID, apiKeyID, accountID, groupID sql.NullInt64
 	var providerJobName, providerInputRef, providerOutputRef, gcsInputURI, gcsOutputURI sql.NullString
 	var parentBatchID sql.NullString
 	var holdAmount, actualCost sql.NullFloat64
@@ -859,6 +860,7 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 		&job.RetryCount, &job.Version, &sessionID, &outputExpiresAt, &inputDeletedAt, &outputDeletedAt, &downloadedAt, &userDeletedAt,
 		&lastErrorCode, &lastErrorMessage,
 		&job.CreatedAt, &job.UpdatedAt, &submittedAt, &startedAt, &finishedAt, &settledAt,
+		&groupID,
 	)
 	if err != nil {
 		return nil, err
@@ -868,6 +870,7 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 		job.BillingUserID = billingUserID.Int64
 	}
 	job.TeamID = batchImageNullInt64Ptr(teamID)
+	job.GroupID = batchImageNullInt64Ptr(groupID)
 	job.APIKeyID = batchImageNullInt64Ptr(apiKeyID)
 	job.AccountID = batchImageNullInt64Ptr(accountID)
 	job.ProviderJobName = batchImageNullStringPtr(providerJobName)

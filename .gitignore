@@ -154,6 +154,8 @@ docs/*
 !docs/CLIENT_DISCONNECT_RISK_CONTROL.md
 !docs/BATCH_IMAGE_MVP.md
 !docs/COMPOSITE_GROUPS.md
+!docs/API_KEY_SMART_ROUTING.md
+!docs/API_KEY_SMART_ROUTING_VALIDATION.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/providers/

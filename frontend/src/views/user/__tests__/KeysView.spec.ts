@@ -545,7 +545,7 @@ describe('user KeysView column settings', () => {
     await nextTick()
     await wrapper.get('[data-tour="key-form-name"]').setValue('team-key')
     const selects = wrapper.findAllComponents({ name: 'Select' })
-    await selects[2].vm.$emit('update:modelValue', 7)
+    await selects[3].vm.$emit('update:modelValue', 7)
     await wrapper.get('#key-form').trigger('submit')
     await flushPromises()
 
@@ -558,12 +558,58 @@ describe('user KeysView column settings', () => {
       0,
       undefined,
       { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
-      'team'
+      'team',
+      'fixed'
     )
     expect(listKeys).toHaveBeenCalledWith(
       1,
       20,
       expect.objectContaining({ scope: 'team' }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('creates an automatic-routing team key with an explicit null group contract', async () => {
+    routeQuery.scope = 'team'
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
+    await nextTick()
+    await wrapper.get('[data-tour="key-form-name"]').setValue('team-auto-key')
+    await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+
+    expect(createKey).toHaveBeenCalledWith(
+      'team-auto-key',
+      null,
+      undefined,
+      [],
+      [],
+      0,
+      undefined,
+      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
+      'team',
+      'auto'
+    )
+  })
+
+  it('sends a separate routing-mode filter without changing the ungrouped filter', async () => {
+    const wrapper = await mountView()
+    const selects = wrapper.findAllComponents({ name: 'Select' })
+
+    await selects[2].vm.$emit('update:modelValue', 'auto')
+    await flushPromises()
+
+    expect(listKeys).toHaveBeenLastCalledWith(
+      1,
+      20,
+      {
+        routing_mode: 'auto',
+        sort_by: 'created_at',
+        sort_order: 'desc',
+        scope: 'personal',
+      },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
   })

@@ -31,6 +31,7 @@ import (
 
 // OpenAIGatewayHandler handles OpenAI API gateway requests
 type OpenAIGatewayHandler struct {
+	autoGroupResolver          *service.AutoGroupResolver
 	gatewayService             *service.OpenAIGatewayService
 	billingCacheService        *service.BillingCacheService
 	apiKeyService              *service.APIKeyService
@@ -608,6 +609,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 
 	// 只有安全审核通过后才允许协议归一化改变请求体或路由语义。
 	sessionHashBody := body
@@ -1316,6 +1321,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		h.anthropicSecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 
 	// 解析渠道级模型映射
 	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
@@ -2145,6 +2154,17 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "model is required in first response.create payload")
 		return
 	}
+	if apiKey.IsAutoRouting() {
+		route, routeErr := h.resolveAutoWSTurn(c, apiKey, reqModel, firstMessage, nil, 0)
+		if routeErr != nil {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "automatic routing context is unavailable; start a new connection")
+			return
+		}
+		apiKey = route.Key
+		c.Request = c.Request.WithContext(route.RequestContext(c.Request.Context()))
+		middleware2.BindAPIKeyContext(c, apiKey, nil)
+		subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	}
 	ensureCompositeTargetPlatform(c, apiKey, reqModel)
 	ctx = c.Request.Context()
 	if apiKey.Group != nil && apiKey.Group.Platform == service.PlatformComposite {
@@ -2175,6 +2195,25 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		writeSecurityAuditWSError(ctx, wsConn, decision)
 		closeOpenAIClientWS(wsConn, securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision))
 		return
+	}
+	if apiKey.IsAutoRouting() {
+		admission, admissionErr := h.autoGroupResolver.Admit(ctx, apiKey)
+		if admissionErr != nil {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "automatic routing admission failed")
+			return
+		}
+		apiKey = admission.Key
+		middleware2.BindAPIKeyContext(c, apiKey, admission.Subscription)
+		subject, _ = middleware2.GetAuthSubjectFromContext(c)
+		route, _ := service.AutoRouteDecisionFromContext(c.Request.Context())
+		firstMessage, err = rewriteAutoWSModel(firstMessage, route)
+		if err != nil {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "invalid automatic routing model")
+			return
+		}
+		reqModel = route.UpstreamModel
+		previousResponseCanMove = false
+		ctx = c.Request.Context()
 	}
 
 	imageIntent := service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, firstMessage)
@@ -2603,6 +2642,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// AfterTurn 的计费读取所属 turn 的时刻。零值起步的语义见
 		// openAIWSTurnPricing 的注释——绝不能用建连时刻初始化。
 		var turnPricing openAIWSTurnPricing
+		var autoTurnState atomic.Pointer[autoWSTurnState]
+		initialAutoRoute, _ := service.AutoRouteDecisionFromContext(ctx)
+		autoTurnState.Store(&autoWSTurnState{turn: 1, key: apiKey, subscription: subscription, subject: subject, route: initialAutoRoute, ctx: ctx})
 		hooks := &service.OpenAIWSIngressHooks{
 			ClientLifecycleContext:      clientLifecycleCtx,
 			InitialRequestModel:         reqModel,
@@ -2612,6 +2654,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			ReasoningEffortMappings:     reasoningEffortMappings,
 			TurnStarted:                 recordTurnStart,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
+				apiKey, subscription, subject := apiKey, subscription, subject
+				routeContext := ctx
+				autoRoute := initialAutoRoute
+				if previous := autoTurnState.Load(); previous != nil && apiKey.IsAutoRouting() {
+					autoRoute = previous.route
+				}
 				c.Set(securityAuditWSTurnContextKey, turn)
 				service.BeginOpsStreamTurn(c, turn)
 				setCyberTurnBody(turn, payload)
@@ -2635,9 +2683,64 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				if model == "" {
 					model = reqModel
 				}
+				if apiKey.IsAutoRouting() && strings.TrimSpace(originalModel) == "" && !gjson.GetBytes(payload, "model").Exists() && autoRoute != nil {
+					model = autoRoute.PublicModel
+				}
+				if apiKey.IsAutoRouting() && (gjson.GetBytes(payload, "model").Exists() || gjson.GetBytes(payload, "previous_response_id").Exists() || gjson.GetBytes(payload, "type").String() == "response.create") {
+					route, routeErr := h.resolveAutoWSTurn(c, apiKey, model, payload, apiKey.GroupID, account.ID)
+					if routeErr != nil {
+						return autoWSCloseError(routeErr)
+					}
+					apiKey = route.Key
+					autoRoute = route
+					routeContext = route.RequestContext(ctx)
+					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency}
+				}
 				if decision := h.checkSecurityAuditStage(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload, "subsequent_turn"); decision != nil && !decision.AllowNextStage {
 					writeSecurityAuditWSError(ctx, wsConn, decision)
 					return service.NewOpenAIWSClientCloseError(securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision), nil)
+				}
+				if apiKey.IsAutoRouting() && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) != "response.create" {
+					_, err := h.autoGroupResolver.RestoreGroup(routeContext, apiKey, *apiKey.GroupID, requestPlatform)
+					if err != nil {
+						return autoWSCloseError(err)
+					}
+					return nil
+				}
+				if apiKey.IsAutoRouting() {
+					admission, admissionErr := h.autoGroupResolver.Admit(routeContext, apiKey)
+					if admissionErr != nil {
+						return autoWSCloseError(admissionErr)
+					}
+					apiKey, subscription = admission.Key, admission.Subscription
+					updatedRoute := *autoRoute
+					updatedRoute.Key = apiKey
+					autoRoute = &updatedRoute
+					routeContext = updatedRoute.RequestContext(ctx)
+					subID := int64(0)
+					if subscription != nil {
+						subID = subscription.ID
+					}
+					routeContext = service.WithAutoRouteSubscription(routeContext, subID)
+					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency}
+					if billingErr := h.billingCacheService.CheckBillingEligibility(routeContext, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(routeContext, apiKey)); billingErr != nil {
+						return autoWSCloseError(billingErr)
+					}
+					turnModel := model
+					if route, ok := service.AutoRouteDecisionFromContext(routeContext); ok {
+						turnModel = route.UpstreamModel
+					}
+					capability := service.OpenAIEndpointCapabilityChatCompletions
+					if service.IsExplicitImageGenerationIntent("/v1/responses", turnModel, payload) {
+						capability = service.OpenAIEndpointCapabilityResponses
+					}
+					latest, checkErr := h.gatewayService.RevalidateOpenAIAccountForWebSocketTurn(routeContext, account, apiKey.GroupID, requestPlatform, turnModel, requiredTransport, capability)
+					if checkErr != nil {
+						return autoWSCloseError(checkErr)
+					}
+					if latest == nil {
+						return autoWSCloseError(service.ErrAutoRouteNoAccess)
+					}
 				}
 				turnRequiredCapability := service.OpenAIEndpointCapabilityChatCompletions
 				if service.IsExplicitImageGenerationIntent("/v1/responses", model, payload) {
@@ -2649,12 +2752,20 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					}
 				}
 				turnCapability.Store(&openAIWSTurnCapabilitySnapshot{turn: turn, capability: turnRequiredCapability})
+				if apiKey.IsAutoRouting() {
+					autoTurnState.Store(&autoWSTurnState{turn: turn, key: apiKey, subscription: subscription, subject: subject, route: autoRoute, ctx: routeContext})
+				}
 				return nil
 			},
 			MapRequestModel: func(turn int, originalModel string) (string, error) {
 				model := strings.TrimSpace(originalModel)
 				if model == "" {
 					model = reqModel
+				}
+				if apiKey.IsAutoRouting() {
+					if state := autoTurnState.Load(); state != nil && state.turn == turn && state.route != nil {
+						model = state.route.UpstreamModel
+					}
 				}
 				setOpsRequestContext(c, model, true)
 				mapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(ctx, apiKey.GroupID, model)
@@ -2673,6 +2784,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return mapping.MappedModel, nil
 			},
 			BeforeTurn: func(turn int) error {
+				apiKey, subscription, subject, ctx := apiKey, subscription, subject, ctx
+				if state := autoTurnState.Load(); state != nil && state.turn == turn && apiKey.IsAutoRouting() {
+					apiKey, subscription, subject, ctx = state.key, state.subscription, state.subject, state.ctx
+				}
 				if err := h.enforceOpenAIWSIPAccess(ctx, trustedClientIdentity); err != nil {
 					return err
 				}
@@ -2684,7 +2799,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// later turn so a long-lived connection cannot bypass a balance,
 				// subscription, platform-quota, API-key-limit, or RPM decision that a
 				// fresh HTTP request would observe.
-				if turn > 1 {
+				if turn > 1 && !apiKey.IsAutoRouting() {
 					if err := h.billingCacheService.CheckBillingEligibility(ctx, apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(ctx, apiKey)); err != nil {
 						reqLog.Info("openai.websocket_turn_billing_eligibility_check_failed",
 							zap.Int("turn", turn),
@@ -2774,6 +2889,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return nil
 			},
 			AfterTurn: func(turn int, result *service.OpenAIForwardResult, turnErr error) {
+				apiKey, subscription, ctx := apiKey, subscription, ctx
+				if state := autoTurnState.Load(); state != nil && state.turn == turn && apiKey.IsAutoRouting() {
+					apiKey, subscription, ctx = state.key, state.subscription, state.ctx
+				}
 				turnDisconnectRiskMu.Lock()
 				disconnectLifecycle := turnDisconnectRisks[turn]
 				delete(turnDisconnectRisks, turn)
@@ -2906,7 +3025,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// 说明该会话链不属于本次调度到的账号，原样转发会触发上游会话链鉴权失败（“鉴权失败，请检查 API Key”）。
 		// 故剥离首包里的 previous_response_id，改用首包内 input 重建上下文；带 function_call_output 的
 		// 工具续链无法重建，保持原样。仅作用于首轮首包，后续 turn 的续链由 WS 转发层既有逻辑处理。
-		if previousResponseID != "" && !scheduleDecision.StickyPreviousHit && previousResponseCanMove {
+		if !apiKey.IsAutoRouting() && previousResponseID != "" && !scheduleDecision.StickyPreviousHit && previousResponseCanMove {
 			wsFirstMessage = service.RemovePreviousResponseIDFromBody(wsFirstMessage)
 			reqLog.Debug("openai.websocket_previous_response_id_stripped_cross_group",
 				zap.Int64("account_id", account.ID),

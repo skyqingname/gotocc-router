@@ -55,6 +55,7 @@ export default {
     disable: 'Disable',
     enable: 'Enable',
     ownerDisabled: 'Disabled by owner',
+    routingAuto: 'Smart routing',
     noGroup: 'No group',
     disableKeyTitle: 'Disable team key',
     disableKeyMessage: 'This key will stop authenticating immediately.',

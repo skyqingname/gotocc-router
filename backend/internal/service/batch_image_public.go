@@ -267,6 +267,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	holdID := BatchImageHoldRequestID(batchID)
 	holdAmount := pricingSnapshot.HoldAmount
 	job, err := s.Repo.CreateBatchImageJob(ctx, CreateBatchImageJobParams{
+		GroupID:                 owner.GroupID,
 		BatchID:                 batchID,
 		UserID:                  owner.UserID,
 		BillingUserID:           owner.EffectiveBillingUserID(),
@@ -966,6 +967,12 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 			if !account.IsSchedulable() || !account.IsModelSupported(model) {
 				continue
 			}
+			if route, ok := AutoRouteDecisionFromContext(ctx); ok && route.Key.Group != nil {
+				group := route.Key.Group
+				if (group.RequireOAuthOnly && account.Type == AccountTypeAPIKey) || (group.RequirePrivacySet && !account.IsPrivacySet()) {
+					continue
+				}
+			}
 			if provider.SupportsAccount(&account) {
 				return provider, &account, nil
 			}
@@ -978,6 +985,12 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 }
 
 func (s *BatchImagePublicService) listCandidateAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
+	if IsAutoRoutingRequest(ctx) {
+		locked, ok := AutoRouteGroupID(ctx)
+		if !ok || groupID == nil || *groupID != locked {
+			return nil, ErrAutoRouteContext
+		}
+	}
 	if s.AccountRepo == nil {
 		return nil, ErrBatchImageNoAccountAvailable
 	}

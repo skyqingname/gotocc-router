@@ -1,4 +1,10 @@
 export default {
+    smartRoutingPolicy: {
+      title: '智能路由优先级', defaultOrder: '默认分组顺序', modelRules: '模型独立顺序',
+      model: '模型或前缀', modelPlaceholder: 'gpt-5 或 gpt-*', selectGroup: '选择分组',
+      moveUp: '上移分组', moveDown: '下移分组', addRule: '添加模型规则', removeRule: '删除模型规则',
+      loadFailed: '加载路由优先级失败。', saveFailed: '保存失败，请检查模型表达式和重复分组。', saved: '路由优先级已保存。',
+    },
     scheduledTests: {
       title: '定时测试',
       addPlan: '添加计划',

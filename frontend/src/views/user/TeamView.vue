@@ -170,9 +170,10 @@
                   <div class="flex flex-wrap items-center gap-2">
                     <p class="font-medium text-gray-900 dark:text-white">{{ key.name }}</p>
                     <span class="badge" :class="key.team_owner_disabled || key.status !== 'active' ? 'badge-gray' : 'badge-success'">{{ key.team_owner_disabled ? t('team.ownerDisabled') : statusLabel(key.status) }}</span>
+                    <span v-if="key.routing_mode === 'auto'" class="badge bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{{ t('team.routingAuto') }}</span>
                   </div>
                   <p class="mt-1 truncate font-mono text-xs text-gray-500">{{ key.masked_key }}</p>
-                  <p class="mt-1 text-xs text-gray-500">{{ key.user_email }} · {{ key.group_name || t('team.noGroup') }}</p>
+                  <p class="mt-1 text-xs text-gray-500">{{ key.user_email }} · {{ key.routing_mode === 'auto' ? t('team.routingAuto') : (key.group_name || t('team.noGroup')) }}</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <button v-if="key.team_owner_disabled || key.status !== 'active'" class="btn btn-secondary btn-sm" @click="askEnableKey(key)"><Icon name="play" size="sm" />{{ t('team.enable') }}</button>

@@ -4,7 +4,14 @@
  */
 
 import { apiClient } from './client'
-import type { ApiKey, CreateApiKeyRequest, UpdateApiKeyRequest, PaginatedResponse } from '@/types'
+import type {
+  ApiKey,
+  ApiKeyRoutingCapabilities,
+  ApiKeyRoutingMode,
+  CreateApiKeyRequest,
+  UpdateApiKeyRequest,
+  PaginatedResponse,
+} from '@/types'
 
 /**
  * List all API keys for current user
@@ -24,6 +31,7 @@ export async function list(
     sort_by?: string
     sort_order?: 'asc' | 'desc'
     scope?: 'personal' | 'team'
+    routing_mode?: ApiKeyRoutingMode
   },
   options?: {
     signal?: AbortSignal
@@ -43,6 +51,16 @@ export async function list(
  */
 export async function getById(id: number): Promise<ApiKey> {
   const { data } = await apiClient.get<ApiKey>(`/keys/${id}`)
+  return data
+}
+
+/**
+ * Returns server-derived capabilities for a key owned by the current user.
+ * The endpoint never accepts a credential value, so it cannot be used to
+ * inspect another user's key.
+ */
+export async function getRoutingCapabilities(id: number): Promise<ApiKeyRoutingCapabilities> {
+  const { data } = await apiClient.get<ApiKeyRoutingCapabilities>(`/keys/${id}/routing-capabilities`)
   return data
 }
 
@@ -67,13 +85,18 @@ export async function create(
   quota?: number,
   expiresInDays?: number,
   rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
-  scope?: 'personal' | 'team'
+  scope?: 'personal' | 'team',
+  routingMode: ApiKeyRoutingMode = 'fixed'
 ): Promise<ApiKey> {
-  const payload: CreateApiKeyRequest = { name }
+  const payload: CreateApiKeyRequest = { name, routing_mode: routingMode }
   if (scope !== undefined) {
     payload.scope = scope
   }
-  if (groupId !== undefined) {
+  if (routingMode === 'auto') {
+    // Send both fields explicitly; the backend rejects any ambiguous mode/group
+    // combination instead of inferring a route from stale client state.
+    payload.group_id = null
+  } else if (groupId !== undefined) {
     payload.group_id = groupId
   }
   if (customKey) {
@@ -139,6 +162,7 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
 export const keysAPI = {
   list,
   getById,
+  getRoutingCapabilities,
   create,
   update,
   delete: deleteKey,

@@ -1,4 +1,10 @@
 export default {
+    smartRoutingPolicy: {
+      title: 'Smart Routing Priority', defaultOrder: 'Default Group Order', modelRules: 'Model Overrides',
+      model: 'Model or Prefix', modelPlaceholder: 'gpt-5 or gpt-*', selectGroup: 'Select group',
+      moveUp: 'Move group up', moveDown: 'Move group down', addRule: 'Add Model Rule', removeRule: 'Remove model rule',
+      loadFailed: 'Failed to load routing priorities.', saveFailed: 'Save failed. Check model patterns and duplicate groups.', saved: 'Routing priorities saved.',
+    },
     scheduledTests: {
       title: 'Scheduled Tests',
       addPlan: 'Add Plan',

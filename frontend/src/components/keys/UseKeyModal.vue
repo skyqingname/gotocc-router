@@ -6,8 +6,58 @@
     @close="emit('close')"
   >
     <div class="space-y-4">
+      <section
+        v-if="isAutoRouting"
+        data-testid="auto-routing-guide"
+        class="space-y-4"
+      >
+        <div>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            {{ t('keys.useKeyModal.auto.description') }}
+          </p>
+          <p
+            v-if="autoRoutingLoadState === 'error'"
+            class="mt-2 text-xs text-amber-700 dark:text-amber-300"
+          >
+            {{ t('keys.useKeyModal.auto.capabilitiesUnavailable') }}
+          </p>
+        </div>
+
+        <div
+          v-if="autoRoutingProtocols.length"
+          class="flex flex-wrap gap-2"
+          :aria-label="t('keys.useKeyModal.auto.protocolsLabel')"
+        >
+          <span
+            v-for="protocol in autoRoutingProtocols"
+            :key="protocol"
+            data-testid="auto-routing-protocol"
+            :data-protocol="protocol"
+            class="inline-flex items-center rounded bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+          >
+            {{ autoRoutingProtocolLabel(protocol) }}
+          </span>
+        </div>
+
+        <dl class="grid gap-3 rounded-lg border border-gray-200 p-4 text-sm dark:border-dark-700 sm:grid-cols-3">
+          <div class="min-w-0">
+            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('keys.useKeyModal.auto.baseUrl') }}</dt>
+            <dd class="mt-1 break-all font-mono text-xs text-gray-900 dark:text-white">{{ autoRoutingBaseURL }}</dd>
+          </div>
+          <div class="min-w-0">
+            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('keys.useKeyModal.auto.credential') }}</dt>
+            <dd class="mt-1 break-all font-mono text-xs text-gray-900 dark:text-white">Bearer {{ apiKey }}</dd>
+          </div>
+          <div class="min-w-0">
+            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('keys.useKeyModal.auto.modelCatalog') }}</dt>
+            <dd class="mt-1 break-all font-mono text-xs text-gray-900 dark:text-white">{{ autoRoutingModelsURL }}</dd>
+          </div>
+        </dl>
+        <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.useKeyModal.auto.capabilitiesHint') }}</p>
+      </section>
+
       <!-- No Group Assigned Warning -->
-      <div v-if="!platform" class="flex items-start gap-3 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+      <div v-else-if="!platform" class="flex items-start gap-3 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
         <svg class="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
@@ -262,7 +312,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { fetchCodexModelsManifest } from '@/api/codex'
-import type { GroupPlatform } from '@/types'
+import { keysAPI } from '@/api/keys'
+import type { ApiKeyRoutingCapabilities, ApiKeyRoutingMode, GroupPlatform } from '@/types'
 import {
   findCodexCatalogModel,
   formatCodexReasoningEffortTomlLine,
@@ -273,8 +324,11 @@ import {
 interface Props {
   show: boolean
   apiKey: string
+  apiKeyId?: number
   baseUrl: string
   platform: GroupPlatform | null
+  routingMode?: ApiKeyRoutingMode
+  routingCapabilities?: ApiKeyRoutingCapabilities | null
   allowMessagesDispatch?: boolean
 }
 
@@ -312,6 +366,70 @@ const codexModelManifestContent = ref('')
 const codexModelManifestModelCount = ref(0)
 let codexModelManifestController: AbortController | null = null
 let codexModelManifestRequestID = 0
+type AutoRoutingLoadState = 'idle' | 'loading' | 'ready' | 'error'
+const autoRoutingLoadState = ref<AutoRoutingLoadState>('idle')
+const loadedAutoRoutingCapabilities = ref<ApiKeyRoutingCapabilities | null>(null)
+let autoRoutingCapabilitiesController: AbortController | null = null
+let autoRoutingCapabilitiesRequestID = 0
+
+const isAutoRouting = computed(() => props.routingMode === 'auto')
+const autoRoutingCapabilities = computed(() => props.routingCapabilities ?? loadedAutoRoutingCapabilities.value)
+const autoRoutingProtocols = computed(() => {
+  const protocols = autoRoutingCapabilities.value?.protocols || []
+  return [...new Set(protocols.map((protocol) => protocol.trim()).filter(Boolean))]
+})
+const autoRoutingBaseURL = computed(() => {
+  const configured = props.baseUrl || (typeof window !== 'undefined' ? window.location.origin : '')
+  const normalized = configured.replace(/\/+$/, '')
+  return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`
+})
+const autoRoutingModelsURL = computed(() => `${autoRoutingBaseURL.value}/models`)
+
+function autoRoutingProtocolLabel(protocol: string): string {
+  const key = `keys.useKeyModal.auto.protocols.${protocol}`
+  const translated = t(key)
+  return translated === key ? protocol : translated
+}
+
+function resetAutoRoutingCapabilities() {
+  autoRoutingCapabilitiesController?.abort()
+  autoRoutingCapabilitiesController = null
+  autoRoutingCapabilitiesRequestID += 1
+  loadedAutoRoutingCapabilities.value = null
+  autoRoutingLoadState.value = 'idle'
+}
+
+async function loadAutoRoutingCapabilities() {
+  resetAutoRoutingCapabilities()
+  if (!props.show || !isAutoRouting.value) return
+  if (props.routingCapabilities) {
+    autoRoutingLoadState.value = 'ready'
+    return
+  }
+  if (!props.apiKeyId) return
+
+  const controller = new AbortController()
+  const requestID = ++autoRoutingCapabilitiesRequestID
+  autoRoutingCapabilitiesController = controller
+  autoRoutingLoadState.value = 'loading'
+  try {
+    const capabilities = await keysAPI.getRoutingCapabilities(props.apiKeyId)
+    if (requestID !== autoRoutingCapabilitiesRequestID) return
+    if (capabilities.routing_mode !== 'auto') throw new Error('routing mode changed')
+    loadedAutoRoutingCapabilities.value = capabilities
+    autoRoutingLoadState.value = 'ready'
+  } catch (error) {
+    const errorName = error && typeof error === 'object' && 'name' in error
+      ? String((error as { name?: unknown }).name || '')
+      : ''
+    if (requestID !== autoRoutingCapabilitiesRequestID || errorName === 'AbortError') return
+    autoRoutingLoadState.value = 'error'
+  } finally {
+    if (requestID === autoRoutingCapabilitiesRequestID) {
+      autoRoutingCapabilitiesController = null
+    }
+  }
+}
 
 const showCodexModelCatalog = computed(() =>
   props.show &&
@@ -359,6 +477,12 @@ watch(() => props.show, (show) => {
     resetCodexModelManifest()
   }
 })
+
+watch(
+  () => [props.show, props.apiKeyId, props.routingMode, props.routingCapabilities] as const,
+  () => { void loadAutoRoutingCapabilities() },
+  { immediate: true },
+)
 
 watch(codexManifestContext, (context, previousContext) => {
   if (context !== previousContext) {

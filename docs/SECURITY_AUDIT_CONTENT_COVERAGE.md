@@ -7,6 +7,16 @@ maintain alternate text extractors.
 
 ## Boundary And Ordering
 
+Automatic API-key routing resolves authorized group configuration before this
+boundary so group-scoped policies receive the real group ID. Resolution does
+not select an account, maintain subscription windows, consume quota, or contact
+upstream. The original HTTP/WS payload remains the audit input; composite model
+rewrites follow audit. Final admission rechecks the Key, payer, group and
+subscription before downstream execution. Model priority settings change only
+new candidate order, never a bound turn or task. Responses continuation must
+restore the same Key/group/account, and cannot recover by removing its context
+ID. See [API Key Smart Routing](API_KEY_SMART_ROUTING.md).
+
 Every accepted HTTP request, WebSocket turn, and Live Sideband client frame
 must cross the same security-audit boundary after authentication and basic
 request validation, but before:

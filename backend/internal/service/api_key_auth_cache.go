@@ -11,6 +11,7 @@ type APIKeyAuthSnapshot struct {
 	TeamOwnerDisabled bool                     `json:"team_owner_disabled"`
 	CreatedAt         time.Time                `json:"created_at"`
 	GroupID           *int64                   `json:"group_id,omitempty"`
+	RoutingMode       string                   `json:"routing_mode"`
 	Name              string                   `json:"name"`
 	Status            string                   `json:"status"`
 	IPWhitelist       []string                 `json:"ip_whitelist,omitempty"`

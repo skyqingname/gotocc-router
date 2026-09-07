@@ -39,8 +39,51 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	key, _ := middleware.GetAPIKeyFromContext(c)
+	prior, err := h.service.FindIdempotentSubmission(c.Request.Context(), owner, req, c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		batchImageError(c, err)
+		return
+	}
+	if prior != nil {
+		c.JSON(http.StatusOK, prior)
+		return
+	}
+	if key != nil && key.IsAutoRouting() {
+		if h.openAI == nil || h.openAI.autoGroupResolver == nil {
+			batchImageError(c, service.ErrAutoRouteUnavailable)
+			return
+		}
+		input := service.AutoRouteRequest{Model: req.Model, Provider: req.Provider, Endpoint: service.AutoRouteEndpointBatchImages}
+		if req.ParentBatchID != "" {
+			parent, err := h.service.Repo.GetBatchImageJobByBatchIDForOwner(c.Request.Context(), owner.UserID, owner.APIKeyID, req.ParentBatchID)
+			if err != nil {
+				batchImageError(c, err)
+				return
+			}
+			if parent.GroupID == nil {
+				batchImageError(c, service.ErrAutoRouteContext)
+				return
+			}
+			input.RequiredGroupID = parent.GroupID
+		}
+		route, err := h.openAI.autoGroupResolver.Resolve(c.Request.Context(), key, input)
+		if err != nil {
+			batchImageError(c, err)
+			return
+		}
+		key = route.Key
+		c.Request = c.Request.WithContext(route.RequestContext(c.Request.Context()))
+		middleware.BindAPIKeyContext(c, key, nil)
+	}
 	if !h.checkSecurityAuditBeforeSubmit(c, &req) {
 		return
+	}
+	if key != nil && key.IsAutoRouting() {
+		if !admitAutoHTTPRoute(c, h.openAI.autoGroupResolver, &key) {
+			return
+		}
+		owner, _ = batchImageOwnerFromContext(c)
 	}
 	if sessionID := service.ExtractClientSessionID(c); sessionID != "" {
 		req.SessionID = &sessionID

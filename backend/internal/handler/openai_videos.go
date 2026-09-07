@@ -122,6 +122,10 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 			h.openAISecurityAuditError(c, decision)
 			return
 		}
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &requestModel) {
+			return
+		}
+		subject, _ = middleware2.GetAuthSubjectFromContext(c)
 	}
 
 	setOpsRequestContext(c, requestModel, false)

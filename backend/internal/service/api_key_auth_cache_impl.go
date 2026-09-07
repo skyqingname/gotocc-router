@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 24 // v24: team billing and Codex model manifest fields
+const apiKeyAuthSnapshotVersion = 25 // v25: smart routing, team billing and Codex model manifests
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -390,6 +390,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		TeamOwnerDisabled: apiKey.TeamOwnerDisabled,
 		CreatedAt:         apiKey.CreatedAt,
 		GroupID:           apiKey.GroupID,
+		RoutingMode:       apiKey.EffectiveRoutingMode(),
 		Name:              apiKey.Name,
 		Status:            apiKey.Status,
 		IPWhitelist:       apiKey.IPWhitelist,
@@ -509,6 +510,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		TeamOwnerDisabled: snapshot.TeamOwnerDisabled,
 		CreatedAt:         snapshot.CreatedAt,
 		GroupID:           snapshot.GroupID,
+		RoutingMode:       snapshot.RoutingMode,
 		Key:               key,
 		Name:              snapshot.Name,
 		Status:            snapshot.Status,

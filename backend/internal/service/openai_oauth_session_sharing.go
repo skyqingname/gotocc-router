@@ -341,5 +341,9 @@ func (s *OpenAIGatewayService) bindOpenAIResponseAccount(ctx context.Context, st
 			return err
 		}
 	}
-	return store.BindResponseAccount(ctx, groupID, responseID, account.ID, ttl)
+	if err := store.BindResponseAccount(ctx, groupID, responseID, account.ID, ttl); err != nil {
+		return err
+	}
+	s.bindAutoResponseAffinityFromContext(ctx, account.ID, responseID)
+	return nil
 }

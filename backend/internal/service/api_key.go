@@ -14,6 +14,11 @@ const (
 	StatusAPIKeyExpired        = "expired"
 )
 
+const (
+	APIKeyRoutingFixed = "fixed"
+	APIKeyRoutingAuto  = "auto"
+)
+
 // Rate limit window durations
 const (
 	RateLimitWindow5h = 5 * time.Hour
@@ -35,6 +40,7 @@ type APIKey struct {
 	Key               string
 	Name              string
 	GroupID           *int64
+	RoutingMode       string
 	Status            string
 	IPWhitelist       []string
 	IPBlacklist       []string
@@ -68,6 +74,17 @@ type APIKey struct {
 	Window5hStart *time.Time // Start of current 5h window
 	Window1dStart *time.Time // Start of current 1d window
 	Window7dStart *time.Time // Start of current 7d window
+}
+
+func (k *APIKey) EffectiveRoutingMode() string {
+	if k == nil || k.RoutingMode == "" {
+		return APIKeyRoutingFixed
+	}
+	return k.RoutingMode
+}
+
+func (k *APIKey) IsAutoRouting() bool {
+	return k != nil && k.RoutingMode == APIKeyRoutingAuto
 }
 
 func (k *APIKey) IsActive() bool {
@@ -145,8 +162,9 @@ func (k *APIKey) EffectiveUsage7d() float64 {
 
 // APIKeyListFilters holds optional filtering parameters for listing API keys.
 type APIKeyListFilters struct {
-	Search  string
-	Status  string
-	GroupID *int64 // nil=不筛选, 0=无分组, >0=指定分组
-	Scope   string // personal or team; empty keeps legacy all-scope behavior
+	RoutingMode string
+	Search      string
+	Status      string
+	GroupID     *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	Scope       string // personal or team; empty keeps legacy all-scope behavior
 }

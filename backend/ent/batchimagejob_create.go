@@ -90,6 +90,20 @@ func (_c *BatchImageJobCreate) SetNillableAccountID(v *int64) *BatchImageJobCrea
 	return _c
 }
 
+// SetGroupID sets the "group_id" field.
+func (_c *BatchImageJobCreate) SetGroupID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetGroupID(v)
+	return _c
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableGroupID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
 // SetProvider sets the "provider" field.
 func (_c *BatchImageJobCreate) SetProvider(v string) *BatchImageJobCreate {
 	_c.mutation.SetProvider(v)
@@ -852,6 +866,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AccountID(); ok {
 		_spec.SetField(batchimagejob.FieldAccountID, field.TypeInt64, value)
 		_node.AccountID = &value
+	}
+	if value, ok := _c.mutation.GroupID(); ok {
+		_spec.SetField(batchimagejob.FieldGroupID, field.TypeInt64, value)
+		_node.GroupID = &value
 	}
 	if value, ok := _c.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)
@@ -1798,6 +1816,9 @@ func (u *BatchImageJobUpsertOne) UpdateNewValues() *BatchImageJobUpsertOne {
 	u.create.conflict = append(u.create.conflict, sql.ResolveWith(func(s *sql.UpdateSet) {
 		if _, exists := u.create.mutation.BatchID(); exists {
 			s.SetIgnore(batchimagejob.FieldBatchID)
+		}
+		if _, exists := u.create.mutation.GroupID(); exists {
+			s.SetIgnore(batchimagejob.FieldGroupID)
 		}
 		if _, exists := u.create.mutation.CreatedAt(); exists {
 			s.SetIgnore(batchimagejob.FieldCreatedAt)
@@ -2865,6 +2886,9 @@ func (u *BatchImageJobUpsertBulk) UpdateNewValues() *BatchImageJobUpsertBulk {
 		for _, b := range u.create.builders {
 			if _, exists := b.mutation.BatchID(); exists {
 				s.SetIgnore(batchimagejob.FieldBatchID)
+			}
+			if _, exists := b.mutation.GroupID(); exists {
+				s.SetIgnore(batchimagejob.FieldGroupID)
 			}
 			if _, exists := b.mutation.CreatedAt(); exists {
 				s.SetIgnore(batchimagejob.FieldCreatedAt)

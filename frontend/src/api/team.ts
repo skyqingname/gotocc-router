@@ -66,6 +66,7 @@ export interface TeamAPIKey {
   status: string
   team_owner_disabled: boolean
   group_id: number | null
+  routing_mode?: 'fixed' | 'auto'
   group_name: string
   last_used_at: string | null
   created_at: string

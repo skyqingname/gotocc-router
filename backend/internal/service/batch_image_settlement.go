@@ -258,6 +258,7 @@ func buildBatchImageSettlementUsageLog(job *BatchImageJob, actualCost float64, r
 	imageSize := "1K"
 	complete := true
 	return &UsageLog{
+		GroupID:               job.GroupID,
 		UserID:                job.UserID,
 		BillingUserID:         batchImageBillingUserID(job),
 		TeamID:                job.TeamID,

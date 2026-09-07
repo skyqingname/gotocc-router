@@ -203,6 +203,7 @@ describe('user TeamView', () => {
       team_owner_disabled: false,
       group_id: 2,
       group_name: 'OpenAI',
+      routing_mode: 'auto',
       last_used_at: null,
       created_at: '2026-08-01T00:00:00Z',
     }])
@@ -213,6 +214,7 @@ describe('user TeamView', () => {
 
     expect(wrapper.text()).toContain('sk-team...safe')
     expect(wrapper.text()).not.toContain('sk-team-secret-must-not-render')
+    expect(wrapper.text()).toContain('team.routingAuto')
   })
 
   it('exposes owner tour entry points and starts the routed guide', async () => {

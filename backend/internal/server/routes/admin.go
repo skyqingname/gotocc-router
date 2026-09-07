@@ -251,7 +251,10 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 func registerAdminAPIKeyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	apiKeys := admin.Group("/api-keys")
 	{
+		apiKeys.GET("/routing-policy", h.Gateway.AdminGetRoutingPolicy)
+		apiKeys.PUT("/routing-policy", middleware.RequestBodyLimit(1<<20), h.Gateway.AdminUpdateRoutingPolicy)
 		apiKeys.PUT("/:id", h.Admin.APIKey.UpdateGroup)
+		apiKeys.GET("/:id/routing-capabilities", h.Gateway.AdminRoutingCapabilities)
 	}
 }
 

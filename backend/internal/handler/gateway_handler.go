@@ -39,6 +39,7 @@ var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 
 // GatewayHandler handles API gateway requests
 type GatewayHandler struct {
+	autoGroupResolver         *service.AutoGroupResolver
 	gatewayService            *service.GatewayService
 	openAIGatewayService      *service.OpenAIGatewayService
 	geminiCompatService       *service.GeminiMessagesCompatService
@@ -230,6 +231,17 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, reqModel, body); decision != nil && !decision.AllowNextStage {
 		h.anthropicSecurityAuditError(c, decision)
 		return
+	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	if apiKey.IsAutoRouting() {
+		parsedReq, err = service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformAnthropic)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
 	}
 
 	// 安全审核通过后才解析渠道级模型映射，避免路由阶段先于审核门。
@@ -997,7 +1009,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						zap.Any("fallback_group_id", fallbackGroupID),
 						zap.Bool("fallback_used", fallbackUsed),
 					)
-					if !fallbackUsed && fallbackGroupID != nil && *fallbackGroupID > 0 {
+					if !apiKey.IsAutoRouting() && !fallbackUsed && fallbackGroupID != nil && *fallbackGroupID > 0 {
 						fallbackGroup, err := h.gatewayService.ResolveGroupByID(c.Request.Context(), *fallbackGroupID)
 						if err != nil {
 							reqLog.Warn("gateway.resolve_fallback_group_failed", zap.Int64("fallback_group_id", *fallbackGroupID), zap.Error(err))
@@ -2199,6 +2211,21 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 
 	setOpsRequestContext(c, parsedReq.Model, parsedReq.Stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(parsedReq.Stream, false)))
+	if apiKey.IsAutoRouting() {
+		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, parsedReq.Model, body); decision != nil && !decision.AllowNextStage {
+			h.anthropicSecurityAuditError(c, decision)
+			return
+		}
+		model := parsedReq.Model
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &model) {
+			return
+		}
+		parsedReq, err = service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformAnthropic)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
+	}
 
 	// 获取订阅信息（可能为nil）
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)

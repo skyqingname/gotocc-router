@@ -361,7 +361,7 @@ import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { keysAPI } from '@/api'
 import { AsyncImageDownloadValidationError, deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageObjectURL, getAsyncImageTask, listAsyncImageModels, listAsyncImageTasks, preferredAsyncImageModel, saveAsyncImageBlob, submitAsyncImageEdit, submitAsyncImageGeneration, type AsyncImageTask, type AsyncImageTaskResultItem } from '@/api/asyncImage'
-import { keyAllowsAsyncImage, keyCanManageAsyncImage } from '@/composables/useAsyncImageAccess'
+import { getAutoRoutingCapabilities, isAutoRoutingKey, keyAllowsAsyncImage, keyCanManageAsyncImage } from '@/composables/useAsyncImageAccess'
 import { useAppStore } from '@/stores/app'
 import { isGPTImage2, isGPTImage2ExperimentalSize, validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
 import type { Column } from '@/components/common/types'
@@ -409,7 +409,9 @@ const form = reactive({ apiKeyId: 0, mode: 'generation' as AsyncImageMode, model
 const editImages = ref<EditImageUpload[]>([])
 const editMask = ref<EditImageUpload | null>(null)
 
-const eligibleKeys = computed(() => apiKeys.value.filter(keyAllowsAsyncImage))
+const eligibleKeys = computed(() => apiKeys.value.filter((key) =>
+  keyAllowsAsyncImage(key) || (isAutoRoutingKey(key) && key.status === 'active'),
+))
 const manageableKeys = computed(() => apiKeys.value.filter(keyCanManageAsyncImage))
 const apiKeyFilterOptions = computed<SelectOption[]>(() => [
   { value: 0, label: t('asyncImage.filters.selectKey') },
@@ -578,6 +580,14 @@ async function loadFormModels() {
 
   loadingModels.value = true
   try {
+    if (isAutoRoutingKey(key)) {
+      const capabilities = await getAutoRoutingCapabilities(key)
+      if (requestID !== modelRequestID) return
+      if (!keyAllowsAsyncImage(key, capabilities || undefined)) {
+        appStore.showError(t('asyncImage.errors.autoRoutingUnsupported'))
+        return
+      }
+    }
     const models = await listAsyncImageModels(key.key)
     if (requestID !== modelRequestID) return
     availableModels.value = models
