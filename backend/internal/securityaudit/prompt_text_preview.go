@@ -97,6 +97,8 @@ func guardErrorKind(err error) string {
 		switch {
 		case failure.Timeout || errors.Is(err, context.DeadlineExceeded):
 			return "timeout"
+		case failure.HTTPStatus == 401 || failure.HTTPStatus == 403:
+			return "authentication_failed"
 		case failure.HTTPStatus > 0:
 			return "upstream_http"
 		case failure.Code == ErrorCodeInvalidResponse:

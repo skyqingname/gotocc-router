@@ -13,6 +13,8 @@ GoToCC 0.2.1+custom.002
 
 - Changed CCS imports and one-click OpenAI/Codex HTTP/WS configuration defaults to `gpt-6-astra`, including the review model. Both entry points share `client-access-defaults.json`.
 
+- Node probes now call the actual audit model directly, without requiring model-list permission. Authentication failures are explicit, and credential clearing is honored.
+
 ## Migration and compatibility
 
 Existing production SQL through 252 is unchanged. PR migrations 253/254 add API Key routing mode and original batch-image group. Imported upstream migrations are renamed 255–259 with unchanged SQL contents: factory monitor Astra entry, upstream request ID column and partial concurrent index, max-reasoning multiplier, and group Codex manifest JSON.

@@ -344,3 +344,14 @@ and can therefore exceed a single endpoint timeout in total. Text preview has
 an explicit browser cancel control and no competing 30-second client timeout.
 The input character limit comes from `prompt-audit-defaults.json` and is exposed
 in the public audit configuration.
+
+
+Node connection probes call the configured `/v1/chat/completions` audit model
+and parse its result. `/v1/models` access is not a prerequisite. Both probes
+and text preview distinguish upstream 401/403 authentication failures from
+timeouts and invalid output. Explicitly clearing a credential is also honored
+by probes; stored credentials are reused only for the same endpoint and URL.
+
+Persistent node credentials require a fixed `totp.encryption_key` in the
+service configuration file (64 hexadecimal characters). An automatically
+generated process key cannot be used to save restart-stable node credentials.

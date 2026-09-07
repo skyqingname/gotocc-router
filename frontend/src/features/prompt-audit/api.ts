@@ -40,6 +40,7 @@ export async function probeEndpoint(endpoint: PromptAuditEndpointDraft, policy?:
       base_url: endpoint.base_url,
       model: endpoint.model,
       token: endpoint.token || undefined,
+      clear_token: endpoint.clear_token,
       timeout_ms: endpoint.timeout_ms,
       input_limit: endpoint.input_limit,
       enabled: endpoint.enabled,

@@ -34,6 +34,7 @@ export default {
       "longInput": "Long text is split into chunks. Each call uses the endpoint timeout; you can cancel at any time.",
       "failureBody": "No valid audit decision was returned. This is neither a pass nor a block.",
       "timeout": "Audit endpoint timed out",
+      "authentication_failed": "Audit endpoint authentication failed. Check the API key and model permissions for this endpoint.",
       "upstream_http": "Audit endpoint returned an HTTP error",
       "invalid_response": "The model response does not match the configured output format",
       "unavailable": "Audit endpoint is unavailable",
