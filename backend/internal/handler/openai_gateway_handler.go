@@ -1079,9 +1079,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			if account.Type == service.AccountTypeOAuth && !account.IsShadow() {
 				h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(c.Request.Context(), account.ID, result.ResponseHeaders)
 			}
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, forwardModel, requireCompact, result), openAIForwardSucceededForScheduling(err, result), result.FirstTokenMs)
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, forwardModel, requireCompact, result), openAIForwardSucceededForScheduling(err, result), result.FirstTokenMs, err)
 		} else {
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, forwardModel, requireCompact, result), openAIForwardSucceededForScheduling(err, result), nil)
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, forwardModel, requireCompact, result), openAIForwardSucceededForScheduling(err, result), nil, err)
 		}
 
 		submitResponsesUsage(result)
@@ -1613,7 +1613,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						zap.Error(err),
 					)
 				} else {
-					h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(currentRoutingModel), false, nil)
+					h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(currentRoutingModel), false, nil, err)
 					wroteFallback := h.ensureAnthropicErrorResponse(c, streamStarted)
 					reqLog.Warn("openai_messages.forward_failed",
 						zap.Int64("account_id", account.ID),
@@ -1628,9 +1628,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			}
 		}
 		if result != nil {
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, currentRoutingModel, false, result), openAIForwardSucceededForScheduling(err, result), result.FirstTokenMs)
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, currentRoutingModel, false, result), openAIForwardSucceededForScheduling(err, result), result.FirstTokenMs, err)
 		} else {
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, currentRoutingModel, false, result), openAIForwardSucceededForScheduling(err, result), nil)
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, currentRoutingModel, false, result), openAIForwardSucceededForScheduling(err, result), nil, err)
 		}
 
 		submitMessagesUsage(result)
@@ -1721,7 +1721,7 @@ func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, 
 
 // ensureAnthropicErrorResponse writes a fallback Anthropic error if no response was written.
 func (h *OpenAIGatewayHandler) ensureAnthropicErrorResponse(c *gin.Context, streamStarted bool) bool {
-	if c == nil || c.Writer == nil || c.Writer.Written() {
+	if c == nil || c.Writer == nil || c.Writer.Written() || c.GetBool(service.OpsClientDisconnectedKey) {
 		return false
 	}
 	h.anthropicStreamingAwareError(c, http.StatusBadGateway, "api_error", "Upstream request failed", streamStarted)
@@ -3605,6 +3605,10 @@ func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, stream
 	if c == nil || c.Writer == nil {
 		return false
 	}
+	if c.GetBool(service.OpsClientDisconnectedKey) {
+		return false
+	}
+
 	// 先停 compact 心跳再读 Writer 状态，避免与心跳 goroutine 竞争。
 	compactKeepaliveCommitted := service.StopOpenAICompactSSEKeepaliveCommitted(c)
 	if compactKeepaliveCommitted {

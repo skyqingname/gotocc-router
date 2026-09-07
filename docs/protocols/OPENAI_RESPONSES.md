@@ -316,3 +316,18 @@ gateway:
 The environment equivalent is
 `GATEWAY_OPENAI_WS_MODE_ROUTER_V2_ENABLED=true`. Use `http_bridge` when the
 client keeps a WebSocket while the selected upstream uses HTTP/SSE.
+
+
+### Downstream disconnect attribution (GoToCC)
+
+A failed write to the caller is distinct from an upstream HTTP or terminal
+response failure. Positively identified client disconnects return the typed
+`ErrOpenAIClientDisconnected` result, retain collected usage for settlement,
+and mark a `client_disconnect` network event. No generic 502 SSE frame is
+appended to the closed connection. Ops retains the actual wire HTTP status
+(often 200), assigns the event to the downstream/client side and excludes it
+from provider-error counters and account health failure observations.
+
+This classification identifies the direction of the failed connection, not
+whether the user, a proxy, an SSH tunnel or the network initiated closure.
+Existing upstream terminal failures keep their original classification.

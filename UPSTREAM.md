@@ -2,7 +2,7 @@
 
 This file maps custom releases to their official Sub2API baseline. Historical
 rows are inherited metadata; feature imports preserve their recorded status.
-Owned release publication is verified and finalized in a separate metadata PR.
+Owned release publication uploads the same package after local manual acceptance.
 Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Release Mapping

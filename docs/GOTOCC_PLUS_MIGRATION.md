@@ -278,3 +278,32 @@ Take a matched database/runtime backup before production startup and stop the
 old writer before starting the candidate. Backfill and index creation require
 a measured local rehearsal and a production size/lock review. After forward
 migration or new writes, a binary-only downgrade is not a data rollback.
+
+
+## GoToCC 0.2.1 candidate lineage
+
+Plus input: `v0.2.1+custom.001`, commit `39f6e2908975636956c184bbc084e90c8b392f74`.
+The 303 previously owned SQL files remain byte-for-byte unchanged. PR #5 adds
+`253_api_key_smart_routing.sql` and `254_batch_image_routing_group.sql` unchanged.
+
+| Plus filename | Owned filename |
+| --- | --- |
+| `251_channel_monitor_gpt6_astra.sql` | `255_channel_monitor_gpt6_astra.sql` |
+| `252_add_usage_log_upstream_request_id.sql` | `256_add_usage_log_upstream_request_id.sql` |
+| `253_add_usage_log_upstream_request_id_index_notx.sql` | `257_add_usage_log_upstream_request_id_index_notx.sql` |
+| `254_channel_max_reasoning_effort_multiplier.sql` | `258_channel_max_reasoning_effort_multiplier.sql` |
+| `255_group_codex_models_manifest_config.sql` | `259_group_codex_models_manifest_config.sql` |
+
+Only imported filenames change, preserving SQL contents and checksum identity.
+Column additions and constraints require table locks; constraint validation scans
+API keys, and the usage request-ID index performs a concurrent scan with extra
+index and WAL disk usage. Legacy request IDs and batch group IDs stay NULL;
+no business-data backfill is attempted. The Astra monitor update applies only
+to factory settings. Existing credentials and balances are not changed.
+
+The auth snapshot version includes routing mode, team attribution and Codex
+manifest fields; existing session/JWT data and unrelated Redis keys remain.
+Smart response affinity uses the existing response TTL in shared Redis.
+Downgrades must first disable smart keys or restore explicit fixed groups;
+retain additive schema and historical ownership. Never overlap writer versions
+or restore an older dump over new transactions.

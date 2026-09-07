@@ -2722,6 +2722,9 @@ func openAIAccountTransportCompatible(cfg *config.Config, resolver OpenAIWSProto
 }
 
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Account, model string, success bool, firstTokenMs *int, observedErr ...error) bool {
+	if len(observedErr) > 0 && errors.Is(observedErr[0], ErrOpenAIClientDisconnected) {
+		return false
+	}
 	if account == nil {
 		return false
 	}

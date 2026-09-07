@@ -1,46 +1,22 @@
-Sub2API Plus v0.2.1+custom.002
+GoToCC 0.2.1+custom.002
 
-## Highlights
+## Changes
 
-- Completes the owned update channel with immutable binary and pricing assets published together. Supersedes the incomplete custom.003 release.
+- Adapted the complete Plus v0.2.1+custom.001 tree (39f6e2908975636956c184bbc084e90c8b392f74), based on official Sub2API v0.2.1, while retaining active GotoCC contracts.
+- Integrated reviewed PR #5: explicit smart API Key routing and per-model group priority. Existing keys remain fixed; smart keys choose only groups available to the payer and keep the selected group's billing, audit and resource ownership.
+- Fixed downstream client disconnects being reported as generic upstream 502 failures. The handler records a downstream network event with the actual HTTP status, avoids writing another error to the closed connection and excludes the disconnect from account-health failure observations. Partial usage settlement and lifecycle records remain intact.
+- Retained upstream request IDs, Codex model manifest configuration, max-reasoning pricing support, and image response improvements from Plus.
 
-- Preserved GotoCC teams, permanent image objects, video terminal billing, and configurable audit policies on the upstream v0.2.0+custom.002 baseline.
+## Migration and compatibility
 
-- Added client-disconnect lifecycle tracking, ordered streak enforcement, automatic user disabling, and administrator event review.
-- Added durable Content Moderation session blocks and persisted redacted moderation input for administrator review.
+Existing production SQL through 252 is unchanged. PR migrations 253/254 add API Key routing mode and original batch-image group. Imported upstream migrations are renamed 255–259 with unchanged SQL contents: factory monitor Astra entry, upstream request ID column and partial concurrent index, max-reasoning multiplier, and group Codex manifest JSON.
 
-## Changed
+ALTER TABLE statements take table locks; routing-mode constraints scan existing keys, and the upstream request ID index scans usage_logs concurrently with additional disk I/O and index/WAL space. Historical usage request IDs and batch groups stay NULL; there is no bulk business-data backfill. The monitor update only affects factory configuration with updated_by IS NULL.
 
-- Separated the gray owned-release badge from the upstream status badge; unadapted upstream releases turn the latter amber and can be refreshed and reviewed independently.
-- Added GPT-6 Astra official default pricing: $10 input, $50 output, $1 cache read and $12.50 cache write per million tokens, with published long-context and Fast/Flex price rules.
-- Prompt Audit now scans the official client-controlled transcript; latest-turn blocking includes the nearest preceding assistant/model output, while Content Moderation remains limited to direct-user content.
-- Empty IP last-seen times no longer display as permanent bans for unhit automatic blocks.
+Smart routing policy uses the existing settings table; new response affinity entries use shared Redis with the existing TTL. The auth snapshot version advances to include smart routing, team billing and Codex manifest fields. No Redis flush or new environment variables are required.
 
-## Fixed
+Before an application downgrade, disable smart keys or explicitly return them to fixed groups. Keep all added schema and task ownership records. After new writes, swapping the binary is not a data rollback. Do not overlap old/new writers.
 
-- Publish the locally built Linux/amd64 archive and both pricing assets together, then make the complete release immutable.
+## Local acceptance
 
-- Added explicit confidence JSON parsing with a configurable inclusive threshold; custom scoring prompts no longer fail the Qwen3Guard response parser. Legacy configurations keep their original format.
-- Node probes now execute and parse a model response, and latest-turn audit includes tool results from that turn.
-
-- Hardened usage settlement after client disconnects so accepted requests retain billing and lifecycle outcomes without silently dropping queued work.
-- Closed session-block and disconnect-risk settlement holes so PostgreSQL remains the session-block source of truth and admitted OpenAI WS turns still settle after disconnect.
-
-## Compatibility and migration
-
-- Audit response format and confidence threshold are versioned settings. Existing formats and production enable/block switches remain unchanged until an administrator saves the new policy.
-
-Database migrations 247 through 252 add client-disconnect lifecycle state and events, usage completion metadata, durable Content Moderation session blocks, and persisted moderation input.
-
-## Known issues
-
-- This release provides the locally verified Linux/amd64 binary package used by the production service. Container images and other platform archives are not published for this version.
-
-- Local request verification uses synthetic models and data; real-provider behavior and production-volume migration duration require deployment-specific verification.
-
-## Upstream baseline
-
-Plus release: v0.2.0+custom.002
-Plus commit: cd1d8438cbe19358936605af7e6b20954283bf15
-Official release: v0.2.0
-Official commit: aa236488351eb71e120fc2b6fb32e36b0374c918
+The Linux/amd64 archive and its runtime pricing resources are built locally for manual acceptance. No new paid image/video probes are used. The underlying cause of downstream connection closure in the historical incident remains unproven; this fix corrects error attribution and handling, not the remote network path. This package has not been published or deployed.
