@@ -17,6 +17,7 @@ def main():
         "package securityaudit\n\n"
         "const DefaultAuditResponseFormat = " + json.dumps(config["response_format"]) + "\n"
         "const DefaultConfidenceThreshold = " + str(config["confidence_threshold"]) + "\n"
+        "const DefaultTextTestMaxRunes = " + str(config["text_test_max_runes"]) + "\n"
         "const DefaultConfidenceAuditPrompt = " + json.dumps(config["confidence_audit_prompt"], ensure_ascii=False) + "\n"
     )
     destination = ROOT / "backend/internal/securityaudit/prompt_defaults_gen.go"

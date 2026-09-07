@@ -22,6 +22,7 @@ export interface PromptAuditEndpointDraft extends PromptAuditEndpoint {
 }
 
 export interface PromptAuditConfig {
+  text_test_max_runes?: number
   enabled: boolean
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
@@ -264,4 +265,29 @@ export interface PromptLoadErrors {
   runtime: string
   groups: string
   events: string
+}
+
+
+export interface PromptTextPreviewResult {
+  ok: boolean
+  decision: 'allow' | 'flag' | 'block' | 'unavailable' | 'invalid'
+  would_block: boolean
+  effective_mode: PromptAuditMode
+  config_version: number
+  response_format: AuditResponseFormat
+  confidence_threshold: number
+  latency_ms: number
+  guard_endpoint_id?: string
+  error_code?: string
+  error_kind?: string
+  http_status?: number
+  result?: {
+    action: 'Allow' | 'Warn' | 'Block'
+    categories: string[]
+    scanner_scores: Record<string, number>
+    scanner_evidence: Record<string, string>
+    scanner_version: string
+    chunk_total: number
+    input_limit: number
+  }
 }

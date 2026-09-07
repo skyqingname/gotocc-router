@@ -145,3 +145,7 @@ terminal events reset the streak, failed terminal events are neutral, and only
 still-pending response IDs become disconnected when the connection closes. A
 missing user role skips Grok Realtime counting so the administrator exemption
 cannot be lost.
+
+
+Prompt audit text preview is an administrator diagnostic call. It does not
+enter a gateway request lifecycle or produce user disconnect/violation events.

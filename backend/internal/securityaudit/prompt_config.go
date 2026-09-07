@@ -142,6 +142,7 @@ type PublicEndpoint struct {
 }
 
 type PublicConfig struct {
+	TextTestMaxRunes             int              `json:"text_test_max_runes"`
 	Enabled                      bool             `json:"enabled"`
 	BlockingEnabled              bool             `json:"blocking_enabled"`
 	BlockingLatestTurnOnly       bool             `json:"blocking_latest_turn_only"`
@@ -448,7 +449,8 @@ func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenE
 	}
 	active := ActiveConfig{RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled}
 	return PublicConfig{
-		Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
+		TextTestMaxRunes: DefaultTextTestMaxRunes,
+		Enabled:          cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
 		EffectiveMode: active.EffectiveMode(), Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, AuditPrompt: cfg.AuditPrompt, DefaultAuditPrompt: DefaultAuditPrompt,
 		DefaultConfidenceAuditPrompt: DefaultConfidenceAuditPrompt, ResponseFormat: cfg.ResponseFormat, ConfidenceThreshold: cfg.ConfidenceThreshold,

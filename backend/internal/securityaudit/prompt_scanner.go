@@ -71,6 +71,7 @@ func AggregateResults(results []*NormalizedResult, latency time.Duration) (*Norm
 		for scanner, score := range result.ScannerScores {
 			if prior, exists := aggregated.ScannerScores[scanner]; !exists || score > prior {
 				aggregated.ScannerScores[scanner] = score
+				aggregated.ScannerEvidence[scanner] = RedactPreview(result.ScannerEvidence[scanner], 160)
 			}
 		}
 		for scanner, evidence := range result.ScannerEvidence {

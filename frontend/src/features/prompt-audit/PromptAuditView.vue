@@ -38,6 +38,9 @@
         </div>
 
         <main class="card px-4 sm:px-6 lg:px-8">
+          <div v-if="activeTab === 'test' && serverConfig" data-test="tab-panel-test">
+            <TextTestPanel :config="serverConfig" :dirty="dirty" />
+          </div>
           <div v-show="activeTab === 'config'" data-test="tab-panel-config">
             <RuntimeOverview :runtime="runtime" :loading="loading.runtime" :error="loadErrors.runtime" @refresh="loadRuntime" />
 
@@ -155,6 +158,8 @@ import RuntimeOverview from './components/RuntimeOverview.vue'
 import EndpointPool from './components/EndpointPool.vue'
 import PolicyPanel from './components/PolicyPanel.vue'
 import AuditPromptPanel from './components/AuditPromptPanel.vue'
+import TextTestPanel from './components/TextTestPanel.vue'
+import { useRoute } from 'vue-router'
 import EventWorkspace from './components/EventWorkspace.vue'
 import EventDetailDialog from './components/EventDetailDialog.vue'
 import FilterDeleteDialog from './components/FilterDeleteDialog.vue'
@@ -175,11 +180,13 @@ import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEv
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
-type PromptAuditPageTab = 'config' | 'events'
-const activeTab = ref<PromptAuditPageTab>('events')
+type PromptAuditPageTab = 'config' | 'events' | 'test'
+const route = useRoute()
+const activeTab = ref<PromptAuditPageTab>(route.query.tab === 'test' ? 'test' : 'events')
 const pageTabs = computed(() => [
   { id: 'events' as const, label: t('admin.promptAudit.tabs.events') },
   { id: 'config' as const, label: t('admin.promptAudit.tabs.config') },
+  { id: 'test' as const, label: t('admin.promptAudit.tabs.test') },
 ])
 const serverConfig = ref<PromptAuditDraft | null>(null)
 const draft = ref<PromptAuditDraft | null>(null)

@@ -331,3 +331,13 @@ from provider-error counters and account health failure observations.
 This classification identifies the direction of the failed connection, not
 whether the user, a proxy, an SSH tunnel or the network initiated closure.
 Existing upstream terminal failures keep their original classification.
+
+
+### Client access defaults
+
+The one-click Codex configuration and CCS import defaults share
+`client-access-defaults.json` (`openai_model: gpt-6-astra`). HTTP and WS configs
+use this preference for both `model` and `review_model`. When an administrator
+explicitly fetches a restricted account model catalog, the existing catalog
+selection rules still apply. Personal/team Key scope and authentication remain
+unchanged; this setting does not rewrite users' existing local client files.

@@ -7,6 +7,12 @@ GoToCC 0.2.1+custom.002
 - Fixed downstream client disconnects being reported as generic upstream 502 failures. The handler records a downstream network event with the actual HTTP status, avoids writing another error to the closed connection and excludes the disconnect from account-health failure observations. Partial usage settlement and lifecycle records remain intact.
 - Retained upstream request IDs, Codex model manifest configuration, max-reasoning pricing support, and image response improvements from Plus.
 
+- Fixed a 30-second whole-evaluation deadline incorrectly shared by all prompt-audit chunks. Each endpoint attempt now receives its configured timeout, while parent cancellation still applies.
+- Added an administrator text test using saved audit configuration and the real evaluation path, with pass/block/error, confidence, reason, endpoint and timing results. No user violation events or business-model calls are created.
+- Aggregated confidence evidence now corresponds to the highest recorded score.
+
+- Changed CCS imports and one-click OpenAI/Codex HTTP/WS configuration defaults to `gpt-6-astra`, including the review model. Both entry points share `client-access-defaults.json`.
+
 ## Migration and compatibility
 
 Existing production SQL through 252 is unchanged. PR migrations 253/254 add API Key routing mode and original batch-image group. Imported upstream migrations are renamed 255–259 with unchanged SQL contents: factory monitor Astra entry, upstream request ID column and partial concurrent index, max-reasoning multiplier, and group Codex manifest JSON.

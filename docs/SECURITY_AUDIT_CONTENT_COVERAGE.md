@@ -323,3 +323,24 @@ the same change and provide all of the following evidence:
 
 Route-call presence or static source-order assertions alone do not prove
 content coverage.
+
+
+## Administrator text preview
+
+`POST /api/v1/admin/prompt-audit/test` accepts `{ "text": "..." }` under the
+existing administrator authentication. It loads saved policy and wraps the text
+as one Responses user message, then runs the same extraction, splitting,
+endpoint selection, scanner, aggregation and inclusive threshold decision used
+by the blocking guard. It returns the decision, confidence/evidence, latency,
+configuration version and safe endpoint failure details. No business model is
+called and no user violation event, ban or billing entry is created. The admin
+operation log omits the text body. Preview works with auditing switched off;
+live blocking still depends on the configured mode and group scope.
+
+Each chunk/endpoint attempt gets that endpoint's configured `timeout_ms`.
+Earlier chunks cannot consume later chunks' or failover nodes' time budgets.
+The parent request can still cancel processing. Long inputs take multiple calls
+and can therefore exceed a single endpoint timeout in total. Text preview has
+an explicit browser cancel control and no competing 30-second client timeout.
+The input character limit comes from `prompt-audit-defaults.json` and is exposed
+in the public audit configuration.

@@ -59,6 +59,7 @@ var categoryAliases = map[string]string{
 }
 
 type GuardError struct {
+	EndpointID string
 	Code       string
 	HTTPStatus int
 	Retryable  bool
