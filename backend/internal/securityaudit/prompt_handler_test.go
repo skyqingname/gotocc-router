@@ -237,6 +237,7 @@ func validHandlerUpdateRequest(token string) UpdateConfigRequest {
 		Strategy:              "priority",
 		WorkerCount:           1,
 		QueueCapacity:         10,
+		AuditPrompt:           DefaultAuditPrompt,
 		Scanners:              []string{"pii"},
 		AllGroups:             true,
 		Endpoints: []UpdateEndpoint{{

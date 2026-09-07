@@ -110,7 +110,7 @@ Both engines consume the same canonical document:
 | --- | --- |
 | Content Moderation | Scans only current direct-user text and images. Chat and Anthropic require an explicit `user` role; Responses, Live, and Gemini also accept their protocol-defined roleless user forms. Direct Alpha Search queries, embedding strings, and media prompts remain eligible. Instructions, system/developer context, reusable prompt variables, assistant/model messages, reasoning, tool definitions/calls/results, approval responses, and tool-produced images are excluded so platform or external content is not attributed to the user. |
 | Prompt Audit full/async | Scans the client-controlled transcript: user messages (including role-less Responses/Gemini/embeddings/media forms), plus system/developer/instructions, assistant/model text, reasoning, tool definitions/calls/results, reusable prompt variables, search queries, embedding strings, and media prompts. Stored full prompt and redacted preview remain newest-to-oldest so the preview head is the latest turn. Client harness XML blocks inside user text (`environment_context`, `permission_profile`, `system-reminder`, `filesystem`) are stripped; surrounding user sentences remain. |
-| Prompt Audit blocking latest-turn-only | When enabled, scans the latest user text after the same client-harness XML strip, plus the nearest preceding assistant/model turn so continuation jailbreaks cannot drop the prior output. Older user turns, instructions, and tool schema stay out of this narrow window. A request with no user text cannot be narrowed safely and falls back to the full client-controlled transcript. |
+| Prompt Audit blocking latest-turn-only | When enabled, scans the latest actual user text after the same client-harness XML strip, its subsequent tool results, and the nearest preceding assistant/model turn so continuation jailbreaks cannot drop the prior output. Older user turns, instructions, and tool schema stay out of this narrow window. A request with no user text cannot be narrowed safely and falls back to the full client-controlled transcript. |
 
 Sharing a canonical document does not mean that the engines select identical
 segments. Content Moderation preserves the `v0.1.177+custom.003` attribution
@@ -213,6 +213,35 @@ empty. Endpoint URLs, API keys, raw content, and unsanitized upstream errors are
 not added to audit records.
 
 ## Prompt Audit Operations
+
+Prompt Audit configuration includes one global audit prompt. Missing legacy
+values normalize to the built-in defensive template before an active snapshot
+is installed, so an upgraded deployment does not send unframed user content
+while waiting for an administrator save. Administrators may edit the template
+or restore the current built-in value in the configuration page. The trimmed
+value is required and limited to 20,000 Unicode code points; config audit logs
+and change summaries retain only its SHA-256, never its text.
+
+Every OpenAI-compatible Guard model call sends exactly two messages. The audit
+prompt is the `system` message. The bounded audit chunk is JSON-string encoded,
+wrapped in `<user_input>...</user_input>`, and sent as the separate `user`
+message. JSON encoding prevents text inside the chunk from closing that tag or
+claiming a new message role. Blocking evaluation, asynchronous workers, and
+the model call used by endpoint probes all use the active audit
+prompt. The configured `response_format` selects either the existing Qwen3Guard
+`Safety` / `Categories` parser or the explicit `confidence_json` parser. JSON
+requires a numeric `confidence` in [0,1] and an optional `reason`. The configured
+`confidence_threshold` is inclusive: equal or higher blocks; lower passes.
+The root `prompt-audit-defaults.json` owns the default threshold (0.8) and JSON
+template. Missing fields on legacy stored configurations retain Qwen3Guard;
+there is no response-format detection or fallback between parsers.
+
+The model probe always calls Chat Completions and parses its response using
+the current editor draft (or the saved configuration for legacy clients). A
+successful models listing alone cannot report a healthy audit node.
+Latest-turn selection also includes tool outputs following the latest actual
+user turn. Anthropic tool_result blocks remain tool outputs even though their
+envelope role is user. Full-transcript selection preserves upstream behavior.
 
 Prompt Audit events retain at most 65,536 runes of canonical selected content
 in newest-to-oldest order; `full_prompt_truncated` states whether the retained

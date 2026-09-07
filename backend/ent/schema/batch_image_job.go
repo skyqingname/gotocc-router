@@ -30,6 +30,8 @@ func (BatchImageJob) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("batch_id").MaxLen(64).Immutable(),
 		field.Int64("user_id"),
+		field.Int64("billing_user_id").Optional(),
+		field.Int64("team_id").Optional().Nillable(),
 		field.Int64("api_key_id").Optional().Nillable(),
 		field.Int64("account_id").Optional().Nillable(),
 		field.String("provider").MaxLen(32),
@@ -48,6 +50,7 @@ func (BatchImageJob) Fields() []ent.Field {
 		field.Float("estimated_cost").SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).Default(0),
 		field.Float("hold_amount").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 		field.Float("actual_cost").Optional().Nillable().SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Bool("allowance_reserved").Default(false),
 		field.String("currency").MaxLen(16).Default("USD"),
 		field.String("hold_id").Optional().Nillable().MaxLen(128),
 		field.String("idempotency_key").Optional().Nillable().MaxLen(255),
@@ -75,6 +78,8 @@ func (BatchImageJob) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("batch_id").Unique(),
 		index.Fields("user_id", "created_at"),
+		index.Fields("billing_user_id", "created_at"),
+		index.Fields("team_id", "created_at"),
 		index.Fields("status"),
 		index.Fields("provider", "status"),
 		index.Fields("idempotency_key").Annotations(entsql.IndexWhere("idempotency_key IS NOT NULL AND idempotency_key <> ''")),

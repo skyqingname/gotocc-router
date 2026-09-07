@@ -33,6 +33,7 @@ func NewAPIKeyHandler(apiKeyService *service.APIKeyService) *APIKeyHandler {
 // CreateAPIKeyRequest represents the create API key request payload
 type CreateAPIKeyRequest struct {
 	Name          string   `json:"name" binding:"required"`
+	Scope         string   `json:"scope" binding:"omitempty,oneof=personal team"`
 	GroupID       *int64   `json:"group_id"`        // nullable
 	CustomKey     *string  `json:"custom_key"`      // 可选的自定义key
 	IPWhitelist   []string `json:"ip_whitelist"`    // IP 白名单
@@ -127,6 +128,7 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 		filters.Search = search
 	}
 	filters.Status = c.Query("status")
+	filters.Scope = strings.ToLower(strings.TrimSpace(c.Query("scope")))
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		gid, err := strconv.ParseInt(groupIDStr, 10, 64)
 		if err == nil {
@@ -142,7 +144,7 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 
 	out := make([]dto.APIKey, 0, len(keys))
 	for i := range keys {
-		out = append(out, *dto.APIKeyFromService(&keys[i]))
+		out = append(out, *dto.APIKeyFromServiceForUser(&keys[i]))
 	}
 	response.Paginated(c, out, result.Total, page, pageSize)
 }
@@ -174,7 +176,7 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.APIKeyFromService(key))
+	response.Success(c, dto.APIKeyFromServiceForUser(key))
 }
 
 // Create handles creating a new API key
@@ -198,6 +200,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 
 	svcReq := service.CreateAPIKeyRequest{
 		Name:          req.Name,
+		Scope:         req.Scope,
 		GroupID:       req.GroupID,
 		CustomKey:     req.CustomKey,
 		IPWhitelist:   req.IPWhitelist,
@@ -222,7 +225,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		if err != nil {
 			return nil, err
 		}
-		return dto.APIKeyFromService(key), nil
+		return dto.APIKeyFromServiceForUser(key), nil
 	})
 }
 
@@ -290,7 +293,7 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.APIKeyFromService(key))
+	response.Success(c, dto.APIKeyFromServiceForUser(key))
 }
 
 // Delete handles deleting an API key
@@ -326,7 +329,7 @@ func (h *APIKeyHandler) GetAvailableGroups(c *gin.Context) {
 		return
 	}
 
-	groups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	groups, err := h.apiKeyService.GetAvailableGroupsForScope(c.Request.Context(), subject.UserID, c.DefaultQuery("scope", "personal"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -348,7 +351,7 @@ func (h *APIKeyHandler) GetUserGroupRates(c *gin.Context) {
 		return
 	}
 
-	rates, err := h.apiKeyService.GetUserGroupRates(c.Request.Context(), subject.UserID)
+	rates, err := h.apiKeyService.GetUserGroupRatesForScope(c.Request.Context(), subject.UserID, c.DefaultQuery("scope", "personal"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

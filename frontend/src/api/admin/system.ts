@@ -19,6 +19,13 @@ export interface VersionInfo {
   cached: boolean
   warning?: string
   build_type: string // "source" for manual builds, "release" for CI builds
+  release_repository: string
+  release_image: string
+  upstream_repository: string
+  upstream_baseline: string
+  upstream_latest_version: string
+  upstream_has_update: boolean
+  upstream_warning?: string
 }
 
 /**

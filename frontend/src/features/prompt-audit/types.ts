@@ -1,3 +1,4 @@
+export type AuditResponseFormat = 'qwen3guard' | 'confidence_json'
 export type PromptAuditMode = 'off' | 'async_audit' | 'blocking'
 export type PromptDecision = 'pass' | 'flag' | 'critical'
 export type PromptRiskLevel = 'low' | 'medium' | 'high' | 'critical'
@@ -29,6 +30,11 @@ export interface PromptAuditConfig {
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
+  audit_prompt: string
+  response_format: AuditResponseFormat
+  confidence_threshold: number
+  default_audit_prompt: string
+  default_confidence_audit_prompt: string
   scanners: string[]
   all_groups: boolean
   group_ids: number[]
@@ -52,6 +58,9 @@ export interface PromptAuditUpdateRequest {
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
+  audit_prompt: string
+  response_format: AuditResponseFormat
+  confidence_threshold: number
   scanners: string[]
   all_groups: boolean
   group_ids: number[]

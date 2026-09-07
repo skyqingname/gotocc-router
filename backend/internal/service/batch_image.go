@@ -102,6 +102,8 @@ type BatchImageJob struct {
 	ID                int64
 	BatchID           string
 	UserID            int64
+	BillingUserID     int64
+	TeamID            *int64
 	APIKeyID          *int64
 	AccountID         *int64
 	Provider          string
@@ -123,6 +125,7 @@ type BatchImageJob struct {
 	EstimatedCost           float64
 	HoldAmount              *float64
 	ActualCost              *float64
+	AllowanceReserved       bool
 	BaseUnitPrice           float64
 	GroupRateMultiplier     float64
 	AccountRateMultiplier   float64
@@ -162,6 +165,8 @@ type BatchImageJob struct {
 type CreateBatchImageJobParams struct {
 	BatchID           string
 	UserID            int64
+	BillingUserID     int64
+	TeamID            *int64
 	APIKeyID          *int64
 	AccountID         *int64
 	Provider          string

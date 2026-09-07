@@ -559,6 +559,46 @@ export default {
       failedToLoadUsages: '加载使用记录失败'
     },
 
+    reusableInvitationCodes: {
+      title: '永久邀请码',
+      description: '管理可重复使用的注册邀请码',
+      create: '创建永久邀请码',
+      createTitle: '创建永久邀请码',
+      createSuccess: '永久邀请码创建成功',
+      createFailed: '创建永久邀请码失败',
+      loadFailed: '加载永久邀请码失败',
+      disable: '停用',
+      disableTitle: '停用永久邀请码',
+      disableConfirm: '确定停用这个永久邀请码吗？停用后新用户将无法继续使用它注册。',
+      disableSuccess: '永久邀请码已停用',
+      disableFailed: '停用永久邀请码失败',
+      uses: '使用记录',
+      usesTitle: '使用记录',
+      usesLoadFailed: '加载使用记录失败',
+      noUses: '暂无使用记录',
+      unlimited: '无限',
+      neverExpires: '永不过期',
+      maxUsesHint: '0 表示无限次数。',
+      expiresHint: '留空表示永不过期。',
+      columns: {
+        code: '邀请码',
+        status: '状态',
+        maxUses: '最大次数',
+        usedCount: '已使用',
+        expiresAt: '过期时间',
+        notes: '备注',
+        createdAt: '创建时间',
+        actions: '操作'
+      },
+      status: { active: '启用中', disabled: '已停用' },
+      useColumns: {
+        userId: '用户 ID',
+        email: '邮箱',
+        source: '注册来源',
+        usedAt: '使用时间'
+      }
+    },
+
     // Usage Records
     usage: {
       title: '使用记录',
@@ -599,7 +639,7 @@ export default {
       billingModeToken: '按量',
       billingModePerRequest: '按次',
       billingModeImage: '按次(图片)',
-      billingModeVideo: '按次(视频)',
+      billingModeVideo: '按秒（视频）',
       allBillingModes: '全部计费模式',
 	  upstreamModelAudit: '上游模型审计',
 	  allUpstreamModelAudit: '全部响应模型状态',

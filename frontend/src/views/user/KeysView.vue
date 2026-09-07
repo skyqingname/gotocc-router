@@ -32,7 +32,19 @@
       </template>
 
       <template #actions>
-        <div class="flex justify-end gap-3">
+        <div class="flex flex-wrap justify-end gap-3">
+          <ScopeDropdown v-if="teamFeatureEnabled" v-model="scope" data-tour="keys-scope-switch" @change="onScopeChange" />
+          <button
+            type="button"
+            class="btn btn-secondary px-2 md:px-3"
+            :disabled="clientConfigKeys.length === 0"
+            :title="t('keys.oneClickAccess')"
+            data-test="one-click-access-global"
+            @click="openOneClickAccess"
+          >
+            <Icon name="terminal" size="md" class="md:mr-1.5" />
+            <span class="hidden md:inline">{{ t('keys.oneClickAccess') }}</span>
+          </button>
           <button
             @click="loadApiKeys"
             :disabled="loading"
@@ -373,15 +385,17 @@
             <div class="flex items-center gap-1">
               <!-- Use Key Button -->
               <button
+                v-if="canUseClientConfig(row)"
                 @click="openUseKeyModal(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                data-test="use-key-action"
               >
                 <Icon name="terminal" size="sm" />
                 <span class="text-xs">{{ t('keys.useKey') }}</span>
               </button>
               <!-- Import to CC Switch Button -->
               <button
-                v-if="!publicSettings?.hide_ccs_import_button"
+                v-if="canUseClientConfig(row) && !publicSettings?.hide_ccs_import_button"
                 @click="importToCcswitch(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
@@ -988,6 +1002,49 @@
       @cancel="showResetRateLimitDialog = false"
     />
 
+    <!-- Global one-click access always selects from plaintext personal keys. -->
+    <BaseDialog
+      :show="showOneClickKeySelect"
+      :title="t('keys.oneClickSelect.title')"
+      width="normal"
+      @close="closeOneClickKeySelect"
+    >
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {{ t('keys.oneClickSelect.description') }}
+        </p>
+        <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
+          <button
+            v-for="key in clientConfigKeys"
+            :key="key.id"
+            type="button"
+            class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition-colors hover:border-primary-500 hover:bg-primary-50 dark:border-dark-600 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+            data-test="one-click-key-option"
+            @click="selectOneClickKey(key)"
+          >
+            <div class="min-w-0">
+              <div class="truncate font-medium text-gray-900 dark:text-white">
+                {{ key.name }}
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <code class="code">{{ maskApiKey(key.key) }}</code>
+                <span v-if="key.group?.name">{{ key.group.name }}</span>
+                <span v-else>{{ t('keys.noGroup') }}</span>
+              </div>
+            </div>
+            <Icon name="chevronRight" size="sm" class="ml-3 flex-shrink-0 text-gray-400" />
+          </button>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <button type="button" class="btn btn-secondary" @click="closeOneClickKeySelect">
+            {{ t('common.cancel') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Use Key Modal -->
     <UseKeyModal
       :show="showUseKeyModal"
@@ -1119,6 +1176,7 @@
 <script setup lang="ts">
 	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { useRoute, useRouter } from 'vue-router'
 	import { useAppStore } from '@/stores/app'
 	import { useOnboardingStore } from '@/stores/onboarding'
 	import { useClipboard } from '@/composables/useClipboard'
@@ -1140,6 +1198,7 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
+	import ScopeDropdown, { type DataScope } from '@/components/team/ScopeDropdown.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
@@ -1172,6 +1231,9 @@ interface GroupOption {
 }
 
 const appStore = useAppStore()
+const route = useRoute()
+const router = useRouter()
+const scope = ref<DataScope>(route.query.scope === 'team' ? 'team' : 'personal')
 const onboardingStore = useOnboardingStore()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
@@ -1300,6 +1362,7 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
+const showOneClickKeySelect = ref(false)
 const showCcsClientSelect = ref(false)
 const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
@@ -1307,6 +1370,7 @@ const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
+const teamFeatureEnabled = computed(() => publicSettings.value?.team_enabled !== false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
@@ -1318,6 +1382,13 @@ const selectedKeyForGroup = computed(() => {
   if (groupSelectorKeyId.value === null) return null
   return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
 })
+
+const canUseClientConfig = (key: ApiKey) => {
+  const isTeamKey = key.scope === 'team' || key.team_id != null
+  return scope.value === 'team' ? isTeamKey : !isTeamKey
+}
+
+const clientConfigKeys = computed(() => apiKeys.value.filter(canUseClientConfig))
 
 const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) {
@@ -1465,12 +1536,14 @@ const loadApiKeys = async () => {
       group_id?: number | string
       sort_by?: string
       sort_order?: 'asc' | 'desc'
+      scope?: DataScope
     } = {}
     if (filterSearch.value) filters.search = filterSearch.value
     if (filterStatus.value) filters.status = filterStatus.value
     if (filterGroupId.value !== '') filters.group_id = filterGroupId.value
     filters.sort_by = sortState.value.sort_by
     filters.sort_order = sortState.value.sort_order
+    filters.scope = scope.value
 
     const response = await keysAPI.list(pagination.value.page, pagination.value.page_size, filters, {
       signal
@@ -1507,7 +1580,7 @@ const loadApiKeys = async () => {
 
 const loadGroups = async () => {
   try {
-    groups.value = await userGroupsAPI.getAvailable()
+    groups.value = await userGroupsAPI.getAvailable(scope.value)
   } catch (error) {
     console.error('Failed to load groups:', error)
   }
@@ -1515,7 +1588,7 @@ const loadGroups = async () => {
 
 const loadUserGroupRates = async () => {
   try {
-    userGroupRates.value = await userGroupsAPI.getUserGroupRates()
+    userGroupRates.value = await userGroupsAPI.getUserGroupRates(scope.value)
   } catch (error) {
     console.error('Failed to load user group rates:', error)
   }
@@ -1524,14 +1597,34 @@ const loadUserGroupRates = async () => {
 const loadPublicSettings = async () => {
   try {
     publicSettings.value = await authAPI.getPublicSettings()
+    if (!teamFeatureEnabled.value && scope.value === 'team') scope.value = 'personal'
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }
 }
 
 const openUseKeyModal = (key: ApiKey) => {
+  if (!canUseClientConfig(key)) return
   selectedKey.value = key
   showUseKeyModal.value = true
+}
+
+const openOneClickAccess = () => {
+  if (clientConfigKeys.value.length === 0) return
+  if (clientConfigKeys.value.length === 1) {
+    openUseKeyModal(clientConfigKeys.value[0])
+    return
+  }
+  showOneClickKeySelect.value = true
+}
+
+const closeOneClickKeySelect = () => {
+  showOneClickKeySelect.value = false
+}
+
+const selectOneClickKey = (key: ApiKey) => {
+  closeOneClickKeySelect()
+  openUseKeyModal(key)
 }
 
 const closeUseKeyModal = () => {
@@ -1564,7 +1657,7 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
-    status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
+    status: key.status === 'active' ? 'active' : 'inactive',
     use_custom_key: false,
     custom_key: '',
     enable_ip_restriction: hasIPRestriction,
@@ -1744,7 +1837,8 @@ const handleSubmit = async () => {
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        scope.value
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -1761,6 +1855,16 @@ const handleSubmit = async () => {
   } finally {
     submitting.value = false
   }
+}
+
+const onScopeChange = async () => {
+  closeOneClickKeySelect()
+  closeUseKeyModal()
+  closeCcsClientSelect()
+  pagination.value.page = 1
+  filterGroupId.value = ''
+  await router.replace({ query: { ...route.query, scope: scope.value } })
+  await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
 }
 
 /**
@@ -1870,6 +1974,7 @@ const resetRateLimitUsage = async () => {
 }
 
 const importToCcswitch = (row: ApiKey) => {
+  if (!canUseClientConfig(row)) return
   const platform = row.group?.platform || 'anthropic'
 
   // For antigravity platform, show client selection dialog
@@ -1884,6 +1989,7 @@ const importToCcswitch = (row: ApiKey) => {
 }
 
 const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
+  if (!canUseClientConfig(row)) return
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
   const platform = row.group?.platform || 'anthropic'
 
@@ -1953,14 +2059,12 @@ function formatResetTime(resetAt: string | null): string {
   return `${mins}m`
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadSavedColumns()
-  loadApiKeys()
-  loadGroups()
-  loadUserGroupRates()
-  loadPublicSettings()
   document.addEventListener('click', closeGroupSelector)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
+  await loadPublicSettings()
+  await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
 })
 
 onUnmounted(() => {

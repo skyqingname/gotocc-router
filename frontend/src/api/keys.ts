@@ -23,6 +23,7 @@ export async function list(
     group_id?: number | string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
+    scope?: 'personal' | 'team'
   },
   options?: {
     signal?: AbortSignal
@@ -65,9 +66,13 @@ export async function create(
   ipBlacklist?: string[],
   quota?: number,
   expiresInDays?: number,
-  rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number }
+  rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
+  scope?: 'personal' | 'team'
 ): Promise<ApiKey> {
   const payload: CreateApiKeyRequest = { name }
+  if (scope !== undefined) {
+    payload.scope = scope
+  }
   if (groupId !== undefined) {
     payload.group_id = groupId
   }

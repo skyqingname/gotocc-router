@@ -110,6 +110,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				AbortWithError(c, http.StatusServiceUnavailable, "API_KEY_AUTH_OVERLOADED", "API key authentication is temporarily unavailable")
 				return
 			}
+			if abortTeamAPIKeyError(c, err) {
+				return
+			}
 			AbortWithError(c, 500, "INTERNAL_ERROR", "Failed to validate API key")
 			return
 		}
@@ -127,6 +130,22 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			MarkIngressRejected(c, IngressRejectAPIKeyDisabled)
 			AbortWithError(c, 401, "API_KEY_DISABLED", "API key is disabled")
 			return
+		}
+		if err := apiKeyService.ValidateTeamKeyLifecycle(apiKey); err != nil {
+			if abortTeamAPIKeyError(c, err) {
+				return
+			}
+			AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to validate team API key")
+			return
+		}
+		if !isAPIKeyNonConsumingRequest(c.Request.Method, c.Request.URL.Path) {
+			if err := apiKeyService.CheckTeamMemberLimits(apiKey); err != nil {
+				if abortTeamAPIKeyError(c, err) {
+					return
+				}
+				AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to validate team member limits")
+				return
+			}
 		}
 
 		// 检查 IP 限制（白名单/黑名单）
@@ -169,7 +188,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// the authenticated key and must remain available after generation
 		// consumes the key's remaining balance.
 		whamUsageRequest := c.Request.Method == http.MethodGet && c.Request.URL.Path == "/backend-api/wham/usage"
-		skipBilling := c.Request.URL.Path == "/v1/usage" || whamUsageRequest || isAsyncImageTaskManagement(c.Request.Method, c.Request.URL.Path)
+		skipBilling := c.Request.URL.Path == "/v1/usage" || whamUsageRequest ||
+			isAsyncImageTaskManagement(c.Request.Method, c.Request.URL.Path) ||
+			isAsyncImageReadRequest(c.Request.Method, c.Request.URL.Path) ||
+			isBatchImageManagementRequest(c.Request.Method, c.Request.URL.Path)
 
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
@@ -346,6 +368,83 @@ func isAsyncImageTaskManagement(method, path string) bool {
 		return method == http.MethodGet && len(segments) == 2 && segments[0] != "" && segments[1] == "download"
 	}
 	return false
+}
+
+func isAsyncImageReadRequest(method, path string) bool {
+	if method != http.MethodGet {
+		return false
+	}
+	path = strings.TrimRight(path, "/")
+	if isAsyncImageTaskManagement(method, path) {
+		return true
+	}
+	for _, root := range []string{"/v1/images/objects/", "/images/objects/"} {
+		remainder := strings.TrimPrefix(path, root)
+		if remainder == path {
+			continue
+		}
+		id, suffix, ok := strings.Cut(remainder, "/")
+		if ok && id != "" && suffix == "url" {
+			return true
+		}
+	}
+	return false
+}
+
+func isBatchImageManagementRequest(method, path string) bool {
+	path = strings.TrimRight(path, "/")
+	for _, root := range []string{"/v1/images/batches", "/images/batches"} {
+		if method == http.MethodGet && (path == root || strings.HasPrefix(path, root+"/")) {
+			return true
+		}
+		if method == http.MethodDelete && strings.HasPrefix(path, root+"/") {
+			return true
+		}
+		if method == http.MethodPost && strings.HasPrefix(path, root+"/") && strings.HasSuffix(path, "/cancel") {
+			return true
+		}
+	}
+	return false
+}
+
+func isAPIKeyNonConsumingRequest(method, path string) bool {
+	path = strings.TrimRight(path, "/")
+	if method == http.MethodGet {
+		if path == "/v1/usage" || path == "/antigravity/v1/usage" || path == "/v1/sub2api/billing" || path == "/backend-api/wham/usage" {
+			return true
+		}
+		if strings.HasSuffix(path, "/models") || isAsyncImageTaskManagement(method, path) || isAsyncImageReadRequest(method, path) || isBatchImageManagementRequest(method, path) {
+			return true
+		}
+	}
+	if isAsyncImageTaskManagement(method, path) || isBatchImageManagementRequest(method, path) {
+		return true
+	}
+	return method == http.MethodPost && strings.HasSuffix(path, "/messages/count_tokens")
+}
+
+func abortTeamAPIKeyError(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, service.ErrTeamMemberDailyExceeded):
+		AbortWithError(c, http.StatusTooManyRequests, "TEAM_MEMBER_DAILY_LIMIT_EXCEEDED", "团队成员日限额已用完")
+	case errors.Is(err, service.ErrTeamMemberWeeklyExceeded):
+		AbortWithError(c, http.StatusTooManyRequests, "TEAM_MEMBER_WEEKLY_LIMIT_EXCEEDED", "团队成员周限额已用完")
+	case errors.Is(err, service.ErrTeamMemberMonthlyExceeded):
+		AbortWithError(c, http.StatusTooManyRequests, "TEAM_MEMBER_MONTHLY_LIMIT_EXCEEDED", "团队成员月限额已用完")
+	case errors.Is(err, service.ErrTeamFeatureDisabled):
+		AbortWithError(c, http.StatusForbidden, "TEAM_FEATURE_DISABLED", "团队功能未启用")
+	case errors.Is(err, service.ErrTeamSuspended):
+		AbortWithError(c, http.StatusForbidden, "TEAM_SUSPENDED", "团队已暂停")
+	case errors.Is(err, service.ErrTeamMembershipRequired):
+		AbortWithError(c, http.StatusForbidden, "TEAM_MEMBERSHIP_REQUIRED", "团队成员关系已失效")
+	case errors.Is(err, service.ErrTeamActorInactive):
+		AbortWithError(c, http.StatusForbidden, "TEAM_ACTOR_INACTIVE", "团队密钥所属成员已停用")
+	case errors.Is(err, service.ErrTeamBillingOwnerInactive):
+		AbortWithError(c, http.StatusForbidden, "TEAM_BILLING_OWNER_INACTIVE", "团队付款所有者已停用")
+	default:
+		return false
+	}
+	return true
 }
 
 // GetAPIKeyFromContext 从上下文中获取API key

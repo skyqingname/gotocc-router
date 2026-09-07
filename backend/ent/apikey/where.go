@@ -75,6 +75,16 @@ func UserID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUserID, v))
 }
 
+// TeamID applies equality check predicate on the "team_id" field. It's identical to TeamIDEQ.
+func TeamID(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamID, v))
+}
+
+// TeamOwnerDisabled applies equality check predicate on the "team_owner_disabled" field. It's identical to TeamOwnerDisabledEQ.
+func TeamOwnerDisabled(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamOwnerDisabled, v))
+}
+
 // Key applies equality check predicate on the "key" field. It's identical to KeyEQ.
 func Key(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldKey, v))
@@ -308,6 +318,46 @@ func UserIDIn(vs ...int64) predicate.APIKey {
 // UserIDNotIn applies the NotIn predicate on the "user_id" field.
 func UserIDNotIn(vs ...int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotIn(FieldUserID, vs...))
+}
+
+// TeamIDEQ applies the EQ predicate on the "team_id" field.
+func TeamIDEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamID, v))
+}
+
+// TeamIDNEQ applies the NEQ predicate on the "team_id" field.
+func TeamIDNEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldTeamID, v))
+}
+
+// TeamIDIn applies the In predicate on the "team_id" field.
+func TeamIDIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldTeamID, vs...))
+}
+
+// TeamIDNotIn applies the NotIn predicate on the "team_id" field.
+func TeamIDNotIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldTeamID, vs...))
+}
+
+// TeamIDIsNil applies the IsNil predicate on the "team_id" field.
+func TeamIDIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldTeamID))
+}
+
+// TeamIDNotNil applies the NotNil predicate on the "team_id" field.
+func TeamIDNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldTeamID))
+}
+
+// TeamOwnerDisabledEQ applies the EQ predicate on the "team_owner_disabled" field.
+func TeamOwnerDisabledEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamOwnerDisabled, v))
+}
+
+// TeamOwnerDisabledNEQ applies the NEQ predicate on the "team_owner_disabled" field.
+func TeamOwnerDisabledNEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldTeamOwnerDisabled, v))
 }
 
 // KeyEQ applies the EQ predicate on the "key" field.
@@ -1186,6 +1236,29 @@ func HasUsageLogs() predicate.APIKey {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasTeam applies the HasEdge predicate on the "team" edge.
+func HasTeam() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, TeamTable, TeamColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTeamWith applies the HasEdge predicate on the "team" edge with a given conditions (other predicates).
+func HasTeamWith(preds ...predicate.Team) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newTeamStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

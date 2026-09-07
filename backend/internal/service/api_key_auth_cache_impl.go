@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 23 // v23: group codex_models_manifest_config field
+const apiKeyAuthSnapshotVersion = 24 // v24: team billing and Codex model manifest fields
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -287,6 +287,10 @@ func (s *APIKeyService) loadAuthCacheEntry(ctx context.Context, key, cacheKey st
 		return nil, fmt.Errorf("get api key: %w", ErrAPIKeyNotFound)
 	}
 	entry := &APIKeyAuthCacheEntry{Snapshot: snapshot}
+	if apiKey.TeamID != nil {
+		// Team allowance counters are mutable request-path state; always rehydrate them.
+		return entry, nil
+	}
 	s.setAuthCacheEntry(ctx, cacheKey, entry, s.authCfg.l2TTL)
 	return entry, nil
 }
@@ -296,7 +300,8 @@ func (s *APIKeyService) lookupAPIKeyForAuth(ctx context.Context, key string) (*A
 		return nil, ErrAPIKeyNotFound
 	}
 	if s.authLookupSlots == nil {
-		return s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+		apiKey, err := s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+		return s.hydrateTeamAPIKey(ctx, apiKey, err)
 	}
 	s.authLookupTotal.Add(1)
 	select {
@@ -312,7 +317,49 @@ func (s *APIKeyService) lookupAPIKeyForAuth(ctx context.Context, key string) (*A
 		s.authLookupRejected.Add(1)
 		return nil, ErrAPIKeyAuthOverloaded
 	}
-	return s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	apiKey, err := s.apiKeyRepo.GetByKeyForAuth(ctx, key)
+	return s.hydrateTeamAPIKey(ctx, apiKey, err)
+}
+
+func (s *APIKeyService) hydrateTeamAPIKey(ctx context.Context, apiKey *APIKey, err error) (*APIKey, error) {
+	if err != nil || apiKey == nil || apiKey.TeamID == nil {
+		return apiKey, err
+	}
+	if !apiKey.IsActive() && apiKey.Status != StatusAPIKeyExpired && apiKey.Status != StatusAPIKeyQuotaExhausted {
+		return apiKey, nil
+	}
+	if s.cfg != nil && !s.cfg.Team.Enabled {
+		return nil, ErrTeamFeatureDisabled
+	}
+	if s.teamRepo == nil {
+		return nil, ErrTeamFeatureDisabled
+	}
+	teamCtx, err := s.teamRepo.GetContextByUserID(ctx, apiKey.UserID)
+	if err != nil {
+		if errors.Is(err, ErrTeamNotFound) {
+			return nil, ErrTeamMembershipRequired
+		}
+		return nil, err
+	}
+	if teamCtx == nil || teamCtx.Team == nil || teamCtx.Owner == nil || teamCtx.Membership == nil || teamCtx.Team.ID != *apiKey.TeamID {
+		return nil, ErrTeamMembershipRequired
+	}
+	if teamCtx.Membership.JoinedAt.After(apiKey.CreatedAt) {
+		return nil, ErrTeamMembershipRequired
+	}
+	actor, err := s.userRepo.GetByID(ctx, apiKey.UserID)
+	if err != nil {
+		return nil, err
+	}
+	owner, err := s.userRepo.GetByID(ctx, teamCtx.Owner.UserID)
+	if err != nil {
+		return nil, err
+	}
+	apiKey.ActorUser = actor
+	apiKey.User = owner
+	apiKey.Team = teamCtx.Team
+	apiKey.TeamMembership = teamCtx.Membership
+	return apiKey, nil
 }
 
 func (s *APIKeyService) applyAuthCacheEntry(key string, entry *APIKeyAuthCacheEntry) (*APIKey, bool, error) {
@@ -336,20 +383,23 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		return nil
 	}
 	snapshot := &APIKeyAuthSnapshot{
-		Version:     apiKeyAuthSnapshotVersion,
-		APIKeyID:    apiKey.ID,
-		UserID:      apiKey.UserID,
-		GroupID:     apiKey.GroupID,
-		Name:        apiKey.Name,
-		Status:      apiKey.Status,
-		IPWhitelist: apiKey.IPWhitelist,
-		IPBlacklist: apiKey.IPBlacklist,
-		Quota:       apiKey.Quota,
-		QuotaUsed:   apiKey.QuotaUsed,
-		ExpiresAt:   apiKey.ExpiresAt,
-		RateLimit5h: apiKey.RateLimit5h,
-		RateLimit1d: apiKey.RateLimit1d,
-		RateLimit7d: apiKey.RateLimit7d,
+		Version:           apiKeyAuthSnapshotVersion,
+		APIKeyID:          apiKey.ID,
+		UserID:            apiKey.UserID,
+		TeamID:            apiKey.TeamID,
+		TeamOwnerDisabled: apiKey.TeamOwnerDisabled,
+		CreatedAt:         apiKey.CreatedAt,
+		GroupID:           apiKey.GroupID,
+		Name:              apiKey.Name,
+		Status:            apiKey.Status,
+		IPWhitelist:       apiKey.IPWhitelist,
+		IPBlacklist:       apiKey.IPBlacklist,
+		Quota:             apiKey.Quota,
+		QuotaUsed:         apiKey.QuotaUsed,
+		ExpiresAt:         apiKey.ExpiresAt,
+		RateLimit5h:       apiKey.RateLimit5h,
+		RateLimit1d:       apiKey.RateLimit1d,
+		RateLimit7d:       apiKey.RateLimit7d,
 		User: APIKeyAuthUserSnapshot{
 			ID:                         apiKey.User.ID,
 			Status:                     apiKey.User.Status,
@@ -367,6 +417,13 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			TotalRecharged:             apiKey.User.TotalRecharged,
 			RPMLimit:                   apiKey.User.RPMLimit,
 		},
+	}
+	if apiKey.ActorUser != nil {
+		snapshot.ActorUser = &APIKeyAuthActorSnapshot{ID: apiKey.ActorUser.ID, Status: apiKey.ActorUser.Status, Email: apiKey.ActorUser.Email, Username: apiKey.ActorUser.Username}
+	}
+	if apiKey.Team != nil {
+		snapshot.Team = &APIKeyAuthTeamSnapshot{ID: apiKey.Team.ID, Name: apiKey.Team.Name, Status: apiKey.Team.Status}
+		snapshot.TeamMembership = apiKey.TeamMembership
 	}
 
 	// 填充 (user, group) RPM override —— snapshot 构建时查一次 DB，后续请求零 DB 往返。
@@ -446,20 +503,23 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		return nil
 	}
 	apiKey := &APIKey{
-		ID:          snapshot.APIKeyID,
-		UserID:      snapshot.UserID,
-		GroupID:     snapshot.GroupID,
-		Key:         key,
-		Name:        snapshot.Name,
-		Status:      snapshot.Status,
-		IPWhitelist: snapshot.IPWhitelist,
-		IPBlacklist: snapshot.IPBlacklist,
-		Quota:       snapshot.Quota,
-		QuotaUsed:   snapshot.QuotaUsed,
-		ExpiresAt:   snapshot.ExpiresAt,
-		RateLimit5h: snapshot.RateLimit5h,
-		RateLimit1d: snapshot.RateLimit1d,
-		RateLimit7d: snapshot.RateLimit7d,
+		ID:                snapshot.APIKeyID,
+		UserID:            snapshot.UserID,
+		TeamID:            snapshot.TeamID,
+		TeamOwnerDisabled: snapshot.TeamOwnerDisabled,
+		CreatedAt:         snapshot.CreatedAt,
+		GroupID:           snapshot.GroupID,
+		Key:               key,
+		Name:              snapshot.Name,
+		Status:            snapshot.Status,
+		IPWhitelist:       snapshot.IPWhitelist,
+		IPBlacklist:       snapshot.IPBlacklist,
+		Quota:             snapshot.Quota,
+		QuotaUsed:         snapshot.QuotaUsed,
+		ExpiresAt:         snapshot.ExpiresAt,
+		RateLimit5h:       snapshot.RateLimit5h,
+		RateLimit1d:       snapshot.RateLimit1d,
+		RateLimit7d:       snapshot.RateLimit7d,
 		User: &User{
 			ID:                         snapshot.User.ID,
 			Status:                     snapshot.User.Status,
@@ -478,6 +538,15 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			RPMLimit:                   snapshot.User.RPMLimit,
 			UserGroupRPMOverride:       snapshot.User.UserGroupRPMOverride,
 		},
+	}
+	if snapshot.ActorUser != nil {
+		apiKey.ActorUser = &User{ID: snapshot.ActorUser.ID, Status: snapshot.ActorUser.Status, Email: snapshot.ActorUser.Email, Username: snapshot.ActorUser.Username}
+	} else {
+		apiKey.ActorUser = apiKey.User
+	}
+	if snapshot.Team != nil {
+		apiKey.Team = &Team{ID: snapshot.Team.ID, Name: snapshot.Team.Name, Status: snapshot.Team.Status}
+		apiKey.TeamMembership = snapshot.TeamMembership
 	}
 	if snapshot.Group != nil {
 		apiKey.Group = &Group{

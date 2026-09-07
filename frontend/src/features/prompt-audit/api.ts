@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/client'
 import type {
   PromptAuditConfig,
+  PromptAuditDraft,
   PromptAuditEvent,
   PromptAuditGroup,
   PromptAuditRuntime,
@@ -26,8 +27,11 @@ export async function updateConfig(payload: PromptAuditUpdateRequest): Promise<P
   return data
 }
 
-export async function probeEndpoint(endpoint: PromptAuditEndpointDraft): Promise<PromptProbeResult> {
+export async function probeEndpoint(endpoint: PromptAuditEndpointDraft, policy?: PromptAuditDraft): Promise<PromptProbeResult> {
   const { data } = await apiClient.post<PromptProbeResult>(`${basePath}/endpoints/probe`, {
+    audit_prompt: policy?.audit_prompt,
+    response_format: policy?.response_format,
+    confidence_threshold: policy?.confidence_threshold,
     endpoint: {
       id: endpoint.id,
       name: endpoint.name,

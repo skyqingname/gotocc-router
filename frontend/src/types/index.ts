@@ -241,6 +241,8 @@ export interface PublicSettings {
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
+	team_enabled: boolean
+	team_self_service_enabled: boolean
   risk_control_enabled: boolean
   global_ip_access_control_enabled: boolean
   table_default_page_size: number
@@ -724,10 +726,13 @@ export interface CompositeRouteDecision {
 export interface ApiKey {
   id: number
   user_id: number
+  team_id?: number | null
+  scope: 'personal' | 'team'
+  team_owner_disabled: boolean
   key: string
   name: string
   group_id: number | null
-  status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
+  status: 'active' | 'inactive' | 'disabled' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
   last_used_at: string | null
@@ -755,6 +760,7 @@ export interface ApiKey {
 
 export interface CreateApiKeyRequest {
   name: string
+  scope?: 'personal' | 'team'
   group_id?: number | null
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]

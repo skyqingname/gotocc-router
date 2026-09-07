@@ -127,6 +127,11 @@ export default {
     lastUsedAt: '上次使用时间',
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
+    oneClickAccess: '一键接入',
+    oneClickSelect: {
+      title: '选择要接入的密钥',
+      description: '请选择一个个人 API 密钥，然后打开一键接入配置。'
+    },
     useKeyModal: {
       title: '使用 API 密钥',
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
@@ -608,7 +613,7 @@ export default {
       billingModeToken: '按 Token',
       billingModePerRequest: '按次',
       billingModeImage: '按图片',
-      billingModeVideo: '按视频',
+      billingModeVideo: '按秒（视频）',
       inputPrice: '输入',
       outputPrice: '输出',
       cacheWritePrice: '缓存写入',
@@ -618,9 +623,11 @@ export default {
       imageInputPrice: '图片输入',
       imageOutputPrice: '图片输出',
       perRequestPrice: '每次请求',
+      perSecondPrice: '每秒视频',
       intervals: '阶梯定价',
       unitPerMillion: '/ 1M token',
-      unitPerRequest: '/ 次'
+      unitPerRequest: '/ 次',
+      unitPerSecond: '/ 秒'
     }
   },
 
@@ -675,10 +682,16 @@ export default {
       officialPrice: '官方价格',
       rate: '折扣倍率',
       unitPerMillion: '$ / 1M token',
+      unitPerRequest: '$ / 次',
+      unitPerImage: '$ / 张',
+      unitPerSecond: '$ / 秒',
+      unitMixed: '$ / 计费单位',
       perUnitRequest: '/ 次',
       perUnitImage: '/ 张',
+      perUnitSecond: '/ 秒',
       perRequest: '按次计费',
-      perImage: '按图片计费'
+      perImage: '按图片计费',
+      perSecondVideo: '按秒计费'
     },
     nav: {
       login: '登录',

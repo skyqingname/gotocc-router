@@ -344,12 +344,60 @@ func TestBatchImageSettlementService_InvalidCountsExhaustsAndReleases(t *testing
 
 func TestReleaseBatchImageBalanceHold_TreatsFingerprintConflictAsReleased(t *testing.T) {
 	job := testSettlingBatchImageJob("imgbatch_release_conflict")
+	job.AllowanceReserved = true
 	// 历史版本用 manifestHash 释放过一次：同一 request id 再以 RequestHash
 	// 释放会命中指纹冲突。资金已归还，必须视为幂等成功而非毒消息。
 	billing := &fakeBatchImageBillingRepo{releaseErr: ErrUsageBillingRequestConflict}
 	err := releaseBatchImageBalanceHold(context.Background(), billing, job, "request-hash")
 	require.NoError(t, err)
 	require.Len(t, billing.releases, 1)
+	require.False(t, job.AllowanceReserved)
+}
+
+func TestBuildBatchImageHoldCommand_PreservesTeamAttribution(t *testing.T) {
+	job := testSettlingBatchImageJob("imgbatch_team_attribution")
+	teamID := int64(77)
+	job.UserID = 202
+	job.BillingUserID = 101
+	job.TeamID = &teamID
+	job.AllowanceReserved = true
+
+	cmd, err := buildBatchImageHoldCommand(job, BatchImageCaptureRequestID(job.BatchID), 0.25, "payload-hash")
+	require.NoError(t, err)
+	require.Equal(t, int64(101), cmd.UserID)
+	require.Equal(t, int64(202), cmd.ActorUserID)
+	require.Equal(t, &teamID, cmd.TeamID)
+	require.True(t, cmd.AllowanceReserved)
+	require.Equal(t, job.CreatedAt, cmd.ReservedAt)
+
+	cmd.Normalize()
+	require.NotEmpty(t, cmd.RequestFingerprint)
+}
+
+func TestBuildBatchImageHoldCommand_KeepsLegacyFingerprint(t *testing.T) {
+	job := testSettlingBatchImageJob("imgbatch_legacy_fingerprint")
+	job.BillingUserID = 0
+	job.TeamID = nil
+	job.AllowanceReserved = false
+
+	cmd, err := buildBatchImageHoldCommand(job, BatchImageCaptureRequestID(job.BatchID), 0.25, "payload-hash")
+	require.NoError(t, err)
+	cmd.Normalize()
+
+	legacy := &BatchImageBalanceHoldCommand{
+		RequestID:          BatchImageCaptureRequestID(job.BatchID),
+		APIKeyID:           *job.APIKeyID,
+		UserID:             job.UserID,
+		BatchID:            job.BatchID,
+		HoldAmount:         *job.HoldAmount,
+		ActualAmount:       0.25,
+		RequestPayloadHash: "payload-hash",
+	}
+	legacy.Normalize()
+
+	require.Zero(t, cmd.ActorUserID)
+	require.True(t, cmd.ReservedAt.IsZero())
+	require.Equal(t, legacy.RequestFingerprint, cmd.RequestFingerprint)
 }
 
 func TestBatchImageSettlementManifestHash(t *testing.T) {

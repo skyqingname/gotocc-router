@@ -2956,7 +2956,7 @@ func TestForwardGrokResponses_StreamErrorPreservesPartialResult(t *testing.T) {
 	body := []byte(`{"model":"grok","stream":true,"input":"hi"}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(body))
 	c.Set("api_key", &APIKey{ID: 5405})
-	c.Writer = &failingGinWriter{ResponseWriter: c.Writer, failAfter: 1}
+	c.Writer = &failingGinWriter{ResponseWriter: c.Writer, failAfter: 0}
 
 	account := healthyGrokOAuthGatewayTestAccount(61, "access-token")
 	repo := &grokQuotaAccountRepo{
@@ -2989,7 +2989,7 @@ func TestForwardGrokResponses_StreamErrorPreservesPartialResult(t *testing.T) {
 	result, err := svc.forwardGrokResponses(context.Background(), c, account, body, "grok", true, time.Now())
 
 	require.EqualError(t, err, "stream usage incomplete: client disconnected")
-	require.NotNil(t, result, "Grok stream errors after observable output must preserve the partial result")
+	require.NotNil(t, result, "Grok stream write errors must preserve the partial result")
 	require.Equal(t, "xai-rid-partial", result.RequestID)
 	require.Equal(t, "resp_grok_partial", result.ResponseID)
 	require.Equal(t, 9, result.Usage.InputTokens)

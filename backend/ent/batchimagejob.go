@@ -21,6 +21,10 @@ type BatchImageJob struct {
 	BatchID string `json:"batch_id,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int64 `json:"user_id,omitempty"`
+	// BillingUserID holds the value of the "billing_user_id" field.
+	BillingUserID int64 `json:"billing_user_id,omitempty"`
+	// TeamID holds the value of the "team_id" field.
+	TeamID *int64 `json:"team_id,omitempty"`
 	// APIKeyID holds the value of the "api_key_id" field.
 	APIKeyID *int64 `json:"api_key_id,omitempty"`
 	// AccountID holds the value of the "account_id" field.
@@ -57,6 +61,8 @@ type BatchImageJob struct {
 	HoldAmount *float64 `json:"hold_amount,omitempty"`
 	// ActualCost holds the value of the "actual_cost" field.
 	ActualCost *float64 `json:"actual_cost,omitempty"`
+	// AllowanceReserved holds the value of the "allowance_reserved" field.
+	AllowanceReserved bool `json:"allowance_reserved,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
 	// HoldID holds the value of the "hold_id" field.
@@ -105,9 +111,11 @@ func (*BatchImageJob) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case batchimagejob.FieldAllowanceReserved:
+			values[i] = new(sql.NullBool)
 		case batchimagejob.FieldEstimatedCost, batchimagejob.FieldHoldAmount, batchimagejob.FieldActualCost:
 			values[i] = new(sql.NullFloat64)
-		case batchimagejob.FieldID, batchimagejob.FieldUserID, batchimagejob.FieldAPIKeyID, batchimagejob.FieldAccountID, batchimagejob.FieldItemCount, batchimagejob.FieldSuccessCount, batchimagejob.FieldFailCount, batchimagejob.FieldCancelledCount, batchimagejob.FieldRetryCount, batchimagejob.FieldVersion:
+		case batchimagejob.FieldID, batchimagejob.FieldUserID, batchimagejob.FieldBillingUserID, batchimagejob.FieldTeamID, batchimagejob.FieldAPIKeyID, batchimagejob.FieldAccountID, batchimagejob.FieldItemCount, batchimagejob.FieldSuccessCount, batchimagejob.FieldFailCount, batchimagejob.FieldCancelledCount, batchimagejob.FieldRetryCount, batchimagejob.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case batchimagejob.FieldBatchID, batchimagejob.FieldProvider, batchimagejob.FieldModel, batchimagejob.FieldTaskName, batchimagejob.FieldStatus, batchimagejob.FieldProviderJobName, batchimagejob.FieldProviderInputRef, batchimagejob.FieldProviderOutputRef, batchimagejob.FieldGcsInputURI, batchimagejob.FieldGcsOutputURI, batchimagejob.FieldCurrency, batchimagejob.FieldHoldID, batchimagejob.FieldIdempotencyKey, batchimagejob.FieldRequestHash, batchimagejob.FieldManifestHash, batchimagejob.FieldLastErrorCode, batchimagejob.FieldLastErrorMessage:
 			values[i] = new(sql.NullString)
@@ -145,6 +153,19 @@ func (_m *BatchImageJob) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = value.Int64
+			}
+		case batchimagejob.FieldBillingUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_user_id", values[i])
+			} else if value.Valid {
+				_m.BillingUserID = value.Int64
+			}
+		case batchimagejob.FieldTeamID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field team_id", values[i])
+			} else if value.Valid {
+				_m.TeamID = new(int64)
+				*_m.TeamID = value.Int64
 			}
 		case batchimagejob.FieldAPIKeyID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -262,6 +283,12 @@ func (_m *BatchImageJob) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ActualCost = new(float64)
 				*_m.ActualCost = value.Float64
+			}
+		case batchimagejob.FieldAllowanceReserved:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allowance_reserved", values[i])
+			} else if value.Valid {
+				_m.AllowanceReserved = value.Bool
 			}
 		case batchimagejob.FieldCurrency:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -440,6 +467,14 @@ func (_m *BatchImageJob) String() string {
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteString(", ")
+	builder.WriteString("billing_user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingUserID))
+	builder.WriteString(", ")
+	if v := _m.TeamID; v != nil {
+		builder.WriteString("team_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	if v := _m.APIKeyID; v != nil {
 		builder.WriteString("api_key_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -511,6 +546,9 @@ func (_m *BatchImageJob) String() string {
 		builder.WriteString("actual_cost=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("allowance_reserved=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowanceReserved))
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)

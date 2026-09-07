@@ -32,7 +32,7 @@ func AggregateResults(results []*NormalizedResult, latency time.Duration) (*Norm
 	}
 	aggregated := &NormalizedResult{
 		Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow,
-		ScannerBackend: "qwen3guard-openai", Categories: []string{}, MatchedScanners: []string{},
+		Categories: []string{}, MatchedScanners: []string{},
 		ScannerScores: map[string]float64{}, ScannerEvidence: map[string]string{}, ChunkTotal: len(results),
 		LatencyMS: int(latency.Milliseconds()),
 	}
@@ -50,6 +50,7 @@ func AggregateResults(results []*NormalizedResult, latency time.Duration) (*Norm
 			aggregated.Safety = result.Safety
 			aggregated.GuardEndpointID = result.GuardEndpointID
 			aggregated.ScannerVersion = result.ScannerVersion
+			aggregated.ScannerBackend = result.ScannerBackend
 			aggregated.PolicyID = result.PolicyID
 			aggregated.PolicyVersion = result.PolicyVersion
 			aggregated.MatchedChunkIndex = result.MatchedChunkIndex
@@ -57,6 +58,7 @@ func AggregateResults(results []*NormalizedResult, latency time.Duration) (*Norm
 		if aggregated.GuardEndpointID == "" {
 			aggregated.GuardEndpointID = result.GuardEndpointID
 			aggregated.ScannerVersion = result.ScannerVersion
+			aggregated.ScannerBackend = result.ScannerBackend
 			aggregated.PolicyID = result.PolicyID
 			aggregated.PolicyVersion = result.PolicyVersion
 		}
@@ -67,7 +69,7 @@ func AggregateResults(results []*NormalizedResult, latency time.Duration) (*Norm
 			matched[scanner] = struct{}{}
 		}
 		for scanner, score := range result.ScannerScores {
-			if score > aggregated.ScannerScores[scanner] {
+			if prior, exists := aggregated.ScannerScores[scanner]; !exists || score > prior {
 				aggregated.ScannerScores[scanner] = score
 			}
 		}

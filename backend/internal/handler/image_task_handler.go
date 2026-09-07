@@ -401,6 +401,28 @@ func (h *AsyncImageHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
+// GetObjectURL mints a fresh URL only after the persistent object record has
+// been matched to the current user. API key rotation does not break history,
+// while another user receives the same not-found response as an unknown ID.
+func (h *AsyncImageHandler) GetObjectURL(c *gin.Context) {
+	if h == nil || h.tasks == nil {
+		imageTaskError(c, service.ErrImageObjectUnavailable)
+		return
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID <= 0 {
+		imageTaskError(c, service.ErrImageObjectNotFound)
+		return
+	}
+	object, err := h.tasks.RefreshObjectURL(c.Request.Context(), apiKey.UserID, c.Param("object_id"))
+	if err != nil {
+		imageTaskError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, object)
+}
+
 func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, body []byte) error {
 	if h.openAI == nil || h.openAI.gatewayService == nil {
 		return nil

@@ -20,8 +20,23 @@ export default {
 
   // Version Badge
   version: {
+    ownReleaseOverview: '自有发行版本',
+    upstreamBadge: '上游',
+    upstreamReleaseOverview: '上游发行版本',
+    fetchLatestRelease: '拉取最新发行信息',
+    upstreamUpToDate: '已跟进上游最新发行版',
+    viewUpstreamRelease: '查看上游发行与更新日志',
+
+    releaseOverview: '发行版本',
     currentVersion: '当前版本',
     latestVersion: '最新版本',
+    ownCurrentVersion: '当前自有版本',
+    ownLatestVersion: '最新自有发行版',
+    upstreamBaseline: '已适配上游版本',
+    upstreamLatestVersion: '最新上游版本',
+    upstreamUpdateAvailable: '上游已有新版本',
+    upstreamUpdateHint: '仅提示，完成本地适配并发布自有版本后才能更新',
+    upstreamCheckFailed: '上游版本检查失败',
     upToDate: '已是最新版本',
     updateAvailable: '有新版本可用！',
     releaseNotes: '更新日志',
@@ -306,6 +321,62 @@ export default {
         description:
           '<div style="line-height: 1.7;"><p style="margin-bottom: 12px;">点击确认创建您的 API 密钥。</p><div style="padding: 8px 12px; background: #fee2e2; border-left: 3px solid #ef4444; border-radius: 4px; font-size: 13px; margin-bottom: 12px;"><b>⚠️ 重要：</b><ul style="margin: 8px 0 0 16px;"><li>创建后请立即复制密钥（sk-xxx）</li><li>密钥只显示一次，丢失需重新生成</li></ul></div><p style="padding: 8px 12px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;"><b>🚀 如何使用：</b><br/>将密钥配置到支持 OpenAI 接口的任何客户端（如 ChatBox、OpenCat 等），即可开始使用！</p><p style="margin-top: 12px; color: #10b981; font-weight: 600;">👉 点击"创建"按钮</p></div>'
       }
+    },
+    team: {
+      welcome: {
+        title: '团队功能导览',
+        ownerDescription: '<div class="tour-step-description"><p>这段导览会介绍团队所有者最常用的工作流：</p><ul><li>管理成员并发送定向邀请</li><li>设置新成员默认限额</li><li>创建由团队所有者统一付费的团队密钥</li><li>查看各成员的用量趋势和消费对比</li></ul></div>',
+        memberDescription: '<div class="tour-step-description"><p>这段导览会介绍团队成员可以使用的功能：</p><ul><li>查看自己的日、周、月限额</li><li>创建使用团队权益的团队密钥</li><li>查看自己的团队请求记录</li></ul></div>',
+        noTeamDescription: '<div class="tour-step-description"><p>团队可以让多名成员分别创建密钥，同时统一使用所有者的余额、订阅和分组权益。</p><p>先创建团队，之后就能邀请成员、设置限额，并按成员查看使用情况。</p></div>',
+        nextBtn: '开始导览'
+      },
+      createTeam: {
+        title: '创建团队',
+        description: '<div class="tour-step-description"><p>填写团队名称即可创建团队。创建者会成为唯一所有者，并负责团队密钥的统一计费。</p><p class="tour-info-box">创建后，成员邀请和默认限额设置都会显示在这个页面。</p></div>'
+      },
+      members: {
+        title: '成员与限额',
+        description: '<div class="tour-step-description"><p>打开“成员”页签可查看全部成员，并为每名成员单独调整日、周、月限额。</p><p class="tour-info-box">移除成员后，其团队密钥会立即停用，个人密钥不受影响。</p></div>'
+      },
+      invitations: {
+        title: '邀请成员',
+        description: '<div class="tour-step-description"><p>打开“邀请”页签可发送 7 天有效的定向邀请，并查看状态、重发或撤销邀请。</p></div>'
+      },
+      settings: {
+        title: '团队设置',
+        description: '<div class="tour-step-description"><p>设置页可以修改团队名称，并设置新成员加入时自动继承的日、周、月默认限额。</p><p class="tour-info-box">默认限额只影响之后加入的成员，不会覆盖现有成员的自定义限额。</p></div>'
+      },
+      limits: {
+        title: '我的团队限额',
+        description: '<div class="tour-step-description"><p>普通成员可以在这里查看自己的日、周、月使用进度。达到任一限额后，新的团队请求会被拒绝。</p></div>'
+      },
+      keyPage: {
+        title: '前往 API 密钥',
+        description: '<div class="tour-step-description"><p>团队密钥和个人密钥在同一个页面管理。下一步将自动打开团队密钥列表。</p></div>',
+        noTeamDescription: '<div class="tour-step-description"><p>团队创建后，API 密钥页面会出现“个人密钥 / 团队密钥”切换菜单，选择团队密钥后即可创建使用团队权益的密钥。</p></div>'
+      },
+      keyScope: {
+        title: '切换到团队密钥',
+        description: '<div class="tour-step-description"><p>这个菜单用于切换个人密钥和团队密钥。当前已进入团队作用域，创建的密钥会使用所有者的余额、订阅和分组权益。</p></div>'
+      },
+      createKey: {
+        title: '创建团队密钥',
+        description: '<div class="tour-step-description"><p>点击“创建密钥”即可新建团队密钥。密钥归创建者管理，但所有者可以查看名称和归属成员，并执行禁用或删除。</p><p class="tour-warning-box">密钥作用域创建后不能在个人与团队之间转换。</p></div>'
+      },
+      usagePage: {
+        title: '查看用量',
+        description: '<div class="tour-step-description"><p>侧边栏继续保留完整使用记录。最后一步会回到团队概览，查看团队专属图表和请求明细。</p></div>',
+        noTeamDescription: '<div class="tour-step-description"><p>团队产生用量后，团队概览会展示成员消费趋势、对比和每次请求的实际发起成员。</p></div>'
+      },
+      ownerUsage: {
+        title: '成员使用情况',
+        description: '<div class="tour-step-description"><p>团队所有者可以对比成员消费与趋势；下方明细会标注每次请求的实际发起成员。</p></div>'
+      },
+      memberUsage: {
+        title: '查看团队请求',
+        description: '<div class="tour-step-description"><p>普通成员可以在这里查看自己的团队请求，无法查看其他成员的用量或所有者的余额与订阅详情。</p></div>'
+      },
+      done: '完成导览'
     }
   },
 

@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 		// 优惠码管理
 		registerPromoCodeRoutes(admin, h)
 
+		// 永久邀请码管理
+		registerReusableInvitationCodeRoutes(admin, h)
+
 		// 系统设置
 		registerSettingsRoutes(admin, h)
 
@@ -136,6 +139,23 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
+		registerTeamRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	teams := admin.Group("/teams")
+	{
+		teams.GET("", h.Admin.Team.List)
+		teams.POST("", h.Admin.Team.Create)
+		teams.GET("/:id", h.Admin.Team.Get)
+		teams.GET("/:id/members", h.Admin.Team.ListMembers)
+		teams.GET("/:id/usage", h.Admin.Team.GetUsage)
+		teams.PATCH("/:id", h.Admin.Team.Update)
+		teams.POST("/:id/force-transfer", gin.HandlerFunc(stepUpAuth), h.Admin.Team.ForceTransfer)
+		teams.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Team.Dissolve)
 	}
 }
 
@@ -597,6 +617,19 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
+	}
+}
+
+func registerReusableInvitationCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.ReusableInvitationCode == nil {
+		return
+	}
+	codes := admin.Group("/reusable-invitation-codes")
+	{
+		codes.GET("", h.Admin.ReusableInvitationCode.List)
+		codes.POST("", h.Admin.ReusableInvitationCode.Create)
+		codes.POST("/:id/disable", h.Admin.ReusableInvitationCode.Disable)
+		codes.GET("/:id/uses", h.Admin.ReusableInvitationCode.ListUses)
 	}
 }
 

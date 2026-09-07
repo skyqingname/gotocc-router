@@ -91,6 +91,33 @@ type OpenAIAccountScheduleRequest struct {
 	ExcludedIDs    map[int64]struct{}
 }
 
+type openAIImagesDirectModelRoutingCtxKey struct{}
+
+func withOpenAIImagesDirectModelRouting(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, openAIImagesDirectModelRoutingCtxKey{}, true)
+}
+
+func openAIImagesDirectModelRoutingFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(openAIImagesDirectModelRoutingCtxKey{}).(bool)
+	return enabled
+}
+
+func openAIAccountSupportsRequestedModel(ctx context.Context, account *Account, requestedModel string) bool {
+	if account == nil {
+		return false
+	}
+	if openAIImagesDirectModelRoutingFromContext(ctx) {
+		return account.IsModelDirectlySupported(requestedModel)
+	}
+	return account.IsModelSupported(requestedModel)
+}
+
 type OpenAIAccountScheduleDecision struct {
 	Layer               string
 	StickyPreviousHit   bool
@@ -1851,7 +1878,7 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	}) {
 		return false, "shadow_parent_unhealthy"
 	}
-	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
+	if req.RequestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, req.RequestedModel) {
 		return false, "model_not_supported"
 	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
@@ -2180,6 +2207,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	excludedIDs map[int64]struct{},
 	requiredCapability OpenAIImagesCapability,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	ctx = withOpenAIImagesDirectModelRouting(ctx)
 	selection, decision, err := s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, "", requiredCapability, false, PlatformOpenAI, false, false)
 	if err == nil && selection != nil && selection.Account != nil {
 		return selection, decision, nil
@@ -2561,7 +2589,7 @@ func (s *OpenAIGatewayService) hasOpenAIOAuthSessionPolicyAccessDenial(
 	hasAuthorizedMatchingAccount := false
 	for index := range accounts {
 		account := &accounts[index]
-		if !openAIAccountMatchesRequestConfiguration(account, requestedModel, requiredCapability, requiredImageCapability, requireCompact) ||
+		if !openAIAccountMatchesRequestConfiguration(ctx, account, requestedModel, requiredCapability, requiredImageCapability, requireCompact) ||
 			!s.isOpenAIAccountTransportCompatible(account, requiredTransport) {
 			continue
 		}
@@ -2613,6 +2641,7 @@ func (s *OpenAIGatewayService) listOpenAISessionPolicyDiagnosticCandidates(ctx c
 }
 
 func openAIAccountMatchesRequestConfiguration(
+	ctx context.Context,
 	account *Account,
 	requestedModel string,
 	requiredCapability OpenAIEndpointCapability,
@@ -2622,7 +2651,7 @@ func openAIAccountMatchesRequestConfiguration(
 	if account == nil || account.Platform != PlatformOpenAI || !account.IsOpenAICompatible() {
 		return false
 	}
-	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel) {
 		return false
 	}
 	if !accountSupportsOpenAICapabilities(account, requiredCapability, requiredImageCapability) {

@@ -45,6 +45,7 @@ func (r *apiKeyRepository) activeQuery() *dbent.APIKeyQuery {
 func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) error {
 	builder := r.client.APIKey.Create().
 		SetUserID(key.UserID).
+		SetNillableTeamID(key.TeamID).
 		SetKey(key.Key).
 		SetName(key.Name).
 		SetStatus(key.Status).
@@ -133,6 +134,9 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		Select(
 			apikey.FieldID,
 			apikey.FieldUserID,
+			apikey.FieldTeamID,
+			apikey.FieldTeamOwnerDisabled,
+			apikey.FieldCreatedAt,
 			apikey.FieldGroupID,
 			apikey.FieldName,
 			apikey.FieldStatus,
@@ -451,6 +455,12 @@ func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service
 		} else {
 			q = q.Where(apikey.GroupIDEQ(*filters.GroupID))
 		}
+	}
+	switch filters.Scope {
+	case "personal":
+		q = q.Where(apikey.TeamIDIsNil())
+	case "team":
+		q = q.Where(apikey.TeamIDNotNil())
 	}
 
 	return q
@@ -874,32 +884,35 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		return nil
 	}
 	out := &service.APIKey{
-		ID:            m.ID,
-		UserID:        m.UserID,
-		Key:           m.Key,
-		Name:          m.Name,
-		Status:        m.Status,
-		IPWhitelist:   m.IPWhitelist,
-		IPBlacklist:   m.IPBlacklist,
-		LastUsedAt:    m.LastUsedAt,
-		CreatedAt:     m.CreatedAt,
-		UpdatedAt:     m.UpdatedAt,
-		GroupID:       m.GroupID,
-		Quota:         m.Quota,
-		QuotaUsed:     m.QuotaUsed,
-		ExpiresAt:     m.ExpiresAt,
-		RateLimit5h:   m.RateLimit5h,
-		RateLimit1d:   m.RateLimit1d,
-		RateLimit7d:   m.RateLimit7d,
-		Usage5h:       m.Usage5h,
-		Usage1d:       m.Usage1d,
-		Usage7d:       m.Usage7d,
-		Window5hStart: m.Window5hStart,
-		Window1dStart: m.Window1dStart,
-		Window7dStart: m.Window7dStart,
+		ID:                m.ID,
+		UserID:            m.UserID,
+		TeamID:            m.TeamID,
+		TeamOwnerDisabled: m.TeamOwnerDisabled,
+		Key:               m.Key,
+		Name:              m.Name,
+		Status:            m.Status,
+		IPWhitelist:       m.IPWhitelist,
+		IPBlacklist:       m.IPBlacklist,
+		LastUsedAt:        m.LastUsedAt,
+		CreatedAt:         m.CreatedAt,
+		UpdatedAt:         m.UpdatedAt,
+		GroupID:           m.GroupID,
+		Quota:             m.Quota,
+		QuotaUsed:         m.QuotaUsed,
+		ExpiresAt:         m.ExpiresAt,
+		RateLimit5h:       m.RateLimit5h,
+		RateLimit1d:       m.RateLimit1d,
+		RateLimit7d:       m.RateLimit7d,
+		Usage5h:           m.Usage5h,
+		Usage1d:           m.Usage1d,
+		Usage7d:           m.Usage7d,
+		Window5hStart:     m.Window5hStart,
+		Window1dStart:     m.Window1dStart,
+		Window7dStart:     m.Window7dStart,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
+		out.ActorUser = out.User
 		if allowed := m.Edges.User.Edges.AllowedGroups; len(allowed) > 0 {
 			out.User.AllowedGroups = make([]int64, 0, len(allowed))
 			for _, g := range allowed {

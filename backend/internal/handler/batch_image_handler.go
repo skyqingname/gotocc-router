@@ -277,13 +277,15 @@ func (h *BatchImageHandler) DeleteOutputs(c *gin.Context) {
 
 func batchImageOwnerFromContext(c *gin.Context) (service.BatchImageOwner, bool) {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
-	if !ok || apiKey == nil || apiKey.ID <= 0 || apiKey.UserID <= 0 {
+	if !ok || apiKey == nil || apiKey.ID <= 0 || apiKey.UserID <= 0 || apiKey.User == nil || apiKey.User.ID <= 0 {
 		return service.BatchImageOwner{}, false
 	}
 	return service.BatchImageOwner{
-		UserID:   apiKey.UserID,
-		APIKeyID: apiKey.ID,
-		GroupID:  apiKey.GroupID,
+		UserID:        apiKey.UserID,
+		BillingUserID: apiKey.User.ID,
+		TeamID:        apiKey.TeamID,
+		APIKeyID:      apiKey.ID,
+		GroupID:       apiKey.GroupID,
 	}, true
 }
 

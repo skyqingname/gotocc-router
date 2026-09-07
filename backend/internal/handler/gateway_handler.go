@@ -2505,7 +2505,7 @@ func applyBillingQuotaHeaders(c *gin.Context, err error, retryAfter int) {
 }
 
 func billingErrorDetails(err error) (status int, code, message string, retryAfter int) {
-	if errors.Is(err, service.ErrBillingServiceUnavailable) {
+	if errors.Is(err, service.ErrBillingServiceUnavailable) || errors.Is(err, service.ErrTeamBillingUnavailable) {
 		msg := pkgerrors.Message(err)
 		if msg == "" {
 			msg = "Billing service temporarily unavailable. Please retry later."
@@ -2538,7 +2538,10 @@ func billingErrorDetails(err error) (status int, code, message string, retryAfte
 		errors.Is(err, service.ErrWeeklyLimitExceeded) ||
 		errors.Is(err, service.ErrMonthlyLimitExceeded) ||
 		errors.Is(err, service.ErrFiveHourLimitExceeded) ||
-		errors.Is(err, service.ErrGroupSubscriptionLimitExceeded) {
+		errors.Is(err, service.ErrGroupSubscriptionLimitExceeded) ||
+		errors.Is(err, service.ErrTeamMemberDailyExceeded) ||
+		errors.Is(err, service.ErrTeamMemberWeeklyExceeded) ||
+		errors.Is(err, service.ErrTeamMemberMonthlyExceeded) {
 		// 与 RPM 超限一致映射 429 + Retry-After，让 SDK 自动退避（而非 403 直接失败）。
 		// 错误码用 rate_limit_exceeded 与 OpenAI 兼容客户端一致；细分类型由 ErrCode + window_resets_at metadata 区分。
 		msg := pkgerrors.Message(err)
