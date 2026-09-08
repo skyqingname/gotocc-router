@@ -16,6 +16,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/apikey"
 	"github.com/LuckyKuang/sub2api-plus/ent/group"
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
+	"github.com/LuckyKuang/sub2api-plus/ent/team"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 )
@@ -30,6 +31,7 @@ type APIKeyQuery struct {
 	withUser      *UserQuery
 	withGroup     *GroupQuery
 	withUsageLogs *UsageLogQuery
+	withTeam      *TeamQuery
 	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -126,6 +128,28 @@ func (_q *APIKeyQuery) QueryUsageLogs() *UsageLogQuery {
 			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
 			sqlgraph.To(usagelog.Table, usagelog.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, apikey.UsageLogsTable, apikey.UsageLogsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTeam chains the current query on the "team" edge.
+func (_q *APIKeyQuery) QueryTeam() *TeamQuery {
+	query := (&TeamClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, selector),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikey.TeamTable, apikey.TeamColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -328,6 +352,7 @@ func (_q *APIKeyQuery) Clone() *APIKeyQuery {
 		withUser:      _q.withUser.Clone(),
 		withGroup:     _q.withGroup.Clone(),
 		withUsageLogs: _q.withUsageLogs.Clone(),
+		withTeam:      _q.withTeam.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -364,6 +389,17 @@ func (_q *APIKeyQuery) WithUsageLogs(opts ...func(*UsageLogQuery)) *APIKeyQuery 
 		opt(query)
 	}
 	_q.withUsageLogs = query
+	return _q
+}
+
+// WithTeam tells the query-builder to eager-load the nodes that are connected to
+// the "team" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *APIKeyQuery) WithTeam(opts ...func(*TeamQuery)) *APIKeyQuery {
+	query := (&TeamClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTeam = query
 	return _q
 }
 
@@ -445,10 +481,11 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 	var (
 		nodes       = []*APIKey{}
 		_spec       = _q.querySpec()
-		loadedTypes = [3]bool{
+		loadedTypes = [4]bool{
 			_q.withUser != nil,
 			_q.withGroup != nil,
 			_q.withUsageLogs != nil,
+			_q.withTeam != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -488,6 +525,12 @@ func (_q *APIKeyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*APIKe
 		if err := _q.loadUsageLogs(ctx, query, nodes,
 			func(n *APIKey) { n.Edges.UsageLogs = []*UsageLog{} },
 			func(n *APIKey, e *UsageLog) { n.Edges.UsageLogs = append(n.Edges.UsageLogs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withTeam; query != nil {
+		if err := _q.loadTeam(ctx, query, nodes, nil,
+			func(n *APIKey, e *Team) { n.Edges.Team = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -585,6 +628,38 @@ func (_q *APIKeyQuery) loadUsageLogs(ctx context.Context, query *UsageLogQuery, 
 	}
 	return nil
 }
+func (_q *APIKeyQuery) loadTeam(ctx context.Context, query *TeamQuery, nodes []*APIKey, init func(*APIKey), assign func(*APIKey, *Team)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*APIKey)
+	for i := range nodes {
+		if nodes[i].TeamID == nil {
+			continue
+		}
+		fk := *nodes[i].TeamID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(team.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "team_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
 func (_q *APIKeyQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -619,6 +694,9 @@ func (_q *APIKeyQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withGroup != nil {
 			_spec.Node.AddColumnOnce(apikey.FieldGroupID)
+		}
+		if _q.withTeam != nil {
+			_spec.Node.AddColumnOnce(apikey.FieldTeamID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

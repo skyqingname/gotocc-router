@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
+
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	"github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
@@ -16,6 +18,7 @@ type PromptAdminService interface {
 	GetConfig() (PublicConfig, error)
 	SaveConfig(context.Context, UpdateConfigRequest, int64) (PublicConfig, error)
 	Probe(context.Context, ProbeRequest) ProbeResult
+	PreviewText(context.Context, TextPreviewRequest, string) (TextPreviewResult, error)
 	Runtime(context.Context) RuntimeSnapshot
 	ListEvents(context.Context, EventFilter, int, int) (*EventPage, error)
 	GetEvent(context.Context, int64) (*Event, error)
@@ -72,6 +75,25 @@ func (h *PromptAdminHandler) ProbeEndpoint(c *gin.Context) {
 	setPromptAdminAudit(c, status, result.ErrorCode, map[string]any{
 		"guard_endpoint_id": request.Endpoint.ID, "http_status": result.HTTPStatus,
 		"latency_ms": result.LatencyMS, "token_applied": result.TokenApplied, "retryable": result.Retryable,
+	})
+	response.Success(c, result)
+}
+
+func (h *PromptAdminHandler) TestText(c *gin.Context) {
+	var request TextPreviewRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("prompt_audit_invalid_preview_text", "文本测试请求无效"))
+		return
+	}
+	requestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string)
+	result, err := h.service.PreviewText(c.Request.Context(), request, requestID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	setPromptAdminAudit(c, "preview", result.ErrorCode, map[string]any{
+		"config_version": result.ConfigVersion, "decision": result.Decision,
+		"guard_endpoint_id": result.GuardEndpointID, "latency_ms": result.LatencyMS,
 	})
 	response.Success(c, result)
 }

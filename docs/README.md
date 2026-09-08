@@ -18,6 +18,7 @@ below for detailed configuration and maintenance instructions.
 
 ## Deployment and Operations
 
+- [GotoCC production migration boundary](GOTOCC_PLUS_MIGRATION.md)
 - [Deployment guide](../deploy/README.md)
 - [Docker](../deploy/DOCKER.md)
 - [Apple container](../deploy/APPLE_CONTAINER.md)

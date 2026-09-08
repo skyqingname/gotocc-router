@@ -2277,7 +2277,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		if (sawDone || sawTerminalEvent) && !sawFailedEvent {
 			s.clearOpenAIProxyStreamDisconnect(account)
 			if clientDisconnected {
-				return resultWithUsage(), fmt.Errorf("stream usage incomplete: client disconnected")
+				return resultWithUsage(), markOpenAIClientDisconnected(c)
 			}
 			return resultWithUsage(), nil
 		}
@@ -2337,7 +2337,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 	}
 	logOpenAISuccessMissingUsage(ctx, c, account, resp, usage, terminalEventType, clientDisconnected)
 	if clientDisconnected {
-		return resultWithUsage(), fmt.Errorf("stream usage incomplete: client disconnected")
+		return resultWithUsage(), markOpenAIClientDisconnected(c)
 	}
 
 	return resultWithUsage(), nil

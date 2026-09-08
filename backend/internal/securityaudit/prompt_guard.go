@@ -35,6 +35,15 @@ func newGuardEvaluator(scanner PromptScanner, repo JobRepository, metrics Metric
 }
 
 func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapshot PromptSnapshot) (*PromptDecision, error) {
+	return g.evaluate(ctx, cfg, snapshot, true)
+}
+
+// Preview uses the same evaluator and shared concurrency limits without writing audit events.
+func (g *GuardEvaluator) Preview(ctx context.Context, cfg ActiveConfig, snapshot PromptSnapshot) (*PromptDecision, error) {
+	return g.evaluate(ctx, cfg, snapshot, false)
+}
+
+func (g *GuardEvaluator) evaluate(ctx context.Context, cfg ActiveConfig, snapshot PromptSnapshot, recordEvent bool) (*PromptDecision, error) {
 	if g == nil || g.scanner == nil {
 		if g != nil && g.metrics != nil {
 			g.metrics.Observe(DecisionUnavailable, 0)
@@ -64,12 +73,6 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 		logGuardFailure(snapshot, cfg, DecisionUnavailable, ErrorCodeUnavailable, "", g.clock.Now().Sub(start))
 		return nil, &GuardError{Code: ErrorCodeUnavailable}
 	}
-	timeout := time.Duration(endpoints[0].TimeoutMS) * time.Millisecond
-	if timeout <= 0 {
-		timeout = DefaultTimeoutMS * time.Millisecond
-	}
-	evalCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 	inputLimit := minimumInputLimit(endpoints)
 	chunks := SplitRunes(snapshot.ScanText, inputLimit)
 	if len(chunks) == 0 {
@@ -87,13 +90,14 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 			"chunk_chars": len([]rune(chunk)), "input_chars": snapshot.PromptLength, "input_limit": inputLimit,
 			"status": "started",
 		}))
-		result, err := g.scanChunk(evalCtx, cfg, endpoints, chunk)
+		result, err := g.scanChunk(ctx, cfg, endpoints, chunk)
 		if err != nil {
 			code := guardErrorCode(err)
 			LogWarn(EventChunkFailed, mergeLogFields(baseFields, map[string]any{
 				"chunk_index": index + 1, "chunk_total": len(chunks),
 				"chunk_chars": len([]rune(chunk)), "input_chars": snapshot.PromptLength, "input_limit": inputLimit,
 				"latency_ms": g.clock.Now().Sub(chunkStarted).Milliseconds(), "error_code": code, "status": "failed",
+				"error_kind": guardErrorKind(err), "guard_endpoint_id": guardErrorEndpoint(err),
 			}))
 			kind := DecisionUnavailable
 			if code == ErrorCodeInvalidResponse {
@@ -106,7 +110,7 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 					g.metrics.IncTimeout()
 				}
 			}
-			logGuardFailure(snapshot, cfg, kind, code, "", g.clock.Now().Sub(start))
+			logGuardFailure(snapshot, cfg, kind, code, guardErrorEndpoint(err), g.clock.Now().Sub(start))
 			return nil, err
 		}
 		result.InputLimit = inputLimit
@@ -153,7 +157,7 @@ func (g *GuardEvaluator) Evaluate(ctx context.Context, cfg ActiveConfig, snapsho
 		"latency_ms": aggregated.LatencyMS, "guard_endpoint_id": aggregated.GuardEndpointID, "stage": snapshot.Stage,
 		"status": "completed",
 	}))
-	if g.repo != nil {
+	if recordEvent && g.repo != nil {
 		if _, recordErr := g.repo.RecordBlocking(ctx, snapshot.Redacted(), cfg.ConfigVersion, aggregated, cfg.StorePassEvents); recordErr != nil {
 			if g.metrics != nil {
 				g.metrics.IncRecordFailed()
@@ -208,7 +212,11 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 			}
 			continue
 		}
-		result, err := callPromptScanner(ctx, g.scanner, endpoint, chunk, cfg.Scanners)
+		// timeout_ms belongs to one endpoint call. Earlier chunks must not
+		// consume the budget of later chunks or a failover endpoint.
+		callCtx, cancel := context.WithTimeout(ctx, time.Duration(endpoint.TimeoutMS)*time.Millisecond)
+		result, err := callPromptScanner(callCtx, g.scanner, endpoint, cfg.AuditPrompt, chunk, cfg.Scanners)
+		cancel()
 		<-semaphore
 		if err == nil && result != nil {
 			return result, nil
@@ -216,8 +224,13 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 		if err == nil {
 			err = &GuardError{Code: ErrorCodeInvalidResponse, Retryable: false}
 		}
-		lastErr = err
 		var guardErr *GuardError
+		if errors.As(err, &guardErr) {
+			failure := *guardErr
+			failure.EndpointID = endpoint.ID
+			err = &failure
+		}
+		lastErr = err
 		if !errors.As(err, &guardErr) || !guardErr.Retryable {
 			return nil, err
 		}
@@ -231,14 +244,14 @@ func (g *GuardEvaluator) scanChunk(ctx context.Context, cfg ActiveConfig, endpoi
 	return nil, lastErr
 }
 
-func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint ActiveEndpoint, chunk string, scanners []string) (result *NormalizedResult, err error) {
+func callPromptScanner(ctx context.Context, scanner PromptScanner, endpoint ActiveEndpoint, auditPrompt, chunk string, scanners []string) (result *NormalizedResult, err error) {
 	defer func() {
 		if recover() != nil {
 			result = nil
 			err = &GuardError{Code: ErrorCodeUnavailable, Retryable: false}
 		}
 	}()
-	return scanner.Scan(ctx, endpoint, chunk, scanners)
+	return scanner.Scan(ctx, endpoint, auditPrompt, chunk, scanners)
 }
 
 func (g *GuardEvaluator) nodeSemaphore(id string) chan struct{} {

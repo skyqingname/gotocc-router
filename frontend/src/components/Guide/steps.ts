@@ -1,5 +1,12 @@
 import { DriveStep } from 'driver.js'
 
+export interface RoutedDriveStep extends DriveStep {
+  route?: {
+    path: string
+    query?: Record<string, string>
+  }
+}
+
 /**
  * 管理员完整引导流程
  * 交互式引导：指引用户实际操作
@@ -307,3 +314,163 @@ export const getUserSteps = (t: (key: string) => string): DriveStep[] => [
     }
   }
 ]
+
+/**
+ * 团队功能导览只展示入口和只读区域，不触发任何数据写入操作。
+ */
+export const getTeamSteps = (t: (key: string) => string, isOwner: boolean, hasTeam = true): RoutedDriveStep[] => {
+  if (!hasTeam) {
+    return [
+      {
+        route: { path: '/team' },
+        popover: {
+          title: t('onboarding.team.welcome.title'),
+          description: t('onboarding.team.welcome.noTeamDescription'),
+          align: 'center',
+          nextBtnText: t('onboarding.team.welcome.nextBtn')
+        }
+      },
+      {
+        route: { path: '/team' },
+        element: '[data-tour="team-create-form"]',
+        popover: {
+          title: t('onboarding.team.createTeam.title'),
+          description: t('onboarding.team.createTeam.description'),
+          side: 'top',
+          align: 'center'
+        }
+      },
+      {
+        route: { path: '/team' },
+        element: '[data-tour="sidebar-my-keys"]',
+        popover: {
+          title: t('onboarding.team.keyPage.title'),
+          description: t('onboarding.team.keyPage.noTeamDescription'),
+          side: 'right',
+          align: 'center'
+        }
+      },
+      {
+        route: { path: '/team' },
+        element: '[data-tour="sidebar-usage"]',
+        popover: {
+          title: t('onboarding.team.usagePage.title'),
+          description: t('onboarding.team.usagePage.noTeamDescription'),
+          side: 'right',
+          align: 'center',
+          doneBtnText: t('onboarding.team.done')
+        }
+      }
+    ]
+  }
+
+  const overviewSteps: RoutedDriveStep[] = isOwner
+    ? [
+        {
+          route: { path: '/team' },
+          element: '[data-tour="team-members"]',
+          popover: {
+            title: t('onboarding.team.members.title'),
+            description: t('onboarding.team.members.description'),
+            side: 'bottom',
+            align: 'center'
+          }
+        },
+        {
+          route: { path: '/team' },
+          element: '[data-tour="team-invitations"]',
+          popover: {
+            title: t('onboarding.team.invitations.title'),
+            description: t('onboarding.team.invitations.description'),
+            side: 'bottom',
+            align: 'center'
+          }
+        },
+        {
+          route: { path: '/team' },
+          element: '[data-tour="team-settings-tab"]',
+          popover: {
+            title: t('onboarding.team.settings.title'),
+            description: t('onboarding.team.settings.description'),
+            side: 'bottom',
+            align: 'center'
+          }
+        }
+      ]
+    : [
+        {
+          route: { path: '/team' },
+          element: '[data-tour="team-limit-progress"]',
+          popover: {
+            title: t('onboarding.team.limits.title'),
+            description: t('onboarding.team.limits.description'),
+            side: 'top',
+            align: 'center'
+          }
+        }
+      ]
+
+  return [
+    {
+      route: { path: '/team' },
+      popover: {
+        title: t('onboarding.team.welcome.title'),
+        description: t(isOwner ? 'onboarding.team.welcome.ownerDescription' : 'onboarding.team.welcome.memberDescription'),
+        align: 'center',
+        nextBtnText: t('onboarding.team.welcome.nextBtn')
+      }
+    },
+    ...overviewSteps,
+    {
+      route: { path: '/team' },
+      element: '[data-tour="sidebar-my-keys"]',
+      popover: {
+        title: t('onboarding.team.keyPage.title'),
+        description: t('onboarding.team.keyPage.description'),
+        side: 'right',
+        align: 'center'
+      }
+    },
+    {
+      route: { path: '/keys', query: { scope: 'team' } },
+      element: '[data-tour="keys-scope-switch"]',
+      popover: {
+        title: t('onboarding.team.keyScope.title'),
+        description: t('onboarding.team.keyScope.description'),
+        side: 'bottom',
+        align: 'end'
+      }
+    },
+    {
+      route: { path: '/keys', query: { scope: 'team' } },
+      element: '[data-tour="keys-create-btn"]',
+      popover: {
+        title: t('onboarding.team.createKey.title'),
+        description: t('onboarding.team.createKey.description'),
+        side: 'bottom',
+        align: 'end'
+      }
+    },
+    {
+      route: { path: '/keys', query: { scope: 'team' } },
+      element: '[data-tour="sidebar-usage"]',
+      popover: {
+        title: t('onboarding.team.usagePage.title'),
+        description: t('onboarding.team.usagePage.description'),
+        side: 'right',
+        align: 'center'
+      }
+    },
+    {
+      route: { path: '/team' },
+      element: isOwner ? '[data-tour="team-member-usage-charts"]' : '[data-tour="team-usage-records"]',
+      popover: {
+        title: t(isOwner ? 'onboarding.team.ownerUsage.title' : 'onboarding.team.memberUsage.title'),
+        description: t(isOwner ? 'onboarding.team.ownerUsage.description' : 'onboarding.team.memberUsage.description'),
+        side: 'top',
+        align: 'center',
+        doneBtnText: t('onboarding.team.done')
+      }
+    }
+  ]
+}

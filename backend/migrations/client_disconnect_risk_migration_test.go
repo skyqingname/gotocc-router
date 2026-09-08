@@ -8,7 +8,7 @@ import (
 )
 
 func TestClientDisconnectRiskMigrationDefinesDefaultsAndOrderedState(t *testing.T) {
-	content, err := FS.ReadFile("245_client_disconnect_risk.sql")
+	content, err := FS.ReadFile("247_client_disconnect_risk.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

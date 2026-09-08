@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -301,7 +299,10 @@ func applyRuntimeError(runtime *RuntimeSnapshot, code, message string, occurredA
 }
 
 type ProbeRequest struct {
-	Endpoint UpdateEndpoint `json:"endpoint"`
+	Endpoint            UpdateEndpoint `json:"endpoint"`
+	AuditPrompt         *string        `json:"audit_prompt"`
+	ResponseFormat      *string        `json:"response_format"`
+	ConfidenceThreshold *float64       `json:"confidence_threshold"`
 }
 
 func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeResult {
@@ -311,79 +312,57 @@ func (s *PromptService) Probe(ctx context.Context, request ProbeRequest) ProbeRe
 		return s.finishProbe(request.Endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "endpoint_invalid", Message: "审计节点配置无效"})
 	}
 	LogInfo(EventProbeStarted, map[string]any{"guard_endpoint_id": endpoint.ID, "status": "started"})
-	client, err := NewSecureHTTPClient(endpoint)
-	if err != nil {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "endpoint_unsafe", Message: "审计节点地址不在允许范围", TokenApplied: tokenApplied})
-	}
-	modelsURL, _ := ModelsURL(endpoint.BaseURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, modelsURL, nil)
-	if err != nil {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "probe_request_invalid", Message: "无法创建探测请求", TokenApplied: tokenApplied})
-	}
-	if endpoint.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+endpoint.Token)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		code := "connection_failed"
-		var netErr net.Error
-		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
-			code = "timeout"
+	// Probe the same authenticated model endpoint used by real auditing.
+	// Listing models has separate permissions and is not an audit prerequisite.
+	auditPrompt := DefaultAuditPrompt
+	endpoint.ResponseFormat = DefaultAuditResponseFormat
+	endpoint.ConfidenceThreshold = DefaultConfidenceThreshold
+	if s.config != nil {
+		if active, ok := s.config.Active(); ok {
+			auditPrompt = active.AuditPrompt
+			endpoint.ResponseFormat = active.ResponseFormat
+			endpoint.ConfidenceThreshold = active.ConfidenceThreshold
 		}
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: code, Message: "无法连接审计节点", Retryable: true, TokenApplied: tokenApplied})
 	}
-	responseBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxGuardResponseBytes+1))
-	_ = resp.Body.Close()
-	if readErr != nil {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "response_read_failed", Message: "审计节点响应读取失败", HTTPStatus: resp.StatusCode, Retryable: true, TokenApplied: tokenApplied})
+	if request.AuditPrompt != nil {
+		auditPrompt = strings.TrimSpace(*request.AuditPrompt)
 	}
-	if int64(len(responseBody)) > maxGuardResponseBytes {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "response_too_large", Message: "审计节点响应无效", HTTPStatus: resp.StatusCode, TokenApplied: tokenApplied})
+	if request.ResponseFormat != nil {
+		endpoint.ResponseFormat = *request.ResponseFormat
 	}
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 && modelsResponseReady(responseBody, endpoint.Model) {
-		return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点连接正常", HTTPStatus: resp.StatusCode, TokenApplied: tokenApplied})
+	if request.ConfidenceThreshold != nil {
+		endpoint.ConfidenceThreshold = *request.ConfidenceThreshold
 	}
-	if (resp.StatusCode >= 200 && resp.StatusCode < 300) || resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
-		result, scanErr := s.scanner.Scan(ctx, endpoint, "Hello", AllScannerIDs)
-		if scanErr == nil && result != nil {
-			return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点模型调用正常", HTTPStatus: http.StatusOK, TokenApplied: tokenApplied})
-		}
-		code, status, retryable := guardErrorCode(scanErr), 0, false
-		var guardErr *GuardError
-		if errors.As(scanErr, &guardErr) {
-			status, retryable = guardErr.HTTPStatus, guardErr.Retryable
-		}
-		if code == "" {
-			code = ErrorCodeInvalidResponse
-		}
-		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: code, Message: "审计节点模型调用失败", HTTPStatus: status, Retryable: retryable, TokenApplied: tokenApplied})
+	if err := validateAuditResponsePolicy(endpoint.ResponseFormat, endpoint.ConfidenceThreshold); err != nil {
+		return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: "audit_policy_invalid", Message: "审核输出协议或阈值无效"})
 	}
-	code, retryable := "probe_http_error", resp.StatusCode == 429 || resp.StatusCode >= 500
-	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+	result, scanErr := s.scanner.Scan(ctx, endpoint, auditPrompt, "Hello", AllScannerIDs)
+	if scanErr == nil && result != nil {
+		return s.finishProbe(endpoint.ID, started, ProbeResult{OK: true, Status: "healthy", Message: "审计节点模型调用正常", HTTPStatus: http.StatusOK, TokenApplied: tokenApplied})
+	}
+	code, status, retryable := guardErrorCode(scanErr), 0, false
+	var guardErr *GuardError
+	if errors.As(scanErr, &guardErr) {
+		status, retryable = guardErr.HTTPStatus, guardErr.Retryable
+	}
+	if code == "" {
+		code = ErrorCodeInvalidResponse
+	}
+	message := "审计节点模型调用失败"
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		code = "authentication_failed"
-	}
-	return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: code, Message: "审计节点探测失败", HTTPStatus: resp.StatusCode, Retryable: retryable, TokenApplied: tokenApplied})
-}
-
-func modelsResponseReady(body []byte, model string) bool {
-	var response struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if json.Unmarshal(body, &response) != nil || response.Data == nil {
-		return false
-	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		return true
-	}
-	for _, item := range response.Data {
-		if strings.TrimSpace(item.ID) == model {
-			return true
+		if tokenApplied {
+			message = "审计接口拒绝了 API Key，请核对该地址对应的密钥及模型权限"
+		} else {
+			message = "审计接口要求 API Key，但本次请求未配置凭据"
 		}
+	case guardErrorKind(scanErr) == "timeout":
+		code, message = "timeout", "审计模型调用超时，请检查节点响应速度或调整每次调用超时"
+	case code == ErrorCodeInvalidResponse:
+		message = "审计模型返回格式与当前配置的输出协议不一致"
 	}
-	return false
+	return s.finishProbe(endpoint.ID, started, ProbeResult{Status: "failed", ErrorCode: code, Message: message, HTTPStatus: status, Retryable: retryable, TokenApplied: tokenApplied})
 }
 
 func (s *PromptService) resolveProbeEndpoint(input UpdateEndpoint) (ActiveEndpoint, bool, error) {
@@ -392,7 +371,10 @@ func (s *PromptService) resolveProbeEndpoint(input UpdateEndpoint) (ActiveEndpoi
 		return ActiveEndpoint{}, false, err
 	}
 	token := strings.TrimSpace(input.Token)
-	if token == "" {
+	if input.ClearToken {
+		token = ""
+	}
+	if token == "" && !input.ClearToken {
 		if cfg, ok := s.config.Active(); ok {
 			for _, endpoint := range cfg.Endpoints {
 				if endpoint.ID != strings.TrimSpace(input.ID) {

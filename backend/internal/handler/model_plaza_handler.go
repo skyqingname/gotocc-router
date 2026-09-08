@@ -18,21 +18,21 @@ import (
 //   - 登录：非专属分组 + user_allowed_groups 授权的专属分组（不检查订阅有效性）；
 //     若该用户开启了公开分组限制，则公开分组同样需要落在授权集合内。
 type ModelPlazaHandler struct {
-	plazaService   *service.ModelPlazaService
-	apiKeyService  *service.APIKeyService
-	settingService *service.SettingService
+	modelPlazaService *service.ModelPlazaService
+	apiKeyService     *service.APIKeyService
+	settingService    *service.SettingService
 }
 
 // NewModelPlazaHandler 创建模型广场 handler。
 func NewModelPlazaHandler(
-	plazaService *service.ModelPlazaService,
+	modelPlazaService *service.ModelPlazaService,
 	apiKeyService *service.APIKeyService,
 	settingService *service.SettingService,
 ) *ModelPlazaHandler {
 	return &ModelPlazaHandler{
-		plazaService:   plazaService,
-		apiKeyService:  apiKeyService,
-		settingService: settingService,
+		modelPlazaService: modelPlazaService,
+		apiKeyService:     apiKeyService,
+		settingService:    settingService,
 	}
 }
 
@@ -122,7 +122,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		return
 	}
 
-	groups, err := h.plazaService.ListGroups(c.Request.Context())
+	groups, err := h.modelPlazaService.ListGroups(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

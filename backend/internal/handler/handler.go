@@ -23,6 +23,7 @@ type AdminHandlers struct {
 	Proxy                  *admin.ProxyHandler
 	Redeem                 *admin.RedeemHandler
 	Promo                  *admin.PromoHandler
+	ReusableInvitationCode *admin.ReusableInvitationCodeHandler
 	Setting                *admin.SettingHandler
 	Ops                    *admin.OpsHandler
 	System                 *admin.SystemHandler
@@ -44,6 +45,7 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	AuditLog               *admin.AuditLogHandler
 	IPAccessControl        *admin.IPAccessControlHandler
+	Team                   *admin.TeamHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -57,6 +59,7 @@ type Handlers struct {
 	Announcement     *AnnouncementHandler
 	ChannelMonitor   *ChannelMonitorUserHandler
 	ChannelMonitorV2 *ChannelMonitorV2Handler
+	MarketplaceStats *MarketplaceStatsHandler
 	Admin            *AdminHandlers
 	Gateway          *GatewayHandler
 	OpenAIGateway    *OpenAIGatewayHandler
@@ -69,6 +72,7 @@ type Handlers struct {
 	ModelPlaza       *ModelPlazaHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
+	Team             *TeamHandler
 }
 
 // BuildInfo contains build-time information

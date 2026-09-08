@@ -1,6 +1,8 @@
 ---
 name: push-cli
 description: >-
+  Legacy mode only: invoke solely when the owner explicitly requests this CLI.
+  Ordinary GoToCC local publication follows docs/RELEASING.md instead.
   Safely push Sub2API Plus working branches and submit the final locally
   validated pull request. Use when the user asks to push code, publish the
   current branch, run the repository validation matrix, create or update a
@@ -13,6 +15,9 @@ description: >-
   release-cli and requires a verified tag plus an exactly regenerated metadata
   tree. Never push the repository default branch.
 ---
+
+> Legacy workflow, outside GoToCC local publication. Use only when the owner explicitly requests this legacy CLI mode. Ordinary upgrade/push/release requests follow `docs/RELEASING.md`; do not start the full matrix or PR/finalization chain.
+
 
 # Push CLI
 
@@ -57,7 +62,7 @@ branch and SHA.
 ## Mandatory GitHub CLI Gate
 
 Every action requires an installed and authenticated GitHub CLI. Resolve the
-origin repository exactly as `LuckyKuang/sub2api-plus`, verify repository
+origin repository exactly as `skyqingname/gotocc-router`, verify repository
 access and push permission, and resolve the default branch from GitHub. Never
 run `gh auth login` automatically or fall back to another credential or HTTP
 client.
@@ -70,7 +75,7 @@ Git transfers only `HEAD:<current-branch>`. Never use `--force`, `--all`,
 
 Only `check`, `submit-pr`, and `ensure` access the validation runtime.
 
-- macOS: Apple Containers only; no Docker, Colima, or host-toolchain fallback.
+- macOS: directly reachable Docker Engine and Compose plugin.
 - Windows: Docker inside a running WSL2 Debian or Ubuntu distribution only.
 - Linux: directly reachable Docker Engine and Compose plugin.
 

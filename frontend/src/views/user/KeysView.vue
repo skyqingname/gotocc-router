@@ -22,6 +22,12 @@
               :options="statusFilterOptions"
               @update:model-value="onStatusFilterChange"
             />
+            <Select
+              :model-value="filterRoutingMode"
+              class="w-40"
+              :options="routingModeFilterOptions"
+              @update:model-value="onRoutingModeFilterChange"
+            />
           </div>
           <EndpointPopover
             v-if="publicSettings?.api_base_url || (publicSettings?.custom_endpoints?.length ?? 0) > 0"
@@ -32,7 +38,19 @@
       </template>
 
       <template #actions>
-        <div class="flex justify-end gap-3">
+        <div class="flex flex-wrap justify-end gap-3">
+          <ScopeDropdown v-if="teamFeatureEnabled" v-model="scope" data-tour="keys-scope-switch" @change="onScopeChange" />
+          <button
+            type="button"
+            class="btn btn-secondary px-2 md:px-3"
+            :disabled="clientConfigKeys.length === 0"
+            :title="t('keys.oneClickAccess')"
+            data-test="one-click-access-global"
+            @click="openOneClickAccess"
+          >
+            <Icon name="terminal" size="md" class="md:mr-1.5" />
+            <span class="hidden md:inline">{{ t('keys.oneClickAccess') }}</span>
+          </button>
           <button
             @click="loadApiKeys"
             :disabled="loading"
@@ -139,10 +157,17 @@
                 :ref="(el) => setGroupButtonRef(row.id, el)"
                 @click="openGroupSelector(row)"
                 class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
-                :title="t('keys.clickToChangeGroup')"
+                :title="isAutoRouting(row) ? t('keys.clickToChangeRouting') : t('keys.clickToChangeGroup')"
               >
+                <span
+                  v-if="isAutoRouting(row)"
+                  data-testid="api-key-auto-routing-badge"
+                  class="inline-flex items-center rounded bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                >
+                  {{ t('keys.routingMode.auto') }}
+                </span>
                 <GroupBadge
-                  v-if="row.group"
+                  v-else-if="row.group"
                   :name="row.group.name"
                   :platform="row.group.platform"
                   :subscription-type="row.group.subscription_type"
@@ -153,10 +178,10 @@
                   :peak-end="row.group.peak_end"
                   :peak-rate-multiplier="row.group.peak_rate_multiplier"
                 />
-                <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
+                <span v-else-if="!isAutoRouting(row)" class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
+                <span v-if="!isAutoRouting(row)" class="text-xs text-gray-500 dark:text-gray-400">{{ t('keys.selectGroup') }}</span>
                 <svg
                   class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
                   fill="none"
@@ -373,15 +398,17 @@
             <div class="flex items-center gap-1">
               <!-- Use Key Button -->
               <button
+                v-if="canUseClientConfig(row)"
                 @click="openUseKeyModal(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                data-test="use-key-action"
               >
                 <Icon name="terminal" size="sm" />
                 <span class="text-xs">{{ t('keys.useKey') }}</span>
               </button>
               <!-- Import to CC Switch Button -->
               <button
-                v-if="!publicSettings?.hide_ccs_import_button"
+                v-if="canUseClientConfig(row) && !publicSettings?.hide_ccs_import_button"
                 @click="importToCcswitch(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
               >
@@ -465,6 +492,49 @@
         </div>
 
         <div>
+          <label class="input-label">{{ t('keys.routingMode.label') }}</label>
+          <div
+            class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
+            role="radiogroup"
+            :aria-label="t('keys.routingMode.label')"
+          >
+            <button
+              type="button"
+              role="radio"
+              data-test="key-routing-fixed"
+              :aria-checked="formData.routing_mode === 'fixed'"
+              :class="[
+                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                formData.routing_mode === 'fixed'
+                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
+              ]"
+              @click="setFormRoutingMode('fixed')"
+            >
+              {{ t('keys.routingMode.fixed') }}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              data-test="key-routing-auto"
+              :aria-checked="formData.routing_mode === 'auto'"
+              :class="[
+                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                formData.routing_mode === 'auto'
+                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
+              ]"
+              @click="setFormRoutingMode('auto')"
+            >
+              {{ t('keys.routingMode.auto') }}
+            </button>
+          </div>
+          <p class="input-hint">
+            {{ formData.routing_mode === 'auto' ? t('keys.routingMode.autoHint') : t('keys.routingMode.fixedHint') }}
+          </p>
+        </div>
+
+        <div v-if="formData.routing_mode === 'fixed'">
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
           <Select
             v-model="formData.group_id"
@@ -988,12 +1058,58 @@
       @cancel="showResetRateLimitDialog = false"
     />
 
+    <!-- Global one-click access always selects from plaintext personal keys. -->
+    <BaseDialog
+      :show="showOneClickKeySelect"
+      :title="t('keys.oneClickSelect.title')"
+      width="normal"
+      @close="closeOneClickKeySelect"
+    >
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {{ t('keys.oneClickSelect.description') }}
+        </p>
+        <div class="max-h-80 space-y-2 overflow-y-auto pr-1">
+          <button
+            v-for="key in clientConfigKeys"
+            :key="key.id"
+            type="button"
+            class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-4 py-3 text-left transition-colors hover:border-primary-500 hover:bg-primary-50 dark:border-dark-600 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+            data-test="one-click-key-option"
+            @click="selectOneClickKey(key)"
+          >
+            <div class="min-w-0">
+              <div class="truncate font-medium text-gray-900 dark:text-white">
+                {{ key.name }}
+              </div>
+              <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <code class="code">{{ maskApiKey(key.key) }}</code>
+                <span v-if="isAutoRouting(key)" class="text-violet-700 dark:text-violet-300">{{ t('keys.routingMode.auto') }}</span>
+                <span v-else-if="key.group?.name">{{ key.group.name }}</span>
+                <span v-else>{{ t('keys.noGroup') }}</span>
+              </div>
+            </div>
+            <Icon name="chevronRight" size="sm" class="ml-3 flex-shrink-0 text-gray-400" />
+          </button>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <button type="button" class="btn btn-secondary" @click="closeOneClickKeySelect">
+            {{ t('common.cancel') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
+
     <!-- Use Key Modal -->
     <UseKeyModal
       :show="showUseKeyModal"
       :api-key="selectedKey?.key || ''"
+      :api-key-id="selectedKey?.id"
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
+      :routing-mode="selectedKey?.routing_mode || 'fixed'"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
       @close="closeUseKeyModal"
     />
@@ -1076,14 +1192,36 @@
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
           <button
+            type="button"
+            data-test="inline-routing-auto"
+            @click="changeRouting(selectedKeyForGroup!, 'auto')"
+            :class="[
+              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
+              'border-b border-gray-100 dark:border-dark-700',
+              isAutoRouting(selectedKeyForGroup)
+                ? 'bg-primary-50 dark:bg-primary-900/20'
+                : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+            ]"
+          >
+            <span class="font-medium text-violet-700 dark:text-violet-300">{{ t('keys.routingMode.auto') }}</span>
+            <Icon
+              v-if="isAutoRouting(selectedKeyForGroup)"
+              name="check"
+              size="sm"
+              class="text-primary-500"
+              :stroke-width="2"
+            />
+          </button>
+          <button
             v-for="option in filteredGroupOptions"
             :key="option.value ?? 'null'"
-            @click="changeGroup(selectedKeyForGroup!, option.value)"
+            @click="changeRouting(selectedKeyForGroup!, 'fixed', option.value)"
             :class="[
               'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
               'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              selectedKeyForGroup?.group_id === option.value ||
+              !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
               (!selectedKeyForGroup?.group_id && option.value === null)
+              )
                 ? 'bg-primary-50 dark:bg-primary-900/20'
                 : 'hover:bg-gray-100 dark:hover:bg-dark-700'
             ]"
@@ -1101,8 +1239,9 @@
               :peak-rate-multiplier="option.peakRateMultiplier"
               :description="option.description"
               :selected="
-                selectedKeyForGroup?.group_id === option.value ||
+                !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
                 (!selectedKeyForGroup?.group_id && option.value === null)
+                )
               "
             />
           </button>
@@ -1119,9 +1258,11 @@
 <script setup lang="ts">
 	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
+	import { useRoute, useRouter } from 'vue-router'
 	import { useAppStore } from '@/stores/app'
 	import { useOnboardingStore } from '@/stores/onboarding'
 	import { useClipboard } from '@/composables/useClipboard'
+import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t } = useI18n()
@@ -1140,7 +1281,8 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+	import ScopeDropdown, { type DataScope } from '@/components/team/ScopeDropdown.vue'
+	import type { ApiKey, ApiKeyRoutingMode, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
@@ -1172,6 +1314,9 @@ interface GroupOption {
 }
 
 const appStore = useAppStore()
+const route = useRoute()
+const router = useRouter()
+const scope = ref<DataScope>(route.query.scope === 'team' ? 'team' : 'personal')
 const onboardingStore = useOnboardingStore()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
@@ -1293,6 +1438,7 @@ const sortState = ref({
 const filterSearch = ref('')
 const filterStatus = ref('')
 const filterGroupId = ref<string | number>('')
+const filterRoutingMode = ref<'' | ApiKeyRoutingMode>('')
 
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
@@ -1300,6 +1446,7 @@ const showDeleteDialog = ref(false)
 const showResetQuotaDialog = ref(false)
 const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
+const showOneClickKeySelect = ref(false)
 const showCcsClientSelect = ref(false)
 const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
@@ -1307,6 +1454,7 @@ const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
+const teamFeatureEnabled = computed(() => publicSettings.value?.team_enabled !== false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
@@ -1319,6 +1467,13 @@ const selectedKeyForGroup = computed(() => {
   return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
 })
 
+const canUseClientConfig = (key: ApiKey) => {
+  const isTeamKey = key.scope === 'team' || key.team_id != null
+  return scope.value === 'team' ? isTeamKey : !isTeamKey
+}
+
+const clientConfigKeys = computed(() => apiKeys.value.filter(canUseClientConfig))
+
 const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) {
     groupButtonRefs.value.set(keyId, el)
@@ -1330,6 +1485,7 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 const formData = ref({
   name: '',
   group_id: null as number | null,
+  routing_mode: 'fixed' as ApiKeyRoutingMode,
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1384,6 +1540,12 @@ const groupFilterOptions = computed(() => [
   ...groups.value.map((g) => ({ value: g.id, label: g.name }))
 ])
 
+const routingModeFilterOptions = computed(() => [
+  { value: '', label: t('keys.allRoutingModes') },
+  { value: 'fixed', label: t('keys.routingMode.fixed') },
+  { value: 'auto', label: t('keys.routingMode.auto') },
+])
+
 const statusFilterOptions = computed(() => [
   { value: '', label: t('keys.allStatus') },
   { value: 'active', label: t('keys.status.active') },
@@ -1404,6 +1566,11 @@ const onGroupFilterChange = (value: string | number | boolean | null) => {
 
 const onStatusFilterChange = (value: string | number | boolean | null) => {
   filterStatus.value = value as string
+  onFilterChange()
+}
+
+const onRoutingModeFilterChange = (value: string | number | boolean | null) => {
+  filterRoutingMode.value = value === 'auto' || value === 'fixed' ? value : ''
   onFilterChange()
 }
 
@@ -1435,6 +1602,16 @@ const filteredGroupOptions = computed(() => {
   })
 })
 
+const isAutoRouting = (key: Pick<ApiKey, 'routing_mode'> | null | undefined) =>
+  key?.routing_mode === 'auto'
+
+const setFormRoutingMode = (routingMode: ApiKeyRoutingMode) => {
+  formData.value.routing_mode = routingMode
+  if (routingMode === 'auto') {
+    formData.value.group_id = null
+  }
+}
+
 const copyToClipboard = async (text: string, keyId: number) => {
   const success = await clipboardCopy(text, t('keys.copied'))
   if (success) {
@@ -1463,14 +1640,18 @@ const loadApiKeys = async () => {
       search?: string
       status?: string
       group_id?: number | string
+      routing_mode?: ApiKeyRoutingMode
       sort_by?: string
       sort_order?: 'asc' | 'desc'
+      scope?: DataScope
     } = {}
     if (filterSearch.value) filters.search = filterSearch.value
     if (filterStatus.value) filters.status = filterStatus.value
     if (filterGroupId.value !== '') filters.group_id = filterGroupId.value
+    if (filterRoutingMode.value) filters.routing_mode = filterRoutingMode.value
     filters.sort_by = sortState.value.sort_by
     filters.sort_order = sortState.value.sort_order
+    filters.scope = scope.value
 
     const response = await keysAPI.list(pagination.value.page, pagination.value.page_size, filters, {
       signal
@@ -1507,7 +1688,7 @@ const loadApiKeys = async () => {
 
 const loadGroups = async () => {
   try {
-    groups.value = await userGroupsAPI.getAvailable()
+    groups.value = await userGroupsAPI.getAvailable(scope.value)
   } catch (error) {
     console.error('Failed to load groups:', error)
   }
@@ -1515,7 +1696,7 @@ const loadGroups = async () => {
 
 const loadUserGroupRates = async () => {
   try {
-    userGroupRates.value = await userGroupsAPI.getUserGroupRates()
+    userGroupRates.value = await userGroupsAPI.getUserGroupRates(scope.value)
   } catch (error) {
     console.error('Failed to load user group rates:', error)
   }
@@ -1524,14 +1705,34 @@ const loadUserGroupRates = async () => {
 const loadPublicSettings = async () => {
   try {
     publicSettings.value = await authAPI.getPublicSettings()
+    if (!teamFeatureEnabled.value && scope.value === 'team') scope.value = 'personal'
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }
 }
 
 const openUseKeyModal = (key: ApiKey) => {
+  if (!canUseClientConfig(key)) return
   selectedKey.value = key
   showUseKeyModal.value = true
+}
+
+const openOneClickAccess = () => {
+  if (clientConfigKeys.value.length === 0) return
+  if (clientConfigKeys.value.length === 1) {
+    openUseKeyModal(clientConfigKeys.value[0])
+    return
+  }
+  showOneClickKeySelect.value = true
+}
+
+const closeOneClickKeySelect = () => {
+  showOneClickKeySelect.value = false
+}
+
+const selectOneClickKey = (key: ApiKey) => {
+  closeOneClickKeySelect()
+  openUseKeyModal(key)
 }
 
 const closeUseKeyModal = () => {
@@ -1564,7 +1765,8 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
-    status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
+    routing_mode: isAutoRouting(key) ? 'auto' : 'fixed',
+    status: key.status === 'active' ? 'active' : 'inactive',
     use_custom_key: false,
     custom_key: '',
     enable_ip_restriction: hasIPRestriction,
@@ -1630,14 +1832,20 @@ const openGroupSelector = (key: ApiKey) => {
   }
 }
 
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
+const changeRouting = async (
+  key: ApiKey,
+  routingMode: ApiKeyRoutingMode,
+  newGroupId: number | null = null,
+) => {
   groupSelectorKeyId.value = null
   dropdownPosition.value = null
-  if (key.group_id === newGroupId) return
+  const groupID = routingMode === 'auto' ? null : newGroupId
+  if (isAutoRouting(key) === (routingMode === 'auto') && key.group_id === groupID) return
 
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
-    appStore.showSuccess(t('keys.groupChangedSuccess'))
+    await keysAPI.update(key.id, { routing_mode: routingMode, group_id: groupID })
+    clearAutoRoutingCapabilities()
+    appStore.showSuccess(t('keys.routingChangedSuccess'))
     loadApiKeys()
   } catch (error) {
     appStore.showError(t('keys.failedToChangeGroup'))
@@ -1662,8 +1870,9 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
-  // Validate group_id is required
-  if (formData.value.group_id === null) {
+  // Fixed routing keeps the existing group requirement. Auto routing uses the
+  // explicit null/group contract and lets the server resolve a group per request.
+  if (formData.value.routing_mode === 'fixed' && formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
     return
   }
@@ -1717,10 +1926,12 @@ const handleSubmit = async () => {
 
   submitting.value = true
   try {
+    const groupID = formData.value.routing_mode === 'auto' ? null : formData.value.group_id
     if (showEditModal.value && selectedKey.value) {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
-        group_id: formData.value.group_id,
+        group_id: groupID,
+        routing_mode: formData.value.routing_mode,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1733,19 +1944,23 @@ const handleSubmit = async () => {
         updates.status = formData.value.status
       }
       await keysAPI.update(selectedKey.value.id, updates)
+      clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
     } else {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
       await keysAPI.create(
         formData.value.name,
-        formData.value.group_id,
+        groupID,
         customKey,
         ipWhitelist,
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        scope.value,
+        formData.value.routing_mode,
       )
+      clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
       if (onboardingStore.isCurrentStep('[data-tour="key-form-submit"]')) {
@@ -1761,6 +1976,17 @@ const handleSubmit = async () => {
   } finally {
     submitting.value = false
   }
+}
+
+const onScopeChange = async () => {
+  closeOneClickKeySelect()
+  closeUseKeyModal()
+  closeCcsClientSelect()
+  pagination.value.page = 1
+  filterGroupId.value = ''
+  filterRoutingMode.value = ''
+  await router.replace({ query: { ...route.query, scope: scope.value } })
+  await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
 }
 
 /**
@@ -1790,6 +2016,7 @@ const closeModals = () => {
   formData.value = {
     name: '',
     group_id: null,
+    routing_mode: 'fixed',
     status: 'active',
     use_custom_key: false,
     custom_key: '',
@@ -1870,6 +2097,7 @@ const resetRateLimitUsage = async () => {
 }
 
 const importToCcswitch = (row: ApiKey) => {
+  if (!canUseClientConfig(row)) return
   const platform = row.group?.platform || 'anthropic'
 
   // For antigravity platform, show client selection dialog
@@ -1884,6 +2112,7 @@ const importToCcswitch = (row: ApiKey) => {
 }
 
 const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
+  if (!canUseClientConfig(row)) return
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
   const platform = row.group?.platform || 'anthropic'
 
@@ -1953,14 +2182,12 @@ function formatResetTime(resetAt: string | null): string {
   return `${mins}m`
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadSavedColumns()
-  loadApiKeys()
-  loadGroups()
-  loadUserGroupRates()
-  loadPublicSettings()
   document.addEventListener('click', closeGroupSelector)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
+  await loadPublicSettings()
+  await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
 })
 
 onUnmounted(() => {

@@ -119,7 +119,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Invalid model in URL")
 		return
 	}
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
+	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" && !apiKey.IsAutoRouting() {
 		modelName = strings.TrimSpace(resolvedModel)
 	}
 
@@ -202,7 +202,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Invalid action in URL")
 		return
 	}
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" {
+	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && strings.TrimSpace(resolvedModel) != "" && !apiKey.IsAutoRouting() {
 		modelName = strings.TrimSpace(resolvedModel)
 	}
 
@@ -231,6 +231,13 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, authSubject, service.ContentModerationProtocolGemini, modelName, body); decision != nil && !decision.AllowNextStage {
 		googleSecurityAuditError(c, decision)
 		return
+	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) {
+		return
+	}
+	authSubject, _ = middleware.GetAuthSubjectFromContext(c)
+	if route, ok := service.AutoRouteDecisionFromContext(c.Request.Context()); ok && route.Composite != nil {
+		modelName = route.UpstreamModel
 	}
 
 	// 解析渠道级模型映射

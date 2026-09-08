@@ -6,12 +6,14 @@ import AsyncImageView from '../AsyncImageView.vue'
 const {
   keysList,
   deleteAsyncImageTask,
+  getAsyncImageObjectURL,
   listAsyncImageTasks,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
   keysList: vi.fn(),
   deleteAsyncImageTask: vi.fn(),
+  getAsyncImageObjectURL: vi.fn(),
   listAsyncImageTasks: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock('@/api/asyncImage', () => ({
   AsyncImageDownloadValidationError: class AsyncImageDownloadValidationError extends Error {},
   deleteAsyncImageTask,
   downloadAsyncImageZip: vi.fn(),
+  getAsyncImageObjectURL,
   getAsyncImageTask: vi.fn(),
   listAsyncImageModels: vi.fn().mockResolvedValue([]),
   listAsyncImageTasks,
@@ -65,6 +68,7 @@ const dataTableStub = {
   template: `
     <div class="data-table">
       <div v-for="row in data" :key="row.task_id" class="data-row" :data-task-id="row.task_id">
+        <slot name="cell-result" :row="row" />
         <slot name="cell-actions" :row="row" />
       </div>
       <slot v-if="data.length === 0" name="empty" />
@@ -123,6 +127,7 @@ describe('AsyncImageView task management', () => {
   beforeEach(() => {
     keysList.mockReset()
     deleteAsyncImageTask.mockReset()
+    getAsyncImageObjectURL.mockReset()
     listAsyncImageTasks.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
@@ -137,6 +142,12 @@ describe('AsyncImageView task management', () => {
       }],
     })
     deleteAsyncImageTask.mockResolvedValue(undefined)
+    getAsyncImageObjectURL.mockImplementation(async (_apiKey: string, objectID: string) => ({
+      id: objectID,
+      object: 'image.object',
+      url: `https://fresh.test/${objectID}`,
+      url_expires_at: Math.floor(Date.now() / 1000) + 3600,
+    }))
     listAsyncImageTasks.mockResolvedValue({ object: 'list', data: [failedTask, completedTask], has_more: false })
   })
 
@@ -205,6 +216,174 @@ describe('AsyncImageView task management', () => {
     findButtonByText('asyncImage.actions.create')?.click()
     await flushPromises()
     expect(wrapper.text()).toContain('asyncImage.create.noKeys')
+  })
+
+  it('renews an expired object URL before rendering the task result', async () => {
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        image_url: 'https://expired.test/image.png',
+        result: { data: [{ url: 'https://expired.test/image.png', object_id: 'imgobj_expired', url_expires_at: 1 }] },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-selected-key', 'imgobj_expired')
+    expect(wrapper.get('img').attributes('src')).toBe('https://fresh.test/imgobj_expired')
+    expect(wrapper.html()).not.toContain('https://expired.test/image.png')
+  })
+
+  it('uses a quota-exhausted key to renew its existing history', async () => {
+    keysList.mockResolvedValue({
+      items: [{
+        id: 11,
+        user_id: 7,
+        key: 'sk-exhausted-key',
+        name: 'Exhausted image key',
+        status: 'quota_exhausted',
+        group: { platform: 'openai', allow_image_generation: true },
+      }],
+    })
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        result: { data: [{ object_id: 'imgobj_exhausted' }] },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-exhausted-key', 'imgobj_exhausted')
+    expect(wrapper.get('img').attributes('src')).toBe('https://fresh.test/imgobj_exhausted')
+  })
+
+  it('does not renew a signed URL that remains valid', async () => {
+    const validURL = 'https://signed.test/still-valid.png'
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        image_url: validURL,
+        result: { data: [{ url: validURL, object_id: 'imgobj_valid', url_expires_at: Math.floor(Date.now() / 1000) + 3600 }] },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).not.toHaveBeenCalled()
+    expect(wrapper.get('img').attributes('src')).toBe(validURL)
+  })
+
+  it('renews a signed URL that will expire inside the safety window', async () => {
+    const expiringURL = 'https://signed.test/expiring.png'
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        image_url: expiringURL,
+        result: { data: [{ url: expiringURL, object_id: 'imgobj_expiring', url_expires_at: Math.floor(Date.now() / 1000) + 30 }] },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-selected-key', 'imgobj_expiring')
+    expect(wrapper.get('img').attributes('src')).toBe('https://fresh.test/imgobj_expiring')
+    expect(wrapper.html()).not.toContain(expiringURL)
+  })
+
+  it('does not render the stale URL when renewal fails', async () => {
+    getAsyncImageObjectURL.mockRejectedValue(new Error('renewal failed'))
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        image_url: 'https://expired.test/broken.png',
+        result: { data: [{ url: 'https://expired.test/broken.png', object_id: 'imgobj_broken', url_expires_at: 1 }] },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledOnce()
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.html()).not.toContain('https://expired.test/broken.png')
+  })
+
+  it('deduplicates renewal for repeated object IDs in a multi-image result', async () => {
+    listAsyncImageTasks.mockResolvedValue({
+      object: 'list',
+      data: [{
+        ...completedTask,
+        result: {
+          data: [
+            { url: 'https://expired.test/first.png', object_id: 'imgobj_shared', url_expires_at: 1 },
+            { url: 'https://expired.test/duplicate.png', object_id: 'imgobj_shared', url_expires_at: 1 },
+            { url: 'https://expired.test/second.png', object_id: 'imgobj_second', url_expires_at: 1 },
+          ],
+        },
+      }],
+      has_more: false,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledTimes(2)
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-selected-key', 'imgobj_shared')
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-selected-key', 'imgobj_second')
+    expect(wrapper.findAll('img').map(image => image.attributes('src'))).toEqual([
+      'https://fresh.test/imgobj_shared',
+      'https://fresh.test/imgobj_second',
+    ])
+  })
+
+  it('refreshes an already-open detail dialog with the renewed URL', async () => {
+    const initialURL = 'https://signed.test/initial.png'
+    listAsyncImageTasks
+      .mockResolvedValueOnce({
+        object: 'list',
+        data: [{
+          ...completedTask,
+          image_url: initialURL,
+          result: { data: [{ url: initialURL, object_id: 'imgobj_detail', url_expires_at: Math.floor(Date.now() / 1000) + 3600 }] },
+        }],
+        has_more: false,
+      })
+      .mockResolvedValueOnce({
+        object: 'list',
+        data: [{
+          ...completedTask,
+          image_url: 'https://expired.test/detail.png',
+          result: { data: [{ url: 'https://expired.test/detail.png', object_id: 'imgobj_detail', url_expires_at: 1 }] },
+        }],
+        has_more: false,
+      })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="view-task-imgtask_completed"]').trigger('click')
+    expect(wrapper.get('.base-dialog img').attributes('src')).toBe(initialURL)
+
+    await wrapper.get('button[title="asyncImage.actions.refresh"]').trigger('click')
+    await flushPromises()
+
+    expect(getAsyncImageObjectURL).toHaveBeenCalledWith('sk-selected-key', 'imgobj_detail')
+    expect(wrapper.get('.base-dialog img').attributes('src')).toBe('https://fresh.test/imgobj_detail')
+    expect(wrapper.html()).not.toContain('https://expired.test/detail.png')
   })
 
   it('shows delete only for failed rows and supports cancel', async () => {
