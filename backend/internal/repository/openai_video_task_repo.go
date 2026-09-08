@@ -187,6 +187,7 @@ func (r *openAIVideoTaskRepository) RecordPollState(ctx context.Context, id int6
 func (r *openAIVideoTaskRepository) RecordPollError(ctx context.Context, id int64, leaseToken, code, message string, nextPollAt time.Time) error {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE openai_video_tasks SET retry_count=retry_count+1,
+			status=CASE WHEN status='completed' AND billing_status<>'captured' THEN 'processing' ELSE status END,
 			last_error_code=$3, last_error_message=$4, next_poll_at=$5,
 			lease_until=NULL, lease_token=NULL, updated_at=NOW()
 		WHERE id=$1 AND lease_token=$2`, id, leaseToken,

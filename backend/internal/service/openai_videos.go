@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -241,6 +242,7 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 	if err != nil {
 		return nil, err
 	}
+	request = request.WithContext(WithHTTPUpstreamProfile(ctx, HTTPUpstreamProfileOpenAI))
 	proxyURL := ""
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -270,6 +272,59 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 		Body:           body,
 		StatusCode:     response.StatusCode,
 	}, nil
+}
+
+// verifyOpenAIVideoTaskContent returns a terminal delivery failure as code/message,
+// and a retryable transport or readiness failure as err. It reads the first byte
+// of the authenticated content response, without downloading the whole video.
+func (s *OpenAIGatewayService) verifyOpenAIVideoTaskContent(ctx context.Context, task *OpenAIVideoTask, account *Account) (string, string, error) {
+	token, _, err := s.GetAccessToken(ctx, account)
+	if err != nil {
+		return "", "", err
+	}
+	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
+		Method: http.MethodGet, Path: "/v1/videos/" + url.PathEscape(*task.TaskID) + "/content",
+		Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+	}, token)
+	if err != nil {
+		return "", "", err
+	}
+	request = request.WithContext(WithHTTPUpstreamProfile(ctx, HTTPUpstreamProfileOpenAI))
+	proxyURL := ""
+	if account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	response, err := s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return "", "", err
+	}
+	defer response.Body.Close()
+	status := response.StatusCode
+	if status >= http.StatusBadRequest && status < http.StatusInternalServerError &&
+		status != http.StatusRequestTimeout && status != http.StatusConflict &&
+		status != http.StatusTooEarly && status != http.StatusTooManyRequests {
+		message := fmt.Sprintf("video content upstream returned %d", status)
+		body, readErr := s.readOpenAIVideoJSONResponse(response.Body)
+		if readErr == nil {
+			detail := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+			if detail != "" {
+				message += ": " + detail
+			}
+		}
+		return fmt.Sprintf("VIDEO_CONTENT_HTTP_%d", status), truncateOpenAIVideoError(message), nil
+	}
+	if status != http.StatusOK && status != http.StatusPartialContent {
+		return "", "", fmt.Errorf("video content is not ready: HTTP %d", status)
+	}
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || (!strings.HasPrefix(mediaType, "video/") && mediaType != "application/octet-stream") {
+		return "VIDEO_CONTENT_INVALID", "video content endpoint did not return video or binary media", nil
+	}
+	var firstByte [1]byte
+	if _, err := io.ReadFull(response.Body, firstByte[:]); err != nil {
+		return "", "", fmt.Errorf("video content is not readable: %w", err)
+	}
+	return "", "", nil
 }
 
 func parseOpenAIVideoProviderError(body []byte) (string, string) {

@@ -115,14 +115,28 @@ two units.
 
 With `video_task.enabled`, create validates the numeric JSON `seconds` field
 and resolves `size` to the configured video resolution tier before forwarding.
-Balance-mode requests reserve the exact seconds-based quote first; successful
-provider terminal state captures it, while create failure, provider failure,
-cancellation, or local expiry releases it. Subscription usage is applied only
+Balance-mode requests reserve the exact seconds-based quote first. From owned
+0.2.1+custom.004, provider completion must also pass an authenticated GET of
+`/v1/videos/{task_id}/content` on the original account before capture. A 200/206
+response must identify video/binary media and yield at least one byte; the worker
+closes the response without downloading the entire video. This verifies initial
+content availability, not full-file integrity or permanent future availability.
+HTTP 4xx except 408/409/425/429 and non-media 200/206 responses fail the local
+task and release the quote, retaining the original provider status. Transport
+errors, readiness responses, empty bodies, 408/409/425/429 and 5xx keep the quote
+held and retry until the existing task deadline. Create failure, provider failure,
+cancellation, or local expiry also releases the quote. Subscription usage is applied only
 after success. PostgreSQL stores the task owner and original account, and both
 the worker and client status/content reads use that account instead of running
 the scheduler again. `NOT_START`, `IN_PROGRESS`, and other unknown states stay
 non-terminal; only values in the explicit success/failure/cancelled sets can
 settle or release a task.
+
+Status and content verification share the configured worker request timeout.
+Recovered completed-but-uncaptured rows go through status/content verification
+again; a transient failure moves them back to processing with the next polling
+time. Already captured tasks are not automatically refunded or rechecked by this
+change. No schema/configuration migration is added.
 
 The resolved billing mode is part of the immutable asynchronous-task quote.
 Task settlement and terminal usage recording read that frozen value rather

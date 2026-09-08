@@ -1,24 +1,21 @@
-GoToCC 0.2.1+custom.003
+GoToCC 0.2.1+custom.004
 
-## Changes
+## 修复
 
-- Adapted Plus v0.2.1+custom.002 (1b95c72f186275f582714bed38a1a4af122429f1), based on official Sub2API v0.2.1 (578785ee7fb35030b094b69624efe25670a36f5f).
-- Disconnect streaks now use independent client sessions. The administrator event panel adds user, key, request/session ID, protocol, time and usage-source filters.
-- Retained upstream independent transport/originator recognition, official Codex search profiles and OAuth-only group compatibility, preserving credential identity precedence.
-- Included upstream Grok audio cancellation handling and gRPC 1.83.1.
-- Preserved every active GoToCC contract: invitations, teams, async video settlement, permanent image objects, Model Plaza and branding, owned updates, smart keys, actual HTTP status and downstream-disconnect attribution.
-- Preserved audit templates/scoring, per-node timeouts, text preview, actual-model probes and credential diagnostics, and Astra defaults for one-click access/CCS.
+视频状态接口报告 completed，但内容接口返回 403 等失败时，旧版本仍会扣费。现在后台使用创建时的原账号确认 content 返回视频/二进制并可读到数据，之后才结算。明确的内容交付失败释放预占，不写成功消费；临时错误继续重试至现有任务时限。
 
-## Migration, configuration and rollback
+- HTTP 4xx（408/409/425/429 除外）和非媒体内容按交付失败处理；保留上游状态及脱敏原因。
+- 网络错误、空响应、未就绪、408/409/425/429 和 5xx 暂不结算，按既有周期重试。
+- 恢复的 completed 未结算任务也重新检查内容；已扣款历史任务不自动追溯退款。
+- status/content 共享现有 worker 请求超时，保留任务租约及幂等账务。
+- 内容检查只读取开头数据，确认结算时可开始读取，不承诺整段完整性或未来永久可用。
 
-Upgrading from owned 0.2.1+custom.002 adds only migration 260. Upstream 256_client_disconnect_session_scope.sql is imported under this new number with identical SQL contents; owned migrations through 259 are unchanged.
+上游基线仍为 Plus v0.2.1+custom.002（1b95c72f186275f582714bed38a1a4af122429f1），官方基线为 Sub2API v0.2.1（578785ee7fb35030b094b69624efe25670a36f5f）。
 
-The migration backfills disconnect-event user email/key names and legacy session scope, replaces the event primary key, rebuilds derived risk state per session, and creates four ordinary indexes. Existing events remain; derived streak counters restart. ALTER TABLE, primary-key replacement and non-concurrent indexes take table locks. Backfill/index creation requires additional disk and WAL capacity. Stop the old core before startup and retain matched database/runtime backups; never overlap writer versions.
+## 迁移、配置与回滚
 
-Consecutive-disconnect banning is turned off and its generation is advanced. Administrators must review session scope before deciding to re-enable it. No new environment variables or Redis flush are required. Balances, usage, credentials and image/video task ownership are preserved.
+从自有 0.2.1+custom.003 升级无新增 SQL migration、schema、配置字段或 Redis 迁移。旧历史 migration 保持原样；较早版本仍需遵循其原有迁移说明。此版本沿用当前数据结构；不得通过恢复旧数据库覆盖升级后的业务写入。回退到旧程序会重新引入仅凭 completed 扣费的行为，因此应优先前滚修复。历史退款是单独授权的逐任务账务操作，不由启动 migration 自动处理。
 
-The old application is incompatible with the new risk-state schema. Binary-only rollback is unsupported. After migration or new business writes, preserve current data and use a forward fix or separately planned schema adaptation; never overwrite it with an old dump. Upgrades from 0.2.0+custom.004 also apply the previously released migrations 253-259 for smart keys, original batch groups, upstream request IDs/concurrent index, Astra monitor configuration, max-reasoning multiplier and Codex manifest; see docs/GOTOCC_PLUS_MIGRATION.md.
+## 本地验收
 
-## Local acceptance
-
-The Linux/amd64 final archive and runtime pricing resources are built locally and the same package runs the preview. Await user manual acceptance before publication; online updates use the owned version panel. No paid image/video probes are created.
+本地构建 Linux/amd64 完整发行包，并使用同一包运行验收环境。等待用户人工验收后再按授权发布；不创建付费生成探针。
