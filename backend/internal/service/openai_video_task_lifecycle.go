@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ type OpenAIVideoTaskCreateInput struct {
 	RequestedModel   string
 	UpstreamModel    string
 	Body             []byte
+	ContentType      string
 	ChannelFields    ChannelUsageFields
 	InboundEndpoint  string
 	UpstreamEndpoint string
@@ -41,7 +43,11 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 	if input.APIKey == nil || input.APIKey.User == nil || input.APIKey.Group == nil || input.APIKey.GroupID == nil || input.Account == nil {
 		return nil, errors.New("openai video task identity is incomplete")
 	}
-	seconds, resolution, err := s.parseOpenAIVideoBillingRequest(ctx, input.APIKey, input.UpstreamModel, input.Body)
+	parameters, err := OpenAIVideoRequestParameters(input.Body, input.ContentType)
+	if err != nil {
+		return nil, err
+	}
+	seconds, resolution, err := s.parseOpenAIVideoBillingRequest(ctx, input.APIKey, input.UpstreamModel, parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -55,9 +61,9 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		Model: input.RequestedModel, UpstreamModel: input.UpstreamModel,
 		VideoCount: 1, VideoResolution: resolution, VideoDurationSeconds: seconds,
 	}
-	cost := s.calculateOpenAIVideoCost(ctx, input.UpstreamModel, input.APIKey, quoteResult, videoMultiplier)
+	cost := s.calculateConfiguredOpenAIVideoCost(ctx, input.UpstreamModel, input.APIKey, quoteResult, videoMultiplier)
 	if cost == nil {
-		return nil, errors.New("openai video pricing is unavailable")
+		return nil, fmt.Errorf("video pricing is not configured for model %q and resolution %q", input.UpstreamModel, resolution)
 	}
 	cost.TotalCost = QuantizeUsageBillingAmount(cost.TotalCost)
 	cost.ActualCost = QuantizeUsageBillingAmount(cost.ActualCost)
@@ -206,27 +212,28 @@ func (s *OpenAIGatewayService) GetOpenAIVideoTaskForAPIKey(ctx context.Context, 
 
 func (s *OpenAIGatewayService) parseOpenAIVideoBillingRequest(ctx context.Context, apiKey *APIKey, billingModel string, body []byte) (int, string, error) {
 	secondsValue := gjson.GetBytes(body, "seconds")
-	if !secondsValue.Exists() || secondsValue.Type != gjson.Number || secondsValue.Float() != float64(secondsValue.Int()) {
+	if !secondsValue.Exists() || (secondsValue.Type != gjson.Number && secondsValue.Type != gjson.String) {
 		return 0, "", ErrOpenAIVideoSecondsInvalid
 	}
-	seconds := int(secondsValue.Int())
-	if seconds < VideoBillingMinDurationSeconds || seconds > VideoBillingMaxDurationSeconds {
-		return 0, "", fmt.Errorf("%w: allowed range is %d-%d", ErrOpenAIVideoSecondsInvalid, VideoBillingMinDurationSeconds, VideoBillingMaxDurationSeconds)
+	seconds, err := strconv.Atoi(strings.TrimSpace(secondsValue.String()))
+	if secondsValue.Type == gjson.Number && secondsValue.Float() == float64(secondsValue.Int()) {
+		seconds, err = int(secondsValue.Int()), nil
 	}
-	resolution, known := openAIVideoResolutionFromBody(body)
-	if !known {
-		resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey)
-		if resolved != nil && resolved.Mode == BillingModeVideo && len(resolved.RequestTiers) > 0 {
-			return 0, "", ErrOpenAIVideoResolutionInvalid
-		}
-		resolution = VideoBillingResolution480P
+	if err != nil || seconds <= 0 {
+		return 0, "", ErrOpenAIVideoSecondsInvalid
 	}
+	resolution, _ := openAIVideoResolutionFromBody(body)
 	return seconds, resolution, nil
 }
 
 func openAIVideoResolutionFromBody(body []byte) (string, bool) {
-	if raw := strings.TrimSpace(gjson.GetBytes(body, "resolution").String()); raw != "" {
-		return LookupVideoBillingResolution(raw)
+	for _, field := range []string{"resolution", "resolution_name", "metadata.resolution"} {
+		if raw := strings.TrimSpace(gjson.GetBytes(body, field).String()); raw != "" {
+			if canonical, known := LookupVideoBillingResolution(raw); known {
+				return canonical, true
+			}
+			return strings.ToLower(raw), true
+		}
 	}
 	switch strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "size").String())) {
 	case "854x480", "480x854":
@@ -236,7 +243,8 @@ func openAIVideoResolutionFromBody(body []byte) (string, bool) {
 	case "1920x1080", "1080x1920":
 		return VideoBillingResolution1080P, true
 	default:
-		return "", false
+		raw := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "size").String()))
+		return raw, raw != ""
 	}
 }
 

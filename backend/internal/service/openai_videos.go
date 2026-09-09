@@ -30,6 +30,7 @@ type OpenAIVideoForwardInput struct {
 	Method             string
 	Path               string
 	Body               []byte
+	ContentType        string
 	Model              string
 	UpstreamModel      string
 	LocalRequestID     string
@@ -83,6 +84,9 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	request.Header.Del("Authorization")
 	request.Header.Del("X-Api-Key")
 	request.Header.Set("Authorization", "Bearer "+token)
+	if input.ContentType != "" {
+		request.Header.Set("Content-Type", input.ContentType)
+	}
 	if idempotencyKey := strings.TrimSpace(input.LocalRequestID); idempotencyKey != "" {
 		request.Header.Set("Idempotency-Key", idempotencyKey)
 	}
