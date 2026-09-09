@@ -24,6 +24,9 @@ func (s *OpenAIGatewayService) calculateConfiguredOpenAIVideoCost(ctx context.Co
 }
 
 func configuredOpenAIVideoQuote(pricing *ResolvedPricing, request *OpenAIForwardResult, multiplier float64) *CostBreakdown {
+	if len(pricing.RequestTiers) == 0 && pricing.channelPricing != nil && pricing.channelPricing.PerRequestPrice == nil {
+		return nil
+	}
 	price := pricing.DefaultPerRequestPrice
 	if len(pricing.RequestTiers) > 0 {
 		found := false
