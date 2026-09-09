@@ -63,7 +63,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 	}
 	cost := s.calculateConfiguredOpenAIVideoCost(ctx, input.UpstreamModel, input.APIKey, quoteResult, videoMultiplier)
 	if cost == nil {
-		return nil, fmt.Errorf("video pricing is not configured for model %q and resolution %q", input.UpstreamModel, resolution)
+		return nil, fmt.Errorf("%w: model %q, resolution %q", ErrOpenAIVideoResolutionInvalid, input.RequestedModel, resolution)
 	}
 	cost.TotalCost = QuantizeUsageBillingAmount(cost.TotalCost)
 	cost.ActualCost = QuantizeUsageBillingAmount(cost.ActualCost)

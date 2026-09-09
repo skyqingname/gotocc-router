@@ -29,7 +29,7 @@ var (
 	ErrOpenAIVideoTaskLeaseLost     = errors.New("openai video task lease lost")
 	ErrOpenAIVideoTaskIDMissing     = errors.New("upstream video task id is missing")
 	ErrOpenAIVideoSecondsInvalid    = errors.New("video seconds must be a positive integer")
-	ErrOpenAIVideoResolutionInvalid = errors.New("video size does not map to a configured billing resolution")
+	ErrOpenAIVideoResolutionInvalid = errors.New("video pricing is not configured for the requested resolution")
 )
 
 type OpenAIVideoTask struct {
