@@ -384,7 +384,7 @@
             </div>
           </div>
 
-          <div v-else class="table-container border-0">
+          <div v-else-if="activeTab === 'users' && isAdmin" class="table-container border-0">
             <table class="table monitor-table min-w-[640px]">
               <thead>
                 <tr>
@@ -519,11 +519,16 @@ const ranges = computed(() => [
   { value: '7d' as MonitorRange, label: t('channelMonitorV2.ranges.7d') },
   { value: '30d' as MonitorRange, label: t('channelMonitorV2.ranges.30d') },
 ])
-const tabs = computed(() => [
-  { value: 'models' as Tab, label: t('channelMonitorV2.tabs.models') },
-  { value: 'errors' as Tab, label: t('channelMonitorV2.tabs.errors') },
-  { value: 'users' as Tab, label: t('channelMonitorV2.tabs.users') },
-])
+const tabs = computed(() => {
+  const items = [
+    { value: 'models' as Tab, label: t('channelMonitorV2.tabs.models') },
+    { value: 'errors' as Tab, label: t('channelMonitorV2.tabs.errors') },
+  ]
+  if (isAdmin.value) {
+    items.push({ value: 'users' as Tab, label: t('channelMonitorV2.tabs.users') })
+  }
+  return items
+})
 const matrixGroupOptions = computed(() => [
   { value: 'platform' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platform') },
   { value: 'platform_group' as MonitorMatrixGroupBy, label: t('channelMonitorV2.groupBy.platformGroup') },
@@ -543,9 +548,7 @@ const filter = ref<MonitorFilter>({
   groupIds: csv(route.query.group).map(Number).filter(Boolean),
   models: csv(route.query.model),
 })
-const activeTab = ref<Tab>(
-  (['models', 'errors', 'users'].includes(String(route.query.tab)) ? route.query.tab : 'models') as Tab
-)
+const activeTab = ref<Tab>(parseTab(route.query.tab, isAdmin.value))
 const matrixGroupBy = ref<MonitorMatrixGroupBy>(parseMatrixGroupBy(route.query.group_by))
 const healthMode = ref<HealthMode>(parseHealthMode(route.query.health_mode))
 const trendView = ref<TrendView>(parseTrendView(route.query.trend_view))
@@ -679,6 +682,11 @@ function parseHealthMode(value: unknown): HealthMode {
 function parseTrendView(value: unknown): TrendView {
   return value === 'line' ? 'line' : 'pulse'
 }
+function parseTab(value: unknown, admin: boolean): Tab {
+  if (value === 'errors') return 'errors'
+  if (value === 'users' && admin) return 'users'
+  return 'models'
+}
 function syncQuery() {
   void router.replace({
     query: {
@@ -773,7 +781,7 @@ async function loadTab(signal?: AbortSignal, id = sequence) {
       modelRows.value = (await api.getModels(filter.value, isAdmin.value, signal)).items || []
     } else if (activeTab.value === 'errors') {
       errorRows.value = (await api.getErrors(filter.value, isAdmin.value, signal)).items || []
-    } else {
+    } else if (activeTab.value === 'users' && isAdmin.value) {
       userRows.value = (await api.getUsers(filter.value, isAdmin.value, signal)).items || []
     }
   } catch (error) {
@@ -900,11 +908,22 @@ watch(matrixGroupBy, () => {
 })
 watch(healthMode, syncQuery)
 watch(trendView, syncQuery)
+watch(isAdmin, (admin) => {
+  const normalized = parseTab(activeTab.value, admin)
+  if (normalized !== activeTab.value) {
+    activeTab.value = normalized
+  }
+})
 watch(activeTab, () => {
   syncQuery()
   void loadTab()
 })
-onMounted(() => void reload(false))
+onMounted(() => {
+  if (route.query.tab === 'users' && !isAdmin.value) {
+    syncQuery()
+  }
+  void reload(false)
+})
 onBeforeUnmount(() => {
   controller?.abort()
   if (autoRefreshTimer) window.clearInterval(autoRefreshTimer)

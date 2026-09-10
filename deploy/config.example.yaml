@@ -4,7 +4,7 @@
 # Copy this file to /etc/sub2api/config.yaml and modify as needed
 # 复制此文件到 /etc/sub2api/config.yaml 并根据需要修改
 #
-# Documentation / 文档: https://github.com/luckykuang/sub2api-plus
+# Documentation / 文档: https://github.com/skyqingname/gotocc-router
 
 # =============================================================================
 # Server Configuration
@@ -1068,7 +1068,7 @@ pricing:
   # refresh keeps the last validated cache or bundled fallback.
   # 最新 Release 发现地址。默认启用远程刷新；manifest 绑定固定版本资源 URL 和
   # SHA-256。刷新失败时保留上次校验通过的缓存或使用内置数据。
-  manifest_url: "https://github.com/luckykuang/sub2api-plus/releases/latest/download/model-pricing-manifest.json"
+  manifest_url: "https://github.com/skyqingname/gotocc-router/releases/latest/download/model-pricing-manifest.json"
   # Local data directory for caching
   # 本地数据缓存目录
   data_dir: "./data"
@@ -1209,6 +1209,23 @@ update:
   # Leave empty for direct connection (recommended for overseas servers)
   # 留空表示直连（适用于海外服务器）
   proxy_url: ""
+
+# =============================================================================
+# OpenAI-compatible Video Tasks (异步视频任务与终态计费)
+# =============================================================================
+video_task:
+  # 开启后，POST /v1/videos 先按请求 seconds 预占余额，后台使用创建时的原账号
+  # 轮询；只有成功终态才结算，失败/取消/超时释放预占。
+  enabled: false
+  scan_interval_seconds: 5
+  task_timeout_seconds: 7200
+  lease_seconds: 30
+  request_timeout_seconds: 15
+  claim_batch_size: 20
+  max_response_bytes: 1048576
+  success_statuses: ["completed", "succeeded", "success"]
+  failure_statuses: ["failed", "failure", "error"]
+  cancelled_statuses: ["cancelled", "canceled"]
 
 # =============================================================================
 # Image Storage (异步图片任务结果对象存储)

@@ -403,7 +403,7 @@ func TestWorkerCompletesPassWithoutEventRefreshesEveryChunkAndDeletesPayload(t *
 	repo := &fakeJobRepository{}
 	payload := &fakePayloadStore{values: map[int64]string{51: "abcdef"}}
 	scannerCalls := 0
-	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, chunk string, _ []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, _ string, chunk string, _ []string) (*NormalizedResult, error) {
 		scannerCalls++
 		return &NormalizedResult{Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow, Safety: "Safe", Categories: []string{}, MatchedScanners: []string{}, ScannerScores: map[string]float64{}, ScannerEvidence: map[string]string{}, GuardEndpointID: endpoint.ID}, nil
 	})
@@ -424,7 +424,7 @@ func TestWorkerCompletesPassWithoutEventRefreshesEveryChunkAndDeletesPayload(t *
 func TestWorkerMarksReconstructedContentIncompleteAfterNULRemoval(t *testing.T) {
 	repo := &fakeJobRepository{}
 	payload := &fakePayloadStore{values: map[int64]string{51: "abc\x00def"}}
-	runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+	runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, _, _ string, _ []string) (*NormalizedResult, error) {
 		return integrationResult(EventPass), nil
 	}), NewAtomicMetrics())
 	job := workerJob(1, 3)
@@ -455,7 +455,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 			repo := &fakeJobRepository{}
 			payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
 			metrics := NewAtomicMetrics()
-			runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 				return nil, tt.err
 			}), metrics)
 			runner.clock = fixedClock{now: now}
@@ -483,7 +483,7 @@ func TestWorkerRetryBackoffTerminalFailureAndFailover(t *testing.T) {
 	repo := &fakeJobRepository{}
 	payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
 	metrics := NewAtomicMetrics()
-	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, _, _ string, _ []string) (*NormalizedResult, error) {
 		if endpoint.ID == "first" {
 			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
 		}
@@ -506,21 +506,21 @@ func TestWorkerPersistenceFailuresUpdateRuntimeErrorTimestamp(t *testing.T) {
 	}{
 		{
 			name: "complete", repo: &fakeJobRepository{completeErr: errors.New("complete failed")},
-			scan: func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			scan: func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 				return integrationResult(EventPass), nil
 			},
 			job: workerJob(1, 3), wantCode: "job_complete_failed",
 		},
 		{
 			name: "retry", repo: &fakeJobRepository{retryErr: errors.New("retry failed")},
-			scan: func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			scan: func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 				return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
 			},
 			job: workerJob(1, 3), wantCode: "job_retry_failed",
 		},
 		{
 			name: "fail", repo: &fakeJobRepository{failErr: errors.New("fail failed")},
-			scan: func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+			scan: func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 				return nil, &GuardError{Code: ErrorCodeInvalidResponse}
 			},
 			job: workerJob(1, 3), wantCode: "job_fail_failed",
@@ -543,7 +543,7 @@ func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		repo := &fakeJobRepository{}
 		payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
-		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			panic("scanner panic canary")
 		}), NewAtomicMetrics())
 		errorAt := time.Unix(123, 0).UTC()
@@ -561,7 +561,7 @@ func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 		repo := &fakeJobRepository{refreshErr: ErrLeaseLost}
 		payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
 		calls := 0
-		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			calls++
 			return integrationResult(EventPass), nil
 		}), NewAtomicMetrics())
@@ -580,7 +580,7 @@ func TestWorkerPanicLeaseLossAndLifecycleAreContained(t *testing.T) {
 		configStore := &fakeConfigStore{cfg: cfg, active: true}
 		repo := &fakeJobRepository{}
 		payload := &fakePayloadStore{pingErr: errors.New("redis unavailable")}
-		runner := NewRunner(configStore, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		runner := NewRunner(configStore, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			return integrationResult(EventPass), nil
 		}), NewAtomicMetrics())
 		require.NoError(t, runner.Start(context.Background()))
@@ -615,7 +615,7 @@ func TestWorkerSuccessAdvancesProcessedTimeWithoutOverwritingPriorError(t *testi
 	repo := &fakeJobRepository{}
 	payload := &fakePayloadStore{values: map[int64]string{51: "abc"}}
 	scanCalls := 0
-	runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+	runner := NewRunner(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload, PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 		scanCalls++
 		if scanCalls == 1 {
 			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true}
@@ -654,7 +654,7 @@ func TestPromptAuditSyntheticAsyncBaseline(t *testing.T) {
 	metrics := NewAtomicMetrics()
 	knownBenignFindings := 0
 	knownMaliciousBlocked := 0
-	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, chunk string, _ []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(_ context.Context, endpoint ActiveEndpoint, _ string, chunk string, _ []string) (*NormalizedResult, error) {
 		switch {
 		case strings.HasPrefix(chunk, "benign"):
 			return &NormalizedResult{Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow, Safety: "Safe", GuardEndpointID: endpoint.ID}, nil

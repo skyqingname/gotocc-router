@@ -41,6 +41,6 @@ export default {
       confirm: 'Delete failed task {taskId}? This action cannot be undone.',
       success: 'Failed task deleted',
     },
-    errors: { loadKeys: 'Failed to load API keys', loadModels: 'Failed to load available models', loadTasks: 'Failed to load async image tasks', submit: 'Failed to submit async image task', refresh: 'Failed to refresh task status', delete: 'Failed to delete async image task', deleteNotAllowed: 'Only failed async image tasks can be deleted', download: 'Failed to download generated images', invalidArchive: 'The downloaded archive is invalid. Please try again.' },
+    errors: { loadKeys: 'Failed to load API keys', loadModels: 'Failed to load available models', loadTasks: 'Failed to load async image tasks', submit: 'Failed to submit async image task', refresh: 'Failed to refresh task status', delete: 'Failed to delete async image task', deleteNotAllowed: 'Only failed async image tasks can be deleted', download: 'Failed to download generated images', invalidArchive: 'The downloaded archive is invalid. Please try again.', autoRoutingUnsupported: 'This smart-routing key currently has no eligible async image endpoint.' },
   },
 }

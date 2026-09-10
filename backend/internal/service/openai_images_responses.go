@@ -1792,13 +1792,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	c *gin.Context,
 	account *Account,
 	parsed *OpenAIImagesRequest,
-	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
 	requestModel := strings.TrimSpace(parsed.Model)
-	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
-		requestModel = mapped
-	}
 	if requestModel == "" {
 		requestModel = "gpt-image-2"
 	}
@@ -1869,7 +1865,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			if err := s.recoverAgentIdentityTask(ctx, account, expectedTaskID); err != nil {
 				return nil, fmt.Errorf("agent identity task recovery failed: %w", err)
 			}
-			return s.forwardOpenAIImagesOAuth(markAgentIdentityTaskRecoveryTried(ctx), c, account, parsed, channelMappedModel)
+			return s.forwardOpenAIImagesOAuth(markAgentIdentityTaskRecoveryTried(ctx), c, account, parsed)
 		}
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))

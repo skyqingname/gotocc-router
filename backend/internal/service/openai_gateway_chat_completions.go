@@ -982,7 +982,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 		}
 		logOpenAISuccessMissingUsage(c.Request.Context(), c, account, resp, &usage, terminalEventType, clientDisconnected)
 		if clientDisconnected {
-			return resultWithUsage(), fmt.Errorf("stream usage incomplete: client disconnected")
+			return resultWithUsage(), markOpenAIClientDisconnected(c)
 		}
 		return resultWithUsage(), nil
 	}

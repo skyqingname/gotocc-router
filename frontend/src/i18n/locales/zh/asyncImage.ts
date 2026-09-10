@@ -42,6 +42,6 @@ export default {
       confirm: '确定删除失败任务 {taskId} 吗？此操作不可撤销。',
       success: '失败任务已删除',
     },
-    errors: { loadKeys: '加载 API Key 失败', loadModels: '加载可用模型失败', loadTasks: '加载异步图像任务失败', submit: '提交异步图像任务失败', refresh: '刷新任务状态失败', delete: '删除异步图像任务失败', deleteNotAllowed: '只能删除状态为失败的异步图像任务', download: '下载生成图片失败', invalidArchive: '下载包无效，请稍后重试' },
+    errors: { loadKeys: '加载 API Key 失败', loadModels: '加载可用模型失败', loadTasks: '加载异步图像任务失败', submit: '提交异步图像任务失败', refresh: '刷新任务状态失败', delete: '删除异步图像任务失败', deleteNotAllowed: '只能删除状态为失败的异步图像任务', download: '下载生成图片失败', invalidArchive: '下载包无效，请稍后重试', autoRoutingUnsupported: '该智能路由密钥当前没有可用的异步生图端点' },
   },
 }

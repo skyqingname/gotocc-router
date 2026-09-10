@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 		// 优惠码管理
 		registerPromoCodeRoutes(admin, h)
 
+		// 永久邀请码管理
+		registerReusableInvitationCodeRoutes(admin, h)
+
 		// 系统设置
 		registerSettingsRoutes(admin, h)
 
@@ -136,6 +139,23 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
+		registerTeamRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	teams := admin.Group("/teams")
+	{
+		teams.GET("", h.Admin.Team.List)
+		teams.POST("", h.Admin.Team.Create)
+		teams.GET("/:id", h.Admin.Team.Get)
+		teams.GET("/:id/members", h.Admin.Team.ListMembers)
+		teams.GET("/:id/usage", h.Admin.Team.GetUsage)
+		teams.PATCH("/:id", h.Admin.Team.Update)
+		teams.POST("/:id/force-transfer", gin.HandlerFunc(stepUpAuth), h.Admin.Team.ForceTransfer)
+		teams.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Team.Dissolve)
 	}
 }
 
@@ -181,6 +201,7 @@ func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promptAudit.GET("/config", h.Admin.PromptAudit.GetConfig)
 		promptAudit.PUT("/config", h.Admin.PromptAudit.UpdateConfig)
 		promptAudit.POST("/endpoints/probe", h.Admin.PromptAudit.ProbeEndpoint)
+		promptAudit.POST("/test", h.Admin.PromptAudit.TestText)
 		promptAudit.GET("/runtime", h.Admin.PromptAudit.GetRuntime)
 		promptAudit.GET("/events", h.Admin.PromptAudit.ListEvents)
 		promptAudit.GET("/events/:id", h.Admin.PromptAudit.GetEvent)
@@ -231,7 +252,10 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 func registerAdminAPIKeyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	apiKeys := admin.Group("/api-keys")
 	{
+		apiKeys.GET("/routing-policy", h.Gateway.AdminGetRoutingPolicy)
+		apiKeys.PUT("/routing-policy", middleware.RequestBodyLimit(1<<20), h.Gateway.AdminUpdateRoutingPolicy)
 		apiKeys.PUT("/:id", h.Admin.APIKey.UpdateGroup)
+		apiKeys.GET("/:id/routing-capabilities", h.Gateway.AdminRoutingCapabilities)
 	}
 }
 
@@ -597,6 +621,19 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
+	}
+}
+
+func registerReusableInvitationCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.ReusableInvitationCode == nil {
+		return
+	}
+	codes := admin.Group("/reusable-invitation-codes")
+	{
+		codes.GET("", h.Admin.ReusableInvitationCode.List)
+		codes.POST("", h.Admin.ReusableInvitationCode.Create)
+		codes.POST("/:id/disable", h.Admin.ReusableInvitationCode.Disable)
+		codes.GET("/:id/uses", h.Admin.ReusableInvitationCode.ListUses)
 	}
 }
 

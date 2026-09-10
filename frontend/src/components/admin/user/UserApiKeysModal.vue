@@ -13,7 +13,7 @@
         <div v-for="key in apiKeys" :key="key.id" class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800">
           <div class="flex items-start justify-between">
             <div class="min-w-0 flex-1">
-              <div class="mb-1 flex items-center gap-2"><span class="font-medium text-gray-900 dark:text-white">{{ key.name }}</span><span :class="['badge text-xs', key.status === 'active' ? 'badge-success' : 'badge-danger']">{{ key.status }}</span></div>
+              <div class="mb-1 flex items-center gap-2"><span class="font-medium text-gray-900 dark:text-white">{{ key.name }}</span><span :class="['badge text-xs', key.status === 'active' ? 'badge-success' : 'badge-danger']">{{ key.status }}</span><span v-if="key.routing_mode === 'auto'" class="badge bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{{ t('admin.users.routingAuto') }}</span></div>
               <p class="text-xs text-gray-500 dark:text-gray-400">#{{ key.id }} · {{ t('admin.support.apiKeyConfidentiality') }}</p>
             </div>
           </div>
@@ -26,8 +26,9 @@
                 class="-mx-1 -my-0.5 flex cursor-pointer items-center gap-1 rounded-md px-1 py-0.5 transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
                 :disabled="updatingKeyIds.has(key.id)"
               >
+                <span v-if="key.routing_mode === 'auto'" class="text-violet-700 dark:text-violet-300">{{ t('admin.users.routingAuto') }}</span>
                 <GroupBadge
-                  v-if="key.group_id && key.group"
+                  v-else-if="key.group_id && key.group"
                   :name="key.group.name"
                   :platform="key.group.platform"
                   :subscription-type="key.group.subscription_type"
@@ -58,19 +59,35 @@
       :style="{ top: dropdownPosition.top + 'px', left: dropdownPosition.left + 'px' }"
     >
       <div class="max-h-64 overflow-y-auto p-1.5">
-        <!-- Unbind option -->
         <button
-          @click="changeGroup(selectedKeyForGroup!, null)"
+          @click="changeRouting(selectedKeyForGroup!, 'auto')"
           :class="[
             'flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors',
-            !selectedKeyForGroup?.group_id
+            selectedKeyForGroup?.routing_mode === 'auto'
+              ? 'bg-primary-50 dark:bg-primary-900/20'
+              : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+          ]"
+        >
+          <span class="font-medium text-violet-700 dark:text-violet-300">{{ t('admin.users.routingAuto') }}</span>
+          <svg
+            v-if="selectedKeyForGroup?.routing_mode === 'auto'"
+            class="ml-auto h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"
+          ><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+        </button>
+        <!-- Unbind option -->
+        <button
+          @click="changeRouting(selectedKeyForGroup!, 'fixed', null)"
+          :class="[
+            'flex w-full items-center rounded-lg px-3 py-2 text-sm transition-colors',
+            selectedKeyForGroup?.routing_mode !== 'auto' && !selectedKeyForGroup?.group_id
               ? 'bg-primary-50 dark:bg-primary-900/20'
               : 'hover:bg-gray-100 dark:hover:bg-dark-700'
           ]"
         >
           <span class="text-gray-500 italic">{{ t('admin.users.none') }}</span>
           <svg
-            v-if="!selectedKeyForGroup?.group_id"
+            v-if="selectedKeyForGroup?.routing_mode !== 'auto' && !selectedKeyForGroup?.group_id"
             class="ml-auto h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400"
             fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"
           ><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -79,10 +96,10 @@
         <button
           v-for="group in allGroups"
           :key="group.id"
-          @click="changeGroup(selectedKeyForGroup!, group.id)"
+          @click="changeRouting(selectedKeyForGroup!, 'fixed', group.id)"
           :class="[
             'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors',
-            selectedKeyForGroup?.group_id === group.id
+            selectedKeyForGroup?.routing_mode !== 'auto' && selectedKeyForGroup?.group_id === group.id
               ? 'bg-primary-50 dark:bg-primary-900/20'
               : 'hover:bg-gray-100 dark:hover:bg-dark-700'
           ]"
@@ -97,7 +114,7 @@
             :peak-end="group.peak_end"
             :peak-rate-multiplier="group.peak_rate_multiplier"
             :description="group.description"
-            :selected="selectedKeyForGroup?.group_id === group.id"
+            :selected="selectedKeyForGroup?.routing_mode !== 'auto' && selectedKeyForGroup?.group_id === group.id"
           />
         </button>
       </div>
@@ -203,13 +220,18 @@ const closeGroupSelector = () => {
   dropdownPosition.value = null
 }
 
-const changeGroup = async (key: AdminSupportAPIKey, newGroupId: number | null) => {
+const changeRouting = async (
+  key: AdminSupportAPIKey,
+  routingMode: 'fixed' | 'auto',
+  newGroupId: number | null = null,
+) => {
   closeGroupSelector()
-  if (key.group_id === newGroupId || (!key.group_id && newGroupId === null)) return
+  const groupID = routingMode === 'auto' ? null : newGroupId
+  if (key.routing_mode === routingMode && key.group_id === groupID) return
 
   updatingKeyIds.value.add(key.id)
   try {
-    const result = await adminAPI.apiKeys.updateApiKeyGroup(key.id, newGroupId)
+    const result = await adminAPI.apiKeys.updateApiKeyRouting(key.id, routingMode, groupID)
     // Update local data
     const idx = apiKeys.value.findIndex((k) => k.id === key.id)
     if (idx !== -1) {
@@ -218,7 +240,7 @@ const changeGroup = async (key: AdminSupportAPIKey, newGroupId: number | null) =
     if (result.auto_granted_group_access && result.granted_group_name) {
       appStore.showSuccess(t('admin.users.groupChangedWithGrant', { group: result.granted_group_name }))
     } else {
-      appStore.showSuccess(t('admin.users.groupChangedSuccess'))
+      appStore.showSuccess(t('admin.users.routingChangedSuccess'))
     }
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.users.groupChangeFailed'))

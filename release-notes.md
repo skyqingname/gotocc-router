@@ -1,34 +1,21 @@
-Sub2API Plus v0.2.1+custom.002
+# GoToCC 0.2.1+custom.006
 
-## Highlights
+基于 Plus `v0.2.1+custom.003`（`94beb01630fa163bc7c112202eafd9b8946ca725`），官方基线保持 `v0.2.1`。
 
-Hardens client-disconnect risk control by tracking each logical session
-independently, and accepts current official Codex search client profiles.
+## 功能变化
 
-## Changed
+- OpenAI 订阅分组可指定一个 OAuth 账号，按正常请求观测到的官方周额度窗口跟随重置；首次观测只建立基线，月额度需显式勾选。
+- 使用记录统一首字、总耗时与 TPS 口径，支持 HTTP、WebSocket 与 Codex 压缩路径；历史缺少准确计时的记录显示不可用。
+- 合入上游浅色/深色主题、开关、表格和图表可读性调整，保留 GotoCC 首页与品牌。
+- 保留团队付款归因、智能 Key、自有更新通道、Prompt Audit 模板与文本检查，以及 .005 的 JSON/multipart 视频透明转发、请求时长/分辨率定价、内容可读后终态结算。
 
-- Scopes disconnect counters, blocking decisions, and administrative event
-  views to the resolved session so unrelated sessions no longer affect one
-  another.
-- Preserves session identity throughout disconnect lifecycle cleanup and adds
-  migration-backed storage for the new scope.
-- Recognizes the official Codex search client profile while preserving the
-  credential-owned identity precedence rules.
-- Updates `docker/setup-buildx-action` to 4.3.0 and `google.golang.org/grpc` to
-  1.83.1.
+## 数据与兼容性
 
-## Compatibility and migration
+- 上游新增 SQL 257/258 在自有迁移序列中登记为 261/262，原有历史 SQL 保持原样。
+- 261 增加 timing_version、更新首输出类型约束，清理旧口径的派生首字统计和 openai_ttft_mode 设置；保留原始 usage、费用与流量。历史准确首字无法补算。
+- 262 增加分组额度来源配置、订阅事件标记、观测和重置事件表及索引。默认未配置来源，不会自动开启跟随。
+- 迁移持有表锁，派生统计更新与索引创建需要 WAL/磁盘空间；更新会短暂停止核心，禁止新旧 worker 重叠运行。
+- 无新增外部配置或 Redis 清理要求。额度跟随通过正常流量被动发现，不新增主动查询。
+- 更新前保留数据库和匹配程序/资源备份。启用跟随后旧程序不能维持事件与扣费一致性；261 清理的派生统计也不会因换回旧程序恢复。迁移或新写入后采用向前修复，不能仅回滚二进制或用旧 dump 覆盖当前业务数据。
 
-Database migration 256 runs automatically, preserves existing disconnect
-events under the `legacy` scope, advances the processing generation, and
-rebuilds risk state per session. The migration disables consecutive-disconnect
-banning so administrators can review the new scope before re-enabling it.
-
-## Known issues
-
-No release-specific known issues.
-
-## Upstream baseline
-
-Official release: v0.2.1
-Official commit: 578785ee7fb35030b094b69624efe25670a36f5f
+本地候选，等待人工验收；尚未发布或部署。

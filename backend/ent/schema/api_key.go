@@ -34,6 +34,8 @@ func (APIKey) Mixin() []ent.Mixin {
 func (APIKey) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int64("user_id"),
+		field.Int64("team_id").Optional().Nillable(),
+		field.Bool("team_owner_disabled").Default(false),
 		field.String("key").
 			MaxLen(128).
 			NotEmpty().
@@ -44,6 +46,7 @@ func (APIKey) Fields() []ent.Field {
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
+		field.String("routing_mode").MaxLen(16).Default("fixed"),
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),
@@ -130,6 +133,10 @@ func (APIKey) Edges() []ent.Edge {
 			Field("group_id").
 			Unique(),
 		edge.To("usage_logs", UsageLog.Type),
+		edge.From("team", Team.Type).
+			Ref("api_keys").
+			Field("team_id").
+			Unique(),
 	}
 }
 
@@ -137,6 +144,7 @@ func (APIKey) Indexes() []ent.Index {
 	return []ent.Index{
 		// key 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("user_id"),
+		index.Fields("team_id"),
 		index.Fields("group_id"),
 		index.Fields("status"),
 		index.Fields("deleted_at"),

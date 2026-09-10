@@ -38,7 +38,7 @@ inspect_resource() {
     local resource_name=$2
     local label_value="apple-container"
     local address="192.168.65.4/24"
-    local image="ghcr.io/luckykuang/sub2api-plus:latest"
+    local image="ghcr.io/skyqingname/sub2api-plus:latest"
     local mounts="[]"
 
     if [[ -e "${STATE_DIR}/unowned/${resource_type}/${resource_name}" ]]; then

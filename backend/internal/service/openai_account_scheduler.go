@@ -91,6 +91,33 @@ type OpenAIAccountScheduleRequest struct {
 	ExcludedIDs    map[int64]struct{}
 }
 
+type openAIImagesDirectModelRoutingCtxKey struct{}
+
+func withOpenAIImagesDirectModelRouting(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, openAIImagesDirectModelRoutingCtxKey{}, true)
+}
+
+func openAIImagesDirectModelRoutingFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(openAIImagesDirectModelRoutingCtxKey{}).(bool)
+	return enabled
+}
+
+func openAIAccountSupportsRequestedModel(ctx context.Context, account *Account, requestedModel string) bool {
+	if account == nil {
+		return false
+	}
+	if openAIImagesDirectModelRoutingFromContext(ctx) {
+		return account.IsModelDirectlySupported(requestedModel)
+	}
+	return account.IsModelSupported(requestedModel)
+}
+
 type OpenAIAccountScheduleDecision struct {
 	Layer               string
 	StickyPreviousHit   bool
@@ -1851,7 +1878,7 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	}) {
 		return false, "shadow_parent_unhealthy"
 	}
-	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
+	if req.RequestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, req.RequestedModel) {
 		return false, "model_not_supported"
 	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
@@ -2180,6 +2207,7 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	excludedIDs map[int64]struct{},
 	requiredCapability OpenAIImagesCapability,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+	ctx = withOpenAIImagesDirectModelRouting(ctx)
 	selection, decision, err := s.selectAccountWithScheduler(ctx, groupID, "", sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportHTTPSSE, "", requiredCapability, false, PlatformOpenAI, false, false)
 	if err == nil && selection != nil && selection.Account != nil {
 		return selection, decision, nil
@@ -2215,6 +2243,10 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
 	effectiveExcludedIDs := cloneExcludedAccountIDs(excludedIDs)
 	var sharedResponseAccessErr error
+	autoRoute, auto := AutoRouteDecisionFromContext(ctx)
+	if auto {
+		previousResponseCanMove = false
+	}
 	for {
 		selection, decision, err := s.selectAccountWithSchedulerAttempt(ctx, groupID, previousResponseID, sessionHash, requestedModel, effectiveExcludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform, previousResponseCanMove, useUpstreamTokenCost)
 		if err != nil {
@@ -2222,6 +2254,12 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 				return nil, decision, sharedResponseAccessErr
 			}
 			return selection, decision, err
+		}
+		if auto && autoRoute.RequiredAccountID > 0 && (selection == nil || selection.Account == nil || selection.Account.ID != autoRoute.RequiredAccountID) {
+			if selection != nil && selection.Acquired && selection.ReleaseFunc != nil {
+				selection.ReleaseFunc()
+			}
+			return nil, decision, ErrAutoRouteContext
 		}
 		if selection == nil || selection.Account == nil || strings.TrimSpace(previousResponseID) == "" ||
 			!selection.Account.IsOpenAIOAuthSessionSharingEnabled() ||
@@ -2561,7 +2599,7 @@ func (s *OpenAIGatewayService) hasOpenAIOAuthSessionPolicyAccessDenial(
 	hasAuthorizedMatchingAccount := false
 	for index := range accounts {
 		account := &accounts[index]
-		if !openAIAccountMatchesRequestConfiguration(account, requestedModel, requiredCapability, requiredImageCapability, requireCompact) ||
+		if !openAIAccountMatchesRequestConfiguration(ctx, account, requestedModel, requiredCapability, requiredImageCapability, requireCompact) ||
 			!s.isOpenAIAccountTransportCompatible(account, requiredTransport) {
 			continue
 		}
@@ -2613,6 +2651,7 @@ func (s *OpenAIGatewayService) listOpenAISessionPolicyDiagnosticCandidates(ctx c
 }
 
 func openAIAccountMatchesRequestConfiguration(
+	ctx context.Context,
 	account *Account,
 	requestedModel string,
 	requiredCapability OpenAIEndpointCapability,
@@ -2622,7 +2661,7 @@ func openAIAccountMatchesRequestConfiguration(
 	if account == nil || account.Platform != PlatformOpenAI || !account.IsOpenAICompatible() {
 		return false
 	}
-	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel) {
 		return false
 	}
 	if !accountSupportsOpenAICapabilities(account, requiredCapability, requiredImageCapability) {
@@ -2657,11 +2696,21 @@ func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Accou
 	if s == nil || account == nil {
 		return false
 	}
+	return openAIAccountTransportCompatible(s.cfg, s.getOpenAIWSProtocolResolver(), account, requiredTransport)
+}
+
+func openAIAccountTransportCompatible(cfg *config.Config, resolver OpenAIWSProtocolResolver, account *Account, requiredTransport OpenAIUpstreamTransport) bool {
+	if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
+		return true
+	}
+	if account == nil || resolver == nil {
+		return false
+	}
 	if requiredTransport == OpenAIUpstreamTransportResponsesWebsocketV2Ingress {
-		if s.cfg == nil || !s.cfg.Gateway.OpenAIWS.ModeRouterV2Enabled {
-			return s.getOpenAIWSProtocolResolver().Resolve(account).Transport == OpenAIUpstreamTransportResponsesWebsocketV2
+		if cfg == nil || !cfg.Gateway.OpenAIWS.ModeRouterV2Enabled {
+			return resolver.Resolve(account).Transport == OpenAIUpstreamTransportResponsesWebsocketV2
 		}
-		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(s.cfg.Gateway.OpenAIWS.IngressModeDefault)
+		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(cfg.Gateway.OpenAIWS.IngressModeDefault)
 		switch mode {
 		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModePassthrough, OpenAIWSIngressModeHTTPBridge, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
 			return true
@@ -2669,10 +2718,13 @@ func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Accou
 			return false
 		}
 	}
-	return s.getOpenAIWSProtocolResolver().Resolve(account).Transport == requiredTransport
+	return resolver.Resolve(account).Transport == requiredTransport
 }
 
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Account, model string, success bool, firstTokenMs *int, observedErr ...error) bool {
+	if len(observedErr) > 0 && errors.Is(observedErr[0], ErrOpenAIClientDisconnected) {
+		return false
+	}
 	if account == nil {
 		return false
 	}

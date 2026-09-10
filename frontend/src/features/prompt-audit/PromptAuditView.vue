@@ -38,6 +38,9 @@
         </div>
 
         <main class="card px-4 sm:px-6 lg:px-8">
+          <div v-if="activeTab === 'test' && serverConfig" data-test="tab-panel-test">
+            <TextTestPanel :config="serverConfig" :dirty="dirty" />
+          </div>
           <div v-show="activeTab === 'config'" data-test="tab-panel-config">
             <RuntimeOverview :runtime="runtime" :loading="loading.runtime" :error="loadErrors.runtime" @refresh="loadRuntime" />
 
@@ -51,6 +54,7 @@
               />
               <div v-if="loadErrors.groups" role="alert" class="mt-5 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">{{ loadErrors.groups }}</div>
               <PolicyPanel :draft="draft" :groups="groups" @update:draft="replaceDraft" />
+              <AuditPromptPanel :draft="draft" @update:draft="replaceDraft" />
             </template>
           </div>
 
@@ -103,7 +107,7 @@
             {{ dirty ? t('admin.promptAudit.saveBar.dirty') : t('admin.promptAudit.saveBar.synced') }}
           </span>
           <button type="button" class="btn btn-secondary" :disabled="!dirty || loading.saving" @click="resetDraft">{{ t('common.reset') }}</button>
-          <button type="button" class="btn btn-primary" :disabled="!dirty || loading.saving" data-test="save-config" @click="saveConfig">
+          <button type="button" class="btn btn-primary" :disabled="!dirty || loading.saving || !auditPromptValid" data-test="save-config" @click="saveConfig">
             {{ loading.saving ? t('common.saving') : t('common.save') }}
           </button>
         </div>
@@ -154,6 +158,9 @@ import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import RuntimeOverview from './components/RuntimeOverview.vue'
 import EndpointPool from './components/EndpointPool.vue'
 import PolicyPanel from './components/PolicyPanel.vue'
+import AuditPromptPanel from './components/AuditPromptPanel.vue'
+import TextTestPanel from './components/TextTestPanel.vue'
+import { useRoute } from 'vue-router'
 import EventWorkspace from './components/EventWorkspace.vue'
 import EventDetailDialog from './components/EventDetailDialog.vue'
 import FilterDeleteDialog from './components/FilterDeleteDialog.vue'
@@ -170,15 +177,17 @@ import type {
   PromptLoadErrors,
   PromptProbeResult,
 } from './types'
-import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEventFilters } from './viewModel'
+import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEventFilters, MAX_AUDIT_PROMPT_RUNES } from './viewModel'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
-type PromptAuditPageTab = 'config' | 'events'
-const activeTab = ref<PromptAuditPageTab>('events')
+type PromptAuditPageTab = 'config' | 'events' | 'test'
+const route = useRoute()
+const activeTab = ref<PromptAuditPageTab>(route.query.tab === 'test' ? 'test' : 'events')
 const pageTabs = computed(() => [
   { id: 'events' as const, label: t('admin.promptAudit.tabs.events') },
   { id: 'config' as const, label: t('admin.promptAudit.tabs.config') },
+  { id: 'test' as const, label: t('admin.promptAudit.tabs.test') },
 ])
 const serverConfig = ref<PromptAuditDraft | null>(null)
 const draft = ref<PromptAuditDraft | null>(null)
@@ -200,6 +209,13 @@ const deleteRequest = reactive<{ mode: '' | 'single' | 'batch'; ids: number[] }>
 const loading = reactive({ config: false, runtime: false, groups: false, events: false, saving: false, detail: false, deleting: false, previewing: false })
 const loadErrors = reactive<PromptLoadErrors>({ config: '', runtime: '', groups: '', events: '' })
 const dirty = computed(() => draftFingerprint(draft.value) !== draftFingerprint(serverConfig.value))
+const auditPromptValid = computed(() => {
+  const value = draft.value?.audit_prompt ?? ''
+  const length = Array.from(value).length
+  const threshold = draft.value?.confidence_threshold
+  const policyValid = draft.value?.response_format !== 'confidence_json' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
+  return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES && policyValid
+})
 
 const SaveToggle = defineComponent({
   inheritAttrs: false,
@@ -315,7 +331,7 @@ async function runProbe(endpoint: PromptAuditEndpointDraft) {
   if (probingIds.value.includes(endpoint.id)) return
   probingIds.value = [...probingIds.value, endpoint.id]
   try {
-    const result = await promptAuditAPI.probeEndpoint(endpoint)
+    const result = await promptAuditAPI.probeEndpoint(endpoint, draft.value ?? undefined)
     probeResults[endpoint.id] = result
     if (result.ok) appStore.showSuccess(t('admin.promptAudit.messages.probeSucceeded'))
     else appStore.showError(`${result.error_code || result.status}: ${result.message}`)

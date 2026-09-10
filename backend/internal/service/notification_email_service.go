@@ -23,6 +23,7 @@ const (
 	NotificationEmailEventAuthVerifyCode              = "auth.verify_code"
 	NotificationEmailEventAuthPasswordReset           = "auth.password_reset"
 	NotificationEmailEventNotificationEmailVerifyCode = "notification_email.verify_code"
+	NotificationEmailEventTeamInvitation              = "team.invitation"
 	NotificationEmailEventSubscriptionPurchaseSuccess = "subscription.purchase_success"
 	NotificationEmailEventSubscriptionExpiryReminder  = "subscription.expiry_reminder"
 	NotificationEmailEventBalanceLow                  = "balance.low"
@@ -904,6 +905,9 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 			"verification_code":   "123456",
 			"expires_in_minutes":  "15",
 			"reset_url":           "https://example.com/reset-password?token=preview",
+			"team_name":           "平台研发团队",
+			"invitation_url":      "https://example.com/team?invitation=preview",
+			"expires_at":          "2026-08-03T12:00:00+09:00",
 			"subscription_group":  "Claude Pro",
 			"subscription_days":   "30",
 			"expiry_time":         "2026-06-18 12:00",
@@ -952,6 +956,9 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 		"verification_code":   "123456",
 		"expires_in_minutes":  "15",
 		"reset_url":           "https://example.com/reset-password?token=preview",
+		"team_name":           "Platform Engineering",
+		"invitation_url":      "https://example.com/team?invitation=preview",
+		"expires_at":          "2026-08-03T12:00:00+09:00",
 		"subscription_group":  "Claude Pro",
 		"subscription_days":   "30",
 		"expiry_time":         "2026-06-18 12:00",
@@ -1024,6 +1031,7 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventAuthVerifyCode,
 	NotificationEmailEventAuthPasswordReset,
 	NotificationEmailEventNotificationEmailVerifyCode,
+	NotificationEmailEventTeamInvitation,
 	NotificationEmailEventSubscriptionPurchaseSuccess,
 	NotificationEmailEventSubscriptionExpiryReminder,
 	NotificationEmailEventBalanceLow,
@@ -1060,6 +1068,14 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 		Category:     "auth",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "verification_code", "expires_in_minutes"),
+	},
+	NotificationEmailEventTeamInvitation: {
+		Event:        NotificationEmailEventTeamInvitation,
+		Label:        "Team invitation",
+		Description:  "Sent when a team owner invites an email address to join the team.",
+		Category:     "team",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "team_name", "invitation_url", "expires_at"),
 	},
 	NotificationEmailEventSubscriptionPurchaseSuccess: {
 		Event:        NotificationEmailEventSubscriptionPurchaseSuccess,
@@ -1216,6 +1232,28 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; text-align: center;">{{verification_code}}</p>
 <p>验证码将在 <strong>{{expires_in_minutes}}</strong> 分钟后失效。</p>
 <p>如果不是您本人操作，请忽略此邮件。</p>`),
+		},
+	},
+	NotificationEmailEventTeamInvitation: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Invitation to join {{team_name}}",
+			HTML: notificationEmailCard("#0f766e", "Team invitation", `
+<p>Hello {{recipient_name}},</p>
+<p>You have been invited to join the team <strong>{{team_name}}</strong> on {{site_name}}.</p>
+<p><a class="button" href="{{invitation_url}}">View invitation</a></p>
+<p>This invitation is valid until <strong>{{expires_at}}</strong>.</p>
+<p class="muted">If the button does not work, copy this link into your browser:<br>{{invitation_url}}</p>
+<p>If you were not expecting this invitation, you can safely ignore this email.</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 邀请您加入团队 {{team_name}}",
+			HTML: notificationEmailCard("#0f766e", "团队邀请", `
+<p>{{recipient_name}}，您好：</p>
+<p>您被邀请加入 {{site_name}} 上的团队 <strong>{{team_name}}</strong>。</p>
+<p><a class="button" href="{{invitation_url}}">查看并处理邀请</a></p>
+<p>此邀请有效期至 <strong>{{expires_at}}</strong>。</p>
+<p class="muted">如果按钮无法点击，请复制以下链接到浏览器中打开：<br>{{invitation_url}}</p>
+<p>如果您没有预期收到此邀请，可以忽略本邮件。</p>`),
 		},
 	},
 	NotificationEmailEventSubscriptionPurchaseSuccess: {

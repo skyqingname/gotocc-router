@@ -21,15 +21,16 @@ import (
 
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
-	cfg                  *config.Config
-	authService          *service.AuthService
-	userService          *service.UserService
-	settingSvc           *service.SettingService
-	promoService         *service.PromoService
-	redeemService        *service.RedeemService
-	totpService          *service.TotpService
-	userAttributeService *service.UserAttributeService
-	ipAccessControl      *service.IPAccessControlService
+	cfg                    *config.Config
+	authService            *service.AuthService
+	userService            *service.UserService
+	settingSvc             *service.SettingService
+	promoService           *service.PromoService
+	redeemService          *service.RedeemService
+	reusableInvitationRepo service.ReusableInvitationCodeRepository
+	totpService            *service.TotpService
+	userAttributeService   *service.UserAttributeService
+	ipAccessControl        *service.IPAccessControlService
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -39,6 +40,10 @@ type AuthHandler struct {
 // setter preserves the compact test constructors used across this package.
 func (h *AuthHandler) SetIPAccessControlService(access *service.IPAccessControlService) {
 	h.ipAccessControl = access
+}
+
+func (h *AuthHandler) SetReusableInvitationCodeRepository(repo service.ReusableInvitationCodeRepository) {
+	h.reusableInvitationRepo = repo
 }
 
 func (h *AuthHandler) recordFailedLocalLogin(c *gin.Context) bool {
@@ -639,36 +644,29 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 		return
 	}
 
-	// 验证邀请码
-	redeemCode, err := h.redeemService.GetByCode(c.Request.Context(), req.Code)
-	if err != nil {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_NOT_FOUND",
-		})
-		return
+	code := strings.TrimSpace(req.Code)
+	if h.redeemService != nil {
+		redeemCode, err := h.redeemService.GetByCode(c.Request.Context(), code)
+		if err == nil {
+			if redeemCode.Type != service.RedeemTypeInvitation {
+				response.Success(c, ValidateInvitationCodeResponse{Valid: false, ErrorCode: "INVITATION_CODE_INVALID"})
+				return
+			}
+			if redeemCode.Status != service.StatusUnused || redeemCode.IsExpired() {
+				response.Success(c, ValidateInvitationCodeResponse{Valid: false, ErrorCode: "INVITATION_CODE_USED"})
+				return
+			}
+			response.Success(c, ValidateInvitationCodeResponse{Valid: true})
+			return
+		}
 	}
-
-	// 检查类型和状态
-	if redeemCode.Type != service.RedeemTypeInvitation {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_INVALID",
-		})
-		return
+	if h.reusableInvitationRepo != nil {
+		if _, err := h.reusableInvitationRepo.GetUsableByCode(c.Request.Context(), code); err == nil {
+			response.Success(c, ValidateInvitationCodeResponse{Valid: true})
+			return
+		}
 	}
-
-	if redeemCode.Status != service.StatusUnused {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_USED",
-		})
-		return
-	}
-
-	response.Success(c, ValidateInvitationCodeResponse{
-		Valid: true,
-	})
+	response.Success(c, ValidateInvitationCodeResponse{Valid: false, ErrorCode: "INVITATION_CODE_NOT_FOUND"})
 }
 
 // ForgotPasswordRequest 忘记密码请求

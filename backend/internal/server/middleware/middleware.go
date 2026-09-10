@@ -128,6 +128,15 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 			c.Next()
 			return
 		}
+		if apiKey.IsAutoRouting() {
+			if service.CanDeferAutoRoute(c.Request.Context(), apiKey.ID) {
+				c.Next()
+				return
+			}
+			writeError(c, http.StatusForbidden, "automatic routing did not resolve a group for this request")
+			c.Abort()
+			return
+		}
 		// 未分组 Key — 检查系统设置
 		if settingService.IsUngroupedKeySchedulingAllowed(c.Request.Context()) {
 			c.Next()

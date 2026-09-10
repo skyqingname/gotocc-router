@@ -71,21 +71,22 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
-	entClient             *dbent.Client
-	userRepo              UserRepository
-	redeemRepo            RedeemCodeRepository
-	refreshTokenCache     RefreshTokenCache
-	cfg                   *config.Config
-	settingService        *SettingService
-	emailService          *EmailService
-	turnstileService      *TurnstileService
-	tencentCaptchaService *TencentCaptchaService
-	aliyunCaptchaService  *AliyunCaptchaService
-	emailQueueService     *EmailQueueService
-	promoService          *PromoService
-	affiliateService      *AffiliateService
-	defaultSubAssigner    DefaultSubscriptionAssigner
-	userPlatformQuotaRepo UserPlatformQuotaRepository
+	entClient              *dbent.Client
+	userRepo               UserRepository
+	redeemRepo             RedeemCodeRepository
+	reusableInvitationRepo ReusableInvitationCodeRepository
+	refreshTokenCache      RefreshTokenCache
+	cfg                    *config.Config
+	settingService         *SettingService
+	emailService           *EmailService
+	turnstileService       *TurnstileService
+	tencentCaptchaService  *TencentCaptchaService
+	aliyunCaptchaService   *AliyunCaptchaService
+	emailQueueService      *EmailQueueService
+	promoService           *PromoService
+	affiliateService       *AffiliateService
+	defaultSubAssigner     DefaultSubscriptionAssigner
+	userPlatformQuotaRepo  UserPlatformQuotaRepository
 }
 
 type CaptchaProof struct {
@@ -104,6 +105,11 @@ type signupGrantPlan struct {
 	Concurrency    int
 	Subscriptions  []DefaultSubscriptionSetting
 	PlatformQuotas map[string]*DefaultPlatformQuotaSetting
+}
+
+type registrationInvitation struct {
+	redeem   *RedeemCode
+	reusable *ReusableInvitationCode
 }
 
 // NewAuthService 创建认证服务实例
@@ -146,6 +152,12 @@ func (s *AuthService) EntClient() *dbent.Client {
 	return s.entClient
 }
 
+func (s *AuthService) SetReusableInvitationCodeRepository(repo ReusableInvitationCodeRepository) {
+	if s != nil {
+		s.reusableInvitationRepo = repo
+	}
+}
+
 func (s *AuthService) SetTencentCaptchaService(tencentCaptchaService *TencentCaptchaService) {
 	s.tencentCaptchaService = tencentCaptchaService
 }
@@ -159,6 +171,62 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
 }
 
+func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
+	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
+		return nil, nil
+	}
+	invitationCode = strings.TrimSpace(invitationCode)
+	if invitationCode == "" {
+		return nil, missingErr
+	}
+	if s.redeemRepo != nil {
+		redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
+		if err == nil && redeemCode.Type == RedeemTypeInvitation && redeemCode.CanUse() {
+			return &registrationInvitation{redeem: redeemCode}, nil
+		}
+	}
+	if s.reusableInvitationRepo != nil {
+		reusableCode, err := s.reusableInvitationRepo.GetUsableByCode(ctx, invitationCode)
+		if err == nil {
+			return &registrationInvitation{reusable: reusableCode}, nil
+		}
+	}
+	return nil, ErrInvitationCodeInvalid
+}
+
+func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation *registrationInvitation, user *User, authSource string, failOpenOneTime bool) error {
+	if invitation == nil || user == nil {
+		return nil
+	}
+	if invitation.redeem != nil {
+		if s.redeemRepo == nil {
+			return ErrInvitationCodeInvalid
+		}
+		err := s.redeemRepo.Use(ctx, invitation.redeem.ID, user.ID)
+		if err != nil && failOpenOneTime {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to mark one-time invitation as used for user %d: %v", user.ID, err)
+			return nil
+		}
+		return err
+	}
+	if invitation.reusable != nil {
+		if s.reusableInvitationRepo == nil {
+			return ErrInvitationCodeInvalid
+		}
+		return s.reusableInvitationRepo.Use(ctx, invitation.reusable.ID, user.ID, user.Email, authSource)
+	}
+	return nil
+}
+
+func (s *AuthService) cleanupCreatedUserAfterInvitationFailure(ctx context.Context, user *User) {
+	if s == nil || s.userRepo == nil || user == nil || user.ID <= 0 {
+		return
+	}
+	if err := s.userRepo.Delete(ctx, user.ID); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to delete user %d after invitation consumption failure: %v", user.ID, err)
+	}
+}
+
 // RegisterWithVerification 用户注册（支持邮件验证、优惠码、邀请码和邀请返利码），返回token和用户。
 func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode, affiliateCode string) (string, *User, error) {
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
@@ -170,24 +238,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
-	// 检查是否需要邀请码
-	var invitationRedeemCode *RedeemCode
-	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-		if invitationCode == "" {
-			return "", nil, ErrInvitationCodeRequired
-		}
-		// 验证邀请码
-		redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
-		if err != nil {
-			logger.LegacyPrintf("service.auth", "[Auth] Invalid invitation code: %s, error: %v", invitationCode, err)
-			return "", nil, ErrInvitationCodeInvalid
-		}
-		// 检查类型和状态
-		if redeemCode.Type != RedeemTypeInvitation || !redeemCode.CanUse() {
-			logger.LegacyPrintf("service.auth", "[Auth] Invitation code invalid: type=%s, status=%s", redeemCode.Type, redeemCode.Status)
-			return "", nil, ErrInvitationCodeInvalid
-		}
-		invitationRedeemCode = redeemCode
+	registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
+	if err != nil {
+		return "", nil, err
 	}
 
 	// 检查是否需要邮件验证
@@ -245,7 +298,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Status:       StatusActive,
 	}
 
-	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode); err != nil {
+	if err := s.createUserWithRegistrationInvitation(ctx, user, registrationInvitation, "email"); err != nil {
 		// 优先检查邮箱冲突错误（竞态条件下可能发生）
 		switch {
 		case errors.Is(err, ErrEmailExists):
@@ -275,8 +328,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		}
 	}
 
-	// 邀请码占用已由 createUserAndClaimInvitation 在“用户创建 + 邀请码占用”的
-	// 同一个数据库事务内原子完成（一次性约束，见函数注释），此处不再单独标记。
+	// 一次性邀请码和可复用邀请码都已在用户创建事务内原子消费，
+	// 此处不得再次标记或采用 fail-open 语义。
 	// 应用优惠码（如果提供且功能已启用）
 	if promoCode != "" && s.promoService != nil && s.settingService != nil && s.settingService.IsPromoCodeEnabled(ctx) {
 		if err := s.promoService.ApplyPromoCode(ctx, user.ID, promoCode); err != nil {
@@ -297,6 +350,42 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 
 	return token, user, nil
+}
+
+func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, user *User, invitation *registrationInvitation, authSource string) error {
+	if invitation == nil {
+		return s.createUserAndClaimInvitation(ctx, user, nil)
+	}
+	if invitation.redeem != nil {
+		return s.createUserAndClaimInvitation(ctx, user, invitation.redeem)
+	}
+	if invitation.reusable == nil {
+		return ErrInvitationCodeInvalid
+	}
+	if s.entClient == nil {
+		if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+			return err
+		}
+		if err := s.useRegistrationInvitation(ctx, invitation, user, authSource, false); err != nil {
+			s.cleanupCreatedUserAfterInvitationFailure(ctx, user)
+			return ErrInvitationCodeInvalid
+		}
+		return nil
+	}
+
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := s.createUserWithRegistrationEmailGuard(txCtx, user); err != nil {
+		return err
+	}
+	if err := s.useRegistrationInvitation(txCtx, invitation, user, authSource, false); err != nil {
+		return ErrInvitationCodeInvalid
+	}
+	return tx.Commit()
 }
 
 // SendVerifyCodeResult 发送验证码返回结果
@@ -720,20 +809,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, ErrRegDisabled
 			}
 
-			// 检查是否需要邀请码
-			var invitationRedeemCode *RedeemCode
-			if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-				if invitationCode == "" {
-					return nil, nil, ErrOAuthInvitationRequired
-				}
-				redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
-				if err != nil {
-					return nil, nil, ErrInvitationCodeInvalid
-				}
-				if redeemCode.Type != RedeemTypeInvitation || !redeemCode.CanUse() {
-					return nil, nil, ErrInvitationCodeInvalid
-				}
-				invitationRedeemCode = redeemCode
+			registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrOAuthInvitationRequired)
+			if err != nil {
+				return nil, nil, err
 			}
 
 			randomPassword, err := randomHexString(32)
@@ -769,7 +847,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				SignupSource: signupSource,
 			}
 
-			if s.entClient != nil && invitationRedeemCode != nil {
+			if s.entClient != nil && registrationInvitation != nil {
 				tx, err := s.entClient.Tx(ctx)
 				if err != nil {
 					logger.LegacyPrintf("service.auth", "[Auth] Failed to begin transaction for oauth registration: %v", err)
@@ -790,7 +868,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 						return nil, nil, ErrServiceUnavailable
 					}
 				} else {
-					if err := s.redeemRepo.Use(txCtx, invitationRedeemCode.ID, newUser.ID); err != nil {
+					if err := s.useRegistrationInvitation(txCtx, registrationInvitation, newUser, signupSource, false); err != nil {
 						return nil, nil, ErrInvitationCodeInvalid
 					}
 					if err := tx.Commit(); err != nil {
@@ -825,8 +903,11 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
-					if invitationRedeemCode != nil {
-						if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {
+					if registrationInvitation != nil {
+						if err := s.useRegistrationInvitation(ctx, registrationInvitation, user, signupSource, false); err != nil {
+							if registrationInvitation.reusable != nil {
+								s.cleanupCreatedUserAfterInvitationFailure(ctx, user)
+							}
 							return nil, nil, ErrInvitationCodeInvalid
 						}
 					}
@@ -1298,8 +1379,8 @@ func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *Us
 		if err := s.redeemRepo.Use(execCtx, invitation.ID, user.ID); err != nil {
 			// 并发下唯一的合法失败路径：另一个注册已占用该码
 			logger.LegacyPrintf("service.auth",
-				"[Auth] Rejected registration: invitation code %s already claimed (user_id=%d err=%v)",
-				invitation.Code, user.ID, err)
+				"[Auth] Rejected registration: invitation id %d already claimed (user_id=%d err=%v)",
+				invitation.ID, user.ID, err)
 			return ErrInvitationCodeInvalid
 		}
 		return nil

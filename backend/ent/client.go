@@ -34,6 +34,8 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/group"
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
+	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -42,9 +44,15 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/promocodeusage"
 	"github.com/LuckyKuang/sub2api-plus/ent/proxy"
 	"github.com/LuckyKuang/sub2api-plus/ent/redeemcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcodeuse"
 	"github.com/LuckyKuang/sub2api-plus/ent/securitysecret"
 	"github.com/LuckyKuang/sub2api-plus/ent/setting"
 	"github.com/LuckyKuang/sub2api-plus/ent/subscriptionplan"
+	"github.com/LuckyKuang/sub2api-plus/ent/team"
+	"github.com/LuckyKuang/sub2api-plus/ent/teaminvitation"
+	"github.com/LuckyKuang/sub2api-plus/ent/teammembership"
+	"github.com/LuckyKuang/sub2api-plus/ent/teamownershiptransfer"
 	"github.com/LuckyKuang/sub2api-plus/ent/tlsfingerprintprofile"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagecleanuptask"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
@@ -101,6 +109,10 @@ type Client struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// ImageObject is the client for interacting with the ImageObject builders.
+	ImageObject *ImageObjectClient
+	// OpenAIVideoTask is the client for interacting with the OpenAIVideoTask builders.
+	OpenAIVideoTask *OpenAIVideoTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -117,6 +129,10 @@ type Client struct {
 	Proxy *ProxyClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
+	// ReusableInvitationCode is the client for interacting with the ReusableInvitationCode builders.
+	ReusableInvitationCode *ReusableInvitationCodeClient
+	// ReusableInvitationCodeUse is the client for interacting with the ReusableInvitationCodeUse builders.
+	ReusableInvitationCodeUse *ReusableInvitationCodeUseClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
@@ -125,6 +141,14 @@ type Client struct {
 	SubscriptionPlan *SubscriptionPlanClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
+	// Team is the client for interacting with the Team builders.
+	Team *TeamClient
+	// TeamInvitation is the client for interacting with the TeamInvitation builders.
+	TeamInvitation *TeamInvitationClient
+	// TeamMembership is the client for interacting with the TeamMembership builders.
+	TeamMembership *TeamMembershipClient
+	// TeamOwnershipTransfer is the client for interacting with the TeamOwnershipTransfer builders.
+	TeamOwnershipTransfer *TeamOwnershipTransferClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
 	UsageCleanupTask *UsageCleanupTaskClient
 	// UsageLog is the client for interacting with the UsageLog builders.
@@ -171,6 +195,8 @@ func (c *Client) init() {
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
+	c.ImageObject = NewImageObjectClient(c.config)
+	c.OpenAIVideoTask = NewOpenAIVideoTaskClient(c.config)
 	c.PaymentAuditLog = NewPaymentAuditLogClient(c.config)
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
 	c.PaymentProviderInstance = NewPaymentProviderInstanceClient(c.config)
@@ -179,10 +205,16 @@ func (c *Client) init() {
 	c.PromoCodeUsage = NewPromoCodeUsageClient(c.config)
 	c.Proxy = NewProxyClient(c.config)
 	c.RedeemCode = NewRedeemCodeClient(c.config)
+	c.ReusableInvitationCode = NewReusableInvitationCodeClient(c.config)
+	c.ReusableInvitationCodeUse = NewReusableInvitationCodeUseClient(c.config)
 	c.SecuritySecret = NewSecuritySecretClient(c.config)
 	c.Setting = NewSettingClient(c.config)
 	c.SubscriptionPlan = NewSubscriptionPlanClient(c.config)
 	c.TLSFingerprintProfile = NewTLSFingerprintProfileClient(c.config)
+	c.Team = NewTeamClient(c.config)
+	c.TeamInvitation = NewTeamInvitationClient(c.config)
+	c.TeamMembership = NewTeamMembershipClient(c.config)
+	c.TeamOwnershipTransfer = NewTeamOwnershipTransferClient(c.config)
 	c.UsageCleanupTask = NewUsageCleanupTaskClient(c.config)
 	c.UsageLog = NewUsageLogClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -302,6 +334,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		ImageObject:                   NewImageObjectClient(cfg),
+		OpenAIVideoTask:               NewOpenAIVideoTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -310,10 +344,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
+		ReusableInvitationCode:        NewReusableInvitationCodeClient(cfg),
+		ReusableInvitationCodeUse:     NewReusableInvitationCodeUseClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
+		Team:                          NewTeamClient(cfg),
+		TeamInvitation:                NewTeamInvitationClient(cfg),
+		TeamMembership:                NewTeamMembershipClient(cfg),
+		TeamOwnershipTransfer:         NewTeamOwnershipTransferClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
@@ -360,6 +400,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		ImageObject:                   NewImageObjectClient(cfg),
+		OpenAIVideoTask:               NewOpenAIVideoTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -368,10 +410,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		PromoCodeUsage:                NewPromoCodeUsageClient(cfg),
 		Proxy:                         NewProxyClient(cfg),
 		RedeemCode:                    NewRedeemCodeClient(cfg),
+		ReusableInvitationCode:        NewReusableInvitationCodeClient(cfg),
+		ReusableInvitationCodeUse:     NewReusableInvitationCodeUseClient(cfg),
 		SecuritySecret:                NewSecuritySecretClient(cfg),
 		Setting:                       NewSettingClient(cfg),
 		SubscriptionPlan:              NewSubscriptionPlanClient(cfg),
 		TLSFingerprintProfile:         NewTLSFingerprintProfileClient(cfg),
+		Team:                          NewTeamClient(cfg),
+		TeamInvitation:                NewTeamInvitationClient(cfg),
+		TeamMembership:                NewTeamMembershipClient(cfg),
+		TeamOwnershipTransfer:         NewTeamOwnershipTransferClient(cfg),
 		UsageCleanupTask:              NewUsageCleanupTaskClient(cfg),
 		UsageLog:                      NewUsageLogClient(cfg),
 		User:                          NewUserClient(cfg),
@@ -414,12 +462,15 @@ func (c *Client) Use(hooks ...Hook) {
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.IdentityAdoptionDecision, c.ImageObject, c.OpenAIVideoTask,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.ReusableInvitationCode, c.ReusableInvitationCodeUse, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.Team,
+		c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -434,12 +485,15 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
 		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.IdentityAdoptionDecision, c.ImageObject, c.OpenAIVideoTask,
+		c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.ReusableInvitationCode, c.ReusableInvitationCodeUse, c.SecuritySecret,
+		c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile, c.Team,
+		c.TeamInvitation, c.TeamMembership, c.TeamOwnershipTransfer,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserPlatformQuota,
+		c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -486,6 +540,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.IdempotencyRecord.mutate(ctx, m)
 	case *IdentityAdoptionDecisionMutation:
 		return c.IdentityAdoptionDecision.mutate(ctx, m)
+	case *ImageObjectMutation:
+		return c.ImageObject.mutate(ctx, m)
+	case *OpenAIVideoTaskMutation:
+		return c.OpenAIVideoTask.mutate(ctx, m)
 	case *PaymentAuditLogMutation:
 		return c.PaymentAuditLog.mutate(ctx, m)
 	case *PaymentOrderMutation:
@@ -502,6 +560,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Proxy.mutate(ctx, m)
 	case *RedeemCodeMutation:
 		return c.RedeemCode.mutate(ctx, m)
+	case *ReusableInvitationCodeMutation:
+		return c.ReusableInvitationCode.mutate(ctx, m)
+	case *ReusableInvitationCodeUseMutation:
+		return c.ReusableInvitationCodeUse.mutate(ctx, m)
 	case *SecuritySecretMutation:
 		return c.SecuritySecret.mutate(ctx, m)
 	case *SettingMutation:
@@ -510,6 +572,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SubscriptionPlan.mutate(ctx, m)
 	case *TLSFingerprintProfileMutation:
 		return c.TLSFingerprintProfile.mutate(ctx, m)
+	case *TeamMutation:
+		return c.Team.mutate(ctx, m)
+	case *TeamInvitationMutation:
+		return c.TeamInvitation.mutate(ctx, m)
+	case *TeamMembershipMutation:
+		return c.TeamMembership.mutate(ctx, m)
+	case *TeamOwnershipTransferMutation:
+		return c.TeamOwnershipTransfer.mutate(ctx, m)
 	case *UsageCleanupTaskMutation:
 		return c.UsageCleanupTask.mutate(ctx, m)
 	case *UsageLogMutation:
@@ -680,6 +750,22 @@ func (c *APIKeyClient) QueryUsageLogs(_m *APIKey) *UsageLogQuery {
 			sqlgraph.From(apikey.Table, apikey.FieldID, id),
 			sqlgraph.To(usagelog.Table, usagelog.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, apikey.UsageLogsTable, apikey.UsageLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTeam queries the team edge of a APIKey.
+func (c *APIKeyClient) QueryTeam(_m *APIKey) *TeamQuery {
+	query := (&TeamClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(apikey.Table, apikey.FieldID, id),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, apikey.TeamTable, apikey.TeamColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -3577,6 +3663,272 @@ func (c *IdentityAdoptionDecisionClient) mutate(ctx context.Context, m *Identity
 	}
 }
 
+// ImageObjectClient is a client for the ImageObject schema.
+type ImageObjectClient struct {
+	config
+}
+
+// NewImageObjectClient returns a client for the ImageObject from the given config.
+func NewImageObjectClient(c config) *ImageObjectClient {
+	return &ImageObjectClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `imageobject.Hooks(f(g(h())))`.
+func (c *ImageObjectClient) Use(hooks ...Hook) {
+	c.hooks.ImageObject = append(c.hooks.ImageObject, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `imageobject.Intercept(f(g(h())))`.
+func (c *ImageObjectClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ImageObject = append(c.inters.ImageObject, interceptors...)
+}
+
+// Create returns a builder for creating a ImageObject entity.
+func (c *ImageObjectClient) Create() *ImageObjectCreate {
+	mutation := newImageObjectMutation(c.config, OpCreate)
+	return &ImageObjectCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ImageObject entities.
+func (c *ImageObjectClient) CreateBulk(builders ...*ImageObjectCreate) *ImageObjectCreateBulk {
+	return &ImageObjectCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ImageObjectClient) MapCreateBulk(slice any, setFunc func(*ImageObjectCreate, int)) *ImageObjectCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ImageObjectCreateBulk{err: fmt.Errorf("calling to ImageObjectClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ImageObjectCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ImageObjectCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ImageObject.
+func (c *ImageObjectClient) Update() *ImageObjectUpdate {
+	mutation := newImageObjectMutation(c.config, OpUpdate)
+	return &ImageObjectUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ImageObjectClient) UpdateOne(_m *ImageObject) *ImageObjectUpdateOne {
+	mutation := newImageObjectMutation(c.config, OpUpdateOne, withImageObject(_m))
+	return &ImageObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ImageObjectClient) UpdateOneID(id int64) *ImageObjectUpdateOne {
+	mutation := newImageObjectMutation(c.config, OpUpdateOne, withImageObjectID(id))
+	return &ImageObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ImageObject.
+func (c *ImageObjectClient) Delete() *ImageObjectDelete {
+	mutation := newImageObjectMutation(c.config, OpDelete)
+	return &ImageObjectDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ImageObjectClient) DeleteOne(_m *ImageObject) *ImageObjectDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ImageObjectClient) DeleteOneID(id int64) *ImageObjectDeleteOne {
+	builder := c.Delete().Where(imageobject.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ImageObjectDeleteOne{builder}
+}
+
+// Query returns a query builder for ImageObject.
+func (c *ImageObjectClient) Query() *ImageObjectQuery {
+	return &ImageObjectQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeImageObject},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ImageObject entity by its id.
+func (c *ImageObjectClient) Get(ctx context.Context, id int64) (*ImageObject, error) {
+	return c.Query().Where(imageobject.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ImageObjectClient) GetX(ctx context.Context, id int64) *ImageObject {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ImageObjectClient) Hooks() []Hook {
+	return c.hooks.ImageObject
+}
+
+// Interceptors returns the client interceptors.
+func (c *ImageObjectClient) Interceptors() []Interceptor {
+	return c.inters.ImageObject
+}
+
+func (c *ImageObjectClient) mutate(ctx context.Context, m *ImageObjectMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ImageObjectCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ImageObjectUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ImageObjectUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ImageObjectDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ImageObject mutation op: %q", m.Op())
+	}
+}
+
+// OpenAIVideoTaskClient is a client for the OpenAIVideoTask schema.
+type OpenAIVideoTaskClient struct {
+	config
+}
+
+// NewOpenAIVideoTaskClient returns a client for the OpenAIVideoTask from the given config.
+func NewOpenAIVideoTaskClient(c config) *OpenAIVideoTaskClient {
+	return &OpenAIVideoTaskClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `openaivideotask.Hooks(f(g(h())))`.
+func (c *OpenAIVideoTaskClient) Use(hooks ...Hook) {
+	c.hooks.OpenAIVideoTask = append(c.hooks.OpenAIVideoTask, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `openaivideotask.Intercept(f(g(h())))`.
+func (c *OpenAIVideoTaskClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OpenAIVideoTask = append(c.inters.OpenAIVideoTask, interceptors...)
+}
+
+// Create returns a builder for creating a OpenAIVideoTask entity.
+func (c *OpenAIVideoTaskClient) Create() *OpenAIVideoTaskCreate {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpCreate)
+	return &OpenAIVideoTaskCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OpenAIVideoTask entities.
+func (c *OpenAIVideoTaskClient) CreateBulk(builders ...*OpenAIVideoTaskCreate) *OpenAIVideoTaskCreateBulk {
+	return &OpenAIVideoTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OpenAIVideoTaskClient) MapCreateBulk(slice any, setFunc func(*OpenAIVideoTaskCreate, int)) *OpenAIVideoTaskCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OpenAIVideoTaskCreateBulk{err: fmt.Errorf("calling to OpenAIVideoTaskClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OpenAIVideoTaskCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OpenAIVideoTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Update() *OpenAIVideoTaskUpdate {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdate)
+	return &OpenAIVideoTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OpenAIVideoTaskClient) UpdateOne(_m *OpenAIVideoTask) *OpenAIVideoTaskUpdateOne {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdateOne, withOpenAIVideoTask(_m))
+	return &OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OpenAIVideoTaskClient) UpdateOneID(id int64) *OpenAIVideoTaskUpdateOne {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpUpdateOne, withOpenAIVideoTaskID(id))
+	return &OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Delete() *OpenAIVideoTaskDelete {
+	mutation := newOpenAIVideoTaskMutation(c.config, OpDelete)
+	return &OpenAIVideoTaskDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OpenAIVideoTaskClient) DeleteOne(_m *OpenAIVideoTask) *OpenAIVideoTaskDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OpenAIVideoTaskClient) DeleteOneID(id int64) *OpenAIVideoTaskDeleteOne {
+	builder := c.Delete().Where(openaivideotask.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OpenAIVideoTaskDeleteOne{builder}
+}
+
+// Query returns a query builder for OpenAIVideoTask.
+func (c *OpenAIVideoTaskClient) Query() *OpenAIVideoTaskQuery {
+	return &OpenAIVideoTaskQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOpenAIVideoTask},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OpenAIVideoTask entity by its id.
+func (c *OpenAIVideoTaskClient) Get(ctx context.Context, id int64) (*OpenAIVideoTask, error) {
+	return c.Query().Where(openaivideotask.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OpenAIVideoTaskClient) GetX(ctx context.Context, id int64) *OpenAIVideoTask {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OpenAIVideoTaskClient) Hooks() []Hook {
+	return c.hooks.OpenAIVideoTask
+}
+
+// Interceptors returns the client interceptors.
+func (c *OpenAIVideoTaskClient) Interceptors() []Interceptor {
+	return c.inters.OpenAIVideoTask
+}
+
+func (c *OpenAIVideoTaskClient) mutate(ctx context.Context, m *OpenAIVideoTaskMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OpenAIVideoTaskCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OpenAIVideoTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OpenAIVideoTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OpenAIVideoTaskDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OpenAIVideoTask mutation op: %q", m.Op())
+	}
+}
+
 // PaymentAuditLogClient is a client for the PaymentAuditLog schema.
 type PaymentAuditLogClient struct {
 	config
@@ -4803,6 +5155,320 @@ func (c *RedeemCodeClient) mutate(ctx context.Context, m *RedeemCodeMutation) (V
 	}
 }
 
+// ReusableInvitationCodeClient is a client for the ReusableInvitationCode schema.
+type ReusableInvitationCodeClient struct {
+	config
+}
+
+// NewReusableInvitationCodeClient returns a client for the ReusableInvitationCode from the given config.
+func NewReusableInvitationCodeClient(c config) *ReusableInvitationCodeClient {
+	return &ReusableInvitationCodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `reusableinvitationcode.Hooks(f(g(h())))`.
+func (c *ReusableInvitationCodeClient) Use(hooks ...Hook) {
+	c.hooks.ReusableInvitationCode = append(c.hooks.ReusableInvitationCode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `reusableinvitationcode.Intercept(f(g(h())))`.
+func (c *ReusableInvitationCodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ReusableInvitationCode = append(c.inters.ReusableInvitationCode, interceptors...)
+}
+
+// Create returns a builder for creating a ReusableInvitationCode entity.
+func (c *ReusableInvitationCodeClient) Create() *ReusableInvitationCodeCreate {
+	mutation := newReusableInvitationCodeMutation(c.config, OpCreate)
+	return &ReusableInvitationCodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ReusableInvitationCode entities.
+func (c *ReusableInvitationCodeClient) CreateBulk(builders ...*ReusableInvitationCodeCreate) *ReusableInvitationCodeCreateBulk {
+	return &ReusableInvitationCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReusableInvitationCodeClient) MapCreateBulk(slice any, setFunc func(*ReusableInvitationCodeCreate, int)) *ReusableInvitationCodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReusableInvitationCodeCreateBulk{err: fmt.Errorf("calling to ReusableInvitationCodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReusableInvitationCodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReusableInvitationCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ReusableInvitationCode.
+func (c *ReusableInvitationCodeClient) Update() *ReusableInvitationCodeUpdate {
+	mutation := newReusableInvitationCodeMutation(c.config, OpUpdate)
+	return &ReusableInvitationCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReusableInvitationCodeClient) UpdateOne(_m *ReusableInvitationCode) *ReusableInvitationCodeUpdateOne {
+	mutation := newReusableInvitationCodeMutation(c.config, OpUpdateOne, withReusableInvitationCode(_m))
+	return &ReusableInvitationCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReusableInvitationCodeClient) UpdateOneID(id int64) *ReusableInvitationCodeUpdateOne {
+	mutation := newReusableInvitationCodeMutation(c.config, OpUpdateOne, withReusableInvitationCodeID(id))
+	return &ReusableInvitationCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ReusableInvitationCode.
+func (c *ReusableInvitationCodeClient) Delete() *ReusableInvitationCodeDelete {
+	mutation := newReusableInvitationCodeMutation(c.config, OpDelete)
+	return &ReusableInvitationCodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReusableInvitationCodeClient) DeleteOne(_m *ReusableInvitationCode) *ReusableInvitationCodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReusableInvitationCodeClient) DeleteOneID(id int64) *ReusableInvitationCodeDeleteOne {
+	builder := c.Delete().Where(reusableinvitationcode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReusableInvitationCodeDeleteOne{builder}
+}
+
+// Query returns a query builder for ReusableInvitationCode.
+func (c *ReusableInvitationCodeClient) Query() *ReusableInvitationCodeQuery {
+	return &ReusableInvitationCodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReusableInvitationCode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ReusableInvitationCode entity by its id.
+func (c *ReusableInvitationCodeClient) Get(ctx context.Context, id int64) (*ReusableInvitationCode, error) {
+	return c.Query().Where(reusableinvitationcode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReusableInvitationCodeClient) GetX(ctx context.Context, id int64) *ReusableInvitationCode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUses queries the uses edge of a ReusableInvitationCode.
+func (c *ReusableInvitationCodeClient) QueryUses(_m *ReusableInvitationCode) *ReusableInvitationCodeUseQuery {
+	query := (&ReusableInvitationCodeUseClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(reusableinvitationcode.Table, reusableinvitationcode.FieldID, id),
+			sqlgraph.To(reusableinvitationcodeuse.Table, reusableinvitationcodeuse.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, reusableinvitationcode.UsesTable, reusableinvitationcode.UsesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ReusableInvitationCodeClient) Hooks() []Hook {
+	return c.hooks.ReusableInvitationCode
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReusableInvitationCodeClient) Interceptors() []Interceptor {
+	return c.inters.ReusableInvitationCode
+}
+
+func (c *ReusableInvitationCodeClient) mutate(ctx context.Context, m *ReusableInvitationCodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReusableInvitationCodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReusableInvitationCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReusableInvitationCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReusableInvitationCodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ReusableInvitationCode mutation op: %q", m.Op())
+	}
+}
+
+// ReusableInvitationCodeUseClient is a client for the ReusableInvitationCodeUse schema.
+type ReusableInvitationCodeUseClient struct {
+	config
+}
+
+// NewReusableInvitationCodeUseClient returns a client for the ReusableInvitationCodeUse from the given config.
+func NewReusableInvitationCodeUseClient(c config) *ReusableInvitationCodeUseClient {
+	return &ReusableInvitationCodeUseClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `reusableinvitationcodeuse.Hooks(f(g(h())))`.
+func (c *ReusableInvitationCodeUseClient) Use(hooks ...Hook) {
+	c.hooks.ReusableInvitationCodeUse = append(c.hooks.ReusableInvitationCodeUse, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `reusableinvitationcodeuse.Intercept(f(g(h())))`.
+func (c *ReusableInvitationCodeUseClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ReusableInvitationCodeUse = append(c.inters.ReusableInvitationCodeUse, interceptors...)
+}
+
+// Create returns a builder for creating a ReusableInvitationCodeUse entity.
+func (c *ReusableInvitationCodeUseClient) Create() *ReusableInvitationCodeUseCreate {
+	mutation := newReusableInvitationCodeUseMutation(c.config, OpCreate)
+	return &ReusableInvitationCodeUseCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ReusableInvitationCodeUse entities.
+func (c *ReusableInvitationCodeUseClient) CreateBulk(builders ...*ReusableInvitationCodeUseCreate) *ReusableInvitationCodeUseCreateBulk {
+	return &ReusableInvitationCodeUseCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ReusableInvitationCodeUseClient) MapCreateBulk(slice any, setFunc func(*ReusableInvitationCodeUseCreate, int)) *ReusableInvitationCodeUseCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ReusableInvitationCodeUseCreateBulk{err: fmt.Errorf("calling to ReusableInvitationCodeUseClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ReusableInvitationCodeUseCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ReusableInvitationCodeUseCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ReusableInvitationCodeUse.
+func (c *ReusableInvitationCodeUseClient) Update() *ReusableInvitationCodeUseUpdate {
+	mutation := newReusableInvitationCodeUseMutation(c.config, OpUpdate)
+	return &ReusableInvitationCodeUseUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ReusableInvitationCodeUseClient) UpdateOne(_m *ReusableInvitationCodeUse) *ReusableInvitationCodeUseUpdateOne {
+	mutation := newReusableInvitationCodeUseMutation(c.config, OpUpdateOne, withReusableInvitationCodeUse(_m))
+	return &ReusableInvitationCodeUseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ReusableInvitationCodeUseClient) UpdateOneID(id int64) *ReusableInvitationCodeUseUpdateOne {
+	mutation := newReusableInvitationCodeUseMutation(c.config, OpUpdateOne, withReusableInvitationCodeUseID(id))
+	return &ReusableInvitationCodeUseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ReusableInvitationCodeUse.
+func (c *ReusableInvitationCodeUseClient) Delete() *ReusableInvitationCodeUseDelete {
+	mutation := newReusableInvitationCodeUseMutation(c.config, OpDelete)
+	return &ReusableInvitationCodeUseDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ReusableInvitationCodeUseClient) DeleteOne(_m *ReusableInvitationCodeUse) *ReusableInvitationCodeUseDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ReusableInvitationCodeUseClient) DeleteOneID(id int64) *ReusableInvitationCodeUseDeleteOne {
+	builder := c.Delete().Where(reusableinvitationcodeuse.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ReusableInvitationCodeUseDeleteOne{builder}
+}
+
+// Query returns a query builder for ReusableInvitationCodeUse.
+func (c *ReusableInvitationCodeUseClient) Query() *ReusableInvitationCodeUseQuery {
+	return &ReusableInvitationCodeUseQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeReusableInvitationCodeUse},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ReusableInvitationCodeUse entity by its id.
+func (c *ReusableInvitationCodeUseClient) Get(ctx context.Context, id int64) (*ReusableInvitationCodeUse, error) {
+	return c.Query().Where(reusableinvitationcodeuse.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ReusableInvitationCodeUseClient) GetX(ctx context.Context, id int64) *ReusableInvitationCodeUse {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryCode queries the code edge of a ReusableInvitationCodeUse.
+func (c *ReusableInvitationCodeUseClient) QueryCode(_m *ReusableInvitationCodeUse) *ReusableInvitationCodeQuery {
+	query := (&ReusableInvitationCodeClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(reusableinvitationcodeuse.Table, reusableinvitationcodeuse.FieldID, id),
+			sqlgraph.To(reusableinvitationcode.Table, reusableinvitationcode.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, reusableinvitationcodeuse.CodeTable, reusableinvitationcodeuse.CodeColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a ReusableInvitationCodeUse.
+func (c *ReusableInvitationCodeUseClient) QueryUser(_m *ReusableInvitationCodeUse) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(reusableinvitationcodeuse.Table, reusableinvitationcodeuse.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, reusableinvitationcodeuse.UserTable, reusableinvitationcodeuse.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ReusableInvitationCodeUseClient) Hooks() []Hook {
+	return c.hooks.ReusableInvitationCodeUse
+}
+
+// Interceptors returns the client interceptors.
+func (c *ReusableInvitationCodeUseClient) Interceptors() []Interceptor {
+	return c.inters.ReusableInvitationCodeUse
+}
+
+func (c *ReusableInvitationCodeUseClient) mutate(ctx context.Context, m *ReusableInvitationCodeUseMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ReusableInvitationCodeUseCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ReusableInvitationCodeUseUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ReusableInvitationCodeUseUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ReusableInvitationCodeUseDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ReusableInvitationCodeUse mutation op: %q", m.Op())
+	}
+}
+
 // SecuritySecretClient is a client for the SecuritySecret schema.
 type SecuritySecretClient struct {
 	config
@@ -5335,6 +6001,684 @@ func (c *TLSFingerprintProfileClient) mutate(ctx context.Context, m *TLSFingerpr
 	}
 }
 
+// TeamClient is a client for the Team schema.
+type TeamClient struct {
+	config
+}
+
+// NewTeamClient returns a client for the Team from the given config.
+func NewTeamClient(c config) *TeamClient {
+	return &TeamClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `team.Hooks(f(g(h())))`.
+func (c *TeamClient) Use(hooks ...Hook) {
+	c.hooks.Team = append(c.hooks.Team, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `team.Intercept(f(g(h())))`.
+func (c *TeamClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Team = append(c.inters.Team, interceptors...)
+}
+
+// Create returns a builder for creating a Team entity.
+func (c *TeamClient) Create() *TeamCreate {
+	mutation := newTeamMutation(c.config, OpCreate)
+	return &TeamCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Team entities.
+func (c *TeamClient) CreateBulk(builders ...*TeamCreate) *TeamCreateBulk {
+	return &TeamCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TeamClient) MapCreateBulk(slice any, setFunc func(*TeamCreate, int)) *TeamCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TeamCreateBulk{err: fmt.Errorf("calling to TeamClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TeamCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TeamCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Team.
+func (c *TeamClient) Update() *TeamUpdate {
+	mutation := newTeamMutation(c.config, OpUpdate)
+	return &TeamUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TeamClient) UpdateOne(_m *Team) *TeamUpdateOne {
+	mutation := newTeamMutation(c.config, OpUpdateOne, withTeam(_m))
+	return &TeamUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TeamClient) UpdateOneID(id int64) *TeamUpdateOne {
+	mutation := newTeamMutation(c.config, OpUpdateOne, withTeamID(id))
+	return &TeamUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Team.
+func (c *TeamClient) Delete() *TeamDelete {
+	mutation := newTeamMutation(c.config, OpDelete)
+	return &TeamDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TeamClient) DeleteOne(_m *Team) *TeamDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TeamClient) DeleteOneID(id int64) *TeamDeleteOne {
+	builder := c.Delete().Where(team.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TeamDeleteOne{builder}
+}
+
+// Query returns a query builder for Team.
+func (c *TeamClient) Query() *TeamQuery {
+	return &TeamQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTeam},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Team entity by its id.
+func (c *TeamClient) Get(ctx context.Context, id int64) (*Team, error) {
+	return c.Query().Where(team.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TeamClient) GetX(ctx context.Context, id int64) *Team {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryMemberships queries the memberships edge of a Team.
+func (c *TeamClient) QueryMemberships(_m *Team) *TeamMembershipQuery {
+	query := (&TeamMembershipClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(team.Table, team.FieldID, id),
+			sqlgraph.To(teammembership.Table, teammembership.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, team.MembershipsTable, team.MembershipsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryInvitations queries the invitations edge of a Team.
+func (c *TeamClient) QueryInvitations(_m *Team) *TeamInvitationQuery {
+	query := (&TeamInvitationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(team.Table, team.FieldID, id),
+			sqlgraph.To(teaminvitation.Table, teaminvitation.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, team.InvitationsTable, team.InvitationsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryOwnershipTransfers queries the ownership_transfers edge of a Team.
+func (c *TeamClient) QueryOwnershipTransfers(_m *Team) *TeamOwnershipTransferQuery {
+	query := (&TeamOwnershipTransferClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(team.Table, team.FieldID, id),
+			sqlgraph.To(teamownershiptransfer.Table, teamownershiptransfer.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, team.OwnershipTransfersTable, team.OwnershipTransfersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAPIKeys queries the api_keys edge of a Team.
+func (c *TeamClient) QueryAPIKeys(_m *Team) *APIKeyQuery {
+	query := (&APIKeyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(team.Table, team.FieldID, id),
+			sqlgraph.To(apikey.Table, apikey.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, team.APIKeysTable, team.APIKeysColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsageLogs queries the usage_logs edge of a Team.
+func (c *TeamClient) QueryUsageLogs(_m *Team) *UsageLogQuery {
+	query := (&UsageLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(team.Table, team.FieldID, id),
+			sqlgraph.To(usagelog.Table, usagelog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, team.UsageLogsTable, team.UsageLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TeamClient) Hooks() []Hook {
+	hooks := c.hooks.Team
+	return append(hooks[:len(hooks):len(hooks)], team.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *TeamClient) Interceptors() []Interceptor {
+	inters := c.inters.Team
+	return append(inters[:len(inters):len(inters)], team.Interceptors[:]...)
+}
+
+func (c *TeamClient) mutate(ctx context.Context, m *TeamMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TeamCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TeamUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TeamUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TeamDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Team mutation op: %q", m.Op())
+	}
+}
+
+// TeamInvitationClient is a client for the TeamInvitation schema.
+type TeamInvitationClient struct {
+	config
+}
+
+// NewTeamInvitationClient returns a client for the TeamInvitation from the given config.
+func NewTeamInvitationClient(c config) *TeamInvitationClient {
+	return &TeamInvitationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `teaminvitation.Hooks(f(g(h())))`.
+func (c *TeamInvitationClient) Use(hooks ...Hook) {
+	c.hooks.TeamInvitation = append(c.hooks.TeamInvitation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `teaminvitation.Intercept(f(g(h())))`.
+func (c *TeamInvitationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TeamInvitation = append(c.inters.TeamInvitation, interceptors...)
+}
+
+// Create returns a builder for creating a TeamInvitation entity.
+func (c *TeamInvitationClient) Create() *TeamInvitationCreate {
+	mutation := newTeamInvitationMutation(c.config, OpCreate)
+	return &TeamInvitationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TeamInvitation entities.
+func (c *TeamInvitationClient) CreateBulk(builders ...*TeamInvitationCreate) *TeamInvitationCreateBulk {
+	return &TeamInvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TeamInvitationClient) MapCreateBulk(slice any, setFunc func(*TeamInvitationCreate, int)) *TeamInvitationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TeamInvitationCreateBulk{err: fmt.Errorf("calling to TeamInvitationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TeamInvitationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TeamInvitationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TeamInvitation.
+func (c *TeamInvitationClient) Update() *TeamInvitationUpdate {
+	mutation := newTeamInvitationMutation(c.config, OpUpdate)
+	return &TeamInvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TeamInvitationClient) UpdateOne(_m *TeamInvitation) *TeamInvitationUpdateOne {
+	mutation := newTeamInvitationMutation(c.config, OpUpdateOne, withTeamInvitation(_m))
+	return &TeamInvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TeamInvitationClient) UpdateOneID(id int64) *TeamInvitationUpdateOne {
+	mutation := newTeamInvitationMutation(c.config, OpUpdateOne, withTeamInvitationID(id))
+	return &TeamInvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TeamInvitation.
+func (c *TeamInvitationClient) Delete() *TeamInvitationDelete {
+	mutation := newTeamInvitationMutation(c.config, OpDelete)
+	return &TeamInvitationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TeamInvitationClient) DeleteOne(_m *TeamInvitation) *TeamInvitationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TeamInvitationClient) DeleteOneID(id int64) *TeamInvitationDeleteOne {
+	builder := c.Delete().Where(teaminvitation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TeamInvitationDeleteOne{builder}
+}
+
+// Query returns a query builder for TeamInvitation.
+func (c *TeamInvitationClient) Query() *TeamInvitationQuery {
+	return &TeamInvitationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTeamInvitation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TeamInvitation entity by its id.
+func (c *TeamInvitationClient) Get(ctx context.Context, id int64) (*TeamInvitation, error) {
+	return c.Query().Where(teaminvitation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TeamInvitationClient) GetX(ctx context.Context, id int64) *TeamInvitation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTeam queries the team edge of a TeamInvitation.
+func (c *TeamInvitationClient) QueryTeam(_m *TeamInvitation) *TeamQuery {
+	query := (&TeamClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(teaminvitation.Table, teaminvitation.FieldID, id),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, teaminvitation.TeamTable, teaminvitation.TeamColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TeamInvitationClient) Hooks() []Hook {
+	return c.hooks.TeamInvitation
+}
+
+// Interceptors returns the client interceptors.
+func (c *TeamInvitationClient) Interceptors() []Interceptor {
+	return c.inters.TeamInvitation
+}
+
+func (c *TeamInvitationClient) mutate(ctx context.Context, m *TeamInvitationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TeamInvitationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TeamInvitationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TeamInvitationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TeamInvitationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TeamInvitation mutation op: %q", m.Op())
+	}
+}
+
+// TeamMembershipClient is a client for the TeamMembership schema.
+type TeamMembershipClient struct {
+	config
+}
+
+// NewTeamMembershipClient returns a client for the TeamMembership from the given config.
+func NewTeamMembershipClient(c config) *TeamMembershipClient {
+	return &TeamMembershipClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `teammembership.Hooks(f(g(h())))`.
+func (c *TeamMembershipClient) Use(hooks ...Hook) {
+	c.hooks.TeamMembership = append(c.hooks.TeamMembership, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `teammembership.Intercept(f(g(h())))`.
+func (c *TeamMembershipClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TeamMembership = append(c.inters.TeamMembership, interceptors...)
+}
+
+// Create returns a builder for creating a TeamMembership entity.
+func (c *TeamMembershipClient) Create() *TeamMembershipCreate {
+	mutation := newTeamMembershipMutation(c.config, OpCreate)
+	return &TeamMembershipCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TeamMembership entities.
+func (c *TeamMembershipClient) CreateBulk(builders ...*TeamMembershipCreate) *TeamMembershipCreateBulk {
+	return &TeamMembershipCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TeamMembershipClient) MapCreateBulk(slice any, setFunc func(*TeamMembershipCreate, int)) *TeamMembershipCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TeamMembershipCreateBulk{err: fmt.Errorf("calling to TeamMembershipClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TeamMembershipCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TeamMembershipCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TeamMembership.
+func (c *TeamMembershipClient) Update() *TeamMembershipUpdate {
+	mutation := newTeamMembershipMutation(c.config, OpUpdate)
+	return &TeamMembershipUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TeamMembershipClient) UpdateOne(_m *TeamMembership) *TeamMembershipUpdateOne {
+	mutation := newTeamMembershipMutation(c.config, OpUpdateOne, withTeamMembership(_m))
+	return &TeamMembershipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TeamMembershipClient) UpdateOneID(id int64) *TeamMembershipUpdateOne {
+	mutation := newTeamMembershipMutation(c.config, OpUpdateOne, withTeamMembershipID(id))
+	return &TeamMembershipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TeamMembership.
+func (c *TeamMembershipClient) Delete() *TeamMembershipDelete {
+	mutation := newTeamMembershipMutation(c.config, OpDelete)
+	return &TeamMembershipDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TeamMembershipClient) DeleteOne(_m *TeamMembership) *TeamMembershipDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TeamMembershipClient) DeleteOneID(id int64) *TeamMembershipDeleteOne {
+	builder := c.Delete().Where(teammembership.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TeamMembershipDeleteOne{builder}
+}
+
+// Query returns a query builder for TeamMembership.
+func (c *TeamMembershipClient) Query() *TeamMembershipQuery {
+	return &TeamMembershipQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTeamMembership},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TeamMembership entity by its id.
+func (c *TeamMembershipClient) Get(ctx context.Context, id int64) (*TeamMembership, error) {
+	return c.Query().Where(teammembership.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TeamMembershipClient) GetX(ctx context.Context, id int64) *TeamMembership {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTeam queries the team edge of a TeamMembership.
+func (c *TeamMembershipClient) QueryTeam(_m *TeamMembership) *TeamQuery {
+	query := (&TeamClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(teammembership.Table, teammembership.FieldID, id),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, teammembership.TeamTable, teammembership.TeamColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUser queries the user edge of a TeamMembership.
+func (c *TeamMembershipClient) QueryUser(_m *TeamMembership) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(teammembership.Table, teammembership.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, teammembership.UserTable, teammembership.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TeamMembershipClient) Hooks() []Hook {
+	return c.hooks.TeamMembership
+}
+
+// Interceptors returns the client interceptors.
+func (c *TeamMembershipClient) Interceptors() []Interceptor {
+	return c.inters.TeamMembership
+}
+
+func (c *TeamMembershipClient) mutate(ctx context.Context, m *TeamMembershipMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TeamMembershipCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TeamMembershipUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TeamMembershipUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TeamMembershipDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TeamMembership mutation op: %q", m.Op())
+	}
+}
+
+// TeamOwnershipTransferClient is a client for the TeamOwnershipTransfer schema.
+type TeamOwnershipTransferClient struct {
+	config
+}
+
+// NewTeamOwnershipTransferClient returns a client for the TeamOwnershipTransfer from the given config.
+func NewTeamOwnershipTransferClient(c config) *TeamOwnershipTransferClient {
+	return &TeamOwnershipTransferClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `teamownershiptransfer.Hooks(f(g(h())))`.
+func (c *TeamOwnershipTransferClient) Use(hooks ...Hook) {
+	c.hooks.TeamOwnershipTransfer = append(c.hooks.TeamOwnershipTransfer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `teamownershiptransfer.Intercept(f(g(h())))`.
+func (c *TeamOwnershipTransferClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TeamOwnershipTransfer = append(c.inters.TeamOwnershipTransfer, interceptors...)
+}
+
+// Create returns a builder for creating a TeamOwnershipTransfer entity.
+func (c *TeamOwnershipTransferClient) Create() *TeamOwnershipTransferCreate {
+	mutation := newTeamOwnershipTransferMutation(c.config, OpCreate)
+	return &TeamOwnershipTransferCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TeamOwnershipTransfer entities.
+func (c *TeamOwnershipTransferClient) CreateBulk(builders ...*TeamOwnershipTransferCreate) *TeamOwnershipTransferCreateBulk {
+	return &TeamOwnershipTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TeamOwnershipTransferClient) MapCreateBulk(slice any, setFunc func(*TeamOwnershipTransferCreate, int)) *TeamOwnershipTransferCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TeamOwnershipTransferCreateBulk{err: fmt.Errorf("calling to TeamOwnershipTransferClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TeamOwnershipTransferCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TeamOwnershipTransferCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TeamOwnershipTransfer.
+func (c *TeamOwnershipTransferClient) Update() *TeamOwnershipTransferUpdate {
+	mutation := newTeamOwnershipTransferMutation(c.config, OpUpdate)
+	return &TeamOwnershipTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TeamOwnershipTransferClient) UpdateOne(_m *TeamOwnershipTransfer) *TeamOwnershipTransferUpdateOne {
+	mutation := newTeamOwnershipTransferMutation(c.config, OpUpdateOne, withTeamOwnershipTransfer(_m))
+	return &TeamOwnershipTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TeamOwnershipTransferClient) UpdateOneID(id int64) *TeamOwnershipTransferUpdateOne {
+	mutation := newTeamOwnershipTransferMutation(c.config, OpUpdateOne, withTeamOwnershipTransferID(id))
+	return &TeamOwnershipTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TeamOwnershipTransfer.
+func (c *TeamOwnershipTransferClient) Delete() *TeamOwnershipTransferDelete {
+	mutation := newTeamOwnershipTransferMutation(c.config, OpDelete)
+	return &TeamOwnershipTransferDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TeamOwnershipTransferClient) DeleteOne(_m *TeamOwnershipTransfer) *TeamOwnershipTransferDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TeamOwnershipTransferClient) DeleteOneID(id int64) *TeamOwnershipTransferDeleteOne {
+	builder := c.Delete().Where(teamownershiptransfer.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TeamOwnershipTransferDeleteOne{builder}
+}
+
+// Query returns a query builder for TeamOwnershipTransfer.
+func (c *TeamOwnershipTransferClient) Query() *TeamOwnershipTransferQuery {
+	return &TeamOwnershipTransferQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTeamOwnershipTransfer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TeamOwnershipTransfer entity by its id.
+func (c *TeamOwnershipTransferClient) Get(ctx context.Context, id int64) (*TeamOwnershipTransfer, error) {
+	return c.Query().Where(teamownershiptransfer.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TeamOwnershipTransferClient) GetX(ctx context.Context, id int64) *TeamOwnershipTransfer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTeam queries the team edge of a TeamOwnershipTransfer.
+func (c *TeamOwnershipTransferClient) QueryTeam(_m *TeamOwnershipTransfer) *TeamQuery {
+	query := (&TeamClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(teamownershiptransfer.Table, teamownershiptransfer.FieldID, id),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, teamownershiptransfer.TeamTable, teamownershiptransfer.TeamColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *TeamOwnershipTransferClient) Hooks() []Hook {
+	return c.hooks.TeamOwnershipTransfer
+}
+
+// Interceptors returns the client interceptors.
+func (c *TeamOwnershipTransferClient) Interceptors() []Interceptor {
+	return c.inters.TeamOwnershipTransfer
+}
+
+func (c *TeamOwnershipTransferClient) mutate(ctx context.Context, m *TeamOwnershipTransferMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TeamOwnershipTransferCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TeamOwnershipTransferUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TeamOwnershipTransferUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TeamOwnershipTransferDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TeamOwnershipTransfer mutation op: %q", m.Op())
+	}
+}
+
 // UsageCleanupTaskClient is a client for the UsageCleanupTask schema.
 type UsageCleanupTaskClient struct {
 	config
@@ -5649,6 +6993,22 @@ func (c *UsageLogClient) QuerySubscription(_m *UsageLog) *UserSubscriptionQuery 
 			sqlgraph.From(usagelog.Table, usagelog.FieldID, id),
 			sqlgraph.To(usersubscription.Table, usersubscription.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, usagelog.SubscriptionTable, usagelog.SubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTeam queries the team edge of a UsageLog.
+func (c *UsageLogClient) QueryTeam(_m *UsageLog) *TeamQuery {
+	query := (&TeamClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagelog.Table, usagelog.FieldID, id),
+			sqlgraph.To(team.Table, team.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usagelog.TeamTable, usagelog.TeamColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5990,6 +7350,38 @@ func (c *UserClient) QueryPlatformQuotas(_m *User) *UserPlatformQuotaQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(userplatformquota.Table, userplatformquota.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PlatformQuotasTable, user.PlatformQuotasColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReusableInvitationCodeUses queries the reusable_invitation_code_uses edge of a User.
+func (c *UserClient) QueryReusableInvitationCodeUses(_m *User) *ReusableInvitationCodeUseQuery {
+	query := (&ReusableInvitationCodeUseClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(reusableinvitationcodeuse.Table, reusableinvitationcodeuse.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ReusableInvitationCodeUsesTable, user.ReusableInvitationCodeUsesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryTeamMemberships queries the team_memberships edge of a User.
+func (c *UserClient) QueryTeamMemberships(_m *User) *TeamMembershipQuery {
+	query := (&TeamMembershipClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(teammembership.Table, teammembership.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.TeamMembershipsTable, user.TeamMembershipsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6829,10 +8221,12 @@ type (
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, ImageObject,
+		OpenAIVideoTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ReusableInvitationCode, ReusableInvitationCodeUse, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
+		TeamOwnershipTransfer, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Hook
 	}
@@ -6841,10 +8235,12 @@ type (
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
 		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, ImageObject,
+		OpenAIVideoTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		ReusableInvitationCode, ReusableInvitationCodeUse, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, Team, TeamInvitation, TeamMembership,
+		TeamOwnershipTransfer, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
 		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
 		UserSubscription []ent.Interceptor
 	}

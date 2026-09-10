@@ -8,11 +8,18 @@ import { markRaw, ref, shallowRef } from 'vue'
 import type { Driver } from 'driver.js'
 
 type VoidCallback = () => void
+export interface TeamGuideOptions {
+  isOwner: boolean
+  hasTeam: boolean
+}
+
+type TeamGuideCallback = (options: TeamGuideOptions) => void
 type NextStepCallback = (delay?: number) => Promise<void>
 type IsCurrentStepCallback = (selector: string) => boolean
 
 export const useOnboardingStore = defineStore('onboarding', () => {
   const replayCallback = ref<VoidCallback | null>(null)
+  const teamGuideCallback = ref<TeamGuideCallback | null>(null)
   const nextStepCallback = ref<NextStepCallback | null>(null)
   const isCurrentStepCallback = ref<IsCurrentStepCallback | null>(null)
 
@@ -21,6 +28,10 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   function setReplayCallback(callback: VoidCallback | null): void {
     replayCallback.value = callback
+  }
+
+  function setTeamGuideCallback(callback: TeamGuideCallback | null): void {
+    teamGuideCallback.value = callback
   }
 
   function setControlMethods(methods: {
@@ -54,6 +65,10 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     }
   }
 
+  function startTeamGuide(options: TeamGuideOptions): void {
+    teamGuideCallback.value?.(options)
+  }
+
   /**
    * Manually advance to the next step
    * @param delay Optional delay in ms (useful for waiting for animations)
@@ -76,12 +91,14 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   return {
     setReplayCallback,
+    setTeamGuideCallback,
     setControlMethods,
     clearControlMethods,
     setDriverInstance,
     getDriverInstance,
     isDriverActive,
     replay,
+    startTeamGuide,
     nextStep,
     isCurrentStep
   }
