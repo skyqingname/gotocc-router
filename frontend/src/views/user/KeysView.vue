@@ -534,6 +534,12 @@
           </p>
         </div>
 
+        <RoutingPriorityPanel
+          v-if="(showCreateModal || showEditModal) && formData.routing_mode === 'auto'"
+          :key="showEditModal ? selectedKey?.id : 'create'"
+          :scope="scope"
+        />
+
         <div v-if="formData.routing_mode === 'fixed'">
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
           <Select
@@ -1205,6 +1211,7 @@ import Toggle from '@/components/common/Toggle.vue'
 	import { useClipboard } from '@/composables/useClipboard'
 import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import RoutingPriorityPanel from '@/components/keys/RoutingPriorityPanel.vue'
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
