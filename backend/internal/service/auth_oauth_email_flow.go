@@ -58,27 +58,14 @@ func (s *AuthService) SendPendingOAuthVerifyCode(ctx context.Context, email stri
 	}, nil
 }
 
-func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, invitationCode string) (*RedeemCode, error) {
+func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, invitationCode string) (*registrationInvitation, error) {
 	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
 		return nil, nil
 	}
-	if s.redeemRepo == nil && s.oauthEmailFlowClient(ctx) == nil {
+	if s.redeemRepo == nil && s.oauthEmailFlowClient(ctx) == nil && s.reusableInvitationRepo == nil {
 		return nil, ErrServiceUnavailable
 	}
-
-	invitationCode = strings.TrimSpace(invitationCode)
-	if invitationCode == "" {
-		return nil, ErrInvitationCodeRequired
-	}
-
-	redeemCode, err := s.loadOAuthRegistrationInvitation(ctx, invitationCode)
-	if err != nil {
-		return nil, ErrInvitationCodeInvalid
-	}
-	if redeemCode.Type != RedeemTypeInvitation || !redeemCode.CanUse() {
-		return nil, ErrInvitationCodeInvalid
-	}
-	return redeemCode, nil
+	return s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
 }
 
 // VerifyOAuthEmailCode verifies the locally entered email verification code for
@@ -283,12 +270,12 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
+	invitation, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
 		return err
 	}
-	if invitationRedeemCode != nil {
-		if err := s.useOAuthRegistrationInvitation(ctx, invitationRedeemCode.ID, user.ID); err != nil {
+	if invitation != nil {
+		if err := s.useRegistrationInvitation(ctx, invitation, user, signupSource, false); err != nil {
 			return ErrInvitationCodeInvalid
 		}
 	}
@@ -331,21 +318,27 @@ func (s *AuthService) restoreOAuthRegistrationInvitation(ctx context.Context, in
 	}
 
 	redeemCode, err := s.loadOAuthRegistrationInvitation(ctx, invitationCode)
-	if err != nil {
-		if errors.Is(err, ErrRedeemCodeNotFound) {
-			return nil
+	if err == nil && redeemCode.Type == RedeemTypeInvitation && redeemCode.Status == StatusUsed && redeemCode.UsedBy != nil && *redeemCode.UsedBy == userID {
+		redeemCode.Status = StatusUnused
+		redeemCode.UsedBy = nil
+		redeemCode.UsedAt = nil
+		if err := s.updateOAuthRegistrationInvitation(ctx, redeemCode); err != nil {
+			return fmt.Errorf("restore invitation code: %w", err)
 		}
-		return fmt.Errorf("load invitation code: %w", err)
-	}
-	if redeemCode.Type != RedeemTypeInvitation || redeemCode.Status != StatusUsed || redeemCode.UsedBy == nil || *redeemCode.UsedBy != userID {
 		return nil
 	}
-
-	redeemCode.Status = StatusUnused
-	redeemCode.UsedBy = nil
-	redeemCode.UsedAt = nil
-	if err := s.updateOAuthRegistrationInvitation(ctx, redeemCode); err != nil {
-		return fmt.Errorf("restore invitation code: %w", err)
+	if err != nil && !errors.Is(err, ErrRedeemCodeNotFound) {
+		return fmt.Errorf("load invitation code: %w", err)
+	}
+	if s.reusableInvitationRepo != nil {
+		reusableCode, reusableErr := s.reusableInvitationRepo.GetByCode(ctx, invitationCode)
+		if reusableErr == nil {
+			if err := s.reusableInvitationRepo.Release(ctx, reusableCode.ID, userID); err != nil {
+				return fmt.Errorf("restore reusable invitation code: %w", err)
+			}
+		} else if !errors.Is(reusableErr, ErrReusableInvitationCodeNotFound) {
+			return fmt.Errorf("load reusable invitation code: %w", reusableErr)
+		}
 	}
 	return nil
 }
@@ -385,29 +378,6 @@ func (s *AuthService) loadOAuthRegistrationInvitation(ctx context.Context, invit
 		}, nil
 	}
 	return s.redeemRepo.GetByCode(ctx, invitationCode)
-}
-
-func (s *AuthService) useOAuthRegistrationInvitation(ctx context.Context, invitationID, userID int64) error {
-	if client := s.oauthEmailFlowClient(ctx); client != nil {
-		affected, err := client.RedeemCode.Update().
-			Where(
-				redeemcode.IDEQ(invitationID),
-				redeemcode.StatusEQ(StatusUnused),
-				redeemcode.Or(redeemcode.ExpiresAtIsNil(), redeemcode.ExpiresAtGT(time.Now().UTC())),
-			).
-			SetStatus(StatusUsed).
-			SetUsedBy(userID).
-			SetUsedAt(time.Now().UTC()).
-			Save(ctx)
-		if err != nil {
-			return err
-		}
-		if affected == 0 {
-			return ErrRedeemCodeUsed
-		}
-		return nil
-	}
-	return s.redeemRepo.Use(ctx, invitationID, userID)
 }
 
 func (s *AuthService) updateOAuthRegistrationInvitation(ctx context.Context, code *RedeemCode) error {

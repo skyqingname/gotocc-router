@@ -3,6 +3,10 @@
 This source integration uses the commit and publication status recorded in
 [UPSTREAM.md](../UPSTREAM.md).
 
+The migration numbers below are upstream identifiers. In the owned GoToCC
+lineage, upstream 259–263 are imported unchanged as 263–267; all earlier
+owned SQL remains immutable. See [owned migration history](GOTOCC_PLUS_MIGRATION.md).
+
 ## Upgrade and public API
 
 The group field `models_list_config` becomes `model_allowlist` in storage and
@@ -31,9 +35,9 @@ configuration must be repaired before upgrading. Ordinary access-log persistence
 does not control required security-audit exception logging.
 
 Back up the database before deploying this schema change. Replacing the binary
-with an older version alone cannot reverse renamed columns. Recovery requires
-the matching pre-upgrade database backup or a reviewed forward compensation;
-never edit applied migration checksums.
+with an older version alone cannot reverse renamed columns. After migration or new writes, preserve the current data and apply a reviewed
+forward compensation. Do not overwrite current data with an older dump or edit
+applied migration checksums.
 
 ## Plus integration decisions
 
@@ -45,15 +49,24 @@ never edit applied migration checksums.
 | Tool events | Partial deltas and terminal `done` events are combined without duplication. Missing terminal tool inputs can be recovered from the matching observed call; explicit populated terminal inputs are preserved. |
 | MiniMax | Platform, group, quota, monitor and composite-route support is included. Coding-plan credential origin must be an exact approved HTTPS hostname; third-party host/path/query/userinfo lookalikes do not initiate an official quota query. |
 | Grok | Missing or inconclusive OAuth entitlement does not authorize media forwarding. Explicit administrator enable/disable wins; clearing it restores automatic evaluation. Native billing observation remains separate from retired generic upstream probes. |
-| Defaults | Grok cross-client model rewriting stays disabled; channel rankings remain visible unless hidden; redeem failures use a new atomic fixed ten-minute window with a limit of 30. |
+| Defaults | Grok cross-client model rewriting stays disabled; GoToCC user rankings remain administrator-only; redeem failures use a new atomic fixed ten-minute window with a limit of 30. |
 | Images | Image 2.5 and Plus synchronous, batch and asynchronous paths coexist. `SUB2API_IMAGES_MAIN_MODEL` defaults to `gpt-5.6-luna` in deployment examples. |
 | Administration | Preserve usage alerts, export controls, inactive-group selection, quota reset windows, payment checkout tabs and simple-mode server restrictions. |
 
-## Validation boundary
+## Local acceptance boundary
 
-All local generation and validation runs in Apple Containers with the pinned
-repository toolchain. Relevant backend suites, frontend lint/typechecking and
-Vitest, real PostgreSQL/Redis repository integration, and deployment/migration
-checks are required for this integration. PR submission additionally requires
-the official full local matrix through the repository submission CLI. Local
-test success is not evidence of a published release or a production upgrade.
+The owned workflow builds the final package in Docker using the pinned source
+toolchain and runs that package against the preserved local preview database.
+Only focused diagnosis is used to resolve observed integration problems. User
+manual acceptance precedes publication of the same package. No full test matrix,
+GitHub rebuild, or production update is implied by local startup.
+
+## GoToCC compatibility
+
+Smart keys evaluate the selected group's model allowlist against the public
+model before composite/channel mapping, and recheck the current policy on
+admission. Discovery uses the same alias semantics. Responses WebSocket turns
+retain smart routing, per-turn audit, account binding and allowlist evaluation.
+Root image/video aliases retain the upstream middleware ordering and the owned
+persistent object/task handlers. Ordinary users cannot enter the users-ranking
+tab, including through historical deep links; administrator access is retained.

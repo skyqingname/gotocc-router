@@ -34,7 +34,7 @@ const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
-const { replayTour } = useOnboardingTour({
+const { replayTour, startTeamTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
   autoStart: true
 })
@@ -43,6 +43,7 @@ const onboardingStore = useOnboardingStore()
 
 onMounted(() => {
   onboardingStore.setReplayCallback(replayTour)
+  onboardingStore.setTeamGuideCallback(startTeamTour)
 })
 
 defineExpose({ replayTour })

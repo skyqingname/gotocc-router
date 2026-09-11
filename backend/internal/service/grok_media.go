@@ -313,7 +313,13 @@ func (s *OpenAIGatewayService) BindGrokMediaVideoRequestAccount(
 			ttl = sticky
 		}
 	}
-	return s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, accountID, ttl)
+	if err := s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), cacheKey, accountID, ttl); err != nil {
+		return err
+	}
+	if route, ok := AutoRouteDecisionFromContext(ctx); ok {
+		return s.bindAutoResponseAffinity(ctx, route.Key, "video:"+strings.TrimSpace(requestID), accountID, ttl)
+	}
+	return nil
 }
 
 func (s *OpenAIGatewayService) ResolveGrokMediaVideoRequestAccount(

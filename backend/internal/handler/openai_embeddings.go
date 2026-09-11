@@ -84,6 +84,10 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
 	forwardModel := openAIChannelForwardModel(channelMapping, reqModel)

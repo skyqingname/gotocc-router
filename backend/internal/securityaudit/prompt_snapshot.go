@@ -40,9 +40,10 @@ var promptAuditClientWrapperTags = []string{
 const promptAuditPrioritySeparator = "\x00SUB2API_PROMPT_AUDIT_PRIORITY_END\x00"
 
 type promptSegment struct {
-	text string
-	user bool
-	role string
+	source auditcontent.Source
+	text   string
+	user   bool
+	role   string
 }
 
 func ExtractPromptSnapshot(req Request) (PromptSnapshot, error) {
@@ -107,7 +108,7 @@ func promptSegmentsFromAuditContent(document auditcontent.Document, protocol str
 			continue
 		}
 		role := strings.ToLower(strings.TrimSpace(segment.Role))
-		user := role == "user"
+		user := role == "user" && segment.Source != auditcontent.SourceToolOutput
 		if role == "" && ((segment.Source == auditcontent.SourceMessage && allowRolelessMessage) ||
 			segment.Source == auditcontent.SourceSearchQuery ||
 			segment.Source == auditcontent.SourceEmbeddingInput ||
@@ -125,6 +126,9 @@ func promptSegmentsFromAuditContent(document auditcontent.Document, protocol str
 				role = "assistant"
 			}
 		}
+		if segment.Source == auditcontent.SourceToolOutput {
+			role = "tool"
+		}
 		segText := segment.Text
 		if user {
 			segText = stripPromptAuditClientWrapperBlocks(segText)
@@ -133,7 +137,7 @@ func promptSegmentsFromAuditContent(document auditcontent.Document, protocol str
 			}
 		}
 		segments = append(segments, promptSegment{
-			text: segText,
+			text: segText, source: segment.Source,
 			user: user,
 			role: role,
 		})
@@ -207,6 +211,11 @@ func blockingSegmentsLatestUserAndPreviousOutput(values []promptSegment) []strin
 		currentUserText = append(currentUserText, segment.text)
 	}
 	selected := []promptSegment{{text: strings.Join(currentUserText, "\n\n"), user: true, role: "user"}}
+	for _, segment := range normalized[latestUserEnd:] {
+		if segment.source == auditcontent.SourceToolOutput {
+			selected = append(selected, segment)
+		}
+	}
 	for index := latestUserStart - 1; index >= 0; index-- {
 		if !isAssistantOutputSegment(normalized[index]) {
 			continue

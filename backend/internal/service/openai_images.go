@@ -508,7 +508,7 @@ func applyOpenAIImagesDefaults(req *OpenAIImagesRequest) {
 }
 
 func isOpenAIImageGenerationModel(model string) bool {
-	return IsGPTImageGenerationModel(model) || isGrokImageGenerationModel(model)
+	return IsGPTImageGenerationModel(model) || isGrokImageGenerationModel(model) || isImageGenerationModel(model)
 }
 
 // IsGPTImageGenerationModel identifies the GPT native image-generation model family.
@@ -607,7 +607,7 @@ func (s *OpenAIGatewayService) ForwardImages(
 	account *Account,
 	body []byte,
 	parsed *OpenAIImagesRequest,
-	channelMappedModel string,
+	_ string,
 ) (result *OpenAIForwardResult, err error) {
 	defer func() { finalizeClientDisconnectForwardResult(ctx, c, result, err) }()
 	if parsed == nil {
@@ -615,9 +615,9 @@ func (s *OpenAIGatewayService) ForwardImages(
 	}
 	switch account.Type {
 	case AccountTypeAPIKey:
-		return s.forwardOpenAIImagesAPIKey(ctx, c, account, body, parsed, channelMappedModel)
+		return s.forwardOpenAIImagesAPIKey(ctx, c, account, body, parsed)
 	case AccountTypeOAuth, AccountTypeSetupToken:
-		return s.forwardOpenAIImagesOAuth(ctx, c, account, parsed, channelMappedModel)
+		return s.forwardOpenAIImagesOAuth(ctx, c, account, parsed)
 	default:
 		return nil, fmt.Errorf("unsupported account type: %s", account.Type)
 	}
@@ -629,20 +629,13 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	account *Account,
 	body []byte,
 	parsed *OpenAIImagesRequest,
-	channelMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
 	requestModel := strings.TrimSpace(parsed.Model)
-	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
-		requestModel = mapped
-	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
-	upstreamModel := account.GetMappedModel(requestModel)
-	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
-		return nil, err
-	}
+	upstreamModel := requestModel
 	SetOpsUpstreamModel(c, upstreamModel)
 	logger.LegacyPrintf(
 		"service.openai_gateway",
@@ -966,6 +959,66 @@ func cloneMultipartHeader(src textproto.MIMEHeader) textproto.MIMEHeader {
 	return dst
 }
 
+type openAIGeminiImageData struct {
+	B64JSON  string `json:"b64_json"`
+	MimeType string `json:"mime_type,omitempty"`
+}
+
+type openAIGeminiImageResponse struct {
+	Created int64                   `json:"created,omitempty"`
+	Data    []openAIGeminiImageData `json:"data"`
+}
+
+func normalizeOpenAIGeminiImageResponse(body []byte) ([]byte, bool) {
+	if len(body) == 0 || !gjson.ValidBytes(body) || gjson.GetBytes(body, "data").IsArray() {
+		return body, false
+	}
+
+	root := gjson.ParseBytes(body)
+	candidates := root.Get("candidates")
+	createTime := root.Get("createTime").String()
+	if !candidates.IsArray() {
+		candidates = root.Get("response.candidates")
+		createTime = root.Get("response.createTime").String()
+	}
+	if !candidates.IsArray() {
+		return body, false
+	}
+
+	images := make([]openAIGeminiImageData, 0, 1)
+	candidates.ForEach(func(_, candidate gjson.Result) bool {
+		candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
+			inlineData := part.Get("inlineData")
+			if !inlineData.Exists() {
+				inlineData = part.Get("inline_data")
+			}
+			mimeType := strings.TrimSpace(inlineData.Get("mimeType").String())
+			if mimeType == "" {
+				mimeType = strings.TrimSpace(inlineData.Get("mime_type").String())
+			}
+			data := strings.TrimSpace(inlineData.Get("data").String())
+			if data != "" && strings.HasPrefix(strings.ToLower(mimeType), "image/") {
+				images = append(images, openAIGeminiImageData{B64JSON: data, MimeType: mimeType})
+			}
+			return true
+		})
+		return true
+	})
+	if len(images) == 0 {
+		return body, false
+	}
+
+	response := openAIGeminiImageResponse{Data: images}
+	if parsedTime, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(createTime)); err == nil {
+		response.Created = parsedTime.Unix()
+	}
+	normalized, err := json.Marshal(response)
+	if err != nil {
+		return body, false
+	}
+	return normalized, true
+}
+
 func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
 	ctx context.Context,
 	resp *http.Response,
@@ -976,6 +1029,9 @@ func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(
 	body, err := ReadUpstreamResponseBody(resp.Body, s.cfg, c, openAITooLargeError)
 	if err != nil {
 		return OpenAIUsage{}, 0, nil, err
+	}
+	if normalized, ok := normalizeOpenAIGeminiImageResponse(body); ok {
+		body = normalized
 	}
 	body = s.backfillOpenAIImagesB64JSON(ctx, account, parsed, body)
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)

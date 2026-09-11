@@ -13,8 +13,8 @@ import type { Group } from '@/types'
  * - Subscription groups: user has active subscription
  * @returns List of available groups
  */
-export async function getAvailable(): Promise<Group[]> {
-  const { data } = await apiClient.get<Group[]>('/groups/available')
+export async function getAvailable(scope: 'personal' | 'team' = 'personal'): Promise<Group[]> {
+  const { data } = await apiClient.get<Group[]>('/groups/available', { params: { scope } })
   return data
 }
 
@@ -22,8 +22,8 @@ export async function getAvailable(): Promise<Group[]> {
  * Get current user's custom group rate multipliers
  * @returns Map of group_id to custom rate_multiplier
  */
-export async function getUserGroupRates(): Promise<Record<number, number>> {
-  const { data } = await apiClient.get<Record<number, number> | null>('/groups/rates')
+export async function getUserGroupRates(scope: 'personal' | 'team' = 'personal'): Promise<Record<number, number>> {
+  const { data } = await apiClient.get<Record<number, number> | null>('/groups/rates', { params: { scope } })
   return data || {}
 }
 

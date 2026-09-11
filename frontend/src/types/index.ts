@@ -241,6 +241,8 @@ export interface PublicSettings {
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
+	team_enabled: boolean
+	team_self_service_enabled: boolean
   risk_control_enabled: boolean
   global_ip_access_control_enabled: boolean
   table_default_page_size: number
@@ -535,6 +537,16 @@ export interface PaginationConfig {
 // ==================== API Key & Group Types ====================
 
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'composite'
+export type ApiKeyRoutingMode = 'fixed' | 'auto'
+
+// The server owns the calculation of these capabilities. They are advisory for
+// UI affordances only; each API request still performs full authorization.
+export interface ApiKeyRoutingCapabilities {
+  routing_mode: ApiKeyRoutingMode
+  protocols: string[]
+  async_image_submit: boolean
+  batch_image_submit: boolean
+}
 
 export type VideoModelPrices = Record<string, Record<string, number>>
 
@@ -733,10 +745,16 @@ export interface CompositeRouteDecision {
 export interface ApiKey {
   id: number
   user_id: number
+  team_id?: number | null
+  scope: 'personal' | 'team'
+  team_owner_disabled: boolean
   key: string
   name: string
   group_id: number | null
-  status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
+  // Older API responses may not contain this field during a rolling upgrade.
+  // Missing mode remains the legacy fixed-group behavior.
+  routing_mode?: ApiKeyRoutingMode
+  status: 'active' | 'inactive' | 'disabled' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
   last_used_at: string | null
@@ -764,7 +782,9 @@ export interface ApiKey {
 
 export interface CreateApiKeyRequest {
   name: string
+  scope?: 'personal' | 'team'
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -778,6 +798,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]

@@ -176,6 +176,27 @@ func TestNormalizePreservesExplicitFingerprint(t *testing.T) {
 	require.LessOrEqual(t, decimalPlaces(cmd.BalanceCost), int32(UsageBillingMonetaryScale))
 }
 
+func TestUsageBillingFingerprintIncludesTeamActorAttribution(t *testing.T) {
+	teamID := int64(7)
+	base := &UsageBillingCommand{
+		UserID:      1,
+		ActorUserID: 2,
+		TeamID:      &teamID,
+		APIKeyID:    3,
+		AccountID:   4,
+		BalanceCost: 0.25,
+	}
+
+	actorChanged := *base
+	actorChanged.ActorUserID = 5
+	teamChanged := *base
+	otherTeamID := int64(8)
+	teamChanged.TeamID = &otherTeamID
+
+	require.NotEqual(t, buildUsageBillingFingerprint(base), buildUsageBillingFingerprint(&actorChanged))
+	require.NotEqual(t, buildUsageBillingFingerprint(base), buildUsageBillingFingerprint(&teamChanged))
+}
+
 func TestQuantizeUsageBillingAmountPassesThroughNonFinite(t *testing.T) {
 	require.Equal(t, 0.0, QuantizeUsageBillingAmount(0))
 	require.True(t, math.IsNaN(QuantizeUsageBillingAmount(math.NaN())))

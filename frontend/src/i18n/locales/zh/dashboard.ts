@@ -79,6 +79,7 @@ export default {
     },
     allGroups: '全部分组',
     allStatus: '全部状态',
+    allRoutingModes: '全部路由模式',
     columnSettings: '列设置',
     columnAlwaysVisible: '该列固定显示，不可隐藏',
     createKey: '创建密钥',
@@ -117,9 +118,18 @@ export default {
     failedToDelete: '删除 API 密钥失败',
     failedToUpdateStatus: '更新 API 密钥状态失败',
     clickToChangeGroup: '点击更换分组',
+    clickToChangeRouting: '点击切换路由模式',
     groupChangedSuccess: '分组更换成功',
+    routingChangedSuccess: '路由模式已更新',
     failedToChangeGroup: '更换分组失败',
     groupRequired: '请选择分组',
+    routingMode: {
+      label: '路由模式',
+      fixed: '固定分组',
+      auto: '智能路由',
+      fixedHint: '每个请求都会通过所选分组发送。',
+      autoHint: '每个请求由服务端自动选择一个有权限的分组。'
+    },
     usage: '用量',
     today: '今日',
     total: '近30天',
@@ -127,6 +137,11 @@ export default {
     lastUsedAt: '上次使用时间',
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
+    oneClickAccess: '一键接入',
+    oneClickSelect: {
+      title: '选择要接入的密钥',
+      description: '请选择一个个人 API 密钥，然后打开一键接入配置。'
+    },
     useKeyModal: {
       title: '使用 API 密钥',
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
@@ -137,6 +152,20 @@ export default {
       noGroupTitle: '请先分配分组',
       noGroupDescription:
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',
+      auto: {
+        description: '使用统一基础 URL 和此密钥。服务端会为每个请求自动选择有权限的分组。',
+        baseUrl: '基础 URL',
+        credential: '凭据',
+        modelCatalog: '模型目录',
+        protocolsLabel: '当前可用协议',
+        capabilitiesHint: '协议和媒体能力基于当前授权配置计算；实际容量和剩余额度会在提交请求时再次检查。',
+        capabilitiesUnavailable: '暂时无法加载当前协议能力。在依赖特定协议功能前请稍后重试。',
+        protocols: {
+          openai: 'OpenAI 兼容',
+          anthropic: 'Anthropic',
+          gemini: 'Gemini'
+        }
+      },
       openai: {
         description: '将以下配置文件添加到 Codex CLI 配置目录中。',
         authModeTitle: 'Codex 认证模式',
@@ -622,7 +651,7 @@ export default {
       billingModeToken: '按 Token',
       billingModePerRequest: '按次',
       billingModeImage: '按图片',
-      billingModeVideo: '按视频',
+      billingModeVideo: '按秒（视频）',
       inputPrice: '输入',
       outputPrice: '输出',
       cacheWritePrice: '缓存写入',
@@ -632,9 +661,11 @@ export default {
       imageInputPrice: '图片输入',
       imageOutputPrice: '图片输出',
       perRequestPrice: '每次请求',
+      perSecondPrice: '每秒视频',
       intervals: '阶梯定价',
       unitPerMillion: '/ 1M token',
-      unitPerRequest: '/ 次'
+      unitPerRequest: '/ 次',
+      unitPerSecond: '/ 秒'
     }
   },
 
@@ -689,10 +720,16 @@ export default {
       officialPrice: '官方价格',
       rate: '折扣倍率',
       unitPerMillion: '$ / 1M token',
+      unitPerRequest: '$ / 次',
+      unitPerImage: '$ / 张',
+      unitPerSecond: '$ / 秒',
+      unitMixed: '$ / 计费单位',
       perUnitRequest: '/ 次',
       perUnitImage: '/ 张',
+      perUnitSecond: '/ 秒',
       perRequest: '按次计费',
-      perImage: '按图片计费'
+      perImage: '按图片计费',
+      perSecondVideo: '按秒计费'
     },
     nav: {
       login: '登录',

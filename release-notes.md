@@ -1,37 +1,40 @@
-Sub2API Plus v0.2.4+custom.001
+# GoToCC 0.2.4+custom.002
 
-## Highlights
+## 上游基线
 
-Integrates the official v0.2.4 baseline while preserving Plus security,
-identity, accounting, administration, and deployment behavior.
+- Sub2API Plus：`v0.2.4+custom.001`，固定提交 `92e12acd4b39f030b56e635bcc02e239e14843e9`。
+- 官方 Sub2API：`v0.2.4`，提交 `5de5e2bed035d43591a2e10e51f420ef6a84eb98`。官方 tag 内 VERSION 为 `0.2.3`；本包按 tag 提交集成，显示自有版本。
+- 沿用 GoToCC `0.2.1+custom.006` 的全部现行产品契约。
 
-## Changed
+## 功能变化
 
-- Adds MiniMax account, routing, quota, monitoring, and composite-route support.
-- Adds Image 2.5 support, long-stream HTTP/2 keepalive, OpenAI weekly usage
-  estimates, and administrator controls imported from the official baseline.
-- Enforces model allowlists for both discovery and inference while preserving
-  Plus aliases, credential-owned Codex identity, and ingress audit ordering.
-- Preserves Plus asynchronous image paths, usage alerts, export controls,
-  payment flows, session accounting, and hardened deployment defaults.
-- Keeps Grok cross-client rewriting opt-in and requires conclusive or explicit
-  media eligibility before forwarding media requests.
+- 合入 MiniMax 账号、路由、额度、监控和合成分组支持。
+- 合入 Image 2.5 支持、长流 HTTP/2 保活、OpenAI 周用量估算和上游管理功能。
+- 分组模型白名单同时约束模型发现和推理请求；智能 Key 按白名单选择分组，并保持原始公开模型在映射前校验。
+- 保留 GotoCC 首页、团队与独立计费归因、永久邀请码、智能 Key、一键接入、Prompt Audit 模板与文本检查、自有更新通道。
+- 保留图片原模型名、异步图片对象续签、统一视频 JSON/multipart 透传与原账号查询、终态结算/失败释放、按次与按秒单位、下游断开独立归因。
+- 保留普通用户不展示用户排行的本地契约；合并上游用量筛选分页与团队 Key 筛选。
 
-## Compatibility and migration
+## 数据迁移与兼容性
 
-Database migrations 259 through 263 run automatically. They rename and repair
-the group model policy, add MiniMax constraints, normalize legacy allowlists,
-and preserve explicit access-log persistence on existing installations. Back
-up the database before upgrading because replacing the binary alone cannot
-reverse the renamed schema. Management API clients must use `model_allowlist`
-instead of `models_list_config`.
+已有 SQL 文件保持原名原文。上游新增 259–263 原文在本包中编号为 263–267：
 
-## Known issues
+| 自有迁移 | 上游迁移 | 影响 |
+| --- | --- | --- |
+| 263 | 259 | `groups.models_list_config` 更名为 `model_allowlist`，保留配置内容 |
+| 264 | 260 | 修复缺失的新列，补齐默认值/NOT NULL；仅新列为空时回填旧列 |
+| 265 | 261 | 为额度、合成路由、监控和模板约束增加 MiniMax |
+| 266 | 262 | 白名单条目去空白、按大小写去重；旧启用空表改为禁用；非法结构或通配符会中止迁移并报告分组 ID |
+| 267 | 263 | 已有用户的安装保留明确的访问日志持久化设置，缺失字段补为 true；新库默认 false |
 
-The official v0.2.4 tag embeds source version `0.2.3`; this release intentionally
-uses the official tag commit as its upstream baseline.
+管理 API 客户端需要使用 `model_allowlist`，不再发送 `models_list_config`。启用的旧列表从“只影响展示”升级为“同时约束请求”，原先隐藏但仍可调用的模型可能返回 404；请在更新前核对分组策略。
 
-## Upstream baseline
+263–265 的 DDL 会锁相关表，约束重建会扫描现有行；264/266 的回填会产生行锁和 WAL，267 仅修改相应设置。磁盘应保留数据库备份及迁移写入空间；不新增业务任务表或自动修改资金记录。API Key 认证快照版本更新为 26，不清空 Redis。
 
-Official release: v0.2.4
-Official commit: 5de5e2bed035d43591a2e10e51f420ef6a84eb98
+若从自有 `0.2.1+custom.005` 更新，还会执行已有 261/262：清理旧口径派生 TTFT 统计（原始用量/费用保留），增加默认关闭的 OpenAI 额度跟随重置能力。
+
+升级前保留数据库、配置和配套资源备份，先停止旧核心再启动新核心，避免新旧 writer 重叠。列更名后旧程序不能直接使用新 schema。发生迁移或新写入后保留当前数据向前修复；不能只换回旧二进制，也不能用旧 dump 覆盖当前数据。MiniMax 或智能 Key 的历史归属不得丢失。
+
+## 本地状态
+
+本地候选，等待用户人工验收；尚未发布或部署。发布时复用已验收的同一 Linux/amd64 包及全部配套资源。

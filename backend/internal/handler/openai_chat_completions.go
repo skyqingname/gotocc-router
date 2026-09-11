@@ -111,6 +111,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 	if h.rejectIfCyberSessionBlocked(c, apiKey, body, reqModel, cyberBlockFormatChat) {
 		return
 	}

@@ -76,9 +76,18 @@ type BatchImageReferenceInput struct {
 }
 
 type BatchImageOwner struct {
-	UserID   int64
-	APIKeyID int64
-	GroupID  *int64
+	UserID        int64
+	BillingUserID int64
+	TeamID        *int64
+	APIKeyID      int64
+	GroupID       *int64
+}
+
+func (o BatchImageOwner) EffectiveBillingUserID() int64 {
+	if o.BillingUserID > 0 {
+		return o.BillingUserID
+	}
+	return o.UserID
 }
 
 type BatchImagePublicService struct {
@@ -258,8 +267,11 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	holdID := BatchImageHoldRequestID(batchID)
 	holdAmount := pricingSnapshot.HoldAmount
 	job, err := s.Repo.CreateBatchImageJob(ctx, CreateBatchImageJobParams{
+		GroupID:                 owner.GroupID,
 		BatchID:                 batchID,
 		UserID:                  owner.UserID,
+		BillingUserID:           owner.EffectiveBillingUserID(),
+		TeamID:                  owner.TeamID,
 		APIKeyID:                &apiKeyID,
 		AccountID:               &accountID,
 		Provider:                provider.Name(),
@@ -296,7 +308,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		s.hidePreUpstreamSubmitFailure(ctx, owner, job)
 		return nil, err
 	}
-	s.invalidateAuthCache(ctx, owner.UserID)
+	s.invalidateAuthCache(ctx, owner.EffectiveBillingUserID())
 	if err := s.createPendingItems(ctx, job.BatchID, requestHash, normalized.Items); err != nil {
 		if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {
 			return nil, releaseErr
@@ -407,7 +419,7 @@ func (s *BatchImagePublicService) releaseFailedSubmitHold(ctx context.Context, j
 		s.enqueueBillingRetry(ctx, job.BatchID)
 		return ErrBatchImageBillingHoldFailed
 	}
-	s.invalidateAuthCache(ctx, job.UserID)
+	s.invalidateAuthCache(ctx, batchImageBillingUserID(job))
 	return nil
 }
 
@@ -715,7 +727,7 @@ func (s *BatchImagePublicService) Cancel(ctx context.Context, owner BatchImageOw
 				s.enqueueBillingRetry(ctx, job.BatchID)
 				return nil, ErrBatchImageCancelFailed
 			}
-			s.invalidateAuthCache(ctx, owner.UserID)
+			s.invalidateAuthCache(ctx, owner.EffectiveBillingUserID())
 		}
 		return BatchImageJobToPublic(job), nil
 	}
@@ -761,7 +773,7 @@ func (s *BatchImagePublicService) Cancel(ctx context.Context, owner BatchImageOw
 		s.enqueueBillingRetry(ctx, job.BatchID)
 		return nil, ErrBatchImageCancelFailed
 	}
-	s.invalidateAuthCache(ctx, owner.UserID)
+	s.invalidateAuthCache(ctx, owner.EffectiveBillingUserID())
 	updated, err := s.Repo.GetBatchImageJobByBatchIDForOwner(ctx, owner.UserID, owner.APIKeyID, batchID)
 	if err != nil {
 		return nil, err
@@ -955,6 +967,12 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 			if !account.IsSchedulable() || !account.IsModelSupported(model) {
 				continue
 			}
+			if route, ok := AutoRouteDecisionFromContext(ctx); ok && route.Key.Group != nil {
+				group := route.Key.Group
+				if (group.RequireOAuthOnly && account.Type == AccountTypeAPIKey) || (group.RequirePrivacySet && !account.IsPrivacySet()) {
+					continue
+				}
+			}
 			if provider.SupportsAccount(&account) {
 				return provider, &account, nil
 			}
@@ -967,6 +985,12 @@ func (s *BatchImagePublicService) selectProviderAndAccount(ctx context.Context, 
 }
 
 func (s *BatchImagePublicService) listCandidateAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
+	if IsAutoRoutingRequest(ctx) {
+		locked, ok := AutoRouteGroupID(ctx)
+		if !ok || groupID == nil || *groupID != locked {
+			return nil, ErrAutoRouteContext
+		}
+	}
 	if s.AccountRepo == nil {
 		return nil, ErrBatchImageNoAccountAvailable
 	}
@@ -1018,7 +1042,7 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		}
 		effectiveGroupMultiplier := groupDefaultMultiplier
 		if s.UserGroupRateRepo != nil {
-			userRate, rateErr := s.UserGroupRateRepo.GetByUserAndGroup(ctx, owner.UserID, group.ID)
+			userRate, rateErr := s.UserGroupRateRepo.GetByUserAndGroup(ctx, owner.EffectiveBillingUserID(), group.ID)
 			if rateErr != nil {
 				return nil, ErrBatchImageSettlementPricingMissing
 			}
