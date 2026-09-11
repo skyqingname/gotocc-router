@@ -16,6 +16,7 @@ import (
 // newAliyunCaptchaTestTarget 起一个假的阿里云端点，让真实 SDK 走完整的签名/序列化链路。
 func newAliyunCaptchaTestTarget(t *testing.T, handler http.HandlerFunc) (*aliyunCaptchaVerifier, service.AliyunCaptchaCredentials) {
 	t.Helper()
+	disableAliyunCaptchaTestProxy(t)
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 
@@ -74,6 +75,7 @@ func TestAliyunCaptchaVerifier_APIErrorNormalized(t *testing.T) {
 }
 
 func TestAliyunCaptchaVerifier_TransportError(t *testing.T) {
+	disableAliyunCaptchaTestProxy(t)
 	server := httptest.NewServer(http.NotFoundHandler())
 	endpoint := strings.TrimPrefix(server.URL, "http://")
 	server.Close() // 立即关闭，制造连接失败
@@ -89,5 +91,15 @@ func TestAliyunCaptchaVerifier_TransportError(t *testing.T) {
 	_, err := verifier.VerifyCaptcha(context.Background(), cred, "param")
 	require.Error(t, err)
 	var apiErr *service.AliyunCaptchaAPIError
-	require.False(t, errors.As(err, &apiErr), "transport errors must not be normalized to API errors")
+	require.False(t, errors.As(err, &apiErr), "transport errors must not be normalized to API errors (%T: %v)", err, err)
+}
+
+// The SDK can use proxy environment variables even for localhost. A proxy may
+// turn connection refusal into HTTP 503, which is correctly an API response but
+// defeats this test's intended transport failure. Keep fake endpoints local.
+func disableAliyunCaptchaTestProxy(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+		t.Setenv(name, "")
+	}
 }

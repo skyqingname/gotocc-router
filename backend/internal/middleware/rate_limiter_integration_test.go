@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +92,12 @@ func performRequest(router *gin.Engine) *httptest.ResponseRecorder {
 
 func startRedis(t *testing.T, ctx context.Context) *redis.Client {
 	t.Helper()
+	if addr := strings.TrimSpace(os.Getenv("SUB2API_TEST_REDIS_ADDR")); addr != "" {
+		rdb := redis.NewClient(&redis.Options{Addr: addr, Password: os.Getenv("SUB2API_TEST_REDIS_PASSWORD")})
+		t.Cleanup(func() { require.NoError(t, rdb.Close()) })
+		require.NoError(t, rdb.Ping(ctx).Err())
+		return rdb
+	}
 	ensureDockerAvailable(t)
 
 	redisContainer, err := tcredis.Run(ctx, redisImageTag)

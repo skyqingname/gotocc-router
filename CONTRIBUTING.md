@@ -91,3 +91,19 @@ create or move release tags.
 Never push `main` directly. PRs remain available for source collaboration, but
 they are not a prerequisite for publishing a locally accepted tag. Reuse the
 actual acceptance evidence instead of restarting the full validation matrix.
+
+### Isolated user lifecycle tests
+
+Inside the same validation container, point `BASE_URL` at an isolated running
+instance with registration enabled and email verification disabled:
+
+```bash
+BASE_URL=http://127.0.0.1:18090 make -C backend test-e2e
+```
+
+The user tests register independent users, verify login/profile, and exercise
+smart API Key creation, updates, ownership isolation, model listing, usage and
+deletion. Once `BASE_URL` is provided, HTTP errors and non-JSON responses fail
+the tests instead of silently skipping them. Provider E2E cases still require
+their explicit `CLAUDE_API_KEY` / `GEMINI_API_KEY` configuration; missing provider
+credentials are reported as skipped and do not establish provider availability.

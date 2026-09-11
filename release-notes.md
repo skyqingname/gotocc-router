@@ -1,5 +1,10 @@
 # GoToCC 0.2.4+custom.004
 
+- Upgraded SheetJS to the official 0.20.3 distribution and colord to a patched version, removing obsolete frontend vulnerability exceptions. Aligned the coverage provider with Vitest.
+- Fixed the user lifecycle E2E suite to use current authenticated API routes, fail on invalid responses, verify key ownership and deletion, and exercise smart routing across protocols. Restored the working Makefile E2E entry point and isolated captcha transport tests from inherited proxies.
+- API Key settings now show the default priority of authorized groups that share models, with expandable effective group orders for independently configured models. Includes personal/team scope, empty-state guidance, and retry on load failure.
+
+
 基于已适配的 GoToCC `0.2.4+custom.002`，上游基线保持 Sub2API Plus `v0.2.4+custom.001`（`92e12acd4b39f030b56e635bcc02e239e14843e9`），官方 Sub2API `v0.2.4`。
 
 ## 功能变化
