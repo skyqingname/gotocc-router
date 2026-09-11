@@ -164,6 +164,7 @@ func (s *AutoGroupResolver) BuildCodexModelsManifest(ctx context.Context, authen
 			effectivePlatform,
 			[]string{model.ID},
 			state.catalog.Accounts[group.ID],
+			group,
 			state.catalog.Routes[group.ID],
 			true,
 		)

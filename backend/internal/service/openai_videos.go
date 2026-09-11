@@ -145,7 +145,7 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		_ = response.Body.Close()
 		response.Body = io.NopCloser(bytes.NewReader(body))
 		upstreamMessage := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
-		if s.shouldFailoverOpenAIUpstreamResponse(response.StatusCode, upstreamMessage, body) {
+		if s.shouldFailoverOpenAIUpstreamResponse(account, response.StatusCode, upstreamMessage, body) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform: account.Platform, AccountID: account.ID, AccountName: account.Name,
 				UpstreamStatusCode: response.StatusCode, UpstreamRequestID: response.Header.Get("x-request-id"),
