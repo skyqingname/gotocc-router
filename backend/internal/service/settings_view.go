@@ -176,6 +176,8 @@ type SystemSettings struct {
 	CyberSessionBlockTTLSeconds              int
 	AffiliateEnabled                         bool
 	AffiliateRebateRate                      float64
+	AffiliateRebateRateL2                    float64
+	AffiliateRebateRateL3                    float64
 	AffiliateRebateFreezeHours               int
 	AffiliateRebateDurationDays              int
 	AffiliateRebatePerInviteeCap             float64
@@ -376,6 +378,8 @@ type PublicSettings struct {
 	WeChatOAuthMobileEnabled bool
 	BackendModeEnabled       bool
 	PaymentEnabled           bool
+	TeamEnabled              bool
+	TeamSelfServiceEnabled   bool
 	OIDCOAuthEnabled         bool
 	OIDCOAuthProviderName    string
 	GitHubOAuthEnabled       bool

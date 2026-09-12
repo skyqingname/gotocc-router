@@ -8,7 +8,7 @@ import (
 )
 
 func TestClientDisconnectSessionScopeMigration(t *testing.T) {
-	content, err := FS.ReadFile("256_client_disconnect_session_scope.sql")
+	content, err := FS.ReadFile("260_client_disconnect_session_scope.sql")
 	require.NoError(t, err)
 	sql := strings.ToLower(string(content))
 

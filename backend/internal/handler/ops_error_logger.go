@@ -2117,7 +2117,8 @@ func guessPlatformFromPath(path string) string {
 // classification if accepted blindly.
 func isKnownOpsErrorType(t string) bool {
 	switch t {
-	case "invalid_request_error",
+	case "client_disconnect",
+		"invalid_request_error",
 		"authentication_error",
 		"permission_error",
 		"model_not_found",
@@ -2203,6 +2204,9 @@ func classifyOpsSeverity(errType string, status int) string {
 }
 
 func classifyOpsErrorLog(c *gin.Context, errType, message, code string, status int) (phase string, isBusinessLimited bool, errorOwner string, errorSource string) {
+	if errType == "client_disconnect" {
+		return "network", false, "client", "client_request"
+	}
 	phase = classifyOpsPhase(errType, message, code)
 	routingCapacityLimited := isOpsRoutingCapacityLimited(c)
 	clientBusinessLimited := service.HasOpsClientBusinessLimited(c)

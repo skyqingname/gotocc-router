@@ -6,7 +6,7 @@ import (
 )
 
 func TestOpenAIGroupQuotaFollowResetMigration(t *testing.T) {
-	raw, err := FS.ReadFile("258_openai_group_quota_follow_reset.sql")
+	raw, err := FS.ReadFile("262_openai_group_quota_follow_reset.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

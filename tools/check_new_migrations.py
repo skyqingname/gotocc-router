@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
@@ -16,6 +17,29 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "backend/migrations"
 NAME_RE = re.compile(r"^(\d{3})(?:[a-z])?_[a-z0-9_]+(?:_notx)?\.sql$")
 ZERO_SHA_RE = re.compile(r"^0+$")
+
+# These GotoCC migrations were already deployed before a later upstream release
+# introduced files with the same numeric prefixes. Keep every exception exact
+# and content-addressed: it permits only the released filename and bytes, never
+# arbitrary reuse of an old numeric prefix.
+REVIEWED_IMPORTED_MIGRATIONS = {
+    "backend/migrations/220_reusable_invitation_codes.sql":
+        "87b4518fd381c1009f19adcc02ced70af0f8a848e18f9ad0b15e7f6c2dcdb488",
+    "backend/migrations/221_add_teams.sql":
+        "eba1a35d52e7fb2cdff8f810240aea62ec04ce9d9b0b573a7be28985fe7434cb",
+    "backend/migrations/222_harden_team_lifecycle.sql":
+        "2fac2b538d5c98e64a69d283d06f2784e7e4d4084c4e1514df0b740333c16179",
+    "backend/migrations/223_add_team_attribution_indexes_notx.sql":
+        "5ec90906693a165116e3b2e845d7061036d46f969d90a9003b9f7f5c9837e75b",
+    "backend/migrations/224_add_image_objects.sql":
+        "bb077c8413a11a0f361b8629988857c2d4f7eb28092020735f8558321ffc6729",
+    "backend/migrations/225_restore_openai_video_prices.sql":
+        "bc69d7ff1c09eec409fe050af1b617d45e0a2017610a28c3cca790ba2da0cd13",
+    "backend/migrations/238_openai_video_tasks.sql":
+        "a4745fb45a29aae765d77cab027d4ffdd92d89755063532c8614c1ff571d1f2e",
+    "backend/migrations/239_openai_video_task_billing_mode.sql":
+        "3aa7672f9b178e970c79b3d6d586f9e6bde8ed9b6c98d42352a8d49111dc20b3",
+}
 
 
 def git(*args: str) -> str:
@@ -66,6 +90,27 @@ def validate_added(path: Path, errors: list[str]) -> int | None:
         errors.append(f"{path.as_posix()}: CONCURRENTLY requires _notx.sql")
 
     return int(match.group(1))
+
+
+def is_reviewed_imported_migration(path: Path) -> bool:
+    try:
+        relative = path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return False
+    expected = REVIEWED_IMPORTED_MIGRATIONS.get(relative)
+    if expected is None:
+        return False
+    return hashlib.sha256(path.read_bytes()).hexdigest() == expected
+
+
+def has_duplicate_unreviewed_prefixes(paths: list[Path]) -> bool:
+    prefixes = [
+        int(match.group(1))
+        for path in paths
+        if not is_reviewed_imported_migration(path)
+        if (match := NAME_RE.fullmatch(path.name))
+    ]
+    return len(prefixes) != len(set(prefixes))
 
 
 def diff_changes(base: str) -> list[tuple[str, str]]:
@@ -165,18 +210,17 @@ def main() -> int:
         if (match := NAME_RE.fullmatch(Path(name).name))
     ]
     max_base = max(base_prefixes, default=0)
-    new_prefixes: list[int] = []
     for path in added:
         prefix = validate_added(path, errors)
         if prefix is None:
             continue
-        new_prefixes.append(prefix)
-        if prefix <= max_base:
+        reviewed_import = is_reviewed_imported_migration(path)
+        if prefix <= max_base and not reviewed_import:
             errors.append(
                 f"{path.relative_to(ROOT).as_posix()}: prefix {prefix:03d} must be "
                 f"greater than existing maximum {max_base:03d}"
             )
-    if len(new_prefixes) != len(set(new_prefixes)):
+    if has_duplicate_unreviewed_prefixes(added):
         errors.append("new migrations contain duplicate numeric prefixes")
 
     if errors:

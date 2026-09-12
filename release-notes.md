@@ -1,46 +1,23 @@
-Sub2API Plus v0.2.4+custom.002
+# GoToCC 0.2.4+custom.004
 
-## Highlights
+基于已适配的 GoToCC `0.2.4+custom.002`，上游基线保持 Sub2API Plus `v0.2.4+custom.001`（`92e12acd4b39f030b56e635bcc02e239e14843e9`），官方 Sub2API `v0.2.4`。
 
-Corrects usage timing and OpenAI OAuth weekly quota reset behavior across
-streaming adapters, group membership changes, and concurrent reset processing.
+## 功能变化
 
-## Changed
+- 永久邀请码可指定返佣归属，与 AFF 共用唯一邀请关系；管理端显示实际使用的邀请码。两码同时提供时只绑定一个邀请人。保留注册邀请码门槛，普通 AFF 不能单独替代必填注册码。
+- 指定永久码归属时，将历史使用者中未绑定邀请人的用户纳入今后返佣，保留已有关系，历史充值不补佣。
+- 每笔有效余额充值持续向最近三代分佣；后台独立设置三代比例，初始 20% / 10% / 5%，已有一级比例保留。邀请链长度不限，缺失层级不补发。
+- 以实际入账的站内 USD 代币为基数；不计算现金金额或汇率。独立赠额、普通兑换码、佣金转余额和订阅购买不触发余额充值返佣。
+- 保留管理员充值返佣开关，开启时“充值”所增加的代币走同样三代规则；设置余额和扣款不参与。
+- 用户页展示三代比例与邀请用户；管理端记录每条返佣的代次、比例、代币基数，并包含管理员充值流水。
+- 返利冻结期继续生效；旧专属比例、有效期与累计上限不影响新三代规则。
 
-- Defines one verified first-token, total-duration, and estimated-TPS contract
-  across supported account and protocol variants.
-- Follows explicit 10,080-minute OpenAI OAuth windows for group quota resets and
-  preserves source membership and baseline state when groups are copied.
-- Acquires client WebSocket connection leases only after first-frame validation
-  and security audit.
-- Synchronizes MiniMax localization and deployment defaults introduced by the
-  official v0.2.4 baseline.
+## 迁移、配置与回滚
 
-## Fixed
+自有 migration 268 增加永久码归属、实际邀请码和返佣快照字段，以及每单收款人唯一索引。历史 SQL 不改，历史佣金和余额不重算。永久码默认未指定归属，需管理员选择用户后才补入未关联历史用户。没有新增运行环境变量或包外配置；三档初始参数来自根目录 `affiliate-defaults.json`，日常比例在后台保存。
 
-- Prevents image, signature, grounding, compaction-only, empty-tool, and repeated
-  metadata output from being counted as generated text tokens.
-- Extends Gemini tool-call timing through later non-empty argument deltas and
-  keeps low positive TPS values visible without rounding them to zero.
-- Reconciles missing group reset baselines on repeated accepted observations and
-  rechecks source membership after database lock waits.
-- Commits copied group configuration, account membership, and scheduler outbox
-  entries atomically so reset workers never observe a partial copy.
+DDL 取得短时表锁，索引构建扫描返佣流水、占用索引空间并阻塞该表写入。保留库备份，停止旧核心后由新核心执行迁移，避免新旧 writer 重叠。旧程序能忽略新增列，但仍按旧一级分佣，不能作为业务等价回滚。迁移或新资金写入后保留当前数据向前修复；不能只换回旧二进制，也不能以旧 dump 覆盖新数据。
 
-## Compatibility and migration
+若从更早自有版本更新，仍会按顺序执行既有 263–267 上游适配迁移；完整影响见 `docs/GOTOCC_PLUS_MIGRATION.md`。
 
-No new database migration or configuration field is introduced by this release.
-Existing usage rows keep their historical timing provenance; only newly verified
-rows participate in strict first-token and TPS reporting. Existing weekly quota
-usage is reset only after an eligible bound OpenAI OAuth source reports an
-accepted later weekly window.
-
-## Known issues
-
-The official v0.2.4 tag embeds source version `0.2.3`; this release continues to
-use the official tag commit as its upstream baseline.
-
-## Upstream baseline
-
-Official release: v0.2.4
-Official commit: 5de5e2bed035d43591a2e10e51f420ef6a84eb98
+本包用于本地人工验收；发布与生产更新分别执行，不自动部署。

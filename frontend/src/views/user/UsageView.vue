@@ -64,6 +64,13 @@
           />
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
+
+        <div v-if="isTeamOwner" data-tour="team-member-usage-charts">
+          <TeamMemberUsageCharts
+            :series="teamMemberSeries"
+            :loading="teamChartsLoading"
+          />
+        </div>
       </div>
 
       <div class="card p-6">
@@ -184,6 +191,8 @@
           :server-side-sort="true"
           :show-account-billing="false"
           :show-upstream-endpoint="false"
+          :user-clickable="false"
+          :compact-user-column="isTeamOwner"
           default-sort-key="created_at"
           default-sort-order="desc"
           @sort="handleSort"
@@ -224,6 +233,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { keysAPI, usageAPI, userGroupsAPI } from '@/api'
+import { teamAPI, type TeamAPIKey, type TeamContext, type TeamMembership, type TeamUsageSummary } from '@/api/team'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
@@ -234,6 +244,7 @@ import ModelDistributionChart from '@/components/charts/ModelDistributionChart.v
 import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
+import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
 import Icon from '@/components/icons/Icon.vue'
 import UserErrorRequestsTable from '@/components/user/UserErrorRequestsTable.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
@@ -241,9 +252,7 @@ import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
 import type {
-  ApiKey,
   EndpointStat,
-  Group,
   GroupStat,
   ModelStat,
   TrendDataPoint,
@@ -269,11 +278,15 @@ const groupStats = ref<GroupStat[]>([])
 const inboundEndpointStats = ref<EndpointStat[]>([])
 const upstreamEndpointStats = ref<EndpointStat[]>([])
 const endpointPathStats = ref<EndpointStat[]>([])
+const teamContext = ref<TeamContext | null>(null)
+const teamMembers = ref<TeamMembership[]>([])
+const teamMemberSeries = ref<Array<{ userID: number; label: string; summary: TeamUsageSummary }>>([])
 
 const loading = ref(false)
 const chartsLoading = ref(false)
 const modelStatsLoading = ref(false)
 const endpointStatsLoading = ref(false)
+const teamChartsLoading = ref(false)
 const exporting = ref(false)
 const errorRows = ref<UserErrorRequest[]>([])
 const errorLoading = ref(false)
@@ -328,6 +341,7 @@ const applyErrorFilters = () => {
 
 let abortController: AbortController | null = null
 let chartReqSeq = 0
+let teamStatsReqSeq = 0
 let statsReqSeq = 0
 let modelStatsReqSeq = 0
 
@@ -405,9 +419,12 @@ const billingModeOptions = computed<SelectOption[]>(() => [
   { value: 'video', label: t('admin.usage.billingModeVideo') },
 ])
 
-const apiKeys = ref<ApiKey[]>([])
-const groups = ref<Group[]>([])
+type UsageKeyOption = Pick<TeamAPIKey, 'id' | 'name'>
+type UsageGroupOption = { id: number; name: string }
+const apiKeys = ref<UsageKeyOption[]>([])
+const groups = ref<UsageGroupOption[]>([])
 const modelOptionValues = ref<string[]>([])
+const isTeamOwner = computed(() => teamContext.value?.membership.role === 'owner')
 
 const apiKeyOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('usage.allApiKeys') },
@@ -544,6 +561,7 @@ const applyFilters = () => {
   void loadStats()
   void loadModelStats()
   void loadChartData()
+  void loadTeamMemberUsage()
   resetErrorRows()
 }
 
@@ -552,6 +570,7 @@ const refreshData = () => {
   void loadStats()
   void loadModelStats()
   void loadChartData()
+  void loadTeamMemberUsage()
   if (activeTab.value === 'errors') void loadErrors()
 }
 
@@ -724,6 +743,7 @@ const DEFAULT_HIDDEN_COLUMNS = ['user_agent']
 const HIDDEN_COLUMNS_KEY = 'user-usage-hidden-columns'
 
 const allColumns = computed<Column[]>(() => [
+  ...(isTeamOwner.value ? [{ key: 'user', label: t('team.member'), sortable: false, class: 'w-36 min-w-36 max-w-36' }] : []),
   { key: 'api_key', label: t('usage.apiKeyFilter'), sortable: false },
   { key: 'model', label: t('usage.model'), sortable: true },
   { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
@@ -826,10 +846,10 @@ const handleColumnClickOutside = (event: MouseEvent) => {
 }
 
 const loadApiKeys = async () => {
-  const firstPage = await keysAPI.list(1, 100)
+  const firstPage = await keysAPI.list(1, 100, { scope: 'personal' })
   const keys = [...firstPage.items]
   for (let page = 2; page <= firstPage.pages && keys.length > 0; page++) {
-    const response = await keysAPI.list(page, 100)
+    const response = await keysAPI.list(page, 100, { scope: 'personal' })
     if (response.items.length === 0) break
     keys.push(...response.items)
   }
@@ -838,14 +858,66 @@ const loadApiKeys = async () => {
 
 const loadFilterOptions = async () => {
   try {
-    const [keys, availableGroups] = await Promise.all([
+    const [personalKeys, availableGroups] = await Promise.all([
       loadApiKeys(),
       userGroupsAPI.getAvailable(),
     ])
-    apiKeys.value = keys
-    groups.value = availableGroups
+    let teamKeys: TeamAPIKey[] = []
+    try {
+      teamContext.value = await teamAPI.current()
+      const requests: [Promise<TeamAPIKey[]>, Promise<TeamMembership[]> | null] = [
+        teamAPI.keys(),
+        teamContext.value.membership.role === 'owner' ? teamAPI.members() : null,
+      ]
+      teamKeys = await requests[0]
+      teamMembers.value = requests[1] ? await requests[1] : []
+    } catch (error: any) {
+      const noTeam = error?.reason === 'TEAM_NOT_FOUND'
+        || error?.reason === 'TEAM_MEMBERSHIP_REQUIRED'
+        || error?.response?.status === 404
+      if (!noTeam) throw error
+      teamContext.value = null
+      teamMembers.value = []
+    }
+    const uniqueKeys = new Map<number, UsageKeyOption>()
+    for (const key of [...personalKeys, ...teamKeys]) uniqueKeys.set(key.id, { id: key.id, name: key.name })
+    apiKeys.value = [...uniqueKeys.values()]
+    const uniqueGroups = new Map<number, UsageGroupOption>()
+    for (const group of availableGroups) uniqueGroups.set(group.id, { id: group.id, name: group.name })
+    for (const key of teamKeys) {
+      if (key.group_id && key.group_name) uniqueGroups.set(key.group_id, { id: key.group_id, name: key.group_name })
+    }
+    groups.value = [...uniqueGroups.values()]
+    await loadTeamMemberUsage()
   } catch (error) {
     console.error('Failed to load usage filter options:', error)
+  }
+}
+
+const loadTeamMemberUsage = async () => {
+  if (!isTeamOwner.value) {
+    teamMemberSeries.value = []
+    return
+  }
+  const seq = ++teamStatsReqSeq
+  teamChartsLoading.value = true
+  try {
+    const series = await teamAPI.memberUsage({
+      from: startDate.value,
+      to: endDate.value,
+    })
+    if (seq !== teamStatsReqSeq) return
+    teamMemberSeries.value = series.map((member) => ({
+      userID: member.actor_user_id,
+      label: member.display_name,
+      summary: member.summary,
+    }))
+  } catch (error) {
+    if (seq !== teamStatsReqSeq) return
+    console.error('Failed to load team member usage charts:', error)
+    teamMemberSeries.value = []
+  } finally {
+    if (seq === teamStatsReqSeq) teamChartsLoading.value = false
   }
 }
 

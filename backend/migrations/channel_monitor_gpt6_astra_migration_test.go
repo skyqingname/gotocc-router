@@ -8,7 +8,7 @@ import (
 )
 
 func TestChannelMonitorGPT6AstraMigration(t *testing.T) {
-	content, err := FS.ReadFile("251_channel_monitor_gpt6_astra.sql")
+	content, err := FS.ReadFile("255_channel_monitor_gpt6_astra.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

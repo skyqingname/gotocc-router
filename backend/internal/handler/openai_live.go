@@ -49,7 +49,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Live only supports OpenAI models for Composite groups")
 		return
 	}
-	if upstreamModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && upstreamModel != model {
+	if upstreamModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok && upstreamModel != model && !apiKey.IsAutoRouting() {
 		rewrittenSession, rewriteErr := sjson.SetBytes(request.Session, "model", upstreamModel)
 		if rewriteErr != nil {
 			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to apply Composite model route")
@@ -75,6 +75,17 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 	); decision != nil && !decision.AllowNextStage {
 		h.openAISecurityAuditError(c, decision)
 		return
+	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	if route, ok := service.AutoRouteDecisionFromContext(c.Request.Context()); ok && route.UpstreamModel != model {
+		request.Session, err = sjson.SetBytes(request.Session, "model", route.UpstreamModel)
+		if err != nil {
+			middleware2.WriteAutoRoutingError(c, service.ErrAutoRouteUnavailable)
+			return
+		}
 	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
@@ -262,6 +273,15 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 				service.ContentModerationProtocolOpenAILive, record.Model, payload, "live_sideband",
 			)
 			if decision == nil || decision.AllowNextStage {
+				if apiKey.IsAutoRouting() {
+					admission, err := h.autoGroupResolver.Admit(ctx, apiKey)
+					if err != nil {
+						return autoWSCloseError(err)
+					}
+					if !liveEnabledForAPIKey(admission.Key) || (admission.Subscription == nil && record.SubscriptionID != 0) || (admission.Subscription != nil && admission.Subscription.ID != record.SubscriptionID) {
+						return autoWSCloseError(service.ErrAutoRouteContext)
+					}
+				}
 				return nil
 			}
 			writeSecurityAuditWSError(ctx, downstream, decision)

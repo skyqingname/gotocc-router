@@ -16,6 +16,16 @@ import (
 	"go.uber.org/zap"
 )
 
+func openAIImagesDirectChannelMapping(mapping service.ChannelMappingResult, requestModel string) service.ChannelMappingResult {
+	mapping.MappedModel = requestModel
+	mapping.Mapped = false
+	return mapping
+}
+
+func openAIImagesDirectUsageFields(mapping service.ChannelMappingResult, requestModel, upstreamModel string) service.ChannelUsageFields {
+	return openAIImagesDirectChannelMapping(mapping, requestModel).ToUsageFields(requestModel, upstreamModel)
+}
+
 // Images handles OpenAI Images API requests.
 // POST /v1/images/generations
 // POST /v1/images/edits
@@ -78,9 +88,6 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	ensureCompositeTargetPlatform(c, apiKey, requestModel)
 	clientRequestModel := clientRequestedModel(c, requestModel)
 	routingModel := requestModel
-	if resolvedModel, ok := service.ResolvedUpstreamModelFromContext(c.Request.Context()); ok {
-		routingModel = resolvedModel
-	}
 	if !compositeTargetPlatformAllowed(c, apiKey, requestModel, service.PlatformOpenAI) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
 		return
@@ -104,6 +111,18 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &requestModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	if apiKey.IsAutoRouting() {
+		parsed, err = h.gatewayService.ParseOpenAIImagesRequest(c, body)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
+		routingModel = requestModel
+	}
 	imageReleaseFunc, acquired := h.acquireImageGenerationSlot(c, streamStarted)
 	if !acquired {
 		return
@@ -116,6 +135,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(parsed.Stream, false)))
 
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, routingModel)
+	channelMapping = openAIImagesDirectChannelMapping(channelMapping, requestModel)
 
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
@@ -412,7 +432,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
 				SessionID:          sessionID,
-				ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, requestModel, upstreamModel),
+				ChannelUsageFields: openAIImagesDirectUsageFields(channelMapping, requestModel, upstreamModel),
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.images"),

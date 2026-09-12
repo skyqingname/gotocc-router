@@ -449,6 +449,11 @@ export default {
         loadFailed: 'Failed to load affiliate records'
       },
       records: {
+        sources: { admin_recharge: 'Admin deposit', legacy: 'Legacy commission', payment: 'Online recharge' },
+        rebateLevel: "Generation",
+        rebateRate: "Commission rate",
+        rebateBase: "Commission principal (USD)",
+        generation: "Generation {level}",
         search: 'Search',
         searchPlaceholder: 'Email, username, user ID, or order number',
         startAt: 'Start date',
@@ -616,7 +621,9 @@ export default {
       noApiKeys: 'This user has no API keys',
       group: 'Group',
       none: 'None',
+      routingAuto: 'Smart routing',
       groupChangedSuccess: 'Group updated successfully',
+      routingChangedSuccess: 'Routing mode updated successfully',
       groupChangedWithGrant: 'Group updated. User auto-granted access to "{group}"',
       groupChangeFailed: 'Failed to update group',
       noUsersYet: 'No users yet',

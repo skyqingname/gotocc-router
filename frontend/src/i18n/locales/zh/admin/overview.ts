@@ -449,6 +449,11 @@ export default {
         loadFailed: '加载邀请返利记录失败'
       },
       records: {
+        sources: { admin_recharge: '管理员充值', legacy: '历史返佣', payment: '在线充值' },
+        rebateLevel: "返佣代次",
+        rebateRate: "返佣比例",
+        rebateBase: "返佣本金 (USD)",
+        generation: "第 {level} 代",
         search: '搜索',
         searchPlaceholder: '邮箱、用户名、用户 ID、订单号',
         startAt: '开始日期',
@@ -594,7 +599,9 @@ export default {
       noApiKeys: '此用户暂无 API 密钥',
       group: '分组',
       none: '无',
+      routingAuto: '智能路由',
       groupChangedSuccess: '分组修改成功',
+      routingChangedSuccess: '路由模式已更新',
       groupChangedWithGrant: '分组修改成功，已自动为用户添加「{group}」分组权限',
       groupChangeFailed: '分组修改失败',
       noUsersYet: '暂无用户',

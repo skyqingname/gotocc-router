@@ -79,6 +79,7 @@ export default {
     },
     allGroups: 'All Groups',
     allStatus: 'All Status',
+    allRoutingModes: 'All routing modes',
     columnSettings: 'Column Settings',
     columnAlwaysVisible: 'This column is always visible',
     createKey: 'Create API Key',
@@ -117,9 +118,18 @@ export default {
     failedToDelete: 'Failed to delete API key',
     failedToUpdateStatus: 'Failed to update API key status',
     clickToChangeGroup: 'Click to change group',
+    clickToChangeRouting: 'Click to change routing mode',
     groupChangedSuccess: 'Group changed successfully',
+    routingChangedSuccess: 'Routing mode updated successfully',
     failedToChangeGroup: 'Failed to change group',
     groupRequired: 'Please select a group',
+    routingMode: {
+      label: 'Routing mode',
+      fixed: 'Fixed group',
+      auto: 'Smart routing',
+      fixedHint: 'Send every request through the selected group.',
+      autoHint: 'Choose an eligible group automatically for each request.'
+    },
     usage: 'Usage',
     today: 'Today',
     total: 'Last 30d',
@@ -127,6 +137,11 @@ export default {
     lastUsedAt: 'Last Used',
     lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
+    oneClickAccess: 'One-Click Access',
+    oneClickSelect: {
+      title: 'Select a key to connect',
+      description: 'Choose a personal API key to open the one-click access configuration.'
+    },
     useKeyModal: {
       title: 'Use API Key',
       description:
@@ -137,6 +152,20 @@ export default {
       claudeSettingsHint: 'User-level persistent configuration. Do not commit this file containing your API key to a project repository.',
       noGroupTitle: 'Please assign a group first',
       noGroupDescription: 'This API key has not been assigned to a group. Please click the group column in the key list to assign one before viewing the configuration.',
+      auto: {
+        description: 'Use this key with the shared base URL. The server selects an eligible group for each request.',
+        baseUrl: 'Base URL',
+        credential: 'Credential',
+        modelCatalog: 'Model catalog',
+        protocolsLabel: 'Available protocols',
+        capabilitiesHint: 'Protocol and media availability reflect the current authorized configuration. Capacity and remaining quota are checked when a request is submitted.',
+        capabilitiesUnavailable: 'Current protocol capabilities could not be loaded. Try again before relying on a protocol-specific feature.',
+        protocols: {
+          openai: 'OpenAI-compatible',
+          anthropic: 'Anthropic',
+          gemini: 'Gemini'
+        }
+      },
       openai: {
         description: 'Add the following configuration files to your Codex CLI config directory.',
         authModeTitle: 'Codex authentication mode',
@@ -618,7 +647,7 @@ export default {
       billingModeToken: 'Per Token',
       billingModePerRequest: 'Per Request',
       billingModeImage: 'Per Image',
-      billingModeVideo: 'Per Video',
+      billingModeVideo: 'Per Second (Video)',
       inputPrice: 'Input',
       outputPrice: 'Output',
       cacheWritePrice: 'Cache Write',
@@ -628,9 +657,11 @@ export default {
       imageInputPrice: 'Image Input',
       imageOutputPrice: 'Image Output',
       perRequestPrice: 'Per Request',
+      perSecondPrice: 'Video per Second',
       intervals: 'Tiered Pricing',
       unitPerMillion: '/ 1M tokens',
-      unitPerRequest: '/ request'
+      unitPerRequest: '/ request',
+      unitPerSecond: '/ second'
     }
   },
 
@@ -686,10 +717,16 @@ export default {
       officialPrice: 'Official Price',
       rate: 'Rate',
       unitPerMillion: '$ / 1M tokens',
+      unitPerRequest: '$ / request',
+      unitPerImage: '$ / image',
+      unitPerSecond: '$ / second',
+      unitMixed: '$ / billing unit',
       perUnitRequest: '/ request',
       perUnitImage: '/ image',
+      perUnitSecond: '/ second',
       perRequest: 'Per request',
-      perImage: 'Per image'
+      perImage: 'Per image',
+      perSecondVideo: 'Per second'
     },
     nav: {
       login: 'Sign In',
@@ -709,9 +746,9 @@ export default {
     loadFailed: 'Failed to load affiliate data',
     transferFailed: 'Failed to transfer affiliate quota',
     stats: {
-      rebateRate: 'My Rebate Rate',
-      rebateRateHint: 'What you earn each time an invitee recharges',
-      invitedUsers: 'Invited Users',
+      rebateRate: "Generation 1 / 2 / 3 rates",
+      rebateRateHint: "Your generation is your distance from the account making each recharge",
+      invitedUsers: "Direct invitees",
       availableQuota: 'Available Rebate Quota',
       frozenQuota: 'Frozen',
       frozenQuotaHint: 'Recently earned rebates pending release',
@@ -726,9 +763,11 @@ export default {
       success: '{amount} has been transferred to your balance'
     },
     invitees: {
-      title: 'Invited Users',
+      generation: "Generation {level}",
+      title: 'Invitees within three generations',
       empty: 'No invited users yet',
       columns: {
+        level: "Generation",
         email: 'Email',
         username: 'Username',
         rebate: 'Rebate',
@@ -738,9 +777,9 @@ export default {
     tips: {
       title: 'How It Works',
       line1: 'Share your affiliate code or invite link with new users.',
-      line2: 'When invitees recharge, you receive {rate} of the recharge as rebate quota.',
-      line3: 'Transfer rebate quota to balance at any time.',
-      line4: 'Newly earned rebates may have a waiting period before they can be transferred.'
+      line2: "Each valid recharge pays {rates} to its nearest three ancestors. Missing generations are not redistributed.",
+      line3: "First and later recharges qualify. Gifts and commission transfers do not earn further commission.",
+      line4: "Commission becomes transferable to your usage balance after the freeze period."
     }
   },
 

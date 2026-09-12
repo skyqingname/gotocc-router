@@ -119,6 +119,11 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		h.responsesSecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	requestCtx = c.Request.Context()
 
 	// 安全审核通过后才解析渠道级模型映射，避免路由阶段先于审核门。
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(requestCtx, apiKey.GroupID, reqModel)

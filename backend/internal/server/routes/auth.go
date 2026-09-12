@@ -247,6 +247,13 @@ func RegisterAuthRoutes(
 		settings.GET("/email-unsubscribe", h.Setting.UnsubscribeNotificationEmail)
 	}
 
+	// Public homepage counters are aggregate-only; model summaries come from Model Plaza.
+	marketplace := v1.Group("/marketplace")
+	marketplace.Use(panelRateLimiter.PublicIP())
+	{
+		marketplace.GET("/stats", h.MarketplaceStats.GetPublicStats)
+	}
+
 	// 需要认证的当前用户信息
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))

@@ -19,6 +19,7 @@ below for detailed configuration and maintenance instructions.
 
 ## Deployment and Operations
 
+- [GotoCC production migration boundary](GOTOCC_PLUS_MIGRATION.md)
 - [Deployment guide](../deploy/README.md)
 - [Docker](../deploy/DOCKER.md)
 - [Apple container](../deploy/APPLE_CONTAINER.md)
@@ -38,6 +39,7 @@ below for detailed configuration and maintenance instructions.
 
 ## Additional References
 
+- [Invitation relationships and three-generation commission](AFFILIATE.md)
 - [Payment integration](PAYMENT.md)
 - [Payment integration — Chinese](PAYMENT_CN.md)
 - [Admin payment integration API](ADMIN_PAYMENT_INTEGRATION_API.md)

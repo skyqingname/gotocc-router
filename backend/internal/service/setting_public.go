@@ -153,6 +153,18 @@ func (s *SettingService) GetFrontendURL(ctx context.Context) string {
 	return s.cfg.Server.FrontendURL
 }
 
+// GetAPIBaseURL 获取公开 API 基础地址（仅读取已保存的管理设置）。
+func (s *SettingService) GetAPIBaseURL(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return ""
+	}
+	val, err := s.settingRepo.GetValue(ctx, SettingKeyAPIBaseURL)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(val)
+}
+
 // GetPublicSettings 获取公开设置（无需登录）
 func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings, error) {
 	keys := []string{
@@ -307,6 +319,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PromoCodeEnabled:                    settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                passwordResetEnabled,
 		InvitationCodeEnabled:               settings[SettingKeyInvitationCodeEnabled] == "true",
+		TeamEnabled:                         s.cfg == nil || s.cfg.Team.Enabled,
+		TeamSelfServiceEnabled:              s.cfg == nil || s.cfg.Team.SelfServiceEnabled,
 		TotpEnabled:                         settings[SettingKeyTotpEnabled] == "true",
 		PasskeyEnabled:                      s.passkeyConfigured() && s.passkeySettingEnabled(settings),
 		LoginAgreementEnabled:               settings[SettingKeyLoginAgreementEnabled] == "true" && len(loginAgreementDocuments) > 0,
@@ -610,6 +624,8 @@ type PublicSettingsInjectionPayload struct {
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
+	TeamEnabled                         bool                     `json:"team_enabled"`
+	TeamSelfServiceEnabled              bool                     `json:"team_self_service_enabled"`
 	Version                             string                   `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移），高峰时段等服务端本地时间窗口的展示标注用
 	ServerTimezone              string  `json:"server_timezone"`
@@ -703,6 +719,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		GoogleOAuthEnabled:                  settings.GoogleOAuthEnabled,
 		BackendModeEnabled:                  settings.BackendModeEnabled,
 		PaymentEnabled:                      settings.PaymentEnabled,
+		TeamEnabled:                         settings.TeamEnabled,
+		TeamSelfServiceEnabled:              settings.TeamSelfServiceEnabled,
 		Version:                             s.version,
 		ServerTimezone:                      timezone.Name(),
 		ServerUTCOffset:                     timezone.UTCOffset(),

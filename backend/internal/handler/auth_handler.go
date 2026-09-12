@@ -21,15 +21,16 @@ import (
 
 // AuthHandler handles authentication-related requests
 type AuthHandler struct {
-	cfg                  *config.Config
-	authService          *service.AuthService
-	userService          *service.UserService
-	settingSvc           *service.SettingService
-	promoService         *service.PromoService
-	redeemService        *service.RedeemService
-	totpService          *service.TotpService
-	userAttributeService *service.UserAttributeService
-	ipAccessControl      *service.IPAccessControlService
+	cfg                    *config.Config
+	authService            *service.AuthService
+	userService            *service.UserService
+	settingSvc             *service.SettingService
+	promoService           *service.PromoService
+	redeemService          *service.RedeemService
+	reusableInvitationRepo service.ReusableInvitationCodeRepository
+	totpService            *service.TotpService
+	userAttributeService   *service.UserAttributeService
+	ipAccessControl        *service.IPAccessControlService
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -39,6 +40,10 @@ type AuthHandler struct {
 // setter preserves the compact test constructors used across this package.
 func (h *AuthHandler) SetIPAccessControlService(access *service.IPAccessControlService) {
 	h.ipAccessControl = access
+}
+
+func (h *AuthHandler) SetReusableInvitationCodeRepository(repo service.ReusableInvitationCodeRepository) {
+	h.reusableInvitationRepo = repo
 }
 
 func (h *AuthHandler) recordFailedLocalLogin(c *gin.Context) bool {
@@ -624,51 +629,16 @@ type ValidateInvitationCodeResponse struct {
 // ValidateInvitationCode 验证邀请码（公开接口，注册前调用）
 // POST /api/v1/auth/validate-invitation-code
 func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
-	// 检查邀请码功能是否启用
-	if h.settingSvc == nil || !h.settingSvc.IsInvitationCodeEnabled(c.Request.Context()) {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_DISABLED",
-		})
-		return
-	}
-
 	var req ValidateInvitationCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-
-	// 验证邀请码
-	redeemCode, err := h.redeemService.GetByCode(c.Request.Context(), req.Code)
-	if err != nil {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_NOT_FOUND",
-		})
+	if err := h.authService.ValidateRegistrationInvitation(c.Request.Context(), req.Code); err != nil {
+		response.Success(c, ValidateInvitationCodeResponse{Valid: false, ErrorCode: "INVITATION_CODE_INVALID"})
 		return
 	}
-
-	// 检查类型和状态
-	if redeemCode.Type != service.RedeemTypeInvitation {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_INVALID",
-		})
-		return
-	}
-
-	if redeemCode.Status != service.StatusUnused {
-		response.Success(c, ValidateInvitationCodeResponse{
-			Valid:     false,
-			ErrorCode: "INVITATION_CODE_USED",
-		})
-		return
-	}
-
-	response.Success(c, ValidateInvitationCodeResponse{
-		Valid: true,
-	})
+	response.Success(c, ValidateInvitationCodeResponse{Valid: true})
 }
 
 // ForgotPasswordRequest 忘记密码请求

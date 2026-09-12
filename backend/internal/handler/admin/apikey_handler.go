@@ -24,8 +24,9 @@ func NewAdminAPIKeyHandler(adminService service.AdminService) *AdminAPIKeyHandle
 
 // AdminUpdateAPIKeyGroupRequest represents the request to update an API key.
 type AdminUpdateAPIKeyGroupRequest struct {
-	GroupID             *int64 `json:"group_id"`               // nil=不修改, 0=解绑, >0=绑定到目标分组
-	ResetRateLimitUsage *bool  `json:"reset_rate_limit_usage"` // true=重置 5h/1d/7d 限速用量
+	RoutingMode         dto.NullableStringField `json:"routing_mode"`
+	GroupID             dto.NullableInt64Field  `json:"group_id"`
+	ResetRateLimitUsage *bool                   `json:"reset_rate_limit_usage"` // true=重置 5h/1d/7d 限速用量
 }
 
 // UpdateGroup handles updating an API key's admin-managed fields.
@@ -43,21 +44,28 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	var resetKey *service.APIKey
-	if req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage {
-		resetKey, err = h.adminService.AdminResetAPIKeyRateLimitUsage(c.Request.Context(), keyID)
-		if err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
+	validationGroupID := req.GroupID.Value
+	if validationGroupID != nil && *validationGroupID == 0 &&
+		(req.RoutingMode.Value == nil || *req.RoutingMode.Value == service.APIKeyRoutingFixed) {
+		validationGroupID = nil
 	}
-
-	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), keyID, req.GroupID)
+	if err := service.ValidateAPIKeyRoutingInput(req.RoutingMode.Value, req.RoutingMode.Set, validationGroupID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	result, err := h.adminService.AdminUpdateAPIKeyRouting(c.Request.Context(), keyID, service.APIKeyRoutingUpdate{
+		RoutingMode: req.RoutingMode.Value, GroupID: req.GroupID.Value, GroupIDSet: req.GroupID.Set,
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if resetKey != nil && req.GroupID == nil {
+	if req.ResetRateLimitUsage != nil && *req.ResetRateLimitUsage {
+		resetKey, err := h.adminService.AdminResetAPIKeyRateLimitUsage(c.Request.Context(), keyID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 		result.APIKey = resetKey
 	}
 

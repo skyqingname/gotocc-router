@@ -49,7 +49,7 @@ func TestBlockingLatestTurnOnlyConfigRoundTrip(t *testing.T) {
 	manager := &ConfigManager{encryptor: prefixEncryptor{}, encryptionKeyConfigured: true}
 	request := UpdateConfigRequest{
 		ExpectedConfigVersion: 1, Enabled: true, BlockingEnabled: true, BlockingLatestTurnOnly: true,
-		Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, Scanners: []string{"pii"}, AllGroups: true,
+		Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, AuditPrompt: DefaultAuditPrompt, Scanners: []string{"pii"}, AllGroups: true,
 		Endpoints: []UpdateEndpoint{{
 			ID: "guard-1", Name: "Guard", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080",
 			Model: DefaultGuardModel, TimeoutMS: 1000, InputLimit: 1000, Enabled: true,
@@ -209,7 +209,7 @@ func TestBuildNextStoragePreserveReplaceAndClearToken(t *testing.T) {
 	manager := &ConfigManager{encryptor: prefixEncryptor{}, encryptionKeyConfigured: true}
 	current := DefaultStorageConfig()
 	current.Endpoints = []StorageEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", Model: DefaultGuardModel, TokenCiphertext: "enc:old", TimeoutMS: 1000, InputLimit: 1000}}
-	base := UpdateConfigRequest{ExpectedConfigVersion: 1, Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, Scanners: []string{"PII"}, AllGroups: true,
+	base := UpdateConfigRequest{ExpectedConfigVersion: 1, Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, AuditPrompt: DefaultAuditPrompt, Scanners: []string{"PII"}, AllGroups: true,
 		Endpoints: []UpdateEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", TimeoutMS: 1000, InputLimit: 1000}}}
 	preserved, err := manager.buildNextStorage(current, base, 9)
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestBuildNextStorageRejectsNewTokenWithoutConfiguredEncryptionKey(t *testin
 	manager := &ConfigManager{encryptor: prefixEncryptor{}, encryptionKeyConfigured: false}
 	current := DefaultStorageConfig()
 	current.Endpoints = []StorageEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", Model: DefaultGuardModel, TokenCiphertext: "enc:old", TimeoutMS: 1000, InputLimit: 1000}}
-	base := UpdateConfigRequest{ExpectedConfigVersion: 1, Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, Scanners: []string{"PII"}, AllGroups: true,
+	base := UpdateConfigRequest{ExpectedConfigVersion: 1, Strategy: "priority", WorkerCount: 1, QueueCapacity: 10, AuditPrompt: DefaultAuditPrompt, Scanners: []string{"PII"}, AllGroups: true,
 		Endpoints: []UpdateEndpoint{{ID: "one", Name: "One", Protocol: "openai_compatible", BaseURL: "http://127.0.0.1:8080", TimeoutMS: 1000, InputLimit: 1000}}}
 
 	newTokenReq := base
