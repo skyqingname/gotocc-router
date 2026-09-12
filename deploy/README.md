@@ -9,7 +9,7 @@ derives the OCI image tag by preserving the leading `v` and replacing only
 `+` with `-`.
 
 ```text
-Git/GitHub: v0.2.4+custom.002
+Git/GitHub: v0.2.4+custom.004
 GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.4-custom.004
 ```
 

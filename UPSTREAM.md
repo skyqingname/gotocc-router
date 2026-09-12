@@ -83,9 +83,9 @@ for public API changes, migrations, defaults, and validation boundaries.
 | `v0.2.1+custom.004` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
 | `v0.2.1+custom.005` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
 | `v0.2.1+custom.006` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
-| `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
-| `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned; owned affiliate changes, same Plus baseline |
-| `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned; Plus custom.002, affiliate and contributor priority UI |
+| `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release) |
+| `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | local preview only; superseded by owned custom.004 |
+| `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | owned package; Plus custom.002, affiliate and PR #6 priority UI |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status

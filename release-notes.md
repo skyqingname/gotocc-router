@@ -1,28 +1,37 @@
 # GoToCC 0.2.4+custom.004
 
-- Upgraded SheetJS to the official 0.20.3 distribution and colord to a patched version, removing obsolete frontend vulnerability exceptions. Aligned the coverage provider with Vitest.
-- Fixed the user lifecycle E2E suite to use current authenticated API routes, fail on invalid responses, verify key ownership and deletion, and exercise smart routing across protocols. Restored the working Makefile E2E entry point and isolated captcha transport tests from inherited proxies.
-- API Key settings now show the default priority of authorized groups that share models, with expandable effective group orders for independently configured models. Includes personal/team scope, empty-state guidance, and retry on load failure.
+本版合并三代邀请返佣、贡献者 PR #6 和上游 Sub2API Plus `v0.2.4+custom.002`（`fdb9c6de8a959056d6678778979b60c0b0bf20e6`）。官方基线仍为 Sub2API `v0.2.4`（`5de5e2bed035d43591a2e10e51f420ef6a84eb98`）。
 
+## 邀请与返佣
 
-基于已适配的 GoToCC `0.2.4+custom.002`，上游基线保持 Sub2API Plus `v0.2.4+custom.001`（`92e12acd4b39f030b56e635bcc02e239e14843e9`），官方 Sub2API `v0.2.4`。
+- 永久邀请码可指定返佣归属，与 AFF 共用唯一直接邀请人；两码同时使用不重复计数或返佣。开启注册邀请码门槛时，普通 AFF 仍不能单独放行注册。
+- 指定永久码归属时，将历史使用者中未绑定邀请人的用户纳入今后返佣，保留已有关系，历史充值不补发。
+- 每笔有效余额充值持续向最近三代返佣；后台分别调整三代比例，初始 20% / 10% / 5%，已有一级比例保留。整条邀请链长度不限，缺失层级不补发。
+- 站内 USD 是充值代币，以本次实际增加的 USD 为基数，直接返 USD，不计算现金或汇率。独立赠额、普通兑换码、佣金转余额和订阅购买不触发余额充值返佣。
+- 保留管理员充值返佣开关；开启时“用户管理 → 充值”所增加的代币参与三代返佣，设置余额和扣款不参与。
+- 用户页展示三代比例和下级；管理端记录每条返佣的来源、代次、比例与代币基数。冻结期继续生效，旧个人专属比例、有效期和累计上限不影响新规则。
 
-## 功能变化
+## 智能路由与依赖
 
-- 永久邀请码可指定返佣归属，与 AFF 共用唯一邀请关系；管理端显示实际使用的邀请码。两码同时提供时只绑定一个邀请人。保留注册邀请码门槛，普通 AFF 不能单独替代必填注册码。
-- 指定永久码归属时，将历史使用者中未绑定邀请人的用户纳入今后返佣，保留已有关系，历史充值不补佣。
-- 每笔有效余额充值持续向最近三代分佣；后台独立设置三代比例，初始 20% / 10% / 5%，已有一级比例保留。邀请链长度不限，缺失层级不补发。
-- 以实际入账的站内 USD 代币为基数；不计算现金金额或汇率。独立赠额、普通兑换码、佣金转余额和订阅购买不触发余额充值返佣。
-- 保留管理员充值返佣开关，开启时“充值”所增加的代币走同样三代规则；设置余额和扣款不参与。
-- 用户页展示三代比例与邀请用户；管理端记录每条返佣的代次、比例、代币基数，并包含管理员充值流水。
-- 返利冻结期继续生效；旧专属比例、有效期与累计上限不影响新三代规则。
+- 合入 LiYichen2894528983 的 PR #6：创建/编辑智能 Key 时可查看个人或团队有权使用的竞争分组优先级，以及可展开的模型独立规则；不展示无权分组，不改变实际选组或计费逻辑。
+- 合入该 PR 的 SheetJS 0.20.3、colord 修复版本和覆盖率工具版本对齐，移除对应旧漏洞豁免；保留贡献者的验证代码修复。本轮未重跑贡献者全量测试矩阵。
+- 补齐 Docker 前端构建所需的根 JSON 参数文件，统一自有版本声明。
+
+## 上游修复
+
+- 统一首 Token、总时长和 TPS 的计算口径，排除图片、签名、元数据等非文本输出；延长 Gemini 工具参数流的有效计时，低 TPS 不再误显示为零。
+- OpenAI OAuth 周额度重置按明确的 10,080 分钟窗口和当前账号分组关系处理；复制分组时原子提交配置、成员与调度事件，并保留来源/基线状态。
+- WebSocket 连接配额在首帧校验与内容审计之后申请，保留 GoToCC 智能路由和逐轮审计；同步 MiniMax 本地化及部署默认值。
 
 ## 迁移、配置与回滚
 
-自有 migration 268 增加永久码归属、实际邀请码和返佣快照字段，以及每单收款人唯一索引。历史 SQL 不改，历史佣金和余额不重算。永久码默认未指定归属，需管理员选择用户后才补入未关联历史用户。没有新增运行环境变量或包外配置；三档初始参数来自根目录 `affiliate-defaults.json`，日常比例在后台保存。
+| 迁移 | 来源 | 实际影响 |
+| --- | --- | --- |
+| 268 | 自有邀请机制 | 新增永久码归属、实际邀请码、返佣快照字段，以及每单收款人唯一索引；不重算历史佣金或余额 |
+| 269 | 上游 `264_clarify_openai_quota_reset_baseline.sql` 原文 | 仅修改 `groups.quota_reset_source_reset_at` 的字段说明，不更改数据或结构 |
 
-DDL 取得短时表锁，索引构建扫描返佣流水、占用索引空间并阻塞该表写入。保留库备份，停止旧核心后由新核心执行迁移，避免新旧 writer 重叠。旧程序能忽略新增列，但仍按旧一级分佣，不能作为业务等价回滚。迁移或新资金写入后保留当前数据向前修复；不能只换回旧二进制，也不能以旧 dump 覆盖新数据。
+已有 SQL 原名原文保留。268 的 DDL 取得短时表锁，普通索引扫描返佣流水、占用索引空间并阻塞该表写入；269 仅执行一条 COMMENT。永久码历史关系回填只在管理员显式指定归属时发生。无新增环境变量或包外运行文件；三档初始比例来自根目录 `affiliate-defaults.json`，日常在后台调整。
 
-若从更早自有版本更新，仍会按顺序执行既有 263–267 上游适配迁移；完整影响见 `docs/GOTOCC_PLUS_MIGRATION.md`。
+若从更早自有版本更新，仍按顺序执行已有迁移；见 `docs/GOTOCC_PLUS_MIGRATION.md`。新旧核心不得同时写入。旧程序会忽略永久码归属并按一级返佣，不能作为业务等价回滚；迁移或产生新资金写入后保留当前数据向前修复，不只替换旧二进制，也不用旧 dump 覆盖新数据。
 
-本包用于本地人工验收；发布与生产更新分别执行，不自动部署。
+发布由同一本地验收包完成，发布不代表生产已更新。用户从线上自有更新入口拉取并按提示重启。
