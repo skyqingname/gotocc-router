@@ -130,6 +130,23 @@ export default {
       fixedHint: 'Send every request through the selected group.',
       autoHint: 'Choose an eligible group automatically for each request.'
     },
+    routingPriority: {
+      title: 'Smart routing group priority',
+      readOnly: 'Read only',
+      notice: 'You can now view group priorities here. Rankings include only groups that share a model with another eligible group. Models with a single eligible group are omitted.',
+      loading: 'Loading current group priorities…',
+      loadFailed: 'Unable to load group priorities. Please try again.',
+      retry: 'Reload',
+      defaultOrder: 'Default group order',
+      highFirst: 'Highest first',
+      adminSource: 'Administrator default order, followed by unlisted groups in group sort order. Priorities only compare groups compatible with the same request.',
+      fallbackSource: 'Uses group sort order, then ascending group ID for ties. Priorities only compare groups compatible with the same request.',
+      empty: 'No groups need a priority comparison. No discoverable model currently has multiple compatible groups, so rankings are hidden.',
+      exceptionsTitle: 'Some models have independent rules ({count} models) · View details',
+      exceptionsHint: 'These models use their own group order before the default order. Lists include remaining eligible default groups. Exact matches take precedence, followed by the longest matching prefix.',
+      matchedRule: 'Matching rule: {rule}',
+      catalogHint: 'Based on current permissions and discoverable model configuration; wildcard and passthrough models may not be fully listed. Actual selection also depends on endpoint and client requirements. Quota or upstream failures after selection do not trigger a switch to another group.'
+    },
     usage: 'Usage',
     today: 'Today',
     total: 'Last 30d',

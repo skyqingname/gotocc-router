@@ -40,6 +40,16 @@ API 示例：
 
 参考源码为 New API 官方 main `eb99ab1b40343c3317bb47981cccdbb2b159a5fa`（2026-09-05）的 `service/group.go` 和 `service/channel_select.go`。本实现采用管理员有序候选的方式，不引入其可选的运行时跨组重试，也不声称自动按价格或延迟选择。
 
+## 用户设置中的分组优先级
+
+用户在“API 密钥”的创建或编辑弹窗选择“智能路由”后，可查看只读的默认分组顺序。默认列表只汇总当前个人或团队付款主体有权使用、且与其他分组在同一接口上支持同一可列出模型的活跃分组；只支持独有模型的分组不显示排名。管理员设置的默认顺序优先，未列出的分组按 `sort_order` 升序、再按分组 ID 升序补充；页面注明顺序来源。
+
+存在适用的模型独立规则时，页面提示“部分模型有独立规则”，展开后显示具体公共模型名称、命中的前缀（如果有）及完整的分组顺序。排序复用实际路由的精确匹配、最长前缀匹配和默认补充逻辑，且只显示参与竞争的授权分组，不暴露其他用户的分组或原始管理员策略。
+
+数据来自 JWT 认证的 `GET /api/v1/groups/routing-priorities?scope=personal|team`，使用 `Cache-Control: no-store`，无需先创建或启用 Key。响应包含 `default_source`（`administrator` 或 `group_sort`）、`groups`（`id/name/platform`）和 `model_rules`（`model/matched_rule/groups`）；空列表为 `[]`。每次打开弹窗或切换范围会重新加载，失败时提供重试，不把失败误显示为无竞争分组。
+
+此列表是当前模型配置的解释，不预留账号或消耗额度。通配符、透传等不能穷举的模型可能不在列表中；实际优先级只在支持同一接口和客户端要求的分组之间比较。选组后的限额、计费和组内重试行为保持原有规则。
+
 ## 协议和目录
 
 既有 Messages、Responses、Chat Completions、原生 Gemini、Embeddings 和支持的媒体入口使用同一 Key，沿用各协议的 URL。`/v1`、根路径别名、Codex 直连和 Antigravity 专用入口共享路由边界；强制平台入口仍限制实际平台。

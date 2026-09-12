@@ -6,6 +6,32 @@
 import { apiClient } from './client'
 import type { Group } from '@/types'
 
+export interface RoutingPriorityGroup {
+  id: number
+  name: string
+  platform: string
+}
+
+export interface RoutingPriorities {
+  default_source: 'administrator' | 'group_sort'
+  groups: RoutingPriorityGroup[]
+  model_rules: Array<{
+    model: string
+    matched_rule: string
+    groups: RoutingPriorityGroup[]
+  }>
+}
+
+export async function getRoutingPriorities(
+  scope: 'personal' | 'team' = 'personal',
+  signal?: AbortSignal,
+): Promise<RoutingPriorities> {
+  const { data } = await apiClient.get<RoutingPriorities>('/groups/routing-priorities', {
+    params: { scope }, signal,
+  })
+  return data
+}
+
 /**
  * Get available groups that the current user can bind to API keys
  * This returns groups based on user's permissions:
@@ -29,6 +55,7 @@ export async function getUserGroupRates(scope: 'personal' | 'team' = 'personal')
 
 export const userGroupsAPI = {
   getAvailable,
+  getRoutingPriorities,
   getUserGroupRates
 }
 

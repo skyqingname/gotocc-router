@@ -11,14 +11,27 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestDingTalkOAuthStart_Disabled は sentinel テスト。
-// TODO(task-1.10): newTestAuthHandlerWithDingTalk helper が追加されたら t.Skip を外す。
 func TestDingTalkOAuthStart_Disabled(t *testing.T) {
-	t.Skip("helper newTestAuthHandlerWithDingTalk added in Task 1.10; sentinel only")
+	handler, _ := newOAuthPendingFlowTestHandler(t, false)
+	handler.settingSvc = nil
+	handler.cfg = &config.Config{}
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(method, "/api/v1/auth/oauth/dingtalk/start", nil)
+			handler.DingTalkOAuthStart(c)
+			c.Writer.WriteHeaderNow()
+			require.Equal(t, http.StatusFound, recorder.Code)
+			require.Contains(t, recorder.Header().Get("Location"), "dingtalk_not_enabled")
+			require.Empty(t, recorder.Result().Cookies(), "disabled OAuth must not create a login session")
+		})
+	}
 }
 
 // TestBuildDingTalkSyntheticEmail_UsesUnionID 验证合成邮箱种子使用 unionID。

@@ -152,19 +152,8 @@ func (p *AutoGroupRoutingPolicy) OrderGroups(groups []Group, model string) []Gro
 		return result
 	}
 	var preferred []int64
-	longest := -1
-	for _, rule := range p.ModelRules {
-		if rule.Model == model {
-			preferred = rule.GroupIDs
-			break
-		}
-		if strings.HasSuffix(rule.Model, "*") {
-			prefix := strings.TrimSuffix(rule.Model, "*")
-			if len(prefix) > longest && strings.HasPrefix(model, prefix) {
-				preferred = rule.GroupIDs
-				longest = len(prefix)
-			}
-		}
+	if rule := p.modelRule(model); rule != nil {
+		preferred = rule.GroupIDs
 	}
 	ranks := make(map[int64]int)
 	for _, list := range [][]int64{preferred, p.DefaultGroupOrder} {
@@ -182,6 +171,29 @@ func (p *AutoGroupRoutingPolicy) OrderGroups(groups []Group, model string) []Gro
 	}
 	sort.SliceStable(result, func(i, j int) bool { return rank(result[i].ID) < rank(result[j].ID) })
 	return result
+}
+
+// modelRule is shared by routing and its read-only priority explanation.
+func (p *AutoGroupRoutingPolicy) modelRule(model string) *AutoGroupRoutingRule {
+	if p == nil {
+		return nil
+	}
+	var selected *AutoGroupRoutingRule
+	longest := -1
+	for i := range p.ModelRules {
+		rule := &p.ModelRules[i]
+		if rule.Model == model {
+			return rule
+		}
+		if strings.HasSuffix(rule.Model, "*") {
+			prefix := strings.TrimSuffix(rule.Model, "*")
+			if len(prefix) > longest && strings.HasPrefix(model, prefix) {
+				selected = rule
+				longest = len(prefix)
+			}
+		}
+	}
+	return selected
 }
 
 func (s *AutoGroupResolver) routingPolicy(ctx context.Context, locked bool) (*AutoGroupRoutingPolicy, error) {

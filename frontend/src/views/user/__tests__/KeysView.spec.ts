@@ -265,6 +265,7 @@ const mountView = async () => {
         Icon: IconStub,
         UseKeyModal: UseKeyModalStub,
         EndpointPopover: true,
+        RoutingPriorityPanel: { props: ['scope'], template: '<div data-test="priority-panel-stub">{{ scope }}</div>' },
         GroupBadge: true,
         GroupOptionItem: true,
         Teleport: true,
@@ -576,7 +577,9 @@ describe('user KeysView column settings', () => {
     await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
     await nextTick()
     await wrapper.get('[data-tour="key-form-name"]').setValue('team-auto-key')
+    expect(wrapper.find('[data-test="priority-panel-stub"]').exists()).toBe(false)
     await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
+    expect(wrapper.get('[data-test="priority-panel-stub"]').text()).toBe('team')
     await wrapper.get('#key-form').trigger('submit')
     await flushPromises()
 

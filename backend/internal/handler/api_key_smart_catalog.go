@@ -107,6 +107,27 @@ func (h *GatewayHandler) UserRoutingCapabilities(c *gin.Context) {
 	h.routingCapabilities(c, false)
 }
 
+// UserRoutingPriorities is a read-only settings preview, including before a key
+// exists. Only the authenticated user's personal/team candidates are returned.
+func (h *GatewayHandler) UserRoutingPriorities(c *gin.Context) {
+	subject, authenticated := middleware.GetAuthSubjectFromContext(c)
+	if !authenticated {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.autoGroupResolver == nil {
+		response.ErrorFrom(c, service.ErrAutoRouteUnavailable)
+		return
+	}
+	priorities, err := h.autoGroupResolver.GetRoutingPriorities(c.Request.Context(), subject.UserID, c.DefaultQuery("scope", "personal"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, priorities)
+}
+
 func (h *GatewayHandler) AdminRoutingCapabilities(c *gin.Context) {
 	h.routingCapabilities(c, true)
 }

@@ -22,6 +22,16 @@ type autoModelCatalogStub struct {
 	input    service.AutoRouteRequest
 }
 
+func TestUserRoutingPrioritiesRequiresAuthentication(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := &GatewayHandler{}
+	router := gin.New()
+	router.GET("/groups/routing-priorities", h.UserRoutingPriorities)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/groups/routing-priorities?scope=personal", nil))
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 func (s *autoModelCatalogStub) ListModels(_ context.Context, _ *service.APIKey, input service.AutoRouteRequest) ([]service.AutoRouteModel, error) {
 	s.calls++
 	s.input = input
