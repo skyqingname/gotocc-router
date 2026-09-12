@@ -419,3 +419,8 @@ Owned custom.003 adds migration 268 for reusable-code ownership, actual invitati
 The full Plus input is `v0.2.4+custom.002` at `fdb9c6de8a959056d6678778979b60c0b0bf20e6`. Existing owned SQL through 268 remains byte-for-byte unchanged. Upstream `264_clarify_openai_quota_reset_baseline.sql` is imported verbatim as `269_clarify_openai_quota_reset_baseline.sql`; its sole COMMENT statement documents the accepted weekly reset baseline without changing schema or data. The upstream release prose says no new migration, but the source tree does contain this metadata-only SQL file.
 
 The release combines [three-generation affiliate changes](AFFILIATE.md) and PR #6 routing-priority visibility with upstream timing, post-audit WebSocket leases and atomic quota-source/group-copy behavior. No new Redis persistence layout or runtime file is introduced. The first accepted weekly observation remains a non-resetting baseline; later eligible windows and live source membership control reset writes. Keep one writer, preserve current data after writes, and use forward correction for recovery.
+
+
+## 0.2.4+custom.005 邀请列表修复
+
+本版继承 `.004` 的上游与全部既有迁移，只修正管理员邀请记录查询的 GROUP BY 字段。相对 `.004` 无新 migration、数据回填、配置或运行资源变化，不改变返佣计算、余额和邀请关系。无需恢复历史备份。退回 `.004` 会重新出现列表查询错误；此前迁移和资金写入的回滚限制仍然适用。
