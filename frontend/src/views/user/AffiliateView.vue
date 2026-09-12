@@ -8,7 +8,7 @@
       </div>
 
       <template v-else-if="detail">
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div v-if="detail.show_rebate_details" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
               <Icon name="dollar" size="sm" class="text-primary-500" />
@@ -76,9 +76,9 @@
             <p class="text-sm font-medium text-primary-800 dark:text-primary-200">{{ t('affiliate.tips.title') }}</p>
             <ul class="mt-2 space-y-1 text-sm text-primary-700 dark:text-primary-300">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
-              <li>2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
-              <li>3. {{ t('affiliate.tips.line3') }}</li>
-              <li v-if="detail.aff_frozen_quota > 0">4. {{ t('affiliate.tips.line4') }}</li>
+              <li v-if="detail.show_rebate_details">2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
+              <li>{{ detail.show_rebate_details ? '3.' : '2.' }} {{ t('affiliate.tips.line3') }}</li>
+              <li v-if="detail.aff_frozen_quota > 0">{{ detail.show_rebate_details ? '4.' : '3.' }} {{ t('affiliate.tips.line4') }}</li>
             </ul>
           </div>
         </div>
@@ -104,7 +104,7 @@
           </p>
         </div>
 
-        <div class="card p-6">
+        <div v-if="detail.show_rebate_details" class="card p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.invitees.title') }}</h3>
           <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400">
             {{ t('affiliate.invitees.empty') }}

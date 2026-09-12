@@ -88,13 +88,14 @@ type AffiliateInvitee struct {
 }
 
 type AffiliateDetail struct {
-	UserID          int64   `json:"user_id"`
-	AffCode         string  `json:"aff_code"`
-	InviterID       *int64  `json:"inviter_id,omitempty"`
-	AffCount        int     `json:"aff_count"`
-	AffQuota        float64 `json:"aff_quota"`
-	AffFrozenQuota  float64 `json:"aff_frozen_quota"`
-	AffHistoryQuota float64 `json:"aff_history_quota"`
+	ShowRebateDetails bool    `json:"show_rebate_details"`
+	UserID            int64   `json:"user_id"`
+	AffCode           string  `json:"aff_code"`
+	InviterID         *int64  `json:"inviter_id,omitempty"`
+	AffCount          int     `json:"aff_count"`
+	AffQuota          float64 `json:"aff_quota"`
+	AffFrozenQuota    float64 `json:"aff_frozen_quota"`
+	AffHistoryQuota   float64 `json:"aff_history_quota"`
 	// EffectiveRebateRatePercent is the first-generation rate. All generations
 	// use the global schedule in RebateRatesPercent.
 	EffectiveRebateRatePercent float64            `json:"effective_rebate_rate_percent"`
@@ -103,6 +104,7 @@ type AffiliateDetail struct {
 }
 
 type AffiliateRepository interface {
+	IsReusableInvitationCodeOwner(ctx context.Context, userID int64) (bool, error)
 	EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error)
 	GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error)
 	BindInviter(ctx context.Context, userID, inviterID int64, invitationCode ...string) (bool, error)
@@ -251,6 +253,11 @@ func (s *AffiliateService) EnsureUserAffiliate(ctx context.Context, userID int64
 }
 
 func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID int64) (*AffiliateDetail, error) {
+	showRebateDetails, err := s.repo.IsReusableInvitationCodeOwner(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Lazy thaw: move any matured frozen quota to available before reading.
 	if s != nil && s.repo != nil {
 		// best-effort: thaw failure is non-fatal
@@ -270,6 +277,7 @@ func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID int64)
 		return nil, err
 	}
 	return &AffiliateDetail{
+		ShowRebateDetails:          showRebateDetails,
 		UserID:                     summary.UserID,
 		AffCode:                    summary.AffCode,
 		InviterID:                  summary.InviterID,

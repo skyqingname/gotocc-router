@@ -7,11 +7,12 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The owned source follows published GoToCC `v0.2.4+custom.004`, based on
+The owned source follows published GoToCC `v0.2.4+custom.005`, based on
 Plus `v0.2.4+custom.002`, commit `fdb9c6de8a959056d6678778979b60c0b0bf20e6`.
-The current `custom.005` package fixes the administrator invitation-list SQL
-grouping error; the upstream baseline and all other product behavior remain
-unchanged. Publication follows local package acceptance.
+The current `custom.006` package shows rebate statistics, tier instructions
+and the three-generation list only to reusable invitation-code owners. Sharing,
+quota transfers and rebate calculation retain their existing behavior.
+Publication follows local package acceptance.
 
 The current integration tree incorporates official `v0.2.4`, commit
 `5de5e2bed035d43591a2e10e51f420ef6a84eb98`, on top of Plus
@@ -87,7 +88,8 @@ for public API changes, migrations, defaults, and validation boundaries.
 | `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release) |
 | `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | local preview only; superseded by owned custom.004 |
 | `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); Plus custom.002, affiliate and PR #6 priority UI |
-| `v0.2.4+custom.005` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | owned package; administrator invitation-list SQL fix |
+| `v0.2.4+custom.005` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); administrator invitation-list SQL fix |
+| `v0.2.4+custom.006` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | owned package; rebate display for reusable-code owners |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
@@ -101,9 +103,9 @@ use the complete `.004` release instead.
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.4+custom.005
-Application: 0.2.4+custom.005
-OCI naming: v0.2.4-custom.005 (no image published by the local archive workflow)
+Git/GitHub: v0.2.4+custom.006
+Application: 0.2.4+custom.006
+OCI naming: v0.2.4-custom.006 (no image published by the local archive workflow)
 ```
 
 ## Naming

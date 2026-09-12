@@ -155,6 +155,7 @@ export interface AffiliateInvitee {
 }
 
 export interface UserAffiliateDetail {
+  show_rebate_details: boolean
   user_id: number
   aff_code: string
   inviter_id?: number | null

@@ -101,6 +101,10 @@ type paymentFulfillmentAffiliateRepoStub struct {
 	accrueCalls    []paymentFulfillmentAffiliateAccrueCall
 }
 
+func (*paymentFulfillmentAffiliateRepoStub) IsReusableInvitationCodeOwner(context.Context, int64) (bool, error) {
+	panic("unexpected IsReusableInvitationCodeOwner call")
+}
+
 func (r *paymentFulfillmentAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*AffiliateSummary, error) {
 	switch {
 	case r.inviteeSummary != nil && r.inviteeSummary.UserID == userID:

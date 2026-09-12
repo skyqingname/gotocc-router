@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcode"
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 	"github.com/lib/pq"
@@ -61,6 +62,11 @@ type affiliateRepository struct {
 
 func NewAffiliateRepository(client *dbent.Client, _ *sql.DB) service.AffiliateRepository {
 	return &affiliateRepository{client: client}
+}
+
+func (r *affiliateRepository) IsReusableInvitationCodeOwner(ctx context.Context, userID int64) (bool, error) {
+	return clientFromContext(ctx, r.client).ReusableInvitationCode.Query().
+		Where(reusableinvitationcode.OwnerUserIDEQ(userID)).Exist(ctx)
 }
 
 func (r *affiliateRepository) EnsureUserAffiliate(ctx context.Context, userID int64) (*service.AffiliateSummary, error) {

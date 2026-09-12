@@ -373,6 +373,10 @@ func newOAuthEmailAffiliateRepoStub(codeOwners map[string]int64) *oauthEmailAffi
 	return &oauthEmailAffiliateRepoStub{codeOwners: codeOwners}
 }
 
+func (*oauthEmailAffiliateRepoStub) IsReusableInvitationCodeOwner(context.Context, int64) (bool, error) {
+	panic("unexpected IsReusableInvitationCodeOwner call")
+}
+
 func (r *oauthEmailAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*service.AffiliateSummary, error) {
 	r.ensureUserIDs = append(r.ensureUserIDs, userID)
 	return &service.AffiliateSummary{UserID: userID, AffCode: "SELF"}, nil

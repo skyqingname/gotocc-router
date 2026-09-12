@@ -424,3 +424,8 @@ The release combines [three-generation affiliate changes](AFFILIATE.md) and PR #
 ## 0.2.4+custom.005 邀请列表修复
 
 本版继承 `.004` 的上游与全部既有迁移，只修正管理员邀请记录查询的 GROUP BY 字段。相对 `.004` 无新 migration、数据回填、配置或运行资源变化，不改变返佣计算、余额和邀请关系。无需恢复历史备份。退回 `.004` 会重新出现列表查询错误；此前迁移和资金写入的回滚限制仍然适用。
+
+
+## 0.2.4+custom.006 邀请返利展示
+
+`GET /api/v1/user/aff` 新增 `show_rebate_details` 布尔字段，以 `reusable_invitation_codes.owner_user_id` 是否存在当前用户为准；停用、到期和用尽不清除归属。仅顶部统计、三代分佣说明和最近三代名单读取此字段，分享及转余额仍可使用。这是界面展示条件，不改变 API 原有数据字段或返佣获得资格。无新增SQL迁移、配置和数据回填；回到 `.005` 会重新显示这三部分，既有迁移及资金写入仍遵循原回滚限制。
