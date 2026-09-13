@@ -25,10 +25,11 @@ func TestBatchImageRepository_CreateJobAndDuplicates(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "create")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	job, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:       batchID,
-		UserID:        1001,
+		UserID:        userID,
 		Provider:      service.BatchImageProviderGeminiAPI,
 		Model:         "gemini-2.5-flash-image",
 		ItemCount:     2,
@@ -36,12 +37,13 @@ func TestBatchImageRepository_CreateJobAndDuplicates(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, batchID, job.BatchID)
+	require.Equal(t, userID, job.BillingUserID)
 	require.Equal(t, service.BatchImageJobStatusCreated, job.Status)
 	require.Equal(t, "USD", job.Currency)
 
 	_, err = repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderGeminiAPI,
 		Model:     "gemini-2.5-flash-image",
 		ItemCount: 1,
@@ -70,11 +72,12 @@ func TestBatchImageRepository_TransitionIncrementsVersionAndEvents(t *testing.T)
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "transition")
+	userID := batchImageTestUserID(t, ctx, tx)
 	now := time.Date(2026, 7, 3, 8, 0, 0, 0, time.UTC)
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderVertex,
 		Model:     "gemini-2.5-flash-image",
 		ItemCount: 1,
@@ -104,10 +107,11 @@ func TestBatchImageRepository_InvalidTransition(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "invalid-transition")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderGeminiAPI,
 		Model:     "gemini-2.5-flash-image",
 		ItemCount: 1,
@@ -124,10 +128,11 @@ func TestBatchImageRepository_TerminalStatusCannotMoveBack(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "terminal")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderGeminiAPI,
 		Model:     "gemini-2.5-flash-image",
 		Status:    service.BatchImageJobStatusCompleted,
@@ -146,11 +151,12 @@ func TestBatchImageRepository_ItemCustomIDUniqueness(t *testing.T) {
 	repo := newBatchImageRepositoryWithSQL(tx)
 	firstBatchID := batchImageTestID(t, "items-a")
 	secondBatchID := batchImageTestID(t, "items-b")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	for _, batchID := range []string{firstBatchID, secondBatchID} {
 		_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 			BatchID:   batchID,
-			UserID:    1001,
+			UserID:    userID,
 			Provider:  service.BatchImageProviderGeminiAPI,
 			Model:     "gemini-2.5-flash-image",
 			ItemCount: 1,
@@ -196,12 +202,13 @@ func TestBatchImageRepository_ReplaceBatchImageItemsForJob(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "replace-items")
+	userID := batchImageTestUserID(t, ctx, tx)
 	lineOne := 1
 	lineTwo := 2
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderGeminiAPI,
 		Model:     "gemini-2.5-flash-image",
 		ItemCount: 2,
@@ -246,6 +253,7 @@ func TestBatchImageRepository_MarkBatchImageJobSettled(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "settled")
+	userID := batchImageTestUserID(t, ctx, tx)
 	apiKeyID := int64(2001)
 	accountID := int64(3001)
 	providerJob := "providers/job"
@@ -254,7 +262,7 @@ func TestBatchImageRepository_MarkBatchImageJobSettled(t *testing.T) {
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:           batchID,
-		UserID:            1001,
+		UserID:            userID,
 		APIKeyID:          &apiKeyID,
 		AccountID:         &accountID,
 		Provider:          service.BatchImageProviderGeminiAPI,
@@ -297,10 +305,11 @@ func TestBatchImageRepository_SetBatchImageJobSettlementFailed(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "settlement-failed")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:      batchID,
-		UserID:       1001,
+		UserID:       userID,
 		Provider:     service.BatchImageProviderGeminiAPI,
 		Model:        "gemini-image",
 		Status:       service.BatchImageJobStatusSettling,
@@ -326,10 +335,11 @@ func TestBatchImageRepository_AppendEvent(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
 	batchID := batchImageTestID(t, "event")
+	userID := batchImageTestUserID(t, ctx, tx)
 
 	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
 		BatchID:   batchID,
-		UserID:    1001,
+		UserID:    userID,
 		Provider:  service.BatchImageProviderVertex,
 		Model:     "gemini-2.5-flash-image",
 		ItemCount: 1,
@@ -350,6 +360,18 @@ func batchImageTestID(t *testing.T, prefix string) string {
 	safePrefix := batchImageSafeTestIDSegment(prefix, 20)
 	sum := sha1.Sum([]byte(t.Name()))
 	return "imgbatch_" + safePrefix + "_" + hex.EncodeToString(sum[:])[:16]
+}
+
+func batchImageTestUserID(t *testing.T, ctx context.Context, sqlq batchImageSQLExecutor) int64 {
+	t.Helper()
+
+	var userID int64
+	err := sqlq.QueryRowContext(ctx, `
+INSERT INTO users (email, password_hash, role, status, balance, concurrency)
+VALUES ($1, 'test-password-hash', 'user', 'active', 0, 1)
+RETURNING id`, batchImageTestID(t, "user")+"@example.invalid").Scan(&userID)
+	require.NoError(t, err)
+	return userID
 }
 
 func batchImageSafeTestIDSegment(v string, maxLen int) string {

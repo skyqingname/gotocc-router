@@ -167,6 +167,8 @@ type SystemSettings struct {
 	DefaultConcurrency            int                          `json:"default_concurrency"`
 	DefaultBalance                float64                      `json:"default_balance"`
 	AffiliateRebateRate           float64                      `json:"affiliate_rebate_rate"`
+	AffiliateRebateRateL2         float64                      `json:"affiliate_rebate_rate_l2"`
+	AffiliateRebateRateL3         float64                      `json:"affiliate_rebate_rate_l3"`
 	AffiliateRebateFreezeHours    int                          `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays   int                          `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap  float64                      `json:"affiliate_rebate_per_invitee_cap"`
@@ -414,6 +416,8 @@ type PublicSettings struct {
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
+	TeamEnabled                         bool                     `json:"team_enabled"`
+	TeamSelfServiceEnabled              bool                     `json:"team_self_service_enabled"`
 	Version                             string                   `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移，如 "Asia/Shanghai" / "+08:00"）。
 	// 高峰时段等按服务器本地时间判定的窗口，前端展示时据此标注，避免用户按浏览器本地时间误读。

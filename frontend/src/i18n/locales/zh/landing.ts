@@ -14,9 +14,16 @@ export default {
     login: '登录',
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
+    exploreMarketplace: '浏览模型广场',
+    viewAll: '查看全部',
+    nav: {
+      models: '模型'
+    },
     // 新增：面向用户的价值主张
+    heroBadge: '原生接口、智能调度、按量计费',
+    heroTitle: '原生 AI 接口，直达无阻',
     heroSubtitle: '一个密钥，畅用多个 AI 模型',
-    heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',
+    heroDescription: '良心成本价，公益运营站。公开透明，欢迎监督！',
     tags: {
       subscriptionToApi: '订阅转 API',
       stickySession: '会话保持',
@@ -50,12 +57,18 @@ export default {
       subtitle: '简单三步，开始省心使用 AI'
     },
     features: {
-      unifiedGateway: '一键接入',
-      unifiedGatewayDesc: '获取一个 API 密钥，即可调用所有已接入的 AI 模型，无需分别申请。',
-      multiAccount: '稳定可靠',
-      multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
-      balanceQuota: '用多少付多少',
-      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
+      unifiedGateway: '模型统一接入',
+      unifiedGatewayDesc: '一把 API Key 调用 Claude、GPT、Gemini、Grok 等已接入模型，无需分别申请。',
+      multiAccount: '账号池自动调度',
+      multiAccountDesc: '多账号智能轮询，遇到限流自动切换，让 Claude Code 与 Codex 工作流持续运行。',
+      balanceQuota: '按量计费，无月付',
+      balanceQuotaDesc: '充多少用多少，账单与用量明细实时可查，不为闲置订阅浪费成本。',
+      dataPolicies: '原生协议兼容',
+      dataPoliciesDesc: '支持 Anthropic、OpenAI Compatible 与 Responses 协议，现有工具只需更换地址和密钥。',
+      browseAll: '浏览全部',
+      learnMore: '了解更多',
+      viewUsage: '查看用量',
+      usageChart: '用量趋势'
     },
     // 优势对比
     comparison: {
@@ -94,23 +107,53 @@ export default {
       }
     },
     providers: {
-      title: '已支持的 AI 模型',
+      title: '已接入的 AI 模型',
       description: '一个 API，多种选择',
       supported: '已支持',
       soon: '即将推出',
       claude: 'Claude',
+      gpt: 'GPT',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
-      more: '更多'
+      more: '更多',
+      empty: '暂无可展示的模型',
+      unavailable: '模型数据暂不可用',
+      groups: '个服务组',
+      modelCount: '模型',
+      officialPriceDiscount: '约官方价 {discount} 折'
+    },
+    stats: {
+      todayTokens: '今日总 Token 量',
+      totalTokens: '历史总 Token 量',
+      totalUsers: '总注册用户量',
+      supportedModels: '已接入模型',
+      providerTypes: '类模型',
+      modelsStat: '个模型',
+      unavailable: '统计数据暂不可用'
+    },
+    steps: {
+      signup: {
+        title: '注册账号',
+        description: '完成注册后即可进入控制台，充值、账单和用量记录都在同一个账户下管理。'
+      },
+      browse: {
+        title: '选择模型',
+        description: '在模型广场查看当前可用模型、服务分组和相对官方价格。'
+      },
+      apiKey: {
+        title: '获取 API Key',
+        description: '创建密钥并替换客户端中的接口地址，即可接入 Claude Code、Codex 及兼容工具。'
+      }
     },
     // CTA 区块
     cta: {
-      title: '准备好开始了吗？',
-      description: '注册即可获得免费试用额度，体验一站式 AI 服务',
-      button: '免费注册'
+      title: '现在就开始使用',
+      description: '注册后创建一把 API Key，把常用 AI 工具接到同一个稳定入口。',
+      button: '免费注册，立即体验'
     },
     footer: {
-      allRightsReserved: '保留所有权利。'
+      allRightsReserved: '保留所有权利。',
+      quickLinks: '快速链接'
     }
   },
 

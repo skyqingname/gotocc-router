@@ -101,6 +101,10 @@ type paymentFulfillmentAffiliateRepoStub struct {
 	accrueCalls    []paymentFulfillmentAffiliateAccrueCall
 }
 
+func (*paymentFulfillmentAffiliateRepoStub) IsReusableInvitationCodeOwner(context.Context, int64) (bool, error) {
+	panic("unexpected IsReusableInvitationCodeOwner call")
+}
+
 func (r *paymentFulfillmentAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*AffiliateSummary, error) {
 	switch {
 	case r.inviteeSummary != nil && r.inviteeSummary.UserID == userID:
@@ -118,11 +122,11 @@ func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateByCode(context.Context
 	panic("unexpected GetAffiliateByCode call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64) (bool, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64, ...string) (bool, error) {
 	panic("unexpected BindInviter call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64, snapshot ...AffiliateRebateSnapshot) (bool, error) {
 	var sourceCopy *int64
 	if sourceOrderID != nil {
 		v := *sourceOrderID

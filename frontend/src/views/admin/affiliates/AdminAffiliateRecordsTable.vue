@@ -57,26 +57,32 @@
             <span class="font-mono text-sm text-gray-700 dark:text-gray-300">{{ row.aff_code || '-' }}</span>
           </template>
           <template #cell-order="{ row }">
-            <div class="space-y-0.5">
+            <div v-if="row.order_id" class="space-y-0.5">
               <div class="font-mono text-sm text-gray-900 dark:text-white">#{{ row.order_id }}</div>
               <div class="max-w-56 truncate text-sm text-gray-500 dark:text-dark-400">{{ row.out_trade_no }}</div>
             </div>
+            <span v-else>{{ t(`admin.affiliates.records.sources.${row.source_type}`) }}</span>
           </template>
           <template #cell-payment_type="{ row }">
             {{ t('payment.methods.' + row.payment_type, row.payment_type || '-') }}
           </template>
           <template #cell-order_status="{ row }">
-            <OrderStatusBadge :status="row.order_status" />
+            <OrderStatusBadge v-if="row.order_status" :status="row.order_status" /><span v-else>—</span>
           </template>
           <template #cell-total_rebate="{ row }">
             <AmountText :value="row.total_rebate" />
           </template>
           <template #cell-order_amount="{ row }">
-            <AmountText :value="row.order_amount" />
+            <AmountText v-if="row.order_id" :value="row.order_amount" /><span v-else>—</span>
           </template>
           <template #cell-pay_amount="{ row }">
-            <span class="text-sm text-gray-900 dark:text-white">¥{{ formatAmount(row.pay_amount) }}</span>
+            <span v-if="row.order_id" class="text-sm text-gray-900 dark:text-white">¥{{ formatAmount(row.pay_amount) }}</span><span v-else>—</span>
           </template>
+          <template #cell-rebate_level="{ row }">
+            {{ row.rebate_level == null ? '—' : t('admin.affiliates.records.generation', { level: row.rebate_level }) }}
+          </template>
+          <template #cell-rebate_rate_percent="{ row }">{{ row.rebate_rate_percent == null ? '—' : `${row.rebate_rate_percent}%` }}</template>
+          <template #cell-rebate_base_amount="{ row }"><AmountText v-if="row.rebate_base_amount != null" :value="row.rebate_base_amount" /><span v-else>—</span></template>
           <template #cell-rebate_amount="{ row }">
             <AmountText :value="row.rebate_amount" strong />
           </template>
@@ -193,6 +199,9 @@ const columns = computed<Column[]>(() => {
       { key: 'invitee', label: t('admin.affiliates.records.invitee'), sortable: true },
       { key: 'order_amount', label: t('admin.affiliates.records.orderAmount'), sortable: true },
       { key: 'pay_amount', label: t('admin.affiliates.records.payAmount'), sortable: true },
+      { key: 'rebate_level', label: t('admin.affiliates.records.rebateLevel') },
+      { key: 'rebate_rate_percent', label: t('admin.affiliates.records.rebateRate') },
+      { key: 'rebate_base_amount', label: t('admin.affiliates.records.rebateBase') },
       { key: 'rebate_amount', label: t('admin.affiliates.records.rebateAmount') },
       { key: 'payment_type', label: t('admin.affiliates.records.paymentType'), sortable: true },
       { key: 'order_status', label: t('admin.affiliates.records.orderStatus'), sortable: true },

@@ -383,6 +383,31 @@ func TestOpenAIGatewayServiceRecordUsage_NonStreamDisconnectKeepsExactUsageSourc
 	require.False(t, *usageRepo.lastLog.IsComplete)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_TeamAttributionUsesActorAndBillingOwner(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
+	teamID := int64(88)
+	owner := &User{ID: 2000}
+	actor := &User{ID: 2001}
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result:  &OpenAIForwardResult{RequestID: "openai_team_attribution", Usage: OpenAIUsage{InputTokens: 10}, Model: "gpt-5.1", Duration: time.Second},
+		APIKey:  &APIKey{ID: 1000, UserID: actor.ID, TeamID: &teamID, User: owner, ActorUser: actor, Group: &Group{RateMultiplier: 1}},
+		User:    owner,
+		Account: &Account{ID: 3000, Type: AccountTypeAPIKey},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, actor.ID, usageRepo.lastLog.UserID)
+	require.Equal(t, owner.ID, usageRepo.lastLog.BillingUserID)
+	require.Equal(t, &teamID, usageRepo.lastLog.TeamID)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.Equal(t, actor.ID, billingRepo.lastCmd.ActorUserID)
+	require.Equal(t, owner.ID, billingRepo.lastCmd.UserID)
+	require.Equal(t, &teamID, billingRepo.lastCmd.TeamID)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_MissingPricingRecordsZeroCostUsageLog(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}

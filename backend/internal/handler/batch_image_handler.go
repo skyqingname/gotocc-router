@@ -39,8 +39,51 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	key, _ := middleware.GetAPIKeyFromContext(c)
+	prior, err := h.service.FindIdempotentSubmission(c.Request.Context(), owner, req, c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		batchImageError(c, err)
+		return
+	}
+	if prior != nil {
+		c.JSON(http.StatusOK, prior)
+		return
+	}
+	if key != nil && key.IsAutoRouting() {
+		if h.openAI == nil || h.openAI.autoGroupResolver == nil {
+			batchImageError(c, service.ErrAutoRouteUnavailable)
+			return
+		}
+		input := service.AutoRouteRequest{Model: req.Model, Provider: req.Provider, Endpoint: service.AutoRouteEndpointBatchImages}
+		if req.ParentBatchID != "" {
+			parent, err := h.service.Repo.GetBatchImageJobByBatchIDForOwner(c.Request.Context(), owner.UserID, owner.APIKeyID, req.ParentBatchID)
+			if err != nil {
+				batchImageError(c, err)
+				return
+			}
+			if parent.GroupID == nil {
+				batchImageError(c, service.ErrAutoRouteContext)
+				return
+			}
+			input.RequiredGroupID = parent.GroupID
+		}
+		route, err := h.openAI.autoGroupResolver.Resolve(c.Request.Context(), key, input)
+		if err != nil {
+			batchImageError(c, err)
+			return
+		}
+		key = route.Key
+		c.Request = c.Request.WithContext(route.RequestContext(c.Request.Context()))
+		middleware.BindAPIKeyContext(c, key, nil)
+	}
 	if !h.checkSecurityAuditBeforeSubmit(c, &req) {
 		return
+	}
+	if key != nil && key.IsAutoRouting() {
+		if !admitAutoHTTPRoute(c, h.openAI.autoGroupResolver, &key) {
+			return
+		}
+		owner, _ = batchImageOwnerFromContext(c)
 	}
 	if sessionID := service.ExtractClientSessionID(c); sessionID != "" {
 		req.SessionID = &sessionID
@@ -296,13 +339,15 @@ func (h *BatchImageHandler) DeleteOutputs(c *gin.Context) {
 
 func batchImageOwnerFromContext(c *gin.Context) (service.BatchImageOwner, bool) {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
-	if !ok || apiKey == nil || apiKey.ID <= 0 || apiKey.UserID <= 0 {
+	if !ok || apiKey == nil || apiKey.ID <= 0 || apiKey.UserID <= 0 || apiKey.User == nil || apiKey.User.ID <= 0 {
 		return service.BatchImageOwner{}, false
 	}
 	return service.BatchImageOwner{
-		UserID:   apiKey.UserID,
-		APIKeyID: apiKey.ID,
-		GroupID:  apiKey.GroupID,
+		UserID:        apiKey.UserID,
+		BillingUserID: apiKey.User.ID,
+		TeamID:        apiKey.TeamID,
+		APIKeyID:      apiKey.ID,
+		GroupID:       apiKey.GroupID,
 	}, true
 }
 

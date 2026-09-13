@@ -45,3 +45,19 @@ func TestAPIKeyFromService_MapsNilLastUsedAt(t *testing.T) {
 	require.Nil(t, out.LastUsedAt)
 	require.Nil(t, out.LastUsedIP)
 }
+
+func TestAPIKeyFromServiceForUserOmitsEmbeddedUser(t *testing.T) {
+	src := &service.APIKey{
+		ID:     1,
+		UserID: 2,
+		Key:    "sk-user-response",
+		Name:   "User response",
+		Status: service.StatusActive,
+		User:   &service.User{ID: 2, Email: "private@example.com", Balance: 42},
+	}
+
+	out := APIKeyFromServiceForUser(src)
+	require.NotNil(t, out)
+	require.Nil(t, out.User)
+	require.Equal(t, "personal", out.Scope)
+}

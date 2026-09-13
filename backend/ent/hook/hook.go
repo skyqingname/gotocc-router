@@ -237,6 +237,30 @@ func (f IdentityAdoptionDecisionFunc) Mutate(ctx context.Context, m ent.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdentityAdoptionDecisionMutation", m)
 }
 
+// The ImageObjectFunc type is an adapter to allow the use of ordinary
+// function as ImageObject mutator.
+type ImageObjectFunc func(context.Context, *ent.ImageObjectMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ImageObjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ImageObjectMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ImageObjectMutation", m)
+}
+
+// The OpenAIVideoTaskFunc type is an adapter to allow the use of ordinary
+// function as OpenAIVideoTask mutator.
+type OpenAIVideoTaskFunc func(context.Context, *ent.OpenAIVideoTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OpenAIVideoTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OpenAIVideoTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OpenAIVideoTaskMutation", m)
+}
+
 // The PaymentAuditLogFunc type is an adapter to allow the use of ordinary
 // function as PaymentAuditLog mutator.
 type PaymentAuditLogFunc func(context.Context, *ent.PaymentAuditLogMutation) (ent.Value, error)
@@ -333,6 +357,30 @@ func (f RedeemCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RedeemCodeMutation", m)
 }
 
+// The ReusableInvitationCodeFunc type is an adapter to allow the use of ordinary
+// function as ReusableInvitationCode mutator.
+type ReusableInvitationCodeFunc func(context.Context, *ent.ReusableInvitationCodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReusableInvitationCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReusableInvitationCodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReusableInvitationCodeMutation", m)
+}
+
+// The ReusableInvitationCodeUseFunc type is an adapter to allow the use of ordinary
+// function as ReusableInvitationCodeUse mutator.
+type ReusableInvitationCodeUseFunc func(context.Context, *ent.ReusableInvitationCodeUseMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ReusableInvitationCodeUseFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ReusableInvitationCodeUseMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ReusableInvitationCodeUseMutation", m)
+}
+
 // The SecuritySecretFunc type is an adapter to allow the use of ordinary
 // function as SecuritySecret mutator.
 type SecuritySecretFunc func(context.Context, *ent.SecuritySecretMutation) (ent.Value, error)
@@ -379,6 +427,54 @@ func (f TLSFingerprintProfileFunc) Mutate(ctx context.Context, m ent.Mutation) (
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TLSFingerprintProfileMutation", m)
+}
+
+// The TeamFunc type is an adapter to allow the use of ordinary
+// function as Team mutator.
+type TeamFunc func(context.Context, *ent.TeamMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TeamFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TeamMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TeamMutation", m)
+}
+
+// The TeamInvitationFunc type is an adapter to allow the use of ordinary
+// function as TeamInvitation mutator.
+type TeamInvitationFunc func(context.Context, *ent.TeamInvitationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TeamInvitationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TeamInvitationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TeamInvitationMutation", m)
+}
+
+// The TeamMembershipFunc type is an adapter to allow the use of ordinary
+// function as TeamMembership mutator.
+type TeamMembershipFunc func(context.Context, *ent.TeamMembershipMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TeamMembershipFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TeamMembershipMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TeamMembershipMutation", m)
+}
+
+// The TeamOwnershipTransferFunc type is an adapter to allow the use of ordinary
+// function as TeamOwnershipTransfer mutator.
+type TeamOwnershipTransferFunc func(context.Context, *ent.TeamOwnershipTransferMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TeamOwnershipTransferFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TeamOwnershipTransferMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TeamOwnershipTransferMutation", m)
 }
 
 // The UsageCleanupTaskFunc type is an adapter to allow the use of ordinary

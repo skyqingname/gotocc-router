@@ -2,7 +2,7 @@
 #
 # Sub2API Plus Installation Script
 # Sub2API Plus 安装脚本
-# Usage: curl -sSL https://raw.githubusercontent.com/luckykuang/sub2api-plus/main/deploy/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/<owner>/<repository>/main/deploy/install.sh | bash
 #
 
 set -e
@@ -31,7 +31,9 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-GITHUB_REPO="luckykuang/sub2api-plus"
+# BEGIN GENERATED RELEASE CHANNEL
+GITHUB_REPO="skyqingname/gotocc-router"
+# END GENERATED RELEASE CHANNEL
 INSTALL_DIR="/opt/sub2api"
 SERVICE_NAME="sub2api"
 SERVICE_USER="sub2api"
@@ -730,7 +732,7 @@ install_service() {
     cat > /etc/systemd/system/sub2api.service << EOF
 [Unit]
 Description=Sub2API Plus - AI API Gateway Platform
-Documentation=https://github.com/luckykuang/sub2api-plus
+Documentation=https://github.com/${GITHUB_REPO}
 After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 

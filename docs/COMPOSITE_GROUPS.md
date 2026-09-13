@@ -1,5 +1,12 @@
 # Composite Groups
 
+An API key may also enable [automatic group routing](API_KEY_SMART_ROUTING.md).
+Automatic routing first chooses an authorized group using the administrator's
+public-model priority policy. Composite routing then chooses the provider
+inside that group. Group priority never grants access or changes the billing
+group after audit; public aliases are rewritten only after the selected
+group's original request has passed audit.
+
 Composite groups are an admin routing layer for API keys that should choose a
 concrete provider from the requested model instead of binding the key to a
 single provider group. They support both built-in model detection and an

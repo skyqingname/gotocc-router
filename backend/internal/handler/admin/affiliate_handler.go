@@ -71,6 +71,10 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 		return
 	}
 
+	if req.AffRebateRatePercent != nil && !req.ClearRebateRate {
+		response.BadRequest(c, "configure the three generation rates in affiliate settings")
+		return
+	}
 	if req.AffCode != nil {
 		if err := h.affiliateService.AdminUpdateUserAffCode(c.Request.Context(), userID, *req.AffCode); err != nil {
 			response.ErrorFrom(c, err)

@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	archivepath "path"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/releasechannel"
 )
 
 var (
@@ -28,8 +30,10 @@ var (
 )
 
 const (
-	updateCacheTTL = 1200 // 20 minutes
-	githubRepo     = "luckykuang/sub2api-plus"
+	updateCacheTTL       = 1200 // 20 minutes
+	githubRepo           = releasechannel.ReleaseRepository
+	upstreamRepo         = releasechannel.UpstreamRepository
+	upstreamCheckTimeout = 5 * time.Second
 
 	// Security: allowed download domains for updates
 	allowedDownloadHost = "github.com"
@@ -78,13 +82,20 @@ func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, versi
 
 // UpdateInfo contains update information
 type UpdateInfo struct {
-	CurrentVersion string       `json:"current_version"`
-	LatestVersion  string       `json:"latest_version"`
-	HasUpdate      bool         `json:"has_update"`
-	ReleaseInfo    *ReleaseInfo `json:"release_info,omitempty"`
-	Cached         bool         `json:"cached"`
-	Warning        string       `json:"warning,omitempty"`
-	BuildType      string       `json:"build_type"` // "source" or "release"
+	CurrentVersion        string       `json:"current_version"`
+	LatestVersion         string       `json:"latest_version"`
+	HasUpdate             bool         `json:"has_update"`
+	ReleaseInfo           *ReleaseInfo `json:"release_info,omitempty"`
+	Cached                bool         `json:"cached"`
+	Warning               string       `json:"warning,omitempty"`
+	BuildType             string       `json:"build_type"` // "source" or "release"
+	ReleaseRepository     string       `json:"release_repository"`
+	ReleaseImage          string       `json:"release_image"`
+	UpstreamRepository    string       `json:"upstream_repository"`
+	UpstreamBaseline      string       `json:"upstream_baseline"`
+	UpstreamLatestVersion string       `json:"upstream_latest_version"`
+	UpstreamHasUpdate     bool         `json:"upstream_has_update"`
+	UpstreamWarning       string       `json:"upstream_warning,omitempty"`
 }
 
 // ReleaseInfo contains GitHub release details
@@ -146,11 +157,16 @@ func (s *UpdateService) CheckUpdate(ctx context.Context, force bool) (*UpdateInf
 			return cached, nil
 		}
 		return &UpdateInfo{
-			CurrentVersion: s.currentVersion,
-			LatestVersion:  s.currentVersion,
-			HasUpdate:      false,
-			Warning:        err.Error(),
-			BuildType:      s.buildType,
+			CurrentVersion:        s.currentVersion,
+			LatestVersion:         s.currentVersion,
+			HasUpdate:             false,
+			Warning:               err.Error(),
+			BuildType:             s.buildType,
+			ReleaseRepository:     githubRepo,
+			ReleaseImage:          releasechannel.ReleaseImage,
+			UpstreamRepository:    upstreamRepo,
+			UpstreamBaseline:      strings.TrimPrefix(releasechannel.UpstreamBaseline, "v"),
+			UpstreamLatestVersion: strings.TrimPrefix(releasechannel.UpstreamBaseline, "v"),
 		}, nil
 	}
 
@@ -180,7 +196,7 @@ func (s *UpdateService) PerformUpdate(ctx context.Context) error {
 }
 
 // applyReleaseAssets downloads the platform archive from the given release assets,
-// verifies its checksum, and atomically swaps the running binary.
+// verifies its checksum, and installs the binary with its matched runtime files.
 // Shared by PerformUpdate (latest) and RollbackToVersion (specific older version).
 func (s *UpdateService) applyReleaseAssets(ctx context.Context, version string, releaseAssets []Asset) error {
 	// Find matching archive and checksum for current platform
@@ -236,46 +252,35 @@ func (s *UpdateService) applyReleaseAssets(ctx context.Context, version string, 
 		return err
 	}
 
-	// Extract binary from archive
-	newBinaryPath := filepath.Join(tempDir, "sub2api")
-	if err := s.extractBinary(archivePath, newBinaryPath); err != nil {
+	stagedFiles, err := s.extractReleaseFiles(archivePath, tempDir, exePath)
+	if err != nil {
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
-	// Set executable permission before replacement
-	if err := os.Chmod(newBinaryPath, 0755); err != nil {
-		return fmt.Errorf("chmod failed: %w", err)
-	}
-
-	// Atomic replacement using rename pattern:
-	// 1. Rename current -> backup (atomic on Unix)
-	// 2. Rename new -> current (atomic on Unix, same filesystem)
-	// If step 2 fails, restore backup
-	backupPath := exePath + ".backup"
-
-	// Remove old backup if exists
-	_ = os.Remove(backupPath)
-
-	// Step 1: Move current binary to backup
-	if err := os.Rename(exePath, backupPath); err != nil {
-		return fmt.Errorf("backup failed: %w", err)
-	}
-
-	// Step 2: Move new binary to target location (atomic, same filesystem)
-	if err := os.Rename(newBinaryPath, exePath); err != nil {
-		// Restore backup on failure
-		if restoreErr := os.Rename(backupPath, exePath); restoreErr != nil {
-			return fmt.Errorf("replace failed and restore failed: %w (restore error: %v)", err, restoreErr)
-		}
-		return fmt.Errorf("replace failed (restored backup): %w", err)
-	}
-
-	// Success - backup file is kept for rollback capability
-	// It will be cleaned up on next successful update
-	return nil
+	return installReleaseFiles(stagedFiles)
 }
 
-// Rollback restores the previous version
+type stagedReleaseFile struct {
+	archivePath string
+	stagedPath  string
+	targetPath  string
+	mode        os.FileMode
+}
+
+type installedReleaseFile struct {
+	targetPath  string
+	backupPath  string
+	hadOriginal bool
+}
+
+type rollbackReleaseFile struct {
+	targetPath string
+	backupPath string
+	currentTmp string
+	hadCurrent bool
+}
+
+// Rollback restores the previous matched release set.
 func (s *UpdateService) Rollback() error {
 	exePath, err := os.Executable()
 	if err != nil {
@@ -286,17 +291,16 @@ func (s *UpdateService) Rollback() error {
 		return fmt.Errorf("failed to resolve symlinks: %w", err)
 	}
 
-	backupFile := exePath + ".backup"
-	if _, err := os.Stat(backupFile); os.IsNotExist(err) {
+	if _, err := os.Stat(exePath + ".backup"); os.IsNotExist(err) {
 		return fmt.Errorf("no backup found")
 	}
 
-	// Replace current with backup
-	if err := os.Rename(backupFile, exePath); err != nil {
-		return fmt.Errorf("rollback failed: %w", err)
+	targets := []string{exePath}
+	exeDir := filepath.Dir(exePath)
+	for _, runtimeFile := range releasechannel.RuntimeFiles {
+		targets = append(targets, filepath.Join(exeDir, filepath.FromSlash(runtimeFile.Path)))
 	}
-
-	return nil
+	return restoreReleaseBackups(targets)
 }
 
 // ListRollbackVersions returns up to maxRollbackVersions release versions that are
@@ -421,6 +425,25 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 		}
 	}
 
+	upstreamBaseline := strings.TrimPrefix(releasechannel.UpstreamBaseline, "v")
+	upstreamLatest := upstreamBaseline
+	upstreamWarning := ""
+	upstreamCtx, cancelUpstream := context.WithTimeout(ctx, upstreamCheckTimeout)
+	defer cancelUpstream()
+	upstreamRelease, upstreamErr := s.githubClient.FetchLatestRelease(upstreamCtx, upstreamRepo)
+	if upstreamErr != nil {
+		upstreamWarning = upstreamErr.Error()
+	} else if upstreamRelease == nil {
+		upstreamWarning = "GitHub returned an empty upstream latest release"
+	} else {
+		candidate := strings.TrimPrefix(upstreamRelease.TagName, "v")
+		if _, ok := parseForkReleaseVersion(candidate); !ok {
+			upstreamWarning = fmt.Sprintf("upstream latest release tag %q is not a valid fork version", upstreamRelease.TagName)
+		} else {
+			upstreamLatest = candidate
+		}
+	}
+
 	return &UpdateInfo{
 		CurrentVersion: s.currentVersion,
 		LatestVersion:  latestVersion,
@@ -432,8 +455,15 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 			HTMLURL:     release.HTMLURL,
 			Assets:      assets,
 		},
-		Cached:    false,
-		BuildType: s.buildType,
+		Cached:                false,
+		BuildType:             s.buildType,
+		ReleaseRepository:     githubRepo,
+		ReleaseImage:          releasechannel.ReleaseImage,
+		UpstreamRepository:    upstreamRepo,
+		UpstreamBaseline:      upstreamBaseline,
+		UpstreamLatestVersion: upstreamLatest,
+		UpstreamHasUpdate:     compareVersions(upstreamBaseline, upstreamLatest) < 0,
+		UpstreamWarning:       upstreamWarning,
 	}, nil
 }
 
@@ -527,92 +557,234 @@ func (s *UpdateService) verifyChecksum(ctx context.Context, filePath, checksumUR
 	return fmt.Errorf("checksum not found for %s", fileName)
 }
 
-func (s *UpdateService) extractBinary(archivePath, destPath string) error {
+func (s *UpdateService) extractReleaseFiles(archivePath, tempDir, exePath string) ([]stagedReleaseFile, error) {
 	f, err := os.Open(archivePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() { _ = f.Close() }()
 
 	var reader io.Reader = f
 
-	// Handle gzip compression
-	if strings.HasSuffix(archivePath, ".gz") || strings.HasSuffix(archivePath, ".tar.gz") || strings.HasSuffix(archivePath, ".tgz") {
+	if strings.HasSuffix(archivePath, ".gz") {
 		gzr, err := gzip.NewReader(f)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer func() { _ = gzr.Close() }()
 		reader = gzr
 	}
 
-	// Handle tar archive
-	if strings.Contains(archivePath, ".tar") {
-		tr := tar.NewReader(reader)
-		for {
-			hdr, err := tr.Next()
-			if err == io.EOF {
-				break
+	if !strings.Contains(archivePath, ".tar") {
+		return nil, fmt.Errorf("unsupported release archive: %s", filepath.Base(archivePath))
+	}
+
+	desired := make(map[string]releasechannel.RuntimeFile, len(releasechannel.RuntimeFiles))
+	for _, runtimeFile := range releasechannel.RuntimeFiles {
+		desired[runtimeFile.Path] = runtimeFile
+	}
+	found := make(map[string]stagedReleaseFile, len(desired)+1)
+	stageRoot := filepath.Join(tempDir, "release")
+	tr := tar.NewReader(reader)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+
+		name := archivepath.Clean(strings.TrimPrefix(filepath.ToSlash(hdr.Name), "./"))
+		if name == "." || archivepath.IsAbs(name) || name == ".." || strings.HasPrefix(name, "../") {
+			return nil, fmt.Errorf("path traversal attempt detected: %s", hdr.Name)
+		}
+
+		archiveName := ""
+		mode := os.FileMode(0o644)
+		if archivepath.Base(name) == "sub2api" || archivepath.Base(name) == "sub2api.exe" {
+			archiveName = "sub2api"
+			mode = 0o755
+		} else if _, ok := desired[name]; ok {
+			archiveName = name
+		}
+		if archiveName == "" {
+			continue
+		}
+		if _, exists := found[archiveName]; exists {
+			return nil, fmt.Errorf("release archive repeats %s", archiveName)
+		}
+		if hdr.Size < 0 || hdr.Size > maxDownloadSize {
+			return nil, fmt.Errorf("release file %s has invalid size %d", archiveName, hdr.Size)
+		}
+
+		stagedPath := filepath.Join(stageRoot, filepath.FromSlash(archiveName))
+		if err := os.MkdirAll(filepath.Dir(stagedPath), 0o755); err != nil {
+			return nil, err
+		}
+		out, err := os.OpenFile(stagedPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+		if err != nil {
+			return nil, err
+		}
+		written, copyErr := io.Copy(out, io.LimitReader(tr, hdr.Size+1))
+		closeErr := out.Close()
+		if copyErr != nil {
+			return nil, copyErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		if written != hdr.Size {
+			return nil, fmt.Errorf("release file %s size mismatch", archiveName)
+		}
+
+		targetPath := exePath
+		if archiveName != "sub2api" {
+			targetPath = filepath.Join(filepath.Dir(exePath), filepath.FromSlash(archiveName))
+		}
+		found[archiveName] = stagedReleaseFile{
+			archivePath: archiveName,
+			stagedPath:  stagedPath,
+			targetPath:  targetPath,
+			mode:        mode,
+		}
+	}
+
+	binary, ok := found["sub2api"]
+	if !ok {
+		return nil, fmt.Errorf("binary not found in archive")
+	}
+	files := []stagedReleaseFile{binary}
+	for _, runtimeFile := range releasechannel.RuntimeFiles {
+		staged, ok := found[runtimeFile.Path]
+		if !ok {
+			if runtimeFile.Required {
+				return nil, fmt.Errorf("required runtime file not found in archive: %s", runtimeFile.Path)
 			}
-			if err != nil {
-				return err
+			continue
+		}
+		files = append(files, staged)
+	}
+	return files, nil
+}
+
+func installReleaseFiles(files []stagedReleaseFile) error {
+	installed := make([]installedReleaseFile, 0, len(files))
+	for _, file := range files {
+		if err := os.Chmod(file.stagedPath, file.mode); err != nil {
+			return restoreInstalledFiles(installed, fmt.Errorf("chmod %s failed: %w", file.archivePath, err))
+		}
+		if err := os.MkdirAll(filepath.Dir(file.targetPath), 0o755); err != nil {
+			return restoreInstalledFiles(installed, fmt.Errorf("create target directory for %s failed: %w", file.archivePath, err))
+		}
+
+		backupPath := file.targetPath + ".backup"
+		if err := os.Remove(backupPath); err != nil && !os.IsNotExist(err) {
+			return restoreInstalledFiles(installed, fmt.Errorf("remove old backup for %s failed: %w", file.archivePath, err))
+		}
+		hadOriginal := true
+		if err := os.Rename(file.targetPath, backupPath); err != nil {
+			if !os.IsNotExist(err) {
+				return restoreInstalledFiles(installed, fmt.Errorf("backup %s failed: %w", file.archivePath, err))
 			}
+			hadOriginal = false
+		}
 
-			// SECURITY: Prevent Zip Slip / Path Traversal attack
-			// Only allow files with safe base names, no directory traversal
-			baseName := filepath.Base(hdr.Name)
-
-			// Check for path traversal attempts
-			if strings.Contains(hdr.Name, "..") {
-				return fmt.Errorf("path traversal attempt detected: %s", hdr.Name)
+		if err := os.Rename(file.stagedPath, file.targetPath); err != nil {
+			if hadOriginal {
+				_ = os.Rename(backupPath, file.targetPath)
 			}
+			return restoreInstalledFiles(installed, fmt.Errorf("replace %s failed: %w", file.archivePath, err))
+		}
+		installed = append(installed, installedReleaseFile{
+			targetPath:  file.targetPath,
+			backupPath:  backupPath,
+			hadOriginal: hadOriginal,
+		})
+	}
+	return nil
+}
 
-			// Validate the entry is a regular file
-			if hdr.Typeflag != tar.TypeReg {
-				continue // Skip directories and special files
-			}
-
-			// Only extract the specific binary we need
-			if baseName == "sub2api" || baseName == "sub2api.exe" {
-				// Additional security: limit file size (max 500MB)
-				const maxBinarySize = 500 * 1024 * 1024
-				if hdr.Size > maxBinarySize {
-					return fmt.Errorf("binary too large: %d bytes (max %d)", hdr.Size, maxBinarySize)
-				}
-
-				out, err := os.Create(destPath)
-				if err != nil {
-					return err
-				}
-
-				// Use LimitReader to prevent decompression bombs
-				limited := io.LimitReader(tr, maxBinarySize)
-				if _, err := io.Copy(out, limited); err != nil {
-					_ = out.Close()
-					return err
-				}
-				if err := out.Close(); err != nil {
-					return err
-				}
-				return nil
+func restoreInstalledFiles(installed []installedReleaseFile, cause error) error {
+	for i := len(installed) - 1; i >= 0; i-- {
+		file := installed[i]
+		if err := os.Remove(file.targetPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("%w; restore remove failed for %s: %v", cause, file.targetPath, err)
+		}
+		if file.hadOriginal {
+			if err := os.Rename(file.backupPath, file.targetPath); err != nil {
+				return fmt.Errorf("%w; restore failed for %s: %v", cause, file.targetPath, err)
 			}
 		}
-		return fmt.Errorf("binary not found in archive")
+	}
+	return cause
+}
+
+func restoreReleaseBackups(targets []string) error {
+	files := make([]rollbackReleaseFile, 0, len(targets))
+	for _, targetPath := range targets {
+		backupPath := targetPath + ".backup"
+		if _, err := os.Stat(backupPath); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return fmt.Errorf("inspect rollback backup failed: %w", err)
+		}
+		files = append(files, rollbackReleaseFile{
+			targetPath: targetPath,
+			backupPath: backupPath,
+			currentTmp: targetPath + ".rollback-current",
+		})
 	}
 
-	// Direct copy for non-tar files (with size limit)
-	const maxBinarySize = 500 * 1024 * 1024
-	out, err := os.Create(destPath)
-	if err != nil {
-		return err
+	restored := make([]rollbackReleaseFile, 0, len(files))
+	for _, file := range files {
+		if err := os.Remove(file.currentTmp); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("prepare rollback failed for %s: %w", file.targetPath, err)
+		}
+		if err := os.Rename(file.targetPath, file.currentTmp); err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("stage current file for rollback failed: %w", err)
+			}
+		} else {
+			file.hadCurrent = true
+		}
+		if err := os.Rename(file.backupPath, file.targetPath); err != nil {
+			if file.hadCurrent {
+				_ = os.Rename(file.currentTmp, file.targetPath)
+			}
+			return undoRestoredBackups(restored, fmt.Errorf("rollback failed for %s: %w", file.targetPath, err))
+		}
+		restored = append(restored, file)
 	}
 
-	limited := io.LimitReader(reader, maxBinarySize)
-	if _, err := io.Copy(out, limited); err != nil {
-		_ = out.Close()
-		return err
+	for _, file := range restored {
+		if !file.hadCurrent {
+			continue
+		}
+		if err := os.Remove(file.currentTmp); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("rollback completed but cleanup failed for %s: %w", file.targetPath, err)
+		}
 	}
-	return out.Close()
+	return nil
+}
+
+func undoRestoredBackups(restored []rollbackReleaseFile, cause error) error {
+	for i := len(restored) - 1; i >= 0; i-- {
+		file := restored[i]
+		if err := os.Rename(file.targetPath, file.backupPath); err != nil {
+			return fmt.Errorf("%w; rollback recovery failed for %s: %v", cause, file.targetPath, err)
+		}
+		if file.hadCurrent {
+			if err := os.Rename(file.currentTmp, file.targetPath); err != nil {
+				return fmt.Errorf("%w; rollback recovery failed for %s: %v", cause, file.targetPath, err)
+			}
+		}
+	}
+	return cause
 }
 
 func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
@@ -622,9 +794,11 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 	}
 
 	var cached struct {
-		Latest      string       `json:"latest"`
-		ReleaseInfo *ReleaseInfo `json:"release_info"`
-		Timestamp   int64        `json:"timestamp"`
+		Latest                string       `json:"latest"`
+		ReleaseInfo           *ReleaseInfo `json:"release_info"`
+		UpstreamLatestVersion string       `json:"upstream_latest_version"`
+		UpstreamWarning       string       `json:"upstream_warning"`
+		Timestamp             int64        `json:"timestamp"`
 	}
 	if err := json.Unmarshal([]byte(data), &cached); err != nil {
 		return nil, err
@@ -633,26 +807,41 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 	if time.Now().Unix()-cached.Timestamp > updateCacheTTL {
 		return nil, fmt.Errorf("cache expired")
 	}
+	if cached.Latest == "" || cached.UpstreamLatestVersion == "" {
+		return nil, fmt.Errorf("cache uses an obsolete release-channel format")
+	}
+	upstreamBaseline := strings.TrimPrefix(releasechannel.UpstreamBaseline, "v")
 
 	return &UpdateInfo{
-		CurrentVersion: s.currentVersion,
-		LatestVersion:  cached.Latest,
-		HasUpdate:      compareVersions(s.currentVersion, cached.Latest) < 0,
-		ReleaseInfo:    cached.ReleaseInfo,
-		Cached:         true,
-		BuildType:      s.buildType,
+		CurrentVersion:        s.currentVersion,
+		LatestVersion:         cached.Latest,
+		HasUpdate:             compareVersions(s.currentVersion, cached.Latest) < 0,
+		ReleaseInfo:           cached.ReleaseInfo,
+		Cached:                true,
+		BuildType:             s.buildType,
+		ReleaseRepository:     githubRepo,
+		ReleaseImage:          releasechannel.ReleaseImage,
+		UpstreamRepository:    upstreamRepo,
+		UpstreamBaseline:      upstreamBaseline,
+		UpstreamLatestVersion: cached.UpstreamLatestVersion,
+		UpstreamHasUpdate:     compareVersions(upstreamBaseline, cached.UpstreamLatestVersion) < 0,
+		UpstreamWarning:       cached.UpstreamWarning,
 	}, nil
 }
 
 func (s *UpdateService) saveToCache(ctx context.Context, info *UpdateInfo) {
 	cacheData := struct {
-		Latest      string       `json:"latest"`
-		ReleaseInfo *ReleaseInfo `json:"release_info"`
-		Timestamp   int64        `json:"timestamp"`
+		Latest                string       `json:"latest"`
+		ReleaseInfo           *ReleaseInfo `json:"release_info"`
+		UpstreamLatestVersion string       `json:"upstream_latest_version"`
+		UpstreamWarning       string       `json:"upstream_warning"`
+		Timestamp             int64        `json:"timestamp"`
 	}{
-		Latest:      info.LatestVersion,
-		ReleaseInfo: info.ReleaseInfo,
-		Timestamp:   time.Now().Unix(),
+		Latest:                info.LatestVersion,
+		ReleaseInfo:           info.ReleaseInfo,
+		UpstreamLatestVersion: info.UpstreamLatestVersion,
+		UpstreamWarning:       info.UpstreamWarning,
+		Timestamp:             time.Now().Unix(),
 	}
 
 	data, _ := json.Marshal(cacheData)

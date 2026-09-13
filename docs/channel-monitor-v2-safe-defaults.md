@@ -1,7 +1,7 @@
 # Channel Monitor V2 Safe Defaults & Gentle Backfill
 
 **Date:** 2026-08-08
-**Status:** Approved for implementation
+**Status:** Implemented in `0.1.176+custom.003`; not deployed
 
 ## Problem
 
@@ -27,6 +27,16 @@
 - Code: `defaultChannelMonitorMode = v1`; empty/invalid normalize → v1.
 - Frontend Settings form default and public feature flag fallback → v1 when missing/invalid.
 - Nil settings on V1 `RunCheck` path remains **fail-closed** (no probes) for test safety — independent of product default.
+
+## Detail visibility
+
+- Regular users see the model and error-reason detail tabs only.
+- The user-ranking tab is administrator-only.
+- A regular user opening a legacy `?tab=users` link is normalized to
+  `tab=models` before detail loading, so the page does not request the ranking
+  endpoint.
+- Administrator ranking access and the backend authorization boundary remain
+  unchanged.
 
 ## Gentle backfill (low-resource phases)
 

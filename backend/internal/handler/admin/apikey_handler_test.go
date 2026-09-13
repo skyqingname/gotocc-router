@@ -24,6 +24,19 @@ func setupAPIKeyHandler(adminSvc service.AdminService) *gin.Engine {
 	return router
 }
 
+func TestAdminAPIKeyHandler_InvalidRoutingDoesNotResetUsage(t *testing.T) {
+	svc := newStubAdminService()
+	svc.apiKeys[0].Usage5h = 17
+	router := setupAPIKeyHandler(svc)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10",
+		bytes.NewBufferString(`{"routing_mode":"invalid","reset_rate_limit_usage":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, 17.0, svc.apiKeys[0].Usage5h)
+}
+
 func TestAdminAPIKeyHandler_UpdateGroup_InvalidID(t *testing.T) {
 	router := setupAPIKeyHandler(newStubAdminService())
 	body := `{"group_id": 2}`
@@ -238,5 +251,9 @@ type failingUpdateGroupService struct {
 }
 
 func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ int64, _ *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+	return nil, f.err
+}
+
+func (f *failingUpdateGroupService) AdminUpdateAPIKeyRouting(_ context.Context, _ int64, _ service.APIKeyRoutingUpdate) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	return nil, f.err
 }

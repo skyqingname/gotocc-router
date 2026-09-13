@@ -47,6 +47,10 @@ export interface AffiliateInviteRecord {
 }
 
 export interface AffiliateRebateRecord {
+  source_type: 'payment' | 'admin_recharge' | 'legacy'
+  rebate_level: number | null
+  rebate_rate_percent: number | null
+  rebate_base_amount: number | null
   order_id: number
   out_trade_no: string
   inviter_id: number

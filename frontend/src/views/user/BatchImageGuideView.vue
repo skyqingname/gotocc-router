@@ -556,7 +556,7 @@
             <select v-model.number="form.apiKeyId" class="input" :disabled="loadingKeys">
               <option :value="0">{{ loadingKeys ? t('batchImage.create.loadingKeys') : t('batchImage.create.selectKeyPlaceholder') }}</option>
               <option v-for="key in geminiApiKeys" :key="key.id" :value="key.id">
-                {{ key.name }} · {{ key.group?.name || 'Gemini' }}
+                {{ key.name }} · {{ key.routing_mode === 'auto' ? t('keys.routingMode.auto') : (key.group?.name || 'Gemini') }}
               </option>
             </select>
             <p v-if="!loadingKeys && geminiApiKeys.length === 0" class="input-hint text-amber-600 dark:text-amber-400">
@@ -765,6 +765,8 @@ import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize, setPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useAppStore } from '@/stores/app'
 import { keysAPI } from '@/api'
+import { getAutoRoutingCapabilities, isAutoRoutingKey } from '@/composables/useAsyncImageAccess'
+import { keyAllowsBatchImage } from '@/composables/useBatchImageAccess'
 import {
   cancelBatchImageJob,
   deleteBatchImageJobRecord,
@@ -939,9 +941,7 @@ let activePromptPopoverTarget: HTMLElement | null = null
 
 const geminiApiKeys = computed(() =>
   apiKeys.value.filter((key) =>
-    key.status === 'active' &&
-    key.group?.platform === 'gemini' &&
-    key.group?.allow_batch_image_generation === true,
+    keyAllowsBatchImage(key) || (isAutoRoutingKey(key) && key.status === 'active'),
   ),
 )
 
@@ -1270,6 +1270,14 @@ async function loadAvailableModels() {
 
   loadingModels.value = true
   try {
+    if (isAutoRoutingKey(key)) {
+      const capabilities = await getAutoRoutingCapabilities(key)
+      if (requestID !== modelRequestSeq) return
+      if (!keyAllowsBatchImage(key, capabilities || undefined)) {
+        modelLoadError.value = batchImageText('autoRoutingUnsupported')
+        return
+      }
+    }
     const result = await listBatchImageModels(key.key)
     if (requestID !== modelRequestSeq) return
     const seen = new Set<string>()
@@ -2400,6 +2408,7 @@ function costLabel(job: Pick<BatchImageJob, 'status' | 'hold_amount' | 'actual_c
 }
 
 type BatchImageTextKey =
+	| 'autoRoutingUnsupported'
   | 'loadKeysFailed'
   | 'loadModelsFailed'
   | 'loadJobsFailed'

@@ -1438,18 +1438,47 @@ func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定
 // groupID: nil=不修改, 指向0=解绑, 指向正整数=绑定到目标分组
 func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	return s.AdminUpdateAPIKeyRouting(ctx, keyID, APIKeyRoutingUpdate{GroupID: groupID, GroupIDSet: groupID != nil})
+}
+
+func (s *adminServiceImpl) AdminUpdateAPIKeyRouting(ctx context.Context, keyID int64, input APIKeyRoutingUpdate) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	groupID := input.GroupID
+	validationGroupID := groupID
+	if groupID != nil && *groupID == 0 && (input.RoutingMode == nil || *input.RoutingMode == APIKeyRoutingFixed) {
+		validationGroupID = nil
+	}
+	if err := ValidateAPIKeyRoutingInput(input.RoutingMode, input.RoutingMode != nil, validationGroupID); err != nil {
+		return nil, err
+	}
+	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingAuto &&
+		s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.RunMode == config.RunModeSimple {
+		return nil, infraerrors.Forbidden("AUTO_ROUTING_UNSUPPORTED_RUN_MODE", "automatic routing requires standard run mode")
+	}
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
 		return nil, err
 	}
 
-	if groupID == nil {
+	if input.RoutingMode == nil && groupID == nil {
 		// nil 表示不修改，直接返回
 		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
 	}
-
-	if *groupID < 0 {
-		return nil, infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative")
+	if apiKey.IsAutoRouting() && input.RoutingMode == nil && groupID != nil && *groupID > 0 {
+		return nil, infraerrors.BadRequest("ROUTING_MODE_CONFLICT", "select fixed routing before assigning a group")
+	}
+	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingFixed && groupID == nil && !input.GroupIDSet {
+		if apiKey.IsAutoRouting() {
+			return nil, infraerrors.BadRequest("ROUTING_GROUP_REQUIRED", "specify a group or explicitly unassign this key")
+		}
+		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
+	}
+	apiKey.RoutingMode = APIKeyRoutingFixed
+	if input.RoutingMode != nil {
+		apiKey.RoutingMode = *input.RoutingMode
+	}
+	if apiKey.IsAutoRouting() || groupID == nil {
+		unassigned := int64(0)
+		groupID = &unassigned
 	}
 
 	result := &AdminUpdateAPIKeyGroupIDResult{}
@@ -1503,7 +1532,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			if addErr := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, gid); addErr != nil {
 				return nil, fmt.Errorf("add group to user allowed groups: %w", addErr)
 			}
-			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
 				return nil, fmt.Errorf("update api key: %w", err)
 			}
 			if tx != nil {
@@ -1527,7 +1556,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	}
 
 	// 非专属分组 / 解绑：无需事务，单步更新即可
-	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
 		return nil, fmt.Errorf("update api key: %w", err)
 	}
 

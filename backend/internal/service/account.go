@@ -860,6 +860,24 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 	return normalized != requestedModel && mappingSupportsRequestedModel(mapping, normalized)
 }
 
+// IsModelDirectlySupported reports whether the account can receive the exact
+// requested model without an account-level model rewrite. OpenAI Images uses
+// this stricter check because its request, upstream, and usage model must match.
+func (a *Account) IsModelDirectlySupported(requestedModel string) bool {
+	if a == nil {
+		return false
+	}
+	if a.IsOpenAIPassthroughEnabled() {
+		return true
+	}
+	mapping := a.GetModelMapping()
+	if len(mapping) == 0 {
+		return a.IsModelSupported(requestedModel)
+	}
+	mappedModel, matched := resolveRequestedModelInMapping(mapping, requestedModel)
+	return matched && strings.TrimSpace(mappedModel) == strings.TrimSpace(requestedModel)
+}
+
 // GetMappedModel 获取映射后的模型名（支持通配符，最长优先匹配）
 // 如果未配置 mapping，返回原始模型名
 func (a *Account) GetMappedModel(requestedModel string) string {

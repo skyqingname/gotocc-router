@@ -127,6 +127,14 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				return
 			}
 		}
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &requestModel) {
+			return
+		}
+		subject, _ = middleware2.GetAuthSubjectFromContext(c)
+		if apiKey.IsAutoRouting() {
+			requestInfo = service.ParseGrokMediaRequest(contentType, body)
+			routingModel = service.NormalizeGrokMediaModelForEndpoint(endpoint, requestModel, requestInfo.HasInputImage())
+		}
 		imageReleaseFunc, acquired := h.acquireImageGenerationSlot(c, streamStarted)
 		if !acquired {
 			return

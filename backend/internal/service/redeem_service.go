@@ -11,7 +11,6 @@ import (
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 )
 
@@ -35,15 +34,6 @@ const (
 	enforceRedeemRateLimit redeemRateLimitPolicy = iota
 	bypassRedeemRateLimit
 )
-
-type ctxKeySkipRedeemAffiliate struct{}
-
-// ContextSkipRedeemAffiliate returns a context that suppresses the redeem-level
-// affiliate rebate. Used by payment fulfillment which handles rebate separately
-// via applyAffiliateRebateForOrder (with audit-log deduplication).
-func ContextSkipRedeemAffiliate(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ctxKeySkipRedeemAffiliate{}, true)
-}
 
 // RedeemCache defines cache operations for redeem service
 type RedeemCache interface {
@@ -400,13 +390,12 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 // redeem failure counter. All code validation and transactional updates remain
 // identical to the public redemption path.
 func (s *RedeemService) redeemForPaymentFulfillment(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
-	return s.redeem(ContextSkipRedeemAffiliate(ctx), userID, code, bypassRedeemRateLimit)
+	return s.redeem(ctx, userID, code, bypassRedeemRateLimit)
 }
 
 // RedeemForAdminFulfillment is restricted to trusted admin fulfillment.
 // Admin retries must not be blocked by, or contribute to, a user's public
-// redeem failure counter. Unlike payment fulfillment, the normal redeem-level
-// affiliate rebate remains enabled.
+// redeem failure counter. Redemption itself never accrues affiliate commission.
 func (s *RedeemService) RedeemForAdminFulfillment(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
 	return s.redeem(ctx, userID, code, bypassRedeemRateLimit)
 }
@@ -549,11 +538,6 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	// 事务提交成功后失效缓存
 	s.invalidateRedeemCaches(ctx, userID, redeemCode)
 
-	// 余额类正数兑换码触发邀请返利（best-effort，失败不影响兑换结果）
-	if redeemCode.Type == RedeemTypeBalance && redeemCode.Value > 0 {
-		s.tryAccrueAffiliateRebateForRedeem(ctx, userID, redeemCode.Value)
-	}
-
 	// 重新获取更新后的兑换码
 	redeemCode, err = s.redeemRepo.GetByID(ctx, redeemCode.ID)
 	if err != nil {
@@ -600,26 +584,6 @@ func (s *RedeemService) invalidateRedeemCaches(ctx context.Context, userID int64
 				_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
 			}()
 		}
-	}
-}
-
-func (s *RedeemService) tryAccrueAffiliateRebateForRedeem(ctx context.Context, userID int64, amount float64) {
-	if ctx.Value(ctxKeySkipRedeemAffiliate{}) != nil {
-		return
-	}
-	if s.affiliateService == nil {
-		return
-	}
-	if !s.affiliateService.IsEnabled(ctx) {
-		return
-	}
-	rebate, err := s.affiliateService.AccrueInviteRebate(ctx, userID, amount)
-	if err != nil {
-		logger.LegacyPrintf("service.redeem", "[Redeem] affiliate rebate failed for user %d amount %.2f: %v", userID, amount, err)
-		return
-	}
-	if rebate > 0 {
-		logger.LegacyPrintf("service.redeem", "[Redeem] affiliate rebate accrued %.8f for inviter of user %d", rebate, userID)
 	}
 }
 

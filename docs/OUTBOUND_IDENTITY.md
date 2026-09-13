@@ -342,3 +342,17 @@ the outbound behavior tests above remain required to verify implementation.
 
 These references explain adapter boundaries. They do not imply that a generic
 compatible supplier requires or recognizes every preset declaration.
+
+
+## GoToCC local media and Prompt Audit integration
+
+OpenAI-compatible video create, status and content requests resolve the original
+credential-owning account identity before request construction. The resulting
+request context and shared transport carry the same snapshot. The original
+video account, API Key, payer and terminal billing state are unchanged.
+
+Prompt Audit keeps GoToCC's custom system template, explicit Qwen3Guard or
+confidence JSON output and full/latest-turn selection. Each synchronous
+evaluation or asynchronous job retains supplier identities across chunks and
+same-credential retries. Failover resolves the new supplier. Probe invokes the
+actual audit model directly; model-list discovery is not a prerequisite.

@@ -1,9 +1,18 @@
 # Upstream Mapping
 
-This file maps Sub2API Plus releases to their official Sub2API baseline. Release
-procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
+This file maps custom releases to their official Sub2API baseline. Historical
+rows are inherited metadata; feature imports preserve their recorded status.
+Owned release publication uploads the same package after local manual acceptance.
+Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
+
+The owned candidate `v0.2.4+custom.007` starts from the complete Plus
+`v0.2.4+custom.004` tree, commit `81505b0c2e35ef9056d55f357a5c4e29c24c2ac9`.
+It preserves all GoToCC contracts from published `v0.2.4+custom.006`, including
+three-generation affiliate rules, routing priorities and configurable Prompt
+Audit selection. PR #7 updates Actions dependencies; PR #8 remains a design
+proposal only. Publication follows local final-package acceptance.
 
 The current integration tree incorporates official `v0.2.4`, commit
 `5de5e2bed035d43591a2e10e51f420ef6a84eb98`, on top of Plus
@@ -67,27 +76,37 @@ for public API changes, migrations, defaults, and validation boundaries.
 | `v0.1.183+custom.002` | `v0.1.183` | `e8cb019fabf8b55199436229044cbf9aa7a82564` | published |
 | `v0.1.183+custom.003` | `v0.1.183` | `e8cb019fabf8b55199436229044cbf9aa7a82564` | published |
 | `v0.1.183+custom.004` | `v0.1.183` | `e8cb019fabf8b55199436229044cbf9aa7a82564` | published |
-| `v0.2.0+custom.001` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | published |
-| `v0.2.0+custom.002` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | published |
-| `v0.2.0+custom.003` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | published |
-| `v0.2.1+custom.001` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.0+custom.001` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | planned |
+| `v0.2.0+custom.002` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | planned |
+| `v0.2.0+custom.003` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | invalid |
+| `v0.2.0+custom.004` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | published |
 | `v0.2.1+custom.002` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
 | `v0.2.1+custom.003` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
-| `v0.2.4+custom.001` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
-| `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
-| `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
-| `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
+| `v0.2.1+custom.004` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.005` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.006` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release) |
+| `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | local preview only; superseded by owned custom.004 |
+| `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); Plus custom.002, affiliate and PR #6 priority UI |
+| `v0.2.4+custom.005` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); administrator invitation-list SQL fix |
+| `v0.2.4+custom.006` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
+| `v0.2.4+custom.007` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
 still require a maintainer audit. Do not reuse or retag `.007`.
 
+`v0.2.0+custom.003` is invalid as a complete owned distribution: its archives
+were published before the standalone pricing assets, which could not be added
+after immutability took effect. The immutable tag and assets are preserved;
+use the complete `.004` release instead.
+
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.4+custom.004
-Application: 0.2.4+custom.004
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.4-custom.004
+Git/GitHub: v0.2.4+custom.007
+Application: 0.2.4+custom.007
+OCI naming: v0.2.4-custom.007 (no image published by the local archive workflow)
 ```
 
 ## Naming
@@ -102,17 +121,16 @@ after importing a newer official release.
 
 ## Distribution and Repository Roles
 
-- `origin` is the custom repository:
-  `https://github.com/LuckyKuang/sub2api-plus.git`.
-- `upstream` is the official source:
-  `https://github.com/Wei-Shaw/sub2api.git`.
-- Installation, update, rollback, and release links use the custom repository.
-- The official repository is an input for maintainers, not a distribution
-  source for Sub2API Plus.
+- Owned installation, update, rollback, and release links use
+  `skyqingname/gotocc-router`.
+- `LuckyKuang/sub2api-plus` is the reference Plus upstream. The adapted baseline
+  and both repository identities are defined in [`release-channel.json`](release-channel.json).
+- `Wei-Shaw/sub2api` is the official source underlying the mapping above.
+- Upstream releases are inputs for adaptation and update notifications. They
+  are not installation or rollback sources for the owned distribution.
 
-Local clones may need to add the `upstream` remote before an upstream sync.
-Preserve intentional Plus changes during merges and update this mapping in the
-same release-preparation change.
+Preserve intentional GotoCC changes during Plus imports and update the adapted
+baseline in the same release-preparation change.
 
 Historical `-custom.NNN` Git naming was migrated to the canonical
 `+custom.NNN` form. OCI tags continue to use `-custom.NNN` because OCI tags do

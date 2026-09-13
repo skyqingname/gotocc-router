@@ -63,6 +63,12 @@ type IdempotencyRecord func(*sql.Selector)
 // IdentityAdoptionDecision is the predicate function for identityadoptiondecision builders.
 type IdentityAdoptionDecision func(*sql.Selector)
 
+// ImageObject is the predicate function for imageobject builders.
+type ImageObject func(*sql.Selector)
+
+// OpenAIVideoTask is the predicate function for openaivideotask builders.
+type OpenAIVideoTask func(*sql.Selector)
+
 // PaymentAuditLog is the predicate function for paymentauditlog builders.
 type PaymentAuditLog func(*sql.Selector)
 
@@ -87,6 +93,12 @@ type Proxy func(*sql.Selector)
 // RedeemCode is the predicate function for redeemcode builders.
 type RedeemCode func(*sql.Selector)
 
+// ReusableInvitationCode is the predicate function for reusableinvitationcode builders.
+type ReusableInvitationCode func(*sql.Selector)
+
+// ReusableInvitationCodeUse is the predicate function for reusableinvitationcodeuse builders.
+type ReusableInvitationCodeUse func(*sql.Selector)
+
 // SecuritySecret is the predicate function for securitysecret builders.
 type SecuritySecret func(*sql.Selector)
 
@@ -98,6 +110,18 @@ type SubscriptionPlan func(*sql.Selector)
 
 // TLSFingerprintProfile is the predicate function for tlsfingerprintprofile builders.
 type TLSFingerprintProfile func(*sql.Selector)
+
+// Team is the predicate function for team builders.
+type Team func(*sql.Selector)
+
+// TeamInvitation is the predicate function for teaminvitation builders.
+type TeamInvitation func(*sql.Selector)
+
+// TeamMembership is the predicate function for teammembership builders.
+type TeamMembership func(*sql.Selector)
+
+// TeamOwnershipTransfer is the predicate function for teamownershiptransfer builders.
+type TeamOwnershipTransfer func(*sql.Selector)
 
 // UsageCleanupTask is the predicate function for usagecleanuptask builders.
 type UsageCleanupTask func(*sql.Selector)

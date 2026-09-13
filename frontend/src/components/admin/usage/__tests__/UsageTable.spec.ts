@@ -1384,7 +1384,8 @@ describe('admin UsageTable deleted-user badge', () => {
     })
 
     expect(wrapper.text()).toContain('Deleted')
-    expect(wrapper.text()).toContain('d@test.com')
+    expect(wrapper.text()).toContain('d***d')
+    expect(wrapper.text()).not.toContain('d@test.com')
   })
 
   it('does NOT render deleted badge for an active user row', () => {
@@ -1419,6 +1420,7 @@ describe('admin UsageTable deleted-user badge', () => {
     })
 
     expect(wrapper.text()).not.toContain('Deleted')
-    expect(wrapper.text()).toContain('active@test.com')
+    expect(wrapper.text()).toContain('a***e')
+    expect(wrapper.text()).not.toContain('active@test.com')
   })
 })

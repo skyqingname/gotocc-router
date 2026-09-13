@@ -47,3 +47,21 @@ func TestOpenAIGatewayHandlerImages_DisabledGroupRejectsBeforeScheduling(t *test
 	require.Equal(t, "permission_error", gjson.GetBytes(rec.Body.Bytes(), "error.type").String())
 	require.Contains(t, rec.Body.String(), service.ImageGenerationPermissionMessage())
 }
+
+func TestOpenAIImagesDirectChannelMappingPreservesMetadataWithoutModelRewrite(t *testing.T) {
+	const requestModel = "gemini-3.1-flash-image-preview"
+	mapping := openAIImagesDirectChannelMapping(service.ChannelMappingResult{
+		MappedModel:        "gpt-image-2",
+		ChannelID:          42,
+		Mapped:             true,
+		BillingModelSource: service.BillingModelSourceChannelMapped,
+	}, requestModel)
+
+	require.False(t, mapping.Mapped)
+	require.Equal(t, requestModel, mapping.MappedModel)
+	require.Equal(t, int64(42), mapping.ChannelID)
+	fields := openAIImagesDirectUsageFields(mapping, requestModel, requestModel)
+	require.Equal(t, requestModel, fields.OriginalModel)
+	require.Equal(t, requestModel, fields.ChannelMappedModel)
+	require.Empty(t, fields.ModelMappingChain)
+}

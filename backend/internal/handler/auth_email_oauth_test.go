@@ -373,6 +373,10 @@ func newOAuthEmailAffiliateRepoStub(codeOwners map[string]int64) *oauthEmailAffi
 	return &oauthEmailAffiliateRepoStub{codeOwners: codeOwners}
 }
 
+func (*oauthEmailAffiliateRepoStub) IsReusableInvitationCodeOwner(context.Context, int64) (bool, error) {
+	panic("unexpected IsReusableInvitationCodeOwner call")
+}
+
 func (r *oauthEmailAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*service.AffiliateSummary, error) {
 	r.ensureUserIDs = append(r.ensureUserIDs, userID)
 	return &service.AffiliateSummary{UserID: userID, AffCode: "SELF"}, nil
@@ -386,12 +390,12 @@ func (r *oauthEmailAffiliateRepoStub) GetAffiliateByCode(_ context.Context, code
 	return &service.AffiliateSummary{UserID: userID, AffCode: strings.ToUpper(strings.TrimSpace(code))}, nil
 }
 
-func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID int64) (bool, error) {
+func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID int64, _ ...string) (bool, error) {
 	r.bindCalls = append(r.bindCalls, oauthEmailAffiliateBindCall{userID: userID, inviterID: inviterID})
 	return true, nil
 }
 
-func (r *oauthEmailAffiliateRepoStub) AccrueQuota(context.Context, int64, int64, float64, int, *int64) (bool, error) {
+func (r *oauthEmailAffiliateRepoStub) AccrueQuota(context.Context, int64, int64, float64, int, *int64, ...service.AffiliateRebateSnapshot) (bool, error) {
 	panic("unexpected AccrueQuota call")
 }
 

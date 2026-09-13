@@ -8,7 +8,7 @@ import (
 )
 
 func TestGroupModelAllowlistRepairMigration(t *testing.T) {
-	content, err := FS.ReadFile("260_group_model_allowlist_repair.sql")
+	content, err := FS.ReadFile("264_group_model_allowlist_repair.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

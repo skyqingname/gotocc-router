@@ -14,6 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/repository"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
@@ -24,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,6 +94,10 @@ func TestAsyncImageContainerWorkflowWithMinIO(t *testing.T) {
 	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
 	tasks := service.NewImageTaskServiceWithUploader(store, service.NewImageResultUploader(storage, "images/", false, 0, nil), time.Hour, time.Minute)
 	tasks.SetHistoryRepository(repository.NewImageTaskHistoryRepository(db))
+	// Match production wiring: successful uploads require a durable ownership
+	// record as well as task history. Omitting it correctly fails the task.
+	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+	tasks.SetImageObjectRepository(repository.NewImageObjectRepository(client))
 	handler := &AsyncImageHandler{tasks: tasks}
 	handler.execute = func(_ string, c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"created": 123, "data": []gin.H{{"b64_json": asyncImageContainerTestPNG}}})
@@ -120,21 +128,23 @@ func TestAsyncImageContainerWorkflowWithMinIO(t *testing.T) {
 	require.NotEmpty(t, accepted.TaskID)
 
 	var completed service.ImageTask
-	require.Eventually(t, func() bool {
-		listRequest := httptest.NewRequest(http.MethodGet, "/v1/images/tasks?status=completed", nil)
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
+		listRequest := httptest.NewRequest(http.MethodGet, "/v1/images/tasks", nil)
 		listWriter := httptest.NewRecorder()
 		router.ServeHTTP(listWriter, listRequest)
-		if listWriter.Code != http.StatusOK {
-			return false
+		if !assert.Equal(collect, http.StatusOK, listWriter.Code, listWriter.Body.String()) {
+			return
 		}
 		var response struct {
 			Data []service.ImageTask `json:"data"`
 		}
-		if json.Unmarshal(listWriter.Body.Bytes(), &response) != nil || len(response.Data) != 1 || response.Data[0].TaskID != accepted.TaskID {
-			return false
+		if !assert.NoError(collect, json.Unmarshal(listWriter.Body.Bytes(), &response)) || !assert.Len(collect, response.Data, 1, listWriter.Body.String()) {
+			return
 		}
 		completed = response.Data[0]
-		return completed.Status == service.ImageTaskStatusCompleted && completed.ImageURL != ""
+		assert.Equal(collect, accepted.TaskID, completed.TaskID)
+		assert.Equal(collect, service.ImageTaskStatusCompleted, completed.Status, listWriter.Body.String())
+		assert.NotEmpty(collect, completed.ImageURL, listWriter.Body.String())
 	}, 15*time.Second, 100*time.Millisecond)
 
 	imageResponse, err := http.Get(completed.ImageURL) //nolint:gosec // test reads the application-generated presigned URL.
@@ -159,4 +169,7 @@ func TestAsyncImageContainerWorkflowWithMinIO(t *testing.T) {
 	var storedStatus string
 	require.NoError(t, db.QueryRowContext(ctx, "SELECT status FROM async_image_tasks WHERE task_id = $1", accepted.TaskID).Scan(&storedStatus))
 	require.Equal(t, service.ImageTaskStatusCompleted, storedStatus)
+	var persistedObjects int
+	require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM image_objects WHERE task_id = $1 AND user_id = 7 AND api_key_id = 9", accepted.TaskID).Scan(&persistedObjects))
+	require.Equal(t, 1, persistedObjects, "the uploaded object must retain its owner")
 }

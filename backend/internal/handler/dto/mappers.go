@@ -84,9 +84,13 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 	out := &APIKey{
 		ID:                 k.ID,
 		UserID:             k.UserID,
+		TeamID:             k.TeamID,
+		Scope:              apiKeyScope(k),
+		TeamOwnerDisabled:  k.TeamOwnerDisabled,
 		Key:                k.Key,
 		Name:               k.Name,
 		GroupID:            k.GroupID,
+		RoutingMode:        k.EffectiveRoutingMode(),
 		Status:             k.Status,
 		IPWhitelist:        k.IPWhitelist,
 		IPBlacklist:        k.IPBlacklist,
@@ -123,6 +127,21 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		out.Reset7dAt = &t
 	}
 	return out
+}
+
+func APIKeyFromServiceForUser(k *service.APIKey) *APIKey {
+	out := APIKeyFromService(k)
+	if out != nil {
+		out.User = nil
+	}
+	return out
+}
+
+func apiKeyScope(k *service.APIKey) string {
+	if k != nil && k.TeamID != nil {
+		return "team"
+	}
+	return "personal"
 }
 
 func GroupFromServiceShallow(g *service.Group) *Group {

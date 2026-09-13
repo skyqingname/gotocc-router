@@ -1,34 +1,15 @@
-Sub2API Plus v0.2.4+custom.004
+# GoToCC 0.2.4+custom.007
 
-## Highlights
+基于 Plus `v0.2.4+custom.004`（`81505b0c2e35ef9056d55f357a5c4e29c24c2ac9`），官方 Sub2API 基线仍为 `v0.2.4`。
 
-- Restricts OpenAI group quota follow-reset evidence to fresh weekly-window observations from real inference sessions.
-- Prevents WebSocket handshake headers and standalone quota refreshes from establishing or confirming group reset events.
-- Runs release metadata and finalization-tree validation only in the repository's supported platform containers.
+- 接入上游统一出站身份设置与各供应商请求路径；同一凭据的重试、分片与 WebSocket 会话沿用身份快照，保留 Codex 既有身份优先级。
+- OpenAI 分组额度跟随重置只接受真实推理中的新鲜周窗口观察；握手响应和独立额度查询不再建立或确认重置事件。
+- 保留 GoToCC 永久邀请码、三代返佣及展示范围、团队、智能路由和优先级展示、模型广场、图片对象、视频终态计费及下游断开归因。
+- 保留 Prompt Audit 自定义模板、Qwen3Guard/评分 JSON、阈值、全量与最新轮次含工具结果模式，以及每次节点调用独立超时；审计节点同时使用上游新的独立出站身份。
+- 合入 PR #7 的 Actions 依赖更新及修正后的 PR #8 客户归属提案。客户换绑功能尚未实现。
 
-## Changed
+新增自有 migration `270_openai_weekly_reset_observations.sql`，原文来自上游 `265_openai_weekly_reset_observations.sql`；所有既有 SQL 不变。迁移放宽周重置观察的 reset_at 非空约束，新增使用率、观察序号和待确认字段，并将事件唯一性加入 reset_sequence。DDL 在启动迁移事务内持有表锁，索引构建消耗与事件表规模相关的磁盘；无业务金额回填，新增序号默认 0。
 
-- Updates the English and Chinese administration guidance to describe the inference-session baseline requirement.
-- Clarifies repository-wide agent rules, Windows WSL2 Docker validation, and the deployed-instance scope of the Sub2API admin skill.
-- Makes stale validation image cleanup deterministic without pruning unrelated runtime resources.
-- Forwards configured standard proxy variables into validation containers without exposing their values in commands or logs.
-- Reads exact pull-request base and head SHAs from the GitHub API so release promotion does not depend on unsupported `gh pr view` fields.
+本地保留迁移前数据库备份后再启动候选。旧程序依赖旧事件唯一约束，不能只换回 `.006`；保留新数据并前向修复，生产更新前应评估这项回滚限制。出站身份配置保存在既有 settings，不自动改变管理员选择的凭据或账户配置；随包仍交付 release-channel.json 和定价资源。
 
-## Fixed
-
-- Removes the background quota polling path that could drive group reset state without user inference traffic.
-- Keeps WebSocket connection-time usage headers available for account cache refresh while excluding them from later turn reset evidence.
-- Preserves fresh HTTP and in-band WebSocket rate-limit observations across retries and pass-through adapters.
-
-## Compatibility and migration
-
-No new database migration is required. Existing group follow-reset bindings wait for a real inference session on their configured OpenAI OAuth source before establishing a missing baseline or confirming off-schedule evidence. Standalone quota refreshes no longer advance that state.
-
-## Known issues
-
-None.
-
-## Upstream baseline
-
-Official release: v0.2.4
-Official commit: 5de5e2bed035d43591a2e10e51f420ef6a84eb98
+本版以最终发行包本地运行并交用户人工验收；未自动发布或更新生产。
