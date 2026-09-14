@@ -176,6 +176,7 @@ type CreateUserInput struct {
 }
 
 type UpdateUserInput struct {
+	InviterChange *AffiliateInviterChange
 	Email         string
 	Password      string
 	Username      *string
@@ -723,6 +724,8 @@ type ChannelCacheInvalidator interface {
 }
 
 type adminRechargeAffiliateAccruer interface {
+	ChangeInviter(context.Context, int64, *AffiliateInviterChange) error
+	LockInviterBindings(context.Context) error
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
 }
 

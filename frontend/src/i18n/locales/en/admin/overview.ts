@@ -491,6 +491,28 @@ export default {
 
     // Users
     users: {
+      inviter: {
+        title: "Invitation code and rebate attribution",
+        current: "Current referrer",
+        unbound: "No referrer assigned",
+        loading: "Loading referrer…",
+        retry: "Reload",
+        codeType: "Invitation code type",
+        permanent: "Permanent invitation code",
+        aff: "AFF invitation code",
+        permanentPlaceholder: "Enter a permanent invitation code",
+        affPlaceholder: "Enter the referrer’s AFF code",
+        permanentHint: "Uses the owner assigned to this permanent code without consuming a registration use.",
+        affHint: "Uses the referrer who owns this AFF code.",
+        resolve: "Find referrer",
+        resolving: "Looking up…",
+        next: "Referrer after update",
+        matched: "Referrer for this code",
+        resolveFirst: "The code has changed. Find and check the referrer before updating.",
+        self: "A user cannot be their own referrer. Enter another referrer’s code.",
+        notFound: "No code of this type was found. Check the code and its type.",
+        effect: "Takes effect when you click Update below. Past commissions stay unchanged. Future three-generation rebates for this customer and their descendants follow the new relationship.",
+      },
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',

@@ -7,6 +7,40 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 
+export type AffiliateInviterCodeType = 'permanent' | 'aff'
+
+export interface AffiliateInviterUser {
+  id: number
+  email: string
+  username: string
+}
+
+export interface AffiliateInviterState {
+  user_id: number
+  inviter: AffiliateInviterUser | null
+  code_type: AffiliateInviterCodeType | ''
+  code: string
+  version: number
+  effective_at: string | null
+}
+
+export interface AffiliateInviterChange {
+  code_type: AffiliateInviterCodeType
+  code: string
+  resolved_user_id: number
+  expected_version: number
+}
+
+export async function getInviter(userId: number): Promise<AffiliateInviterState> {
+  const { data } = await apiClient.get<AffiliateInviterState>(`/admin/affiliates/users/${userId}/inviter`)
+  return data
+}
+
+export async function resolveInviterCode(codeType: AffiliateInviterCodeType, code: string): Promise<AffiliateInviterUser> {
+  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code_type: codeType, code })
+  return data
+}
+
 export interface AffiliateAdminEntry {
   user_id: number
   email: string
@@ -220,6 +254,8 @@ export async function getUserOverview(
 }
 
 export const affiliatesAPI = {
+  getInviter,
+  resolveInviterCode,
   listUsers,
   lookupUsers,
   updateUserSettings,

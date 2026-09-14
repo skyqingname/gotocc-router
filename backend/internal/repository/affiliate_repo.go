@@ -105,7 +105,14 @@ func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID
  UNION
  SELECT ua.user_id, ua.inviter_id FROM user_affiliates ua JOIN ancestors a ON ua.user_id = a.inviter_id
 )
-UPDATE user_affiliates SET inviter_id = $1, invitation_code = $3, updated_at = NOW()
+UPDATE user_affiliates SET inviter_id = $1, invitation_code = $3,
+ attribution_code_type = CASE WHEN EXISTS (
+  SELECT 1 FROM reusable_invitation_codes c WHERE UPPER(c.code) = UPPER($3) AND c.owner_user_id = $1
+ ) THEN 'permanent' ELSE 'aff' END,
+ attribution_code = CASE WHEN EXISTS (
+  SELECT 1 FROM reusable_invitation_codes c WHERE UPPER(c.code) = UPPER($3) AND c.owner_user_id = $1
+ ) THEN UPPER($3) ELSE (SELECT aff_code FROM user_affiliates WHERE user_id = $1) END,
+ inviter_version = inviter_version + 1, inviter_effective_at = clock_timestamp(), updated_at = NOW()
 WHERE user_id = $2 AND inviter_id IS NULL AND user_id <> $1
  AND NOT EXISTS (SELECT 1 FROM ancestors WHERE user_id = $2)`,
 			inviterID, userID, sourceCode,
@@ -438,7 +445,7 @@ SELECT ua.inviter_id,
        ua.user_id,
        COALESCE(invitee.email, ''),
        COALESCE(invitee.username, ''),
-       COALESCE(ua.invitation_code, inviter_aff.aff_code, ''),
+       ua.attribution_code,
        COALESCE(SUM(ual.amount), 0)::double precision AS total_rebate,
        ua.created_at
 FROM user_affiliates ua
@@ -450,7 +457,7 @@ LEFT JOIN user_affiliate_ledger ual
       AND ual.source_user_id = ua.user_id
       AND ual.action = 'accrue'
 `+where+`
-GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, ua.invitation_code, inviter_aff.aff_code, ua.created_at
+GROUP BY ua.inviter_id, inviter.email, inviter.username, ua.user_id, invitee.email, invitee.username, ua.attribution_code, inviter_aff.aff_code, ua.created_at
 `+orderBy+`
 LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	if err != nil {
@@ -1057,6 +1064,9 @@ func (r *affiliateRepository) ResetUserAffCode(ctx context.Context, userID int64
 	}
 	var newCode string
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		if err := lockAffiliateBindings(txCtx, txClient); err != nil {
+			return err
+		}
 		if _, err := ensureUserAffiliateWithClient(txCtx, txClient, userID); err != nil {
 			return err
 		}

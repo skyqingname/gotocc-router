@@ -462,3 +462,22 @@ account/global identity precedence remains; package resources are still the
 owned release channel and bundled pricing data. GoToCC Prompt Audit retains
 its configurable full/latest-turn selection, tool content, custom template,
 response format and per-call timeout while adopting supplier identity scopes.
+
+
+## Owned 0.2.4+custom.008: customer invitation-code reassignment
+
+Migration 271 adds current attribution code/type, relation version/effective time,
+append-only business change records, and credited-payment beneficiary chains.
+All existing SQL through 270 remains unchanged. Existing bound profiles receive
+current code attribution; historical binding time remains unknown. Only credited
+unfinished legacy orders without final rebate outcomes receive an explicitly
+marked upgrade-time graph baseline; no historic money is recalculated.
+
+DDL locks tables, profile updates generate WAL, and snapshot/index space follows
+user and outstanding-order counts. One core writer must stop before migration;
+keep a database backup. No Redis persistence or package runtime-file change is
+introduced. Once reassignment or new snapshots exist, old code can settle delayed
+orders against the wrong current graph. Preserve data and repair forward rather
+than replacing only the binary or restoring an old dump over fresh writes.
+
+See [the implemented behavior and API](CUSTOMER_REASSIGNMENT_DESIGN.md).

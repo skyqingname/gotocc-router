@@ -28,6 +28,36 @@ func NewAffiliateHandler(affiliateService *service.AffiliateService, adminServic
 	}
 }
 
+// GetInviter reads current attribution without creating an affiliate profile.
+func (h *AffiliateHandler) GetInviter(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	state, err := h.affiliateService.GetInviter(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, state)
+}
+
+// ResolveInviterCode only resolves a code; it never consumes or reassigns it.
+func (h *AffiliateHandler) ResolveInviterCode(c *gin.Context) {
+	var input service.AffiliateInviterCode
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, "Invalid invitation code request")
+		return
+	}
+	inviter, err := h.affiliateService.ResolveInviterCode(c.Request.Context(), input)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, inviter)
+}
+
 // ListUsers returns paginated users with custom affiliate settings.
 // GET /api/v1/admin/affiliates/users
 func (h *AffiliateHandler) ListUsers(c *gin.Context) {

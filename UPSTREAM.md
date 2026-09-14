@@ -7,12 +7,14 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The owned candidate `v0.2.4+custom.007` starts from the complete Plus
+The owned candidate `v0.2.4+custom.008` extends local candidate `v0.2.4+custom.007`, which starts from the complete Plus
 `v0.2.4+custom.004` tree, commit `81505b0c2e35ef9056d55f357a5c4e29c24c2ac9`.
 It preserves all GoToCC contracts from published `v0.2.4+custom.006`, including
 three-generation affiliate rules, routing priorities and configurable Prompt
-Audit selection. PR #7 updates Actions dependencies; PR #8 remains a design
-proposal only. Publication follows local final-package acceptance.
+Audit selection. PR #7 updates Actions dependencies. The current candidate implements customer
+reassignment by permanent/AFF invitation code in the user editor, with atomic
+relationship updates and credited-order beneficiary snapshots. Publication
+follows local final-package acceptance.
 
 The current integration tree incorporates official `v0.2.4`, commit
 `5de5e2bed035d43591a2e10e51f420ef6a84eb98`, on top of Plus
@@ -91,6 +93,7 @@ for public API changes, migrations, defaults, and validation boundaries.
 | `v0.2.4+custom.005` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); administrator invitation-list SQL fix |
 | `v0.2.4+custom.006` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
 | `v0.2.4+custom.007` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
+| `v0.2.4+custom.008` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
@@ -104,9 +107,9 @@ use the complete `.004` release instead.
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.4+custom.007
-Application: 0.2.4+custom.007
-OCI naming: v0.2.4-custom.007 (no image published by the local archive workflow)
+Git/GitHub: v0.2.4+custom.008
+Application: 0.2.4+custom.008
+OCI naming: v0.2.4-custom.008 (no image published by the local archive workflow)
 ```
 
 ## Naming

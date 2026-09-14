@@ -195,6 +195,32 @@ func (s *adminServiceImpl) assignDefaultSubscriptions(ctx context.Context, userI
 }
 
 func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error) {
+	if input.InviterChange == nil {
+		return s.updateUser(ctx, id, input)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := s.affiliateService.ChangeInviter(txCtx, id, input.InviterChange); err != nil {
+		return nil, err
+	}
+	result, err := s.updateUser(txCtx, id, input)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
+	}
+	return result, nil
+}
+
+func (s *adminServiceImpl) updateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error) {
 	// 校验用户专属分组倍率：必须 > 0（nil 合法，表示清除专属倍率）
 	if input.GroupRates != nil {
 		for groupID, rate := range input.GroupRates {
@@ -520,6 +546,11 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	}
 	defer func() { _ = tx.Rollback() }()
 	txCtx := dbent.NewTxContext(ctx, tx)
+	if operation == "add" && s.affiliateService != nil {
+		if err := s.affiliateService.LockInviterBindings(txCtx); err != nil {
+			return nil, err
+		}
+	}
 	var change BalanceChange
 	switch operation {
 	case "set":

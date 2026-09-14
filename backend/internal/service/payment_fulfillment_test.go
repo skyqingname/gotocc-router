@@ -1293,3 +1293,35 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 
 var _ AffiliateRepository = (*paymentFulfillmentAffiliateRepoStub)(nil)
 var _ SettingRepository = (*paymentFulfillmentSettingRepoStub)(nil)
+
+func (*paymentFulfillmentAffiliateRepoStub) GetInviter(context.Context, int64) (*AffiliateInviterState, error) {
+	panic("unexpected GetInviter call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) ResolveInviterCode(context.Context, string, string) (*AffiliateInviterUser, error) {
+	panic("unexpected ResolveInviterCode call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) ChangeInviter(context.Context, int64, *AffiliateInviterChange) error {
+	panic("unexpected ChangeInviter call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) LockInviterBindings(context.Context) error { return nil }
+func (r *paymentFulfillmentAffiliateRepoStub) GetInviterChain(ctx context.Context, userID int64, generations int) ([]int64, error) {
+	ids := []int64{}
+	for len(ids) < generations {
+		current, err := r.EnsureUserAffiliate(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if current.InviterID == nil {
+			break
+		}
+		userID = *current.InviterID
+		ids = append(ids, userID)
+	}
+	return ids, nil
+}
+func (*paymentFulfillmentAffiliateRepoStub) CapturePaymentInvitersForRedeem(context.Context, string, int64, int) error {
+	return nil
+}
+func (r *paymentFulfillmentAffiliateRepoStub) GetPaymentInviters(ctx context.Context, _ int64) ([]int64, error) {
+	return r.GetInviterChain(ctx, r.inviteeSummary.UserID, AffiliateRebateGenerations)
+}

@@ -466,6 +466,11 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	// 将事务放入 context，使 repository 方法能够使用同一事务
 	txCtx := dbent.NewTxContext(ctx, tx)
 
+	if redeemCode.Type == RedeemTypeBalance {
+		if err := s.affiliateService.CapturePaymentInvitersForRedeem(txCtx, redeemCode.Code, userID); err != nil {
+			return nil, fmt.Errorf("capture payment attribution: %w", err)
+		}
+	}
 	// 【关键】先标记兑换码为已使用，确保并发安全
 	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
 	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {

@@ -104,6 +104,13 @@ type AffiliateDetail struct {
 }
 
 type AffiliateRepository interface {
+	GetInviter(context.Context, int64) (*AffiliateInviterState, error)
+	ResolveInviterCode(context.Context, string, string) (*AffiliateInviterUser, error)
+	ChangeInviter(context.Context, int64, *AffiliateInviterChange) error
+	LockInviterBindings(context.Context) error
+	GetInviterChain(context.Context, int64, int) ([]int64, error)
+	CapturePaymentInvitersForRedeem(context.Context, string, int64, int) error
+	GetPaymentInviters(context.Context, int64) ([]int64, error)
 	IsReusableInvitationCodeOwner(ctx context.Context, userID int64) (bool, error)
 	EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error)
 	GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error)
@@ -348,11 +355,19 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 		return 0, nil
 	}
 
+	if err := s.repo.LockInviterBindings(ctx); err != nil {
+		return 0, err
+	}
 	rates, err := s.settingService.GetAffiliateRebateRates(ctx)
 	if err != nil {
 		return 0, err
 	}
-	current, err := s.repo.EnsureUserAffiliate(ctx, inviteeUserID)
+	var inviters []int64
+	if sourceOrderID != nil {
+		inviters, err = s.repo.GetPaymentInviters(ctx, *sourceOrderID)
+	} else {
+		inviters, err = s.repo.GetInviterChain(ctx, inviteeUserID, AffiliateRebateGenerations)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -362,19 +377,12 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	if sourceOrderID != nil {
 		sourceType = "payment"
 	}
-	// A user receives at most one share of an order, even if legacy data has a cycle.
-	seen := map[int64]bool{inviteeUserID: true}
 	for i, rate := range rates {
-		if current.InviterID == nil {
+		if i >= len(inviters) {
 			break
 		}
-		inviterID := *current.InviterID
-		if seen[inviterID] {
-			break
-		}
-		seen[inviterID] = true
-		current, err = s.repo.EnsureUserAffiliate(ctx, inviterID)
-		if err != nil {
+		inviterID := inviters[i]
+		if _, err := s.repo.EnsureUserAffiliate(ctx, inviterID); err != nil {
 			return 0, err
 		}
 		rebate := roundTo(baseRechargeAmount*rate/100, 8)

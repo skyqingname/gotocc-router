@@ -2010,6 +2010,12 @@ export interface ApiKeyUsageTrendPoint {
 // ==================== Admin User Management ====================
 
 export interface UpdateUserRequest {
+  inviter_change?: {
+    code_type: 'permanent' | 'aff'
+    code: string
+    resolved_user_id: number
+    expected_version: number
+  }
   email?: string
   password?: string
   username?: string
