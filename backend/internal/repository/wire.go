@@ -86,6 +86,7 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementReadRepository,
 	NewUsageLogRepository,
 	NewUsageBillingRepository,
+	NewOpenAIGroupQuotaFollowResetRepository,
 	NewOpenAIVideoBillingRepository,
 	NewOpenAIVideoTaskRepository,
 	NewBatchImageRepository,
@@ -150,6 +151,7 @@ var ProviderSet = wire.NewSet(
 	NewRefreshTokenCache,
 	NewErrorPassthroughCache,
 	NewTLSFingerprintProfileCache,
+	NewChannelCache,
 	NewContentModerationHashCache,
 
 	// Encryptors

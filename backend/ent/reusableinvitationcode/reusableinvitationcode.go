@@ -14,6 +14,8 @@ const (
 	Label = "reusable_invitation_code"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldOwnerUserID holds the string denoting the owner_user_id field in the database.
+	FieldOwnerUserID = "owner_user_id"
 	// FieldCode holds the string denoting the code field in the database.
 	FieldCode = "code"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -46,6 +48,7 @@ const (
 // Columns holds all SQL columns for reusableinvitationcode fields.
 var Columns = []string{
 	FieldID,
+	FieldOwnerUserID,
 	FieldCode,
 	FieldStatus,
 	FieldMaxUses,
@@ -97,6 +100,11 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByOwnerUserID orders the results by the owner_user_id field.
+func ByOwnerUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerUserID, opts...).ToFunc()
 }
 
 // ByCode orders the results by the code field.

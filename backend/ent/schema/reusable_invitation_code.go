@@ -25,6 +25,7 @@ func (ReusableInvitationCode) Annotations() []schema.Annotation {
 
 func (ReusableInvitationCode) Fields() []ent.Field {
 	return []ent.Field{
+		field.Int64("owner_user_id").Optional().Nillable(),
 		field.String("code").MaxLen(64).NotEmpty().Unique(),
 		field.String("status").MaxLen(20).Default("active"),
 		field.Int("max_uses").Default(0).NonNegative(),

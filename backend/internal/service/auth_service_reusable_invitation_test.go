@@ -269,3 +269,7 @@ func TestRollbackOAuthEmailAccountCreationStopsWhenReusableReleaseFails(t *testi
 	require.ErrorContains(t, err, "restore reusable invitation code")
 	require.Empty(t, userRepo.deletedIDs)
 }
+
+func (*reusableInvitationRepoStub) SetOwner(context.Context, int64, int64) (*ReusableInvitationCodeOwnerResult, error) {
+	panic("unexpected SetOwner call")
+}

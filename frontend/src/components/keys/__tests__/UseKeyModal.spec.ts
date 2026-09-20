@@ -202,7 +202,7 @@ describe('UseKeyModal', () => {
 
     const parsed = JSON.parse(wrapper.find('pre code').text())
     expect(parsed.provider.grok.npm).toBe('@ai-sdk/openai-compatible')
-    expect(parsed.provider.grok.name).toBe('Grok via Sub2API')
+    expect(parsed.provider.grok.name).toBe('Grok via Sub2API Plus')
     expect(parsed.provider.grok.options).toEqual({
       baseURL: 'https://example.com/v1',
       apiKey: 'sk-grok-test'
@@ -673,6 +673,13 @@ describe('UseKeyModal', () => {
       expect(models[model].variants).toHaveProperty('xhigh')
     }
     expect(models['gpt-5.6'].name).toBe('GPT-5.6 (Sol)')
+    expect(models['gpt-6-astra']).toEqual({
+      name: 'GPT-6 Astra',
+      limit: { context: 872000, output: 128000 },
+      options: { store: false },
+      variants: { low: {}, medium: {}, high: {}, xhigh: {}, max: {} }
+    })
+    expect(models['gpt-6']).toBeUndefined()
   })
 
   it('renders Claude Fable 5 OpenCode config with adaptive thinking', async () => {
@@ -822,7 +829,7 @@ describe('UseKeyModal', () => {
     )
   })
 
-  it.each(['anthropic', 'gemini', 'antigravity', 'kimi', 'zhipu'] as const)(
+  it.each(['anthropic', 'gemini', 'antigravity', 'kimi', 'zhipu', 'minimax'] as const)(
     'offers Codex catalog configuration for the %s routed group',
     async (platform) => {
       const wrapper = mount(UseKeyModal, {

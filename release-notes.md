@@ -1,52 +1,26 @@
-## Unreleased
+# GoToCC 0.2.5+custom.002
 
-- Upgraded SheetJS to the official 0.20.3 distribution and colord to a patched version, removing obsolete frontend vulnerability exceptions. Aligned the coverage provider with Vitest.
-- Fixed the user lifecycle E2E suite to use current authenticated API routes, fail on invalid responses, verify key ownership and deletion, and exercise smart routing across protocols. Restored the working Makefile E2E entry point and isolated captcha transport tests from inherited proxies.
-- API Key settings now show the default priority of authorized groups that share models, with expandable effective group orders for independently configured models. Includes personal/team scope, empty-state guidance, and retry on load failure.
+上游基线：Plus `v0.2.5+custom.001`，commit `ddf18b386974067fa794cc1822238ba0cda37e22`；官方 Sub2API `v0.2.5`。
 
-Sub2API Plus v0.2.0+custom.004
+- 分组多时段倍率：普通与订阅分组均支持多行启停、IANA 时区、跨午夜和零系数；请求与 WebSocket 每轮固定基础倍率和时段系数，保存/复制/缓存/用户侧展示同步。
+- 新增 Video 分组平台：按渠道和模型配置公开/上游模型、JSON 或 multipart 透传、自定义 JSON 字段映射、默认参数、类型/必填/枚举、创建/查询/content 路径和响应字段。沿用原账号、预占、终态结算与内容验证。OpenAI 兼容 API Key 账号提供 URL 和凭据。
+- TypeSafe Jev 审核：适配 `/v1/systemone` 与 `jev-latest`，按选中风险类别并行提出 Noul 判断，最大类别概率达到阈值时拦截。节点探测、文本审核和同步/异步共用实现；阈值默认 0.8。
+- 保留邀请码、团队、三代返佣/换绑、模型白名单、智能路由、异步图片和自有发行通道等既有 GoToCC 契约。
 
-## Highlights
+## 数据与配置
 
-- Completes the owned update channel with immutable binary and pricing assets published together. Supersedes the incomplete custom.003 release.
+- 272：上游 OpenCode 平台约束扩展。
+- 273：删除全部限额均为 NULL 的历史平台配额行；无该行仍表示无限额。此项会改数据，删除行不能靠旧二进制恢复。
+- 274：代理新增出口时区/国家元数据，默认空值；本轮不设置生产代理或网络。
+- 275：分组新增 JSONB 时段配置，将原订阅单时段转换为新规则；保留旧字段。
+- 276：视频任务新增 provider_config 快照，旧任务 NULL 继续走原协议。
 
-- Preserved GotoCC teams, permanent image objects, video terminal billing, and configurable audit policies on the upstream v0.2.0+custom.002 baseline.
+新增列需要短时 DDL 锁，273 扫描/删除配额行，275 回填已有分组；需为事务与 WAL 留出磁盘空间。既有 SQL 文件不改写。生产备份与更新由现行网页更新流程处理。
 
-- Added client-disconnect lifecycle tracking, ordered streak enforcement, automatic user disabling, and administrator event review.
-- Added durable Content Moderation session blocks and persisted redacted moderation input for administrator review.
+Jev 需要专用 API Key。旧审核配置保留原行为；在管理页切换 Jev、重新填入 TypeSafe Key 并保存后生效。TypeSafe 当前稳定模型是 Jev 1.13，使用 latest 别名跟随官方稳定版。真实中文审核质量需要用户样例验收。
 
-## Changed
+Video 自定义协议覆盖静态 Bearer 认证的 JSON 协议及 OpenAI JSON/multipart，不包含厂商签名 SDK 或影策的可执行插件运行时。参数与协议改变只作用于新任务，旧任务按创建快照继续查询。
 
-- Separated the gray owned-release badge from the upstream status badge; unadapted upstream releases turn the latter amber and can be refreshed and reviewed independently.
-- Added GPT-6 Astra official default pricing: $10 input, $50 output, $1 cache read and $12.50 cache write per million tokens, with published long-context and Fast/Flex price rules.
-- Prompt Audit now scans the official client-controlled transcript; latest-turn blocking includes the nearest preceding assistant/model output, while Content Moderation remains limited to direct-user content.
-- Empty IP last-seen times no longer display as permanent bans for unhit automatic blocks.
+已产生迁移、新配置或自然写入后，禁止仅换旧二进制或用旧 dump 覆盖现有业务数据。特别是旧版本不理解新时段和 Video 任务配置，须保留当前数据前滚修复，或在停止全部 writer 后使用经确认的匹配备份集合恢复。
 
-## Fixed
-
-- Publish the locally built Linux/amd64 archive and both pricing assets together, then make the complete release immutable.
-
-- Added explicit confidence JSON parsing with a configurable inclusive threshold; custom scoring prompts no longer fail the Qwen3Guard response parser. Legacy configurations keep their original format.
-- Node probes now execute and parse a model response, and latest-turn audit includes tool results from that turn.
-
-- Hardened usage settlement after client disconnects so accepted requests retain billing and lifecycle outcomes without silently dropping queued work.
-- Closed session-block and disconnect-risk settlement holes so PostgreSQL remains the session-block source of truth and admitted OpenAI WS turns still settle after disconnect.
-
-## Compatibility and migration
-
-- Audit response format and confidence threshold are versioned settings. Existing formats and production enable/block switches remain unchanged until an administrator saves the new policy.
-
-Database migrations 247 through 252 add client-disconnect lifecycle state and events, usage completion metadata, durable Content Moderation session blocks, and persisted moderation input.
-
-## Known issues
-
-- This release provides the locally verified Linux/amd64 binary package used by the production service. Container images and other platform archives are not published for this version.
-
-- Local request verification uses synthetic models and data; real-provider behavior and production-volume migration duration require deployment-specific verification.
-
-## Upstream baseline
-
-Plus release: v0.2.0+custom.002
-Plus commit: cd1d8438cbe19358936605af7e6b20954283bf15
-Official release: v0.2.0
-Official commit: aa236488351eb71e120fc2b6fb32e36b0374c918
+这是本地候选；构建、页面验收、用户人工验收、GitHub 发布和生产部署分别记录。不自动发布或部署。

@@ -37,6 +37,7 @@
                   :peak-start="key.group.peak_start"
                   :peak-end="key.group.peak_end"
                   :peak-rate-multiplier="key.group.peak_rate_multiplier"
+ :rate-schedule="key.group.rate_schedule"
                 />
                 <span v-else class="text-gray-400 italic">{{ t('admin.users.none') }}</span>
                 <svg v-if="updatingKeyIds.has(key.id)" class="h-3 w-3 animate-spin text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -113,6 +114,7 @@
             :peak-start="group.peak_start"
             :peak-end="group.peak_end"
             :peak-rate-multiplier="group.peak_rate_multiplier"
+ :rate-schedule="group.rate_schedule"
             :description="group.description"
             :selected="selectedKeyForGroup?.routing_mode !== 'auto' && selectedKeyForGroup?.group_id === group.id"
           />

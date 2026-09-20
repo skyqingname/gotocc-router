@@ -1,6 +1,8 @@
 ---
 name: push-cli
 description: >-
+  Legacy mode only: invoke solely when the owner explicitly requests this CLI.
+  Ordinary GoToCC local publication follows docs/RELEASING.md instead.
   Safely push Sub2API Plus working branches and submit the final locally
   validated pull request. Use when the user asks to push code, publish the
   current branch, run the repository validation matrix, create or update a
@@ -13,6 +15,9 @@ description: >-
   release-cli and requires a verified tag plus an exactly regenerated metadata
   tree. Never push the repository default branch.
 ---
+
+> Legacy workflow, outside GoToCC local publication. Use only when the owner explicitly requests this legacy CLI mode. Ordinary upgrade/push/release requests follow `docs/RELEASING.md`; do not start the full matrix or PR/finalization chain.
+
 
 # Push CLI
 
@@ -44,15 +49,16 @@ the default branch.
 release-finalization --tag <tag>`. That path requires the deterministic branch,
 regenerates the complete expected tree from the recorded base, and verifies the
 already published Release and immutable assets. It does not start the full
-application container matrix. Treat the profile and tag as implementation
+application matrix; the focused tree validation still runs in the platform
+validation container. Treat the profile and tag as implementation
 inputs; do not use them to accelerate an ordinary or release-candidate PR.
 
 `check` runs the same full local matrix without pushing or creating a PR. It
 uses bounded parallel lanes by default; `check --serial` preserves the original
 ordering for diagnosis and same-commit timing comparisons. Both modes run the
 same command and test set. `ensure` only prepares the platform runtime and
-validation image. `watch` observes push-triggered Actions for the current
-branch and SHA.
+validation image. `watch` observes pull-request Actions for the current branch and SHA when a
+PR exists, otherwise the push-triggered runs (used on `main`).
 
 ## Mandatory GitHub CLI Gate
 
@@ -76,8 +82,9 @@ Only `check`, `submit-pr`, and `ensure` access the validation runtime.
 
 Every full-profile Go, frontend, Python policy, installer, and lifecycle check
 runs inside `deploy/Dockerfile.validation`. Host processes may only perform
-GitHub/Git gates, runtime probes, image management, Compose parsing, container
-launch, or the deterministic finalization checks owned by release-cli.
+GitHub/Git gates, runtime probes, image management, Compose parsing, or container
+launch. Focused release metadata and deterministic finalization checks use the
+same container environment; there is no host-validation exception.
 After every container validation attempt, push-cli relies on `--rm` to remove
 the one-shot container and its writable snapshot. It retains only the current
 deterministic project validation image and dependency-cache generation, and

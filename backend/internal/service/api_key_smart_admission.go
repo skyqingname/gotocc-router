@@ -46,7 +46,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 		return nil, ErrAutoRouteNoAccess
 	}
 	if route, ok := AutoRouteDecisionFromContext(ctx); ok {
-		if (route.Endpoint != "" && !autoRouteEndpointSupportsGroup(currentGroup, route.Platform, route.Endpoint)) || (route.ImageGeneration && !currentGroup.AllowImageGeneration) {
+		if !currentGroup.ModelAllowlist.Allows(route.PublicModel) || (route.Endpoint != "" && !autoRouteEndpointSupportsGroup(currentGroup, route.Platform, route.Endpoint)) || (route.ImageGeneration && !currentGroup.AllowImageGeneration) {
 			return nil, ErrAutoRouteNoAccess
 		}
 	}

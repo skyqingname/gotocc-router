@@ -23,6 +23,20 @@ type ReusableInvitationCodeCreate struct {
 	conflict []sql.ConflictOption
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *ReusableInvitationCodeCreate) SetOwnerUserID(v int64) *ReusableInvitationCodeCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_c *ReusableInvitationCodeCreate) SetNillableOwnerUserID(v *int64) *ReusableInvitationCodeCreate {
+	if v != nil {
+		_c.SetOwnerUserID(*v)
+	}
+	return _c
+}
+
 // SetCode sets the "code" field.
 func (_c *ReusableInvitationCodeCreate) SetCode(v string) *ReusableInvitationCodeCreate {
 	_c.mutation.SetCode(v)
@@ -273,6 +287,10 @@ func (_c *ReusableInvitationCodeCreate) createSpec() (*ReusableInvitationCode, *
 		_spec = sqlgraph.NewCreateSpec(reusableinvitationcode.Table, sqlgraph.NewFieldSpec(reusableinvitationcode.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.OwnerUserID(); ok {
+		_spec.SetField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64, value)
+		_node.OwnerUserID = &value
+	}
 	if value, ok := _c.mutation.Code(); ok {
 		_spec.SetField(reusableinvitationcode.FieldCode, field.TypeString, value)
 		_node.Code = value
@@ -328,7 +346,7 @@ func (_c *ReusableInvitationCodeCreate) createSpec() (*ReusableInvitationCode, *
 // of the `INSERT` statement. For example:
 //
 //	client.ReusableInvitationCode.Create().
-//		SetCode(v).
+//		SetOwnerUserID(v).
 //		OnConflict(
 //			// Update the row with the new values
 //			// the was proposed for insertion.
@@ -337,7 +355,7 @@ func (_c *ReusableInvitationCodeCreate) createSpec() (*ReusableInvitationCode, *
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.ReusableInvitationCodeUpsert) {
-//			SetCode(v+v).
+//			SetOwnerUserID(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *ReusableInvitationCodeCreate) OnConflict(opts ...sql.ConflictOption) *ReusableInvitationCodeUpsertOne {
@@ -372,6 +390,30 @@ type (
 		*sql.UpdateSet
 	}
 )
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsert) SetOwnerUserID(v int64) *ReusableInvitationCodeUpsert {
+	u.Set(reusableinvitationcode.FieldOwnerUserID, v)
+	return u
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ReusableInvitationCodeUpsert) UpdateOwnerUserID() *ReusableInvitationCodeUpsert {
+	u.SetExcluded(reusableinvitationcode.FieldOwnerUserID)
+	return u
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsert) AddOwnerUserID(v int64) *ReusableInvitationCodeUpsert {
+	u.Add(reusableinvitationcode.FieldOwnerUserID, v)
+	return u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsert) ClearOwnerUserID() *ReusableInvitationCodeUpsert {
+	u.SetNull(reusableinvitationcode.FieldOwnerUserID)
+	return u
+}
 
 // SetCode sets the "code" field.
 func (u *ReusableInvitationCodeUpsert) SetCode(v string) *ReusableInvitationCodeUpsert {
@@ -518,6 +560,34 @@ func (u *ReusableInvitationCodeUpsertOne) Update(set func(*ReusableInvitationCod
 		set(&ReusableInvitationCodeUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertOne) SetOwnerUserID(v int64) *ReusableInvitationCodeUpsertOne {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertOne) AddOwnerUserID(v int64) *ReusableInvitationCodeUpsertOne {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.AddOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ReusableInvitationCodeUpsertOne) UpdateOwnerUserID() *ReusableInvitationCodeUpsertOne {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertOne) ClearOwnerUserID() *ReusableInvitationCodeUpsertOne {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.ClearOwnerUserID()
+	})
 }
 
 // SetCode sets the "code" field.
@@ -774,7 +844,7 @@ func (_c *ReusableInvitationCodeCreateBulk) ExecX(ctx context.Context) {
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.ReusableInvitationCodeUpsert) {
-//			SetCode(v+v).
+//			SetOwnerUserID(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *ReusableInvitationCodeCreateBulk) OnConflict(opts ...sql.ConflictOption) *ReusableInvitationCodeUpsertBulk {
@@ -848,6 +918,34 @@ func (u *ReusableInvitationCodeUpsertBulk) Update(set func(*ReusableInvitationCo
 		set(&ReusableInvitationCodeUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertBulk) SetOwnerUserID(v int64) *ReusableInvitationCodeUpsertBulk {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertBulk) AddOwnerUserID(v int64) *ReusableInvitationCodeUpsertBulk {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.AddOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *ReusableInvitationCodeUpsertBulk) UpdateOwnerUserID() *ReusableInvitationCodeUpsertBulk {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *ReusableInvitationCodeUpsertBulk) ClearOwnerUserID() *ReusableInvitationCodeUpsertBulk {
+	return u.Update(func(s *ReusableInvitationCodeUpsert) {
+		s.ClearOwnerUserID()
+	})
 }
 
 // SetCode sets the "code" field.

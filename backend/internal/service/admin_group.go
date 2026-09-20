@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
+	entaccount "github.com/LuckyKuang/sub2api-plus/ent/account"
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/antigravity"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/claude"
@@ -21,9 +22,26 @@ import (
 )
 
 // Group management implementations
+func (s *adminServiceImpl) ValidateSimpleModeGroupOperation(operation AdminGroupOperation) error {
+	return ValidateSimpleModeGroupOperation(s.cfg, operation)
+}
+
 func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool, sortBy, sortOrder string) ([]Group, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	groups, result, err := s.groupRepo.ListWithFilters(ctx, params, platform, status, search, isExclusive)
+	var groups []Group
+	var result *pagination.PaginationResult
+	var err error
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		repo, ok := s.groupRepo.(interface {
+			ListBindableWithFilters(context.Context, pagination.PaginationParams, string, string, string, *bool) ([]Group, *pagination.PaginationResult, error)
+		})
+		if !ok {
+			return nil, 0, errors.New("group repository does not support simple-mode filtering")
+		}
+		groups, result, err = repo.ListBindableWithFilters(ctx, params, platform, status, search, isExclusive)
+	} else {
+		groups, result, err = s.groupRepo.ListWithFilters(ctx, params, platform, status, search, isExclusive)
+	}
 	if err != nil {
 		return nil, 0, err
 	}
@@ -46,7 +64,21 @@ func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([
 }
 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
-	return s.groupRepo.GetByID(ctx, id)
+	group, err := s.groupRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.validateSimpleModeGroupAccess(group); err != nil {
+		return nil, err
+	}
+	return group, nil
+}
+
+func (s *adminServiceImpl) validateSimpleModeGroupAccess(group *Group) error {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && !IsGroupBindableInSimpleMode(group) {
+		return infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id int64, platform string) ([]string, error) {
@@ -102,6 +134,9 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 }
 
 func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error) {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -112,6 +147,9 @@ func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int6
 }
 
 func (s *adminServiceImpl) CreateCompositeRoute(ctx context.Context, groupID int64, input CompositeRouteInput) (*CompositeModelRoute, error) {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -129,6 +167,9 @@ func (s *adminServiceImpl) CreateCompositeRoute(ctx context.Context, groupID int
 }
 
 func (s *adminServiceImpl) UpdateCompositeRoute(ctx context.Context, groupID, routeID int64, input CompositeRouteInput) (*CompositeModelRoute, error) {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -152,6 +193,9 @@ func (s *adminServiceImpl) UpdateCompositeRoute(ctx context.Context, groupID, ro
 }
 
 func (s *adminServiceImpl) DeleteCompositeRoute(ctx context.Context, groupID, routeID int64) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationCompositeRoute); err != nil {
+		return err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return err
 	}
@@ -167,6 +211,9 @@ func (s *adminServiceImpl) DeleteCompositeRoute(ctx context.Context, groupID, ro
 }
 
 func (s *adminServiceImpl) PreviewCompositeRoute(ctx context.Context, groupID int64, input CompositeRoutePreviewRequest) (*CompositeRouteDecision, error) {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationCompositeRoute); err != nil {
+		return nil, err
+	}
 	if err := s.requireCompositeGroup(ctx, groupID); err != nil {
 		return nil, err
 	}
@@ -231,6 +278,8 @@ func compositeRouteFromInput(groupID int64, input CompositeRouteInput) (*Composi
 
 func defaultModelsListCandidateIDs(platform string) []string {
 	switch platform {
+	case PlatformVideo:
+		return []string{}
 	case PlatformOpenAI:
 		return openai.DefaultModelIDs()
 	case PlatformGemini:
@@ -248,6 +297,8 @@ func defaultModelsListCandidateIDs(platform string) []string {
 		return ids
 	case PlatformGrok:
 		return xai.DefaultModelIDs()
+	case PlatformOpenCodeGo:
+		return DefaultOpenCodeGoModelIDs()
 	case PlatformComposite:
 		return compositeDefaultModelsListCandidateIDs()
 	default:
@@ -268,7 +319,7 @@ func defaultAllowImageGenerationForPlatform(platform string) bool {
 func compositeDefaultModelsListCandidateIDs() []string {
 	seen := make(map[string]struct{})
 	ids := make([]string, 0)
-	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek} {
+	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo} {
 		for _, id := range defaultModelsListCandidateIDs(platform) {
 			if _, ok := seen[id]; ok {
 				continue
@@ -284,7 +335,7 @@ func canCopyAccountsFromGroupPlatform(targetPlatform, sourcePlatform string) boo
 	if targetPlatform == PlatformComposite {
 		return sourcePlatform == PlatformComposite || isConcreteRequestPlatform(sourcePlatform)
 	}
-	return sourcePlatform == targetPlatform
+	return sourcePlatform == targetPlatform || (targetPlatform == PlatformVideo && sourcePlatform == PlatformOpenAI)
 }
 
 func groupSupportsOAuthOnlyFilter(platform string) bool {
@@ -300,6 +351,48 @@ func groupSupportsOpenAIFast(platform string) bool {
 	return platform == PlatformOpenAI || platform == PlatformComposite
 }
 
+func (s *adminServiceImpl) resolveOpenAIQuotaResetSource(ctx context.Context, accountID int64, boundAccountIDs []int64) (*Account, error) {
+	if accountID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SOURCE", "quota reset source account is invalid")
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SOURCE", "quota reset source must be an existing OpenAI OAuth account")
+	}
+	if account.Platform != PlatformOpenAI || account.Type != AccountTypeOAuth || account.ParentAccountID != nil {
+		return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SOURCE", "quota reset source must be a credential-owning OpenAI OAuth account")
+	}
+	for _, id := range boundAccountIDs {
+		if id == accountID {
+			return account, nil
+		}
+	}
+	return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SOURCE", "quota reset source must be an OpenAI OAuth account bound to this group")
+}
+
+func (s *adminServiceImpl) filterCopiedAccountsForOAuthOnly(ctx context.Context, requireOAuthOnly bool, platform string, accountIDs []int64) ([]int64, error) {
+	if !requireOAuthOnly || !groupSupportsOAuthOnlyFilter(platform) || len(accountIDs) == 0 {
+		return accountIDs, nil
+	}
+	accounts, err := s.accountRepo.GetByIDs(ctx, accountIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch accounts for oauth filter: %w", err)
+	}
+	oauthIDs := make(map[int64]struct{}, len(accounts))
+	for _, acc := range accounts {
+		if acc.Type != AccountTypeAPIKey {
+			oauthIDs[acc.ID] = struct{}{}
+		}
+	}
+	filtered := make([]int64, 0, len(accountIDs))
+	for _, aid := range accountIDs {
+		if _, ok := oauthIDs[aid]; ok {
+			filtered = append(filtered, aid)
+		}
+	}
+	return filtered, nil
+}
+
 func sanitizeGroupOpenAIFast(group *Group) {
 	if group == nil || !groupSupportsOpenAIFast(group.Platform) {
 		if group != nil {
@@ -309,12 +402,40 @@ func sanitizeGroupOpenAIFast(group *Group) {
 	}
 }
 
+func normalizeCreateGroupInputForSimpleMode(input *CreateGroupInput) {
+	if input == nil {
+		return
+	}
+	*input = CreateGroupInput{
+		Name: input.Name, Description: input.Description, Platform: input.Platform,
+		RateMultiplier: 1, SubscriptionType: SubscriptionTypeStandard, LongContextPricingEnabled: new(false),
+	}
+}
+
+func normalizeUpdateGroupInputForSimpleMode(input *UpdateGroupInput) {
+	if input == nil {
+		return
+	}
+	*input = UpdateGroupInput{Name: input.Name, Description: input.Description}
+}
+
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && NormalizeGroupPlatform(input.Platform) == PlatformComposite {
+		return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		normalizeCreateGroupInputForSimpleMode(input)
+	}
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
+	// 固定账号 manifest 配置：账号绑定发生在创建之后，创建时无法校验成员关系，
+	// 拒绝开启并在创建后的编辑里配置。
+	if normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig).Enabled {
+		return nil, infraerrors.New(http.StatusBadRequest, "INVALID_CODEX_MODELS_MANIFEST_CONFIG", "codex models manifest config cannot be enabled at group creation; configure it after creation in the group editor")
+	}
 	modelPricing, err := normalizeGroupModelPricing(platform, input.ModelPricing)
 	if err != nil {
 		return nil, err
@@ -346,6 +467,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	weeklyLimit := normalizeLimit(input.WeeklyLimitUSD)
 	monthlyLimit := normalizeLimit(input.MonthlyLimitUSD)
 	fiveHourLimit := normalizeLimit(input.FiveHourLimitUSD)
+	if input.QuotaResetSourceAccountID != nil && (platform != PlatformOpenAI || subscriptionType != SubscriptionTypeSubscription) {
+		return nil, infraerrors.BadRequest("INVALID_QUOTA_RESET_SOURCE", "quota reset source is supported only for OpenAI subscription groups")
+	}
 
 	// 图片价格：负数表示清除（使用默认价格），0 保留（表示免费）
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
@@ -400,6 +524,11 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	// 先归一化（非订阅分组清空高峰配置、清洗停用状态下的脏字段）再校验，与 UpdateGroup 同一收口。
 	peakRateEnabled, peakStart, peakEnd, peakRateMultiplier := NormalizePeakRateConfig(subscriptionType, input.PeakRateEnabled, input.PeakStart, input.PeakEnd, peakRateMultiplier)
 	if err := ValidatePeakRateConfig(subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier); err != nil {
+		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
+	}
+
+	rateSchedule, err := normalizeGroupRateSchedule(input.RateSchedule, subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier)
+	if err != nil {
 		return nil, err
 	}
 
@@ -478,6 +607,12 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		}
 	}
 
+	// 白名单在创建路径同样收口：开启但为空、通配位置非法都会 400。
+	modelAllowlist, err := normalizeGroupModelAllowlist(input.ModelAllowlist)
+	if err != nil {
+		return nil, err
+	}
+
 	group := &Group{
 		Name:                            input.Name,
 		Description:                     input.Description,
@@ -490,6 +625,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		WeeklyLimitUSD:                  weeklyLimit,
 		MonthlyLimitUSD:                 monthlyLimit,
 		FiveHourLimitUSD:                fiveHourLimit,
+		QuotaResetIncludeMonthly:        input.QuotaResetSourceAccountID != nil && input.QuotaResetIncludeMonthly && monthlyLimit != nil,
 		LongContextPricingEnabled:       longContextPricingEnabled,
 		ModelPricing:                    modelPricing,
 		AllowImageGeneration:            allowImageGeneration,
@@ -504,6 +640,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		PeakStart:                       peakStart,
 		PeakEnd:                         peakEnd,
 		PeakRateMultiplier:              peakRateMultiplier,
+		RateSchedule:                    rateSchedule,
 		ProfitControlEnabled:            profitControlEnabled,
 		ProfitMinMargin:                 profitMinMargin,
 		ProfitSafetyBuffer:              profitSafetyBuffer,
@@ -533,11 +670,28 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
 		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
-		ModelsListConfig:                normalizeGroupModelsListConfig(input.ModelsListConfig),
-		RPMLimit:                        input.RPMLimit,
-		MaxReasoningEffort:              maxReasoningEffort,
-		MaxReasoningEffortOverLimit:     maxReasoningEffortOverLimit,
-		ReasoningEffortMappings:         reasoningEffortMappings,
+		ModelAllowlist:                  modelAllowlist,
+		// 固定账号 manifest 配置：账号绑定发生在分组创建之后，创建路径禁止开启，
+		// 成员关系无从校验（前端创建对话框也不展示）。
+		CodexModelsManifestConfig:   normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig),
+		RPMLimit:                    input.RPMLimit,
+		MaxReasoningEffort:          maxReasoningEffort,
+		MaxReasoningEffortOverLimit: maxReasoningEffortOverLimit,
+		ReasoningEffortMappings:     reasoningEffortMappings,
+	}
+	accountIDsToCopy, err = s.filterCopiedAccountsForOAuthOnly(ctx, input.RequireOAuthOnly, platform, accountIDsToCopy)
+	if err != nil {
+		return nil, err
+	}
+	if input.QuotaResetSourceAccountID != nil {
+		quotaResetSource, resolveErr := s.resolveOpenAIQuotaResetSource(ctx, *input.QuotaResetSourceAccountID, accountIDsToCopy)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		group.QuotaResetSourceAccountID = &quotaResetSource.ID
+		group.QuotaResetSourceAccountName = quotaResetSource.Name
+		group.QuotaResetConfigVersion = 1
+		group.QuotaResetSourceValid = true
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 	sanitizeGroupOpenAIFast(group)
@@ -545,36 +699,20 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		group.AllowLive = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
-	if err := s.groupRepo.Create(ctx, group); err != nil {
+	if err := s.withGroupMembershipWrite(ctx, len(accountIDsToCopy) > 0, accountIDsToCopy, func(opCtx context.Context) error {
+		if err := s.groupRepo.Create(opCtx, group); err != nil {
+			return err
+		}
+		if len(accountIDsToCopy) > 0 {
+			if err := s.groupRepo.BindAccountsToGroup(opCtx, group.ID, accountIDsToCopy); err != nil {
+				return fmt.Errorf("failed to bind accounts to new group: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-
-	// require_oauth_only: 过滤掉 apikey 类型账号
-	if group.RequireOAuthOnly && groupSupportsOAuthOnlyFilter(group.Platform) && len(accountIDsToCopy) > 0 {
-		accounts, err := s.accountRepo.GetByIDs(ctx, accountIDsToCopy)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch accounts for oauth filter: %w", err)
-		}
-		oauthIDs := make(map[int64]struct{}, len(accounts))
-		for _, acc := range accounts {
-			if acc.Type != AccountTypeAPIKey {
-				oauthIDs[acc.ID] = struct{}{}
-			}
-		}
-		var filtered []int64
-		for _, aid := range accountIDsToCopy {
-			if _, ok := oauthIDs[aid]; ok {
-				filtered = append(filtered, aid)
-			}
-		}
-		accountIDsToCopy = filtered
-	}
-
-	// 如果有需要复制的账号，绑定到新分组
 	if len(accountIDsToCopy) > 0 {
-		if err := s.groupRepo.BindAccountsToGroup(ctx, group.ID, accountIDsToCopy); err != nil {
-			return nil, fmt.Errorf("failed to bind accounts to new group: %w", err)
-		}
 		group.AccountCount = int64(len(accountIDsToCopy))
 	}
 
@@ -671,9 +809,19 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err != nil {
 		return nil, err
 	}
+	if err := s.validateSimpleModeGroupAccess(group); err != nil {
+		return nil, err
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple && input.Platform == PlatformComposite {
+		return nil, infraerrors.BadRequest("SIMPLE_MODE_GROUP_NOT_BINDABLE", "composite groups are not supported in simple mode")
+	}
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		normalizeUpdateGroupInputForSimpleMode(input)
+	}
 
 	// 渠道缓存里存了 groupID → platform 的映射，改了平台要让它失效（见函数末尾）
 	previousPlatform := group.Platform
+	previousQuotaResetVersion := group.QuotaResetConfigVersion
 
 	if input.Name != "" {
 		group.Name = input.Name
@@ -723,6 +871,65 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.FiveHourLimitUSD != nil {
 		group.FiveHourLimitUSD = normalizeLimit(input.FiveHourLimitUSD)
+	}
+	var accountIDsToCopy []int64
+	if len(input.CopyAccountsFromGroupIDs) > 0 {
+		accountIDsToCopy, err = s.plannedCopiedAccountIDs(ctx, id, group, input)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.QuotaResetSourceAccountIDSet {
+		if input.QuotaResetSourceAccountID == nil || *input.QuotaResetSourceAccountID <= 0 {
+			if group.QuotaResetSourceAccountID != nil {
+				group.QuotaResetConfigVersion++
+			}
+			group.QuotaResetSourceAccountID = nil
+			group.QuotaResetSourceAccountName = ""
+			group.QuotaResetSourceResetAt = nil
+			group.QuotaResetSourceValid = false
+		} else if group.QuotaResetSourceAccountID != nil && *group.QuotaResetSourceAccountID == *input.QuotaResetSourceAccountID && len(input.CopyAccountsFromGroupIDs) == 0 {
+			// Preserve an unchanged source, including a deleted source, so other
+			// group settings remain editable while the UI reports the invalid binding.
+		} else {
+			boundAccountIDs := accountIDsToCopy
+			if len(input.CopyAccountsFromGroupIDs) == 0 {
+				boundAccountIDs, err = s.groupRepo.GetAccountIDsByGroupIDs(ctx, []int64{id})
+				if err != nil {
+					return nil, err
+				}
+			}
+			account, resolveErr := s.resolveOpenAIQuotaResetSource(ctx, *input.QuotaResetSourceAccountID, boundAccountIDs)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			if group.QuotaResetSourceAccountID == nil || *group.QuotaResetSourceAccountID != account.ID {
+				group.QuotaResetConfigVersion++
+				group.QuotaResetSourceResetAt = nil // Wait for a fresh post-activation observation.
+			}
+			group.QuotaResetSourceAccountID = &account.ID
+			group.QuotaResetSourceAccountName = account.Name
+			group.QuotaResetSourceValid = true
+		}
+	}
+	if input.QuotaResetIncludeMonthly != nil {
+		group.QuotaResetIncludeMonthly = *input.QuotaResetIncludeMonthly
+	}
+	if !group.SupportsOpenAIQuotaFollowReset() {
+		if group.QuotaResetSourceAccountID != nil {
+			group.QuotaResetConfigVersion++
+		}
+		group.QuotaResetSourceAccountID = nil
+		group.QuotaResetSourceAccountName = ""
+		group.QuotaResetSourceResetAt = nil
+		group.QuotaResetSourceValid = false
+		group.QuotaResetIncludeMonthly = false
+	} else if group.QuotaResetSourceAccountID == nil || group.MonthlyLimitUSD == nil {
+		group.QuotaResetIncludeMonthly = false
+	}
+	group.QuotaResetSourceChanged = group.QuotaResetConfigVersion != previousQuotaResetVersion
+	if group.QuotaResetSourceChanged {
+		group.QuotaResetConfigVersion = previousQuotaResetVersion + 1
 	}
 	// 图片生成计费配置：负数表示清除（使用默认价格）
 	if input.AllowImageGeneration != nil {
@@ -787,8 +994,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	// 防止单独修改 start/end 导致最终 start>=end 等非法配置入库。与 CreateGroup 同一收口。
 	group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier = NormalizePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
 	if err := ValidatePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier); err != nil {
-		return nil, err
+		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
+	if input.RateSchedule != nil || input.PeakRateEnabled != nil || input.PeakStart != nil || input.PeakEnd != nil || input.PeakRateMultiplier != nil {
+		group.RateSchedule, err = normalizeGroupRateSchedule(input.RateSchedule, group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if input.ProfitControlEnabled != nil {
 		group.ProfitControlEnabled = *input.ProfitControlEnabled
 	}
@@ -914,8 +1128,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.MessagesDispatchModelConfig != nil {
 		group.MessagesDispatchModelConfig = normalizeOpenAIMessagesDispatchModelConfig(*input.MessagesDispatchModelConfig)
 	}
-	if input.ModelsListConfig != nil {
-		group.ModelsListConfig = normalizeGroupModelsListConfig(*input.ModelsListConfig)
+	if input.ModelAllowlist != nil {
+		modelAllowlist, err := normalizeGroupModelAllowlist(*input.ModelAllowlist)
+		if err != nil {
+			return nil, err
+		}
+		group.ModelAllowlist = modelAllowlist
+	}
+	if input.CodexModelsManifestConfig != nil {
+		group.CodexModelsManifestConfig = *input.CodexModelsManifestConfig
 	}
 	if input.RPMLimit != nil {
 		group.RPMLimit = *input.RPMLimit
@@ -947,8 +1168,32 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		group.AllowLive = false
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
+	// 固定账号 manifest 配置：按最终平台归一化（切出 openai 平台时静默归零，
+	// 与 ForceOpenAIFast 同一收口）；校验仅在本次显式携带配置时进行，
+	// 避免脏 ID 阻塞无关字段更新。
+	group.CodexModelsManifestConfig = normalizeCodexModelsManifestConfig(group.Platform, group.CodexModelsManifestConfig)
+	if input.CodexModelsManifestConfig != nil {
+		if err := s.validateCodexModelsManifestConfig(ctx, id, group.CodexModelsManifestConfig); err != nil {
+			return nil, err
+		}
+	}
 
-	if err := s.groupRepo.Update(ctx, group); err != nil {
+	if err := s.withGroupMembershipWrite(ctx, len(input.CopyAccountsFromGroupIDs) > 0, accountIDsToCopy, func(opCtx context.Context) error {
+		if err := s.groupRepo.Update(opCtx, group); err != nil {
+			return err
+		}
+		if len(input.CopyAccountsFromGroupIDs) > 0 {
+			if _, err := s.groupRepo.DeleteAccountGroupsByGroupID(opCtx, id); err != nil {
+				return fmt.Errorf("failed to clear existing account bindings: %w", err)
+			}
+			if len(accountIDsToCopy) > 0 {
+				if err := s.groupRepo.BindAccountsToGroup(opCtx, id, accountIDsToCopy); err != nil {
+					return fmt.Errorf("failed to bind accounts to group: %w", err)
+				}
+			}
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
@@ -963,75 +1208,66 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		s.channelCacheInvalidator.InvalidateCache()
 	}
 
-	// 如果指定了复制账号的源分组，同步绑定（替换当前分组的账号）
-	if len(input.CopyAccountsFromGroupIDs) > 0 {
-		// 去重源分组 IDs
-		seen := make(map[int64]struct{})
-		uniqueSourceGroupIDs := make([]int64, 0, len(input.CopyAccountsFromGroupIDs))
-		for _, srcGroupID := range input.CopyAccountsFromGroupIDs {
-			// 校验：源分组不能是自身
-			if srcGroupID == id {
-				return nil, fmt.Errorf("cannot copy accounts from self")
-			}
-			// 去重
-			if _, exists := seen[srcGroupID]; !exists {
-				seen[srcGroupID] = struct{}{}
-				uniqueSourceGroupIDs = append(uniqueSourceGroupIDs, srcGroupID)
-			}
-		}
+	return group, nil
+}
 
-		// 校验源分组的平台是否与当前分组一致
-		for _, srcGroupID := range uniqueSourceGroupIDs {
-			srcGroup, err := s.groupRepo.GetByIDLite(ctx, srcGroupID)
-			if err != nil {
-				return nil, fmt.Errorf("source group %d not found: %w", srcGroupID, err)
-			}
-			if !canCopyAccountsFromGroupPlatform(group.Platform, srcGroup.Platform) {
-				return nil, fmt.Errorf("source group %d platform mismatch: expected %s, got %s", srcGroupID, group.Platform, srcGroup.Platform)
-			}
-		}
-
-		// 获取所有源分组的账号（去重）
-		accountIDsToCopy, err := s.groupRepo.GetAccountIDsByGroupIDs(ctx, uniqueSourceGroupIDs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
-		}
-
-		// 先清空当前分组的所有账号绑定
-		if _, err := s.groupRepo.DeleteAccountGroupsByGroupID(ctx, id); err != nil {
-			return nil, fmt.Errorf("failed to clear existing account bindings: %w", err)
-		}
-
-		// require_oauth_only: 过滤掉 apikey 类型账号
-		if group.RequireOAuthOnly && groupSupportsOAuthOnlyFilter(group.Platform) && len(accountIDsToCopy) > 0 {
-			accounts, err := s.accountRepo.GetByIDs(ctx, accountIDsToCopy)
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch accounts for oauth filter: %w", err)
-			}
-			oauthIDs := make(map[int64]struct{}, len(accounts))
-			for _, acc := range accounts {
-				if acc.Type != AccountTypeAPIKey {
-					oauthIDs[acc.ID] = struct{}{}
-				}
-			}
-			var filtered []int64
-			for _, aid := range accountIDsToCopy {
-				if _, ok := oauthIDs[aid]; ok {
-					filtered = append(filtered, aid)
-				}
-			}
-			accountIDsToCopy = filtered
-		}
-
-		// 再绑定源分组的账号
-		if len(accountIDsToCopy) > 0 {
-			if err := s.groupRepo.BindAccountsToGroup(ctx, id, accountIDsToCopy); err != nil {
-				return nil, fmt.Errorf("failed to bind accounts to group: %w", err)
-			}
+// withGroupMembershipWrite commits group configuration, membership and outbox
+// changes together. Observers and reset workers see either complete membership
+// snapshot; a failed copy cannot leave the source unbound or a partial group.
+func (s *adminServiceImpl) withGroupMembershipWrite(ctx context.Context, copying bool, accountIDs []int64, write func(context.Context) error) error {
+	if !copying || s.entClient == nil || dbent.TxFromContext(ctx) != nil {
+		return write(ctx)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin group membership transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	// Observations lock accounts before groups. Prelock copied accounts in a
+	// stable order so inserting membership FKs cannot reverse that lock order.
+	if len(accountIDs) > 0 {
+		if _, err := tx.Client().Account.Query().Where(entaccount.IDIn(accountIDs...)).
+			Order(dbent.Asc(entaccount.FieldID)).ForUpdate().IDs(ctx); err != nil {
+			return err
 		}
 	}
+	if err := write(dbent.NewTxContext(ctx, tx)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
 
-	return group, nil
+func (s *adminServiceImpl) plannedCopiedAccountIDs(ctx context.Context, groupID int64, group *Group, input *UpdateGroupInput) ([]int64, error) {
+	seen := make(map[int64]struct{})
+	uniqueSourceGroupIDs := make([]int64, 0, len(input.CopyAccountsFromGroupIDs))
+	for _, srcGroupID := range input.CopyAccountsFromGroupIDs {
+		if srcGroupID == groupID {
+			return nil, fmt.Errorf("cannot copy accounts from self")
+		}
+		if _, exists := seen[srcGroupID]; exists {
+			continue
+		}
+		seen[srcGroupID] = struct{}{}
+		uniqueSourceGroupIDs = append(uniqueSourceGroupIDs, srcGroupID)
+	}
+	for _, srcGroupID := range uniqueSourceGroupIDs {
+		srcGroup, err := s.groupRepo.GetByIDLite(ctx, srcGroupID)
+		if err != nil {
+			return nil, fmt.Errorf("source group %d not found: %w", srcGroupID, err)
+		}
+		if !canCopyAccountsFromGroupPlatform(group.Platform, srcGroup.Platform) {
+			return nil, fmt.Errorf("source group %d platform mismatch: expected %s, got %s", srcGroupID, group.Platform, srcGroup.Platform)
+		}
+	}
+	accountIDs, err := s.groupRepo.GetAccountIDsByGroupIDs(ctx, uniqueSourceGroupIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
+	}
+	requireOAuthOnly := group.RequireOAuthOnly
+	if input.RequireOAuthOnly != nil {
+		requireOAuthOnly = *input.RequireOAuthOnly
+	}
+	return s.filterCopiedAccountsForOAuthOnly(ctx, requireOAuthOnly, group.Platform, accountIDs)
 }
 
 func normalizeGroupModelPricing(platform string, pricing []ChannelModelPricing) ([]ChannelModelPricing, error) {
@@ -1063,6 +1299,27 @@ func normalizeGroupModelPricing(platform string, pricing []ChannelModelPricing) 
 }
 
 func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
+	return s.deleteGroup(ctx, id, false)
+}
+
+func (s *adminServiceImpl) DeleteGroupIfEmpty(ctx context.Context, id int64) error {
+	return s.deleteGroup(ctx, id, true)
+}
+
+func (s *adminServiceImpl) deleteGroup(ctx context.Context, id int64, requireEmpty bool) error {
+	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		group, err := s.groupRepo.GetByIDLite(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err := s.validateSimpleModeGroupAccess(group); err != nil {
+			return err
+		}
+	}
+	if requireEmpty && s.emptyGroupDeleteRepo == nil {
+		return fmt.Errorf("guarded group deletion is unavailable")
+	}
+
 	var groupKeys []string
 	if s.authCacheInvalidator != nil {
 		keys, err := s.apiKeyRepo.ListKeysByGroupID(ctx, id)
@@ -1071,7 +1328,13 @@ func (s *adminServiceImpl) DeleteGroup(ctx context.Context, id int64) error {
 		}
 	}
 
-	affectedUserIDs, err := s.groupRepo.DeleteCascade(ctx, id)
+	var affectedUserIDs []int64
+	var err error
+	if requireEmpty {
+		affectedUserIDs, err = s.emptyGroupDeleteRepo.DeleteCascadeIfEmpty(ctx, id)
+	} else {
+		affectedUserIDs, err = s.groupRepo.DeleteCascade(ctx, id)
+	}
 	if err != nil {
 		return err
 	}
@@ -1109,6 +1372,9 @@ func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, p
 }
 
 func (s *adminServiceImpl) GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error) {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationMultiplier); err != nil {
+		return nil, err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil, nil
 	}
@@ -1116,6 +1382,9 @@ func (s *adminServiceImpl) GetGroupRateMultipliers(ctx context.Context, groupID 
 }
 
 func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupID int64) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationMultiplier); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1123,6 +1392,9 @@ func (s *adminServiceImpl) ClearGroupRateMultipliers(ctx context.Context, groupI
 }
 
 func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationMultiplier); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1135,6 +1407,9 @@ func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, gro
 }
 
 func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID int64) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationRPMOverride); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1149,6 +1424,9 @@ func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID i
 }
 
 func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []GroupRPMOverrideInput) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationRPMOverride); err != nil {
+		return err
+	}
 	if s.userGroupRateRepo == nil {
 		return nil
 	}
@@ -1168,6 +1446,9 @@ func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupI
 }
 
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
+	if err := s.ValidateSimpleModeGroupOperation(AdminGroupOperationSort); err != nil {
+		return err
+	}
 	return s.groupRepo.UpdateSortOrders(ctx, updates)
 }
 

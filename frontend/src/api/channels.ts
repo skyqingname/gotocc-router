@@ -1,3 +1,4 @@
+import type { RateScheduleConfig } from '@/utils/rate-schedule'
 /**
  * User Channels API endpoints (non-admin)
  * 用户侧「可用渠道」聚合查询：渠道 + 用户可访问的分组 + 支持模型（含定价）。
@@ -18,6 +19,7 @@ export interface UserAvailableGroup {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
+  rate_schedule: RateScheduleConfig
   /** true = 专属分组（小范围授权）；false = 公开分组。 */
   is_exclusive: boolean
 }
@@ -31,6 +33,10 @@ export interface UserPricingInterval {
   cache_write_price: number | null
   cache_write_1h_price?: number | null
   cache_read_price: number | null
+  input_multiplier?: number | null
+  output_multiplier?: number | null
+  cache_write_multiplier?: number | null
+  cache_read_multiplier?: number | null
   per_request_price: number | null
 }
 
@@ -41,6 +47,7 @@ export interface UserSupportedModelPricing {
   cache_write_price: number | null
   cache_write_1h_price?: number | null
   cache_read_price: number | null
+  max_reasoning_effort_multiplier?: number | null
   image_input_price: number | null
   image_output_price: number | null
   per_request_price: number | null

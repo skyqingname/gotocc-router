@@ -136,12 +136,39 @@ var codexCLIOnlyDebugHeaderWhitelist = []string{
 type OpenAICodexUsageSnapshot struct {
 	PrimaryUsedPercent          *float64 `json:"primary_used_percent,omitempty"`
 	PrimaryResetAfterSeconds    *int     `json:"primary_reset_after_seconds,omitempty"`
+	PrimaryResetAtUnix          *int64   `json:"primary_reset_at_unix,omitempty"`
 	PrimaryWindowMinutes        *int     `json:"primary_window_minutes,omitempty"`
 	SecondaryUsedPercent        *float64 `json:"secondary_used_percent,omitempty"`
 	SecondaryResetAfterSeconds  *int     `json:"secondary_reset_after_seconds,omitempty"`
+	SecondaryResetAtUnix        *int64   `json:"secondary_reset_at_unix,omitempty"`
 	SecondaryWindowMinutes      *int     `json:"secondary_window_minutes,omitempty"`
 	PrimaryOverSecondaryPercent *float64 `json:"primary_over_secondary_percent,omitempty"`
 	UpdatedAt                   string   `json:"updated_at,omitempty"`
+}
+
+const openAIWeeklyQuotaWindowMinutes = 7 * 24 * 60
+
+func isOpenAIWeeklyQuotaWindowMinutes(minutes int64) bool {
+	// Only the explicit 7-day window can drive weekly group resets.
+	return minutes == openAIWeeklyQuotaWindowMinutes
+}
+
+func (s *OpenAICodexUsageSnapshot) WeeklyResetAt() (time.Time, bool) {
+	if s == nil {
+		return time.Time{}, false
+	}
+	if s.PrimaryWindowMinutes != nil && isOpenAIWeeklyQuotaWindowMinutes(int64(*s.PrimaryWindowMinutes)) && s.PrimaryResetAtUnix != nil && validOpenAIQuotaResetUnix(*s.PrimaryResetAtUnix) {
+		return time.Unix(*s.PrimaryResetAtUnix, 0).UTC(), true
+	}
+	if s.SecondaryWindowMinutes != nil && isOpenAIWeeklyQuotaWindowMinutes(int64(*s.SecondaryWindowMinutes)) && s.SecondaryResetAtUnix != nil && validOpenAIQuotaResetUnix(*s.SecondaryResetAtUnix) {
+		return time.Unix(*s.SecondaryResetAtUnix, 0).UTC(), true
+	}
+	return time.Time{}, false
+}
+
+func validOpenAIQuotaResetUnix(value int64) bool {
+	// Keep raw upstream timestamps within the JSON/RFC3339 calendar range.
+	return value > 0 && value <= 253402300799
 }
 
 // NormalizedCodexLimits contains normalized 5h/7d rate limit data
@@ -234,6 +261,7 @@ func (s *OpenAICodexUsageSnapshot) Normalize() *NormalizedCodexLimits {
 type OpenAIUsage struct {
 	InputTokens              int `json:"input_tokens"`
 	ImageInputTokens         int `json:"image_input_tokens,omitempty"`
+	ImageCacheReadTokens     int `json:"image_cache_read_tokens,omitempty"`
 	OutputTokens             int `json:"output_tokens"`
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
@@ -245,8 +273,10 @@ type OpenAIUsage struct {
 type OpenAIForwardResult struct {
 	RequestID  string
 	ResponseID string
-	Usage      OpenAIUsage
-	Model      string // 原始模型（用于响应和日志显示）
+	// UpstreamHeaders 是直接上游的响应头，用于按账户配置解析上游请求标识。
+	UpstreamHeaders http.Header
+	Usage           OpenAIUsage
+	Model           string // 原始模型（用于响应和日志显示）
 	// BillingModel is the model used for cost calculation.
 	// When non-empty, CalculateCost uses this instead of Model.
 	// This is set by the Anthropic Messages conversion path where
@@ -280,16 +310,22 @@ type OpenAIForwardResult struct {
 	OpenAIWSMode             bool
 	// UpstreamTerminalEvent is the normalized terminal event observed on an
 	// upstream Responses WebSocket turn. Empty preserves legacy/non-WS success.
-	UpstreamTerminalEvent       string
+	UpstreamTerminalEvent string
+	ResponseHeaders       http.Header
+	// ResponseHeadersFromHandshake marks WebSocket connection-time leftovers.
+	// Those headers may refresh the account usage cache but must not drive
+	// group follow-reset as a later inference session.
+	ResponseHeadersFromHandshake bool
+	Duration                     time.Duration
+	FirstTokenMs                 *int
+	LastTokenMs                  *int
+	FirstOutputMs                *int
+	FirstOutputKind              string
+	ClientDisconnect             bool
+	// UsageIncomplete excludes synthesized completion after truncated/error upstream streams from TPS.
+	UsageIncomplete             bool
 	ResponseBody                []byte
 	StatusCode                  int
-	ResponseHeaders             http.Header
-	Duration                    time.Duration
-	FirstTokenMs                *int
-	LastTokenMs                 *int
-	FirstOutputMs               *int
-	FirstOutputKind             string
-	ClientDisconnect            bool
 	ClientDisconnectUsageSource string
 	ImageCount                  int
 	ImageSize                   string
@@ -334,13 +370,28 @@ func (r *OpenAIForwardResult) SucceededForScheduling() bool {
 // metrics. Billing may still record partial usage after an interrupted stream,
 // but those records must never drive TPS.
 func (r *OpenAIForwardResult) UsageComplete() bool {
-	if r == nil || r.ClientDisconnect {
+	if r == nil || r.ClientDisconnect || r.UsageIncomplete {
 		return false
 	}
 	if !r.Stream || !r.OpenAIWSMode {
 		return true
 	}
 	return r.SucceededForScheduling()
+}
+
+const openAIResponsesUpstreamEndpoint = "/v1/responses"
+
+// stampOpenAIResponsesUpstreamEndpoint records that this attempt hit the
+// Responses API. OpenCode Go / CN accounts cannot derive that from inbound
+// path (DeriveUpstreamEndpoint falls back to the client URL).
+func stampOpenAIResponsesUpstreamEndpoint(c *gin.Context, result *OpenAIForwardResult) {
+	SetActualOpenAIUpstreamEndpoint(c, openAIResponsesUpstreamEndpoint)
+	if result == nil {
+		return
+	}
+	if strings.TrimSpace(result.UpstreamEndpoint) == "" {
+		result.UpstreamEndpoint = openAIResponsesUpstreamEndpoint
+	}
 }
 
 // SetActualOpenAIUpstreamEndpoint records the endpoint selected by the current
@@ -516,7 +567,7 @@ type OpenAIGatewayService struct {
 	openaiWSRetryMetrics                openAIWSRetryMetrics
 	responseHeaderFilter                *responseheaders.CompiledHeaderFilter
 	codexSnapshotThrottle               *accountWriteThrottle
-	codexModelsManifestCache            codexModelsManifestCache
+	openAIModelsCache                   openAIModelsCache
 	openaiCompatSessionResponses        sync.Map
 	openaiCompatAnthropicDigestSessions sync.Map
 	// openaiCodexTurnStateOrigins: 下游会话 seed → openAICodexTurnStateOrigin，
@@ -940,7 +991,10 @@ func (s *OpenAIGatewayService) writeOpenAIWSFallbackErrorResponse(c *gin.Context
 
 	setOpsUpstreamError(c, statusCode, upstreamMessage, "")
 	if account != nil {
+		proxyID, proxyName := opsUpstreamWSProxyAttribution(account)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            proxyID,
+			ProxyName:          proxyName,
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,

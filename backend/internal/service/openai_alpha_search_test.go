@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package service
 
 import (
@@ -43,7 +45,7 @@ func alphaSearchResponsesSSE(output string) string {
 		`data: {"type":"response.completed","response":{"output":[{"type":"message","content":[{"type":"output_text","text":` + strconv.Quote(output) + `}]}]}}` + "\n\n"
 }
 
-func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
+func TestForwardAlphaSearchOAuthAcceptsOfficialProductOriginatorAndPreservesWire(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{
 		"id":"search-session",
@@ -60,7 +62,7 @@ func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/alpha/search?feature=standalone", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Request.Header.Set("User-Agent", DefaultOpenAICodexUserAgent)
-	c.Request.Header.Set("Originator", "codex-tui")
+	c.Request.Header.Set("Originator", "chatgpt_cca")
 	c.Request.Header.Set("Version", codexCLIVersion)
 	c.Request.Header.Set("X-Codex-Turn-Metadata", `{"session_id":"search-session","turn_id":"search-turn"}`)
 
@@ -84,6 +86,7 @@ func TestForwardAlphaSearchOAuthPreservesWire(t *testing.T) {
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Concurrency: 1,
+		Extra:       map[string]any{"codex_cli_only": true},
 		Credentials: map[string]any{
 			"access_token":       "oauth-token",
 			"chatgpt_account_id": "chatgpt-account",
@@ -217,7 +220,7 @@ func TestForwardAlphaSearchPATUsesResponsesWebSearchFallback(t *testing.T) {
 	require.Equal(t, "true", upstream.lastReq.Header.Get("X-OpenAI-Fedramp"))
 	require.Equal(t, "application/json", upstream.lastReq.Header.Get("Content-Type"))
 	require.Equal(t, "text/event-stream", upstream.lastReq.Header.Get("Accept"))
-	require.Equal(t, "responses=experimental", upstream.lastReq.Header.Get("OpenAI-Beta"))
+	require.Empty(t, upstream.lastReq.Header.Get("OpenAI-Beta"))
 	require.Equal(t, codexCLIVersion, upstream.lastReq.Header.Get("Version"))
 	require.Equal(t,
 		scopeCodexAccountIdentityValue(account, 0, "turn", "turn-1"),
@@ -589,7 +592,7 @@ func TestForwardAlphaSearchPATResponsesFallbackUnauthorizedDoesNotMarkAccountErr
 	require.Equal(t, http.StatusUnauthorized, failoverErr.StatusCode)
 	require.Equal(t, chatgptCodexURL, upstream.lastReq.URL.String())
 	require.Equal(t, "text/event-stream", upstream.lastReq.Header.Get("Accept"))
-	require.Equal(t, "responses=experimental", upstream.lastReq.Header.Get("OpenAI-Beta"))
+	require.Empty(t, upstream.lastReq.Header.Get("OpenAI-Beta"))
 	require.Zero(t, repo.setErrorCalls)
 	require.Empty(t, repo.lastError)
 	require.False(t, c.Writer.Written())
@@ -652,10 +655,19 @@ func TestForwardAlphaSearchOAuthNotFoundPassesThrough(t *testing.T) {
 	upstreamBody := `{"detail":"Not Found"}`
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
 		StatusCode: http.StatusNotFound,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+		Header: http.Header{
+			"Content-Type":                   []string{"application/json"},
+			"X-Codex-Primary-Window-Minutes": []string{"10080"},
+			"X-Codex-Primary-Reset-At":       []string{"1780000001"},
+		},
+		Body: io.NopCloser(strings.NewReader(upstreamBody)),
 	}}
-	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	accountRepo := &alphaSearchAccountStateRepo{}
+	service := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream, accountRepo: accountRepo}
+	observerRepo := &quotaFollowObservationRecorder{}
+	observer := &OpenAIGroupQuotaFollowResetService{repo: observerRepo}
+	setOpenAIGroupQuotaFollowResetObserver(observer)
+	t.Cleanup(func() { clearOpenAIGroupQuotaFollowResetObserver(observer) })
 	account := &Account{
 		ID:          10,
 		Platform:    PlatformOpenAI,
@@ -673,6 +685,7 @@ func TestForwardAlphaSearchOAuthNotFoundPassesThrough(t *testing.T) {
 	require.Nil(t, result)
 	require.Equal(t, http.StatusNotFound, recorder.Code)
 	require.JSONEq(t, upstreamBody, recorder.Body.String())
+	require.Zero(t, observerRepo.calls, "non-2xx responses must not drive quota reset observations")
 }
 
 func TestShouldApplyOpenAIAlphaSearchAccountErrorSideEffects(t *testing.T) {

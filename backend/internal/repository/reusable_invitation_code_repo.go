@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
 	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcode"
 	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcodeuse"
+	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 
@@ -26,19 +28,32 @@ func NewReusableInvitationCodeRepository(client *dbent.Client) service.ReusableI
 }
 
 func (r *reusableInvitationCodeRepository) Create(ctx context.Context, code *service.ReusableInvitationCode) error {
-	created, err := clientFromContext(ctx, r.client).ReusableInvitationCode.Create().
-		SetCode(code.Code).
-		SetStatus(code.Status).
-		SetMaxUses(code.MaxUses).
-		SetUsedCount(code.UsedCount).
-		SetNillableExpiresAt(code.ExpiresAt).
-		SetNotes(code.Notes).
-		Save(ctx)
-	if err != nil {
-		return err
-	}
-	applyReusableInvitationCodeEntity(code, created)
-	return nil
+	return (&affiliateRepository{client: r.client}).withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		if err := lockAffiliateBindings(txCtx, client); err != nil {
+			return err
+		}
+		existing, err := queryAffiliateByCode(txCtx, client, strings.ToUpper(code.Code))
+		if err == nil && (code.OwnerUserID == nil || existing.UserID != *code.OwnerUserID) {
+			return service.ErrAffiliateCodeTaken
+		}
+		if err != nil && !errors.Is(err, service.ErrAffiliateProfileNotFound) {
+			return err
+		}
+		if code.OwnerUserID != nil {
+			if _, err := client.User.Get(txCtx, *code.OwnerUserID); err != nil {
+				return service.ErrUserNotFound
+			}
+		}
+		created, err := client.ReusableInvitationCode.Create().SetCode(code.Code).
+			SetStatus(code.Status).SetMaxUses(code.MaxUses).SetUsedCount(code.UsedCount).
+			SetNillableOwnerUserID(code.OwnerUserID).SetNillableExpiresAt(code.ExpiresAt).
+			SetNotes(code.Notes).Save(txCtx)
+		if err != nil {
+			return err
+		}
+		applyReusableInvitationCodeEntity(code, created)
+		return nil
+	})
 }
 
 func (r *reusableInvitationCodeRepository) GetByID(ctx context.Context, id int64) (*service.ReusableInvitationCode, error) {
@@ -162,6 +177,18 @@ func (r *reusableInvitationCodeRepository) release(ctx context.Context, client *
 }
 
 func (r *reusableInvitationCodeRepository) use(ctx context.Context, client *dbent.Client, id, userID int64, email, authSource string) error {
+	if err := lockAffiliateBindings(ctx, client); err != nil {
+		return err
+	}
+	used, err := client.ReusableInvitationCodeUse.Query().Where(
+		reusableinvitationcodeuse.CodeIDEQ(id), reusableinvitationcodeuse.UserIDEQ(userID),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if used {
+		return nil
+	}
 	now := time.Now()
 	affected, err := client.ReusableInvitationCode.Update().Where(
 		reusableinvitationcode.IDEQ(id),
@@ -175,8 +202,25 @@ func (r *reusableInvitationCodeRepository) use(ctx context.Context, client *dben
 	if affected == 0 {
 		return reusableInvitationCodeUseConflictError(ctx, client, id, now)
 	}
-	_, err = client.ReusableInvitationCodeUse.Create().
-		SetCodeID(id).SetUserID(userID).SetEmail(email).SetAuthSource(authSource).Save(ctx)
+	if email == "" {
+		account, err := client.User.Get(ctx, userID)
+		if err != nil {
+			return err
+		}
+		email = account.Email
+		authSource = account.SignupSource
+	}
+	if _, err = client.ReusableInvitationCodeUse.Create().
+		SetCodeID(id).SetUserID(userID).SetEmail(email).SetAuthSource(authSource).Save(ctx); err != nil {
+		return err
+	}
+	code, err := client.ReusableInvitationCode.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if code.OwnerUserID != nil {
+		_, err = (&affiliateRepository{client: client}).BindInviter(ctx, userID, *code.OwnerUserID, code.Code)
+	}
 	return err
 }
 
@@ -254,6 +298,7 @@ func reusableInvitationCodeEntityToService(m *dbent.ReusableInvitationCode) *ser
 }
 
 func applyReusableInvitationCodeEntity(dst *service.ReusableInvitationCode, m *dbent.ReusableInvitationCode) {
+	dst.OwnerUserID = m.OwnerUserID
 	dst.ID, dst.Code, dst.Status = m.ID, m.Code, m.Status
 	dst.MaxUses, dst.UsedCount = m.MaxUses, m.UsedCount
 	dst.ExpiresAt, dst.Notes = m.ExpiresAt, m.Notes
@@ -281,4 +326,57 @@ func reusableInvitationCodeUseEntitiesToService(items []*dbent.ReusableInvitatio
 		}
 	}
 	return out
+}
+
+// SetOwner associates a reusable code and its unbound historical signups with
+// one inviter. Existing inviter relationships and historical earnings stay intact.
+func (r *reusableInvitationCodeRepository) SetOwner(ctx context.Context, id, ownerUserID int64) (*service.ReusableInvitationCodeOwnerResult, error) {
+	result := &service.ReusableInvitationCodeOwnerResult{}
+	affiliate := &affiliateRepository{client: r.client}
+	err := affiliate.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		if err := lockAffiliateBindings(txCtx, client); err != nil {
+			return err
+		}
+		if _, err := client.User.Get(txCtx, ownerUserID); err != nil {
+			return service.ErrUserNotFound
+		}
+		code, err := client.ReusableInvitationCode.Get(txCtx, id)
+		if err != nil {
+			return err
+		}
+		// A code that already names another AFF owner would have ambiguous attribution.
+		existing, err := queryAffiliateByCode(txCtx, client, strings.ToUpper(code.Code))
+		if err == nil && existing.UserID != ownerUserID {
+			return service.ErrAffiliateCodeTaken
+		}
+		if err != nil && !errors.Is(err, service.ErrAffiliateProfileNotFound) {
+			return err
+		}
+		updated, err := client.ReusableInvitationCode.UpdateOneID(id).SetOwnerUserID(ownerUserID).Save(txCtx)
+		if err != nil {
+			return err
+		}
+		result.Code = reusableInvitationCodeEntityToService(updated)
+		uses, err := client.ReusableInvitationCodeUse.Query().Where(reusableinvitationcodeuse.CodeIDEQ(id), reusableinvitationcodeuse.HasUserWith(user.DeletedAtIsNil())).
+			Order(dbent.Asc(reusableinvitationcodeuse.FieldID)).All(txCtx)
+		if err != nil {
+			return err
+		}
+		for _, use := range uses {
+			bound, err := affiliate.BindInviter(txCtx, use.UserID, ownerUserID, code.Code)
+			if err != nil {
+				return err
+			}
+			if bound {
+				result.BoundCount++
+			} else {
+				result.SkippedCount++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

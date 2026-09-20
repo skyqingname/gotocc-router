@@ -29,6 +29,33 @@ func (_u *ReusableInvitationCodeUpdate) Where(ps ...predicate.ReusableInvitation
 	return _u
 }
 
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdate) SetOwnerUserID(v int64) *ReusableInvitationCodeUpdate {
+	_u.mutation.ResetOwnerUserID()
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *ReusableInvitationCodeUpdate) SetNillableOwnerUserID(v *int64) *ReusableInvitationCodeUpdate {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// AddOwnerUserID adds value to the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdate) AddOwnerUserID(v int64) *ReusableInvitationCodeUpdate {
+	_u.mutation.AddOwnerUserID(v)
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdate) ClearOwnerUserID() *ReusableInvitationCodeUpdate {
+	_u.mutation.ClearOwnerUserID()
+	return _u
+}
+
 // SetCode sets the "code" field.
 func (_u *ReusableInvitationCodeUpdate) SetCode(v string) *ReusableInvitationCodeUpdate {
 	_u.mutation.SetCode(v)
@@ -253,6 +280,15 @@ func (_u *ReusableInvitationCodeUpdate) sqlSave(ctx context.Context) (_node int,
 			}
 		}
 	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOwnerUserID(); ok {
+		_spec.AddField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Code(); ok {
 		_spec.SetField(reusableinvitationcode.FieldCode, field.TypeString, value)
 	}
@@ -346,6 +382,33 @@ type ReusableInvitationCodeUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *ReusableInvitationCodeMutation
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdateOne) SetOwnerUserID(v int64) *ReusableInvitationCodeUpdateOne {
+	_u.mutation.ResetOwnerUserID()
+	_u.mutation.SetOwnerUserID(v)
+	return _u
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_u *ReusableInvitationCodeUpdateOne) SetNillableOwnerUserID(v *int64) *ReusableInvitationCodeUpdateOne {
+	if v != nil {
+		_u.SetOwnerUserID(*v)
+	}
+	return _u
+}
+
+// AddOwnerUserID adds value to the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdateOne) AddOwnerUserID(v int64) *ReusableInvitationCodeUpdateOne {
+	_u.mutation.AddOwnerUserID(v)
+	return _u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (_u *ReusableInvitationCodeUpdateOne) ClearOwnerUserID() *ReusableInvitationCodeUpdateOne {
+	_u.mutation.ClearOwnerUserID()
+	return _u
 }
 
 // SetCode sets the "code" field.
@@ -601,6 +664,15 @@ func (_u *ReusableInvitationCodeUpdateOne) sqlSave(ctx context.Context) (_node *
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.OwnerUserID(); ok {
+		_spec.SetField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOwnerUserID(); ok {
+		_spec.AddField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.OwnerUserIDCleared() {
+		_spec.ClearField(reusableinvitationcode.FieldOwnerUserID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Code(); ok {
 		_spec.SetField(reusableinvitationcode.FieldCode, field.TypeString, value)

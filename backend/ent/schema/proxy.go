@@ -64,6 +64,14 @@ func (Proxy) Fields() []ent.Field {
 		field.Int("expiry_warn_days").
 			Default(7).
 			Comment("Days before expiry to flag as expiring-soon (per proxy)."),
+		field.String("egress_timezone").
+			MaxLen(64).
+			Default("").
+			Comment("Egress IANA timezone manually annotated by the administrator; empty means unannotated. Drives the Codex environment_context timezone alignment for bound accounts."),
+		field.String("egress_country").
+			MaxLen(2).
+			Default("").
+			Comment("Egress country code (ISO 3166-1 alpha-2) manually annotated by the administrator; empty means unannotated. Distinct from the probe-snapshot country fields."),
 	}
 }
 
@@ -73,6 +81,10 @@ func (Proxy) Edges() []ent.Edge {
 		// accounts: 使用此代理的账户（反向边）
 		edge.From("accounts", Account.Type).
 			Ref("proxy"),
+		// Directed many-to-one: a backup can serve multiple primary proxies.
+		// The inverse edge prevents Ent from treating this self-reference as symmetric.
+		edge.From("primary_proxies", Proxy.Type).
+			Ref("backup_proxy"),
 		edge.To("backup_proxy", Proxy.Type).
 			Field("backup_proxy_id").
 			Unique(),

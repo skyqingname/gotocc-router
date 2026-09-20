@@ -322,6 +322,14 @@ func (s *AntigravityGatewayService) handleGeminiStreamingResponse(c *gin.Context
 				continue
 			}
 
+			// 上游每个 data 事件后面跟一个空行作为事件分隔。上面已经把 data 行写成
+			// "data: ...\n\n"，若再把这个空行透传出去，事件之间就会变成 "\n\n\n"。
+			// google-genai 的 Go SDK（Antigravity CLI 在用）按 "\n\n" 切事件，多出的
+			// "\n" 会粘到下一个事件开头，前缀变成 "\ndata" 而被判成 invalid stream chunk。
+			if trimmed == "" {
+				continue
+			}
+
 			cw.Fprintf("%s\n", line)
 
 		case <-intervalCh:
@@ -753,6 +761,8 @@ func (s *AntigravityGatewayService) writeMappedClaudeError(c *gin.Context, accou
 	upstreamDetail := s.getUpstreamErrorDetail(body)
 	setOpsUpstreamError(c, upstreamStatus, upstreamMsg, upstreamDetail)
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,
@@ -1256,9 +1266,13 @@ func (s *AntigravityGatewayService) handleClaudeStreamingResponse(c *gin.Context
 			s.observeAntigravityGeminiSSELine(c, ev.line)
 
 			// 处理 SSE 行，转换为 Claude 格式
+			// Sample native output before conversion: image markdown and generated
+			// grounding text are not model text tokens, and a batched signature must
+			// not hide the next text/reasoning/tool delta.
+			payload := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(ev.line), "data:"))
+			timing.Observe(startTime, apicompat.ObserveGeminiOutput([]byte(payload)))
 			claudeEvents := processor.ProcessLine(strings.TrimRight(ev.line, "\r\n"))
 			if len(claudeEvents) > 0 {
-				timing.Observe(startTime, observeAnthropicSSEOutput(claudeEvents))
 				cw.Write(claudeEvents)
 			}
 

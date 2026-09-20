@@ -8,7 +8,11 @@ below for detailed configuration and maintenance instructions.
 - [Grok / xAI](providers/GROK.md)
 - [Sora status and reserved configuration](providers/SORA.md)
 - [Antigravity](providers/ANTIGRAVITY.md)
+- [DeepSeek empty-mapping whitelist](providers/DEEPSEEK.md)
 - [Kimi / Moonshot](providers/KIMI.md)
+- [MiniMax coding-plan quota origins](providers/MINIMAX.md)
+
+- [Video platform and channel model parameters](VIDEO_PLATFORM.md)
 
 ## Protocols and Tasks
 
@@ -16,8 +20,12 @@ below for detailed configuration and maintenance instructions.
 - [Codex client profile restrictions](protocols/CODEX_CLIENT_PROFILES.md)
 - [Asynchronous image tasks](ASYNC_IMAGE_TASKS.md)
 
+- [Group recurring rate schedules](GROUP_RATE_SCHEDULES.md)
+- [TypeSafe Jev prompt audit](TYPESAFE_PROMPT_AUDIT.md)
+
 ## Deployment and Operations
 
+- [Outbound client identity and account inheritance](OUTBOUND_IDENTITY.md)
 - [GotoCC production migration boundary](GOTOCC_PLUS_MIGRATION.md)
 - [Deployment guide](../deploy/README.md)
 - [Docker](../deploy/DOCKER.md)
@@ -31,12 +39,15 @@ below for detailed configuration and maintenance instructions.
 - [Contributing](../CONTRIBUTING.md)
 - [Release process](RELEASING.md)
 - [Upstream mapping](../UPSTREAM.md)
+- [Upstream v0.2.4 integration and upgrade behavior](UPSTREAM_V0_2_4_INTEGRATION.md)
+- [Upstream v0.2.5 integration](UPSTREAM_V0_2_5_INTEGRATION.md)
 - [Database migrations](../backend/migrations/README.md)
 - [Authentication and Passkeys](AUTHENTICATION.md)
 - [Model Plaza visibility](MODEL_PLAZA.md)
 
 ## Additional References
 
+- [Invitation relationships and three-generation commission](AFFILIATE.md)
 - [Payment integration](PAYMENT.md)
 - [Payment integration — Chinese](PAYMENT_CN.md)
 - [Admin payment integration API](ADMIN_PAYMENT_INTEGRATION_API.md)

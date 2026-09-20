@@ -20,15 +20,16 @@ var (
 )
 
 type ReusableInvitationCode struct {
-	ID        int64
-	Code      string
-	Status    string
-	MaxUses   int
-	UsedCount int
-	ExpiresAt *time.Time
-	Notes     string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	OwnerUserID *int64
+	ID          int64
+	Code        string
+	Status      string
+	MaxUses     int
+	UsedCount   int
+	ExpiresAt   *time.Time
+	Notes       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (c *ReusableInvitationCode) IsUsableAt(now time.Time) bool {
@@ -50,7 +51,14 @@ type ReusableInvitationCodeUse struct {
 	UsedAt     time.Time
 }
 
+type ReusableInvitationCodeOwnerResult struct {
+	Code         *ReusableInvitationCode
+	BoundCount   int
+	SkippedCount int
+}
+
 type ReusableInvitationCodeRepository interface {
+	SetOwner(ctx context.Context, id, ownerUserID int64) (*ReusableInvitationCodeOwnerResult, error)
 	Create(ctx context.Context, code *ReusableInvitationCode) error
 	GetByID(ctx context.Context, id int64) (*ReusableInvitationCode, error)
 	GetByCode(ctx context.Context, code string) (*ReusableInvitationCode, error)

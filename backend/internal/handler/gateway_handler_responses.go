@@ -97,7 +97,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 	// 混合请求同样按 token 计费（外加图片部分），其 token 利润保护不因请求体
 	// 里的任何工具声明（含 Codex 被动 image_gen namespace）而关闭。生图意图
 	// 仅用于能力路由与图片计费；独立图片/视频端点才在利润门范围之外。
-	requestCtx, pricingAt := service.WithGatewayTokenRequestPricing(requestCtx)
+	requestCtx, pricingAt := h.gatewayService.WithTokenRequestPricing(requestCtx)
 	if service.IsImageGenerationIntentForPlatform("/v1/responses", reqModel, body, openAICompatibleRequestPlatform(c.Request.Context(), apiKey)) {
 		requestCtx = service.WithOpenAIImageGenerationIntent(requestCtx)
 	}
@@ -317,7 +317,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 				zap.Error(err),
 			)
 			// Preserve partial stream usage for billing below. It is explicitly
-			// marked incomplete and therefore excluded from TPS.
+			// marked incomplete; TPS still displays with a confidence note.
 			if result == nil {
 				return
 			}
@@ -404,7 +404,7 @@ func (h *GatewayHandler) handleResponsesFailoverExhausted(c *gin.Context, lastEr
 		// generic response.failed.
 		service.MarkOpsStreamError(c, code, message, status)
 		if c != nil && c.Writer != nil && (c.Writer.Size() <= 0 || gatewayStreamHasOnlyHeartbeats(c)) {
-			writeResponsesFailedSSE(c, code, message)
+			writeResponsesFailedSSE(c, code, "", message)
 		}
 		return
 	}

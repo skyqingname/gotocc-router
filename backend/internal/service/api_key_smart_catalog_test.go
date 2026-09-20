@@ -56,8 +56,8 @@ func TestAutoRouteListModelsReturnsOnlyAuthorizedConfiguredUnion(t *testing.T) {
 func TestAutoRouteListModelsUsesActualFirstGroupWhenLaterGroupExposesModel(t *testing.T) {
 	resolver, key, _, groups, catalog := newAutoRouteFixture()
 	groups.groups[1].Platform = PlatformOpenAI
-	groups.groups[0].ModelsListConfig = GroupModelsListConfig{Enabled: true, Models: []string{"other-model"}}
-	groups.groups[1].ModelsListConfig = GroupModelsListConfig{Enabled: true, Models: []string{"shared-model"}}
+	groups.groups[0].ModelAllowlist = GroupModelAllowlist{Enabled: true, Models: []string{"other-model"}}
+	groups.groups[1].ModelAllowlist = GroupModelAllowlist{Enabled: true, Models: []string{"shared-model"}}
 
 	first := catalog.catalog.Accounts[10][0]
 	first.Credentials = map[string]any{"model_mapping": map[string]any{"shared-model": "gpt-5.6-sol"}}

@@ -2,8 +2,34 @@
 
 This file maps custom releases to their official Sub2API baseline. Historical
 rows are inherited metadata; feature imports preserve their recorded status.
-Owned release publication is verified and finalized in a separate metadata PR.
+Owned release publication uploads the same package after local manual acceptance.
 Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
+
+## Integrated Baseline
+
+The owned candidate `v0.2.5+custom.002` starts from the complete Plus
+`v0.2.5+custom.001` tree, commit `ddf18b386974067fa794cc1822238ba0cda37e22`.
+It preserves the GoToCC contracts from owned `v0.2.4+custom.008`, and integrates
+multi-window group rates, configurable Video channels/models and TypeSafe Jev
+prompt evaluation. Publication follows local final-package acceptance.
+
+The current integration tree incorporates the official `v0.2.5` tag at commit
+`86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea`, layered onto the Plus history.
+The release mapping below remains the authoritative record of publication
+status; importing an upstream tag does not publish a Plus release or change the
+embedded application version by itself.
+Plus version/tag/image promotion remains a separate step.
+
+Plus retains credential-owner identity precedence, ingress content audit,
+session and quota accounting, asynchronous images, administrator export
+controls, IP access controls, and distribution/toolchain choices. Retired
+upstream billing probes remain removed. Grok cross-client rewriting stays
+opt-in, and inconclusive OAuth billing does not grant media eligibility.
+
+See [v0.2.4 integration and upgrade behavior](docs/UPSTREAM_V0_2_4_INTEGRATION.md)
+for the previous overlay's public API changes, migrations, defaults, and
+validation boundaries. See [v0.2.5 integration](docs/UPSTREAM_V0_2_5_INTEGRATION.md)
+for the official tag import on that tree.
 
 ## Release Mapping
 
@@ -55,6 +81,19 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 | `v0.2.0+custom.002` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | planned |
 | `v0.2.0+custom.003` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | invalid |
 | `v0.2.0+custom.004` | `v0.2.0` | `aa236488351eb71e120fc2b6fb32e36b0374c918` | published |
+| `v0.2.1+custom.002` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.003` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.004` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.005` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.1+custom.006` | `v0.2.1` | `578785ee7fb35030b094b69624efe25670a36f5f` | published |
+| `v0.2.4+custom.002` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release) |
+| `v0.2.4+custom.003` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | local preview only; superseded by owned custom.004 |
+| `v0.2.4+custom.004` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); Plus custom.002, affiliate and PR #6 priority UI |
+| `v0.2.4+custom.005` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published (owned release); administrator invitation-list SQL fix |
+| `v0.2.4+custom.006` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
+| `v0.2.4+custom.007` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
+| `v0.2.4+custom.008` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
+| `v0.2.5+custom.002` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | local candidate; Plus v0.2.5+custom.001 |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
@@ -68,9 +107,9 @@ use the complete `.004` release instead.
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.0+custom.004
-Application: 0.2.0+custom.004
-GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.0-custom.004
+Git/GitHub: v0.2.5+custom.002
+Application: 0.2.5+custom.002
+OCI naming: v0.2.5-custom.002 (no image published by the local archive workflow)
 ```
 
 ## Naming

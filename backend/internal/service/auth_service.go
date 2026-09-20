@@ -108,8 +108,9 @@ type signupGrantPlan struct {
 }
 
 type registrationInvitation struct {
-	redeem   *RedeemCode
-	reusable *ReusableInvitationCode
+	affiliate *AffiliateSummary
+	redeem    *RedeemCode
+	reusable  *ReusableInvitationCode
 }
 
 // NewAuthService 创建认证服务实例
@@ -172,12 +173,12 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 }
 
 func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
-	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
-		return nil, nil
-	}
 	invitationCode = strings.TrimSpace(invitationCode)
 	if invitationCode == "" {
-		return nil, missingErr
+		if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
+			return nil, missingErr
+		}
+		return nil, nil
 	}
 	if s.redeemRepo != nil {
 		redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
@@ -186,9 +187,28 @@ func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitat
 		}
 	}
 	if s.reusableInvitationRepo != nil {
-		reusableCode, err := s.reusableInvitationRepo.GetUsableByCode(ctx, invitationCode)
+		reusableCode, err := s.reusableInvitationRepo.GetByCode(ctx, invitationCode)
 		if err == nil {
+			if !reusableCode.IsUsableAt(time.Now()) {
+				return nil, ErrInvitationCodeInvalid
+			}
 			return &registrationInvitation{reusable: reusableCode}, nil
+		}
+		if !errors.Is(err, ErrReusableInvitationCodeNotFound) {
+			return nil, err
+		}
+	}
+	// AFF attribution does not grant admission when registration requires a code.
+	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
+		return nil, ErrInvitationCodeInvalid
+	}
+	if s.affiliateService != nil {
+		affiliate, err := s.affiliateService.repo.GetAffiliateByCode(ctx, strings.ToUpper(invitationCode))
+		if err == nil {
+			return &registrationInvitation{affiliate: affiliate}, nil
+		}
+		if !errors.Is(err, ErrAffiliateProfileNotFound) {
+			return nil, err
 		}
 	}
 	return nil, ErrInvitationCodeInvalid
@@ -197,6 +217,10 @@ func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitat
 func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation *registrationInvitation, user *User, authSource string, failOpenOneTime bool) error {
 	if invitation == nil || user == nil {
 		return nil
+	}
+	if invitation.affiliate != nil {
+		_, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.affiliate.UserID, invitation.affiliate.AffCode)
+		return err
 	}
 	if invitation.redeem != nil {
 		if s.redeemRepo == nil {
@@ -237,6 +261,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 防止用户注册 LinuxDo OAuth 合成邮箱，避免第三方登录与本地账号发生碰撞。
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
+	}
+	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+		invitationCode = affiliateCode
 	}
 	registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
 	if err != nil {
@@ -316,17 +343,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	if s.affiliateService != nil {
-		if _, err := s.affiliateService.EnsureUserAffiliate(ctx, user.ID); err != nil {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", user.ID, err)
-		}
-		if code := strings.TrimSpace(affiliateCode); code != "" {
-			if err := s.affiliateService.BindInviterByCode(ctx, user.ID, code); err != nil {
-				// 邀请返利码绑定失败不影响注册，只记录日志
-				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", user.ID, err)
-			}
-		}
-	}
+	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
 
 	// 一次性邀请码和可复用邀请码都已在用户创建事务内原子消费，
 	// 此处不得再次标记或采用 fail-open 语义。
@@ -359,7 +376,7 @@ func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, 
 	if invitation.redeem != nil {
 		return s.createUserAndClaimInvitation(ctx, user, invitation.redeem)
 	}
-	if invitation.reusable == nil {
+	if invitation.reusable == nil && invitation.affiliate == nil {
 		return ErrInvitationCodeInvalid
 	}
 	if s.entClient == nil {
@@ -809,6 +826,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, ErrRegDisabled
 			}
 
+			if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+				invitationCode = affiliateCode
+			}
 			registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrOAuthInvitationRequired)
 			if err != nil {
 				return nil, nil, err
@@ -881,7 +901,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -902,7 +922,6 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 					if registrationInvitation != nil {
 						if err := s.useRegistrationInvitation(ctx, registrationInvitation, user, signupSource, false); err != nil {
 							if registrationInvitation.reusable != nil {
@@ -911,6 +930,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 							return nil, nil, ErrInvitationCodeInvalid
 						}
 					}
+					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
 				}
 			}
 		} else {
@@ -1052,20 +1072,41 @@ func authSourceSignupSettings(defaults *AuthSourceDefaultSettings, signupSource 
 	}
 }
 
-// bindOAuthAffiliate initializes the affiliate profile and binds the inviter
-// for an OAuth-registered user. Failures are logged but never block registration.
-func (s *AuthService) bindOAuthAffiliate(ctx context.Context, userID int64, affiliateCode string) {
+// bindSignupAffiliate records the optional secondary referral after the primary
+// registration code. An existing primary relationship always wins.
+func (s *AuthService) bindSignupAffiliate(ctx context.Context, userID int64, affiliateCode string) {
 	if s.affiliateService == nil || userID <= 0 {
 		return
 	}
-	if _, err := s.affiliateService.EnsureUserAffiliate(ctx, userID); err != nil {
+	summary, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
+	if err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", userID, err)
+		return
 	}
-	if code := strings.TrimSpace(affiliateCode); code != "" {
-		if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
+	code := strings.TrimSpace(affiliateCode)
+	if code == "" || summary.InviterID != nil {
+		return
+	}
+	// Permanent codes also work through the existing aff_code referral field.
+	// Use is atomic and idempotent for this signup, so a code provided in both
+	// fields is neither consumed nor counted twice.
+	if s.reusableInvitationRepo != nil {
+		reusable, err := s.reusableInvitationRepo.GetByCode(ctx, code)
+		if err == nil {
+			if err := s.reusableInvitationRepo.Use(ctx, reusable.ID, userID, "", ""); err != nil {
+				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind reusable inviter for user %d: %v", userID, err)
+			}
+			return
+		}
+		if !errors.Is(err, ErrReusableInvitationCodeNotFound) {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to resolve inviter for user %d: %v", userID, err)
+			return
 		}
 	}
+	if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
+	}
+
 }
 
 func (s *AuthService) postAuthUserBootstrap(ctx context.Context, user *User, signupSource string, touchLogin bool) {
@@ -2011,7 +2052,7 @@ func resolvedTokenVersion(user *User) int64 {
 	return user.TokenVersion ^ fingerprint
 }
 
-// snapshotPlatformQuotaDefaults 把 plan.PlatformQuotas（platform × 3 window）以
+// snapshotPlatformQuotaDefaults 把 plan.PlatformQuotas 中至少配置了一档限额的平台以
 // BulkInsertInitial 形式写入 user_platform_quotas 表。失败 fail-open（仅 warn log）。
 func (s *AuthService) snapshotPlatformQuotaDefaults(ctx context.Context, userID int64, plan *signupGrantPlan) error {
 	if s.userPlatformQuotaRepo == nil || plan == nil || len(plan.PlatformQuotas) == 0 {
@@ -2022,22 +2063,33 @@ func (s *AuthService) snapshotPlatformQuotaDefaults(ctx context.Context, userID 
 	// 整个调用方事务被 Postgres 标记 aborted，把"无关紧要的默认配额快照"放大成
 	// "整笔注册失败"（OAuth pending 路径曾因此 500 → 清 cookie → 404）。
 	ctx = dbent.WithoutTx(ctx)
+	// 仅为至少配置了一档限额的平台建行：user_platform_quotas 中不存在的行等价于不限额，
+	// 三档全空的记录不携带任何可执行的限额。
 	records := make([]UserPlatformQuotaRecord, 0, len(plan.PlatformQuotas))
 	for platform, q := range plan.PlatformQuotas {
-		rec := UserPlatformQuotaRecord{
-			UserID:   userID,
-			Platform: platform,
+		if !q.HasAnyLimit() {
+			continue
 		}
-		if q != nil {
-			rec.DailyLimitUSD = q.DailyLimitUSD
-			rec.WeeklyLimitUSD = q.WeeklyLimitUSD
-			rec.MonthlyLimitUSD = q.MonthlyLimitUSD
-		}
-		records = append(records, rec)
+		records = append(records, UserPlatformQuotaRecord{
+			UserID:          userID,
+			Platform:        platform,
+			DailyLimitUSD:   q.DailyLimitUSD,
+			WeeklyLimitUSD:  q.WeeklyLimitUSD,
+			MonthlyLimitUSD: q.MonthlyLimitUSD,
+		})
+	}
+	if len(records) == 0 {
+		return nil
 	}
 	if err := s.userPlatformQuotaRepo.BulkInsertInitial(ctx, records); err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Warning: snapshot platform quota failed user=%d: %v (fail-open)", userID, err)
 		return nil // fail-open：返回 nil，让调用方继续
 	}
 	return nil
+}
+
+// ValidateRegistrationInvitation shares code resolution with email and OAuth signup.
+func (s *AuthService) ValidateRegistrationInvitation(ctx context.Context, code string) error {
+	_, err := s.resolveRegistrationInvitation(ctx, code, ErrInvitationCodeRequired)
+	return err
 }

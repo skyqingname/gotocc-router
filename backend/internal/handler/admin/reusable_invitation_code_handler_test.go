@@ -134,3 +134,7 @@ func TestReusableInvitationCodeHandlerRejectsPastExpiry(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Nil(t, repo.created)
 }
+
+func (*reusableInvitationCodeAdminRepoStub) SetOwner(context.Context, int64, int64) (*service.ReusableInvitationCodeOwnerResult, error) {
+	panic("unexpected SetOwner call")
+}

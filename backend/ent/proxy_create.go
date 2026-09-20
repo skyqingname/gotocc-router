@@ -187,6 +187,34 @@ func (_c *ProxyCreate) SetNillableExpiryWarnDays(v *int) *ProxyCreate {
 	return _c
 }
 
+// SetEgressTimezone sets the "egress_timezone" field.
+func (_c *ProxyCreate) SetEgressTimezone(v string) *ProxyCreate {
+	_c.mutation.SetEgressTimezone(v)
+	return _c
+}
+
+// SetNillableEgressTimezone sets the "egress_timezone" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableEgressTimezone(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetEgressTimezone(*v)
+	}
+	return _c
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (_c *ProxyCreate) SetEgressCountry(v string) *ProxyCreate {
+	_c.mutation.SetEgressCountry(v)
+	return _c
+}
+
+// SetNillableEgressCountry sets the "egress_country" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableEgressCountry(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetEgressCountry(*v)
+	}
+	return _c
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_c *ProxyCreate) AddAccountIDs(ids ...int64) *ProxyCreate {
 	_c.mutation.AddAccountIDs(ids...)
@@ -200,6 +228,21 @@ func (_c *ProxyCreate) AddAccounts(v ...*Account) *ProxyCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAccountIDs(ids...)
+}
+
+// AddPrimaryProxyIDs adds the "primary_proxies" edge to the Proxy entity by IDs.
+func (_c *ProxyCreate) AddPrimaryProxyIDs(ids ...int64) *ProxyCreate {
+	_c.mutation.AddPrimaryProxyIDs(ids...)
+	return _c
+}
+
+// AddPrimaryProxies adds the "primary_proxies" edges to the Proxy entity.
+func (_c *ProxyCreate) AddPrimaryProxies(v ...*Proxy) *ProxyCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPrimaryProxyIDs(ids...)
 }
 
 // SetBackupProxy sets the "backup_proxy" edge to the Proxy entity.
@@ -270,6 +313,14 @@ func (_c *ProxyCreate) defaults() error {
 		v := proxy.DefaultExpiryWarnDays
 		_c.mutation.SetExpiryWarnDays(v)
 	}
+	if _, ok := _c.mutation.EgressTimezone(); !ok {
+		v := proxy.DefaultEgressTimezone
+		_c.mutation.SetEgressTimezone(v)
+	}
+	if _, ok := _c.mutation.EgressCountry(); !ok {
+		v := proxy.DefaultEgressCountry
+		_c.mutation.SetEgressCountry(v)
+	}
 	return nil
 }
 
@@ -336,6 +387,22 @@ func (_c *ProxyCreate) check() error {
 	}
 	if _, ok := _c.mutation.ExpiryWarnDays(); !ok {
 		return &ValidationError{Name: "expiry_warn_days", err: errors.New(`ent: missing required field "Proxy.expiry_warn_days"`)}
+	}
+	if _, ok := _c.mutation.EgressTimezone(); !ok {
+		return &ValidationError{Name: "egress_timezone", err: errors.New(`ent: missing required field "Proxy.egress_timezone"`)}
+	}
+	if v, ok := _c.mutation.EgressTimezone(); ok {
+		if err := proxy.EgressTimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "egress_timezone", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_timezone": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.EgressCountry(); !ok {
+		return &ValidationError{Name: "egress_country", err: errors.New(`ent: missing required field "Proxy.egress_country"`)}
+	}
+	if v, ok := _c.mutation.EgressCountry(); ok {
+		if err := proxy.EgressCountryValidator(v); err != nil {
+			return &ValidationError{Name: "egress_country", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_country": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -416,6 +483,14 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 		_spec.SetField(proxy.FieldExpiryWarnDays, field.TypeInt, value)
 		_node.ExpiryWarnDays = value
 	}
+	if value, ok := _c.mutation.EgressTimezone(); ok {
+		_spec.SetField(proxy.FieldEgressTimezone, field.TypeString, value)
+		_node.EgressTimezone = value
+	}
+	if value, ok := _c.mutation.EgressCountry(); ok {
+		_spec.SetField(proxy.FieldEgressCountry, field.TypeString, value)
+		_node.EgressCountry = value
+	}
 	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -432,13 +507,29 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.PrimaryProxiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := _c.mutation.BackupProxyIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   proxy.BackupProxyTable,
 			Columns: []string{proxy.BackupProxyColumn},
-			Bidi:    true,
+			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
 			},
@@ -696,6 +787,30 @@ func (u *ProxyUpsert) UpdateExpiryWarnDays() *ProxyUpsert {
 // AddExpiryWarnDays adds v to the "expiry_warn_days" field.
 func (u *ProxyUpsert) AddExpiryWarnDays(v int) *ProxyUpsert {
 	u.Add(proxy.FieldExpiryWarnDays, v)
+	return u
+}
+
+// SetEgressTimezone sets the "egress_timezone" field.
+func (u *ProxyUpsert) SetEgressTimezone(v string) *ProxyUpsert {
+	u.Set(proxy.FieldEgressTimezone, v)
+	return u
+}
+
+// UpdateEgressTimezone sets the "egress_timezone" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateEgressTimezone() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldEgressTimezone)
+	return u
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (u *ProxyUpsert) SetEgressCountry(v string) *ProxyUpsert {
+	u.Set(proxy.FieldEgressCountry, v)
+	return u
+}
+
+// UpdateEgressCountry sets the "egress_country" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateEgressCountry() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldEgressCountry)
 	return u
 }
 
@@ -972,6 +1087,34 @@ func (u *ProxyUpsertOne) AddExpiryWarnDays(v int) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateExpiryWarnDays() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateExpiryWarnDays()
+	})
+}
+
+// SetEgressTimezone sets the "egress_timezone" field.
+func (u *ProxyUpsertOne) SetEgressTimezone(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetEgressTimezone(v)
+	})
+}
+
+// UpdateEgressTimezone sets the "egress_timezone" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateEgressTimezone() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateEgressTimezone()
+	})
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (u *ProxyUpsertOne) SetEgressCountry(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetEgressCountry(v)
+	})
+}
+
+// UpdateEgressCountry sets the "egress_country" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateEgressCountry() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateEgressCountry()
 	})
 }
 
@@ -1414,6 +1557,34 @@ func (u *ProxyUpsertBulk) AddExpiryWarnDays(v int) *ProxyUpsertBulk {
 func (u *ProxyUpsertBulk) UpdateExpiryWarnDays() *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateExpiryWarnDays()
+	})
+}
+
+// SetEgressTimezone sets the "egress_timezone" field.
+func (u *ProxyUpsertBulk) SetEgressTimezone(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetEgressTimezone(v)
+	})
+}
+
+// UpdateEgressTimezone sets the "egress_timezone" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateEgressTimezone() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateEgressTimezone()
+	})
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (u *ProxyUpsertBulk) SetEgressCountry(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetEgressCountry(v)
+	})
+}
+
+// UpdateEgressCountry sets the "egress_country" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateEgressCountry() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateEgressCountry()
 	})
 }
 

@@ -3,8 +3,10 @@ package service
 import (
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -12,10 +14,11 @@ import (
 )
 
 type OpenAIMessagesDispatchModelConfig = domain.OpenAIMessagesDispatchModelConfig
-type GroupModelsListConfig = domain.GroupModelsListConfig
+type GroupCodexModelsManifestConfig = domain.GroupCodexModelsManifestConfig
 type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
+	requestRates   *sync.Map
 	ID             int64
 	Name           string
 	Description    string
@@ -27,6 +30,7 @@ type Group struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
+	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 	Status             string
 	Hydrated           bool // indicates the group was loaded from a trusted repository source
@@ -34,12 +38,20 @@ type Group struct {
 	// an already committed one-click copy. It must never be mapped to API DTOs.
 	DuplicateOperationID string
 
-	SubscriptionType    string
-	DailyLimitUSD       *float64
-	WeeklyLimitUSD      *float64
-	MonthlyLimitUSD     *float64
-	FiveHourLimitUSD    *float64
-	DefaultValidityDays int
+	SubscriptionType            string
+	DailyLimitUSD               *float64
+	WeeklyLimitUSD              *float64
+	MonthlyLimitUSD             *float64
+	FiveHourLimitUSD            *float64
+	DefaultValidityDays         int
+	QuotaResetSourceAccountID   *int64
+	QuotaResetSourceAccountName string
+	QuotaResetSourceResetAt     *time.Time
+	QuotaResetIncludeMonthly    bool
+	QuotaResetConfigVersion     int64
+	QuotaResetSourceValid       bool
+	// QuotaResetSourceChanged is persistence intent, never exposed by the API.
+	QuotaResetSourceChanged bool
 
 	// 图片生成计费配置（antigravity 和 gemini 平台使用）
 	AllowImageGeneration         bool
@@ -107,13 +119,16 @@ type Group struct {
 	RequirePrivacySet           bool // 调度时仅允许 privacy 已成功设置的账号（OpenAI/Antigravity/Anthropic/Gemini）
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
-	ModelsListConfig            GroupModelsListConfig
+	ModelAllowlist              GroupModelAllowlist
+	// CodexModelsManifestConfig 开启后，普通模型列表与 Codex manifest 优先使用
+	// 固定账号列表拉取并合并，不经过调度器（仅 openai 平台）。
+	CodexModelsManifestConfig GroupCodexModelsManifestConfig
 
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）。
 	// 一旦设置即接管该分组用户的限流（覆盖用户级 rpm_limit），可被 user-group rpm_override 进一步覆盖。
 	RPMLimit int
 
-	// MaxReasoningEffort limits the effective OpenAI/Codex reasoning effort.
+	// MaxReasoningEffort limits the effective Anthropic/OpenAI reasoning effort.
 	// Empty means unlimited; supported values are minimal/low/medium/high/xhigh/max.
 	MaxReasoningEffort string
 	// MaxReasoningEffortOverLimit is the access control when an explicit effort
@@ -139,6 +154,12 @@ type Group struct {
 	RateLimitedAccountCount int64
 }
 
+// IsGroupBindableInSimpleMode is the shared policy for groups that may be
+// surfaced and bound to accounts while running in simple mode.
+func IsGroupBindableInSimpleMode(group *Group) bool {
+	return group != nil && group.Platform != PlatformComposite
+}
+
 func (g *Group) IsActive() bool {
 	return g.Status == StatusActive
 }
@@ -161,6 +182,10 @@ func (g *Group) HasMonthlyLimit() bool {
 
 func (g *Group) HasFiveHourLimit() bool {
 	return g.FiveHourLimitUSD != nil && *g.FiveHourLimitUSD > 0
+}
+
+func (g *Group) SupportsOpenAIQuotaFollowReset() bool {
+	return g != nil && g.Platform == PlatformOpenAI && g.SubscriptionType == SubscriptionTypeSubscription
 }
 
 // GetImagePrice 根据 image_size 返回对应的图片生成价格
@@ -309,6 +334,34 @@ func parseMinutes(hhmm string) (int, bool) {
 //
 // 该方法是纯函数，不读取任何外部状态，便于单测。
 func (g *Group) PeakMultiplierAt(now time.Time) float64 {
+	if snapshot, ok := g.requestRateAt(now); ok {
+		return snapshot.Factor
+	}
+	if g != nil && g.RateSchedule.Rules != nil {
+		if !g.RateSchedule.Enabled {
+			return 1
+		}
+		location := timezone.Location()
+		if g.RateSchedule.Timezone != "" {
+			location, _ = time.LoadLocation(g.RateSchedule.Timezone)
+		}
+		local := now.In(location)
+		minute := local.Hour()*60 + local.Minute()
+		for _, rule := range g.RateSchedule.Rules {
+			if !rule.Enabled {
+				continue
+			}
+			start, _ := parseMinutes(rule.Start)
+			end, _ := parseMinutes(rule.End)
+			if rule.End == "24:00" {
+				end = 1440
+			}
+			if (start < end && minute >= start && minute < end) || (start > end && (minute >= start || minute < end)) {
+				return rule.Multiplier
+			}
+		}
+		return 1
+	}
 	if g == nil || !g.IsSubscriptionType() || !g.PeakRateEnabled || g.PeakStart == "" || g.PeakEnd == "" {
 		return 1.0
 	}
@@ -387,6 +440,11 @@ func NormalizePeakRateConfig(subscriptionType string, enabled bool, start, end s
 // gateway_service.recordUsageCore 与 openai_gateway_service.RecordUsage 共用此函数，
 // 锁死"高峰因子只乘入 token 倍率、图片按次倍率不受影响"这一叠加顺序——任何调换都会被 group_peak_rate_test 覆盖。
 func computePeakAwareMultipliers(apiKey *APIKey, base float64, now time.Time) (text, image float64) {
+	if apiKey != nil && apiKey.Group != nil {
+		if snapshot, ok := apiKey.Group.requestRateAt(now); ok {
+			base = snapshot.Base
+		}
+	}
 	image = resolveImageRateMultiplier(apiKey, base)
 	peak := 1.0
 	if apiKey != nil && apiKey.Group != nil {

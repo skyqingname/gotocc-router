@@ -446,6 +446,7 @@ class LocalChecksTest(unittest.TestCase):
         self.assertIn("Push CLI self-tests", names)
         self.assertIn("Release CLI self-tests", names)
         self.assertIn("Backend unit tests", names)
+        self.assertIn("Go test build tags", names)
         self.assertIn("Frontend production build", names)
         self.assertIn("Docker Compose security", names)
         self.assertIn("Docker runtime resources", names)
@@ -990,7 +991,7 @@ class ValidationCleanupTest(unittest.TestCase):
         commands: list[tuple[str, list[str]]] = []
 
         def capture(command: list[str]) -> str:
-            if command == [*prefix, "docker", "image", "list"]:
+            if command == [*prefix, "docker", "image", "list", "--format", "table {{.Repository}}\t{{.Tag}}"]:
                 return (
                     "REPOSITORY TAG IMAGE ID\n"
                     "sub2api-validation 1111111111111111 current\n"
@@ -1028,6 +1029,19 @@ class ValidationCleanupTest(unittest.TestCase):
 
 
 class MainFlowTest(unittest.TestCase):
+    def test_finalization_container_failure_stops_before_release_verification(self) -> None:
+        proof = push_cli.ValidationProof(
+            "a" * 40, "b" * 40, push_cli.FINALIZATION_PROFILE, "v1.2.3+custom.009"
+        )
+        with (
+            mock.patch.object(push_cli.release_validation, "run", return_value=subprocess.CompletedProcess([], 1, "container unavailable")) as check,
+            mock.patch.object(push_cli, "run_step") as step,
+        ):
+            with self.assertRaisesRegex(push_cli.PushCliError, "container validation failed"):
+                push_cli.run_release_finalization_checks(proof, "release/finalize-1.2.3-custom.009", "origin")
+        check.assert_called_once()
+        step.assert_not_called()
+
     @staticmethod
     def args(
         action: str,
@@ -1296,6 +1310,60 @@ class MainFlowTest(unittest.TestCase):
         probe.assert_not_called()
         image.assert_not_called()
         launch.assert_not_called()
+
+
+class WatchActionsTest(unittest.TestCase):
+    def test_watch_uses_pull_request_runs_when_a_pr_exists(self) -> None:
+        run = {
+            "databaseId": 99,
+            "headSha": "abc",
+            "headBranch": "feature",
+            "workflowName": "CI",
+            "url": "https://example.invalid/run",
+        }
+        with (
+            mock.patch.object(push_cli, "pushed_sha", return_value="abc"),
+            mock.patch.object(push_cli, "repository_default_branch", return_value="main"),
+            mock.patch.object(push_cli, "actions_watch_event", return_value="pull_request") as event,
+            mock.patch.object(push_cli, "find_actions_runs", return_value=[run]) as find,
+            mock.patch.object(
+                push_cli,
+                "run_command",
+                return_value=subprocess.CompletedProcess(["gh"], 0, ""),
+            ) as run_command,
+        ):
+            push_cli.watch_actions("LuckyKuang/sub2api-plus", "feature")
+
+        event.assert_called_once_with("LuckyKuang/sub2api-plus", "feature", "main")
+        find.assert_called_once_with(
+            "LuckyKuang/sub2api-plus",
+            "feature",
+            "abc",
+            "pull_request",
+        )
+        run_command.assert_called_once()
+
+    def test_watch_event_is_push_when_no_pull_request_exists(self) -> None:
+        with mock.patch.object(push_cli, "capture", return_value="[]"):
+            self.assertEqual(
+                "push",
+                push_cli.actions_watch_event(
+                    "LuckyKuang/sub2api-plus",
+                    "feature",
+                    "main",
+                ),
+            )
+
+    def test_watch_event_is_pull_request_when_an_open_pr_exists(self) -> None:
+        with mock.patch.object(push_cli, "capture", return_value='[{"number": 12}]'):
+            self.assertEqual(
+                "pull_request",
+                push_cli.actions_watch_event(
+                    "LuckyKuang/sub2api-plus",
+                    "feature",
+                    "main",
+                ),
+            )
 
 
 if __name__ == "__main__":

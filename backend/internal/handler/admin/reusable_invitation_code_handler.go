@@ -20,22 +20,24 @@ func NewReusableInvitationCodeHandler(repo service.ReusableInvitationCodeReposit
 }
 
 type CreateReusableInvitationCodeRequest struct {
-	Code      string     `json:"code" binding:"required,min=3,max=64"`
-	MaxUses   int        `json:"max_uses" binding:"omitempty,min=0"`
-	ExpiresAt *time.Time `json:"expires_at"`
-	Notes     string     `json:"notes"`
+	OwnerUserID *int64     `json:"owner_user_id" binding:"omitempty,min=1"`
+	Code        string     `json:"code" binding:"required,min=3,max=64"`
+	MaxUses     int        `json:"max_uses" binding:"omitempty,min=0"`
+	ExpiresAt   *time.Time `json:"expires_at"`
+	Notes       string     `json:"notes"`
 }
 
 type ReusableInvitationCodeResponse struct {
-	ID        int64      `json:"id"`
-	Code      string     `json:"code"`
-	Status    string     `json:"status"`
-	MaxUses   int        `json:"max_uses"`
-	UsedCount int        `json:"used_count"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	Notes     string     `json:"notes"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	OwnerUserID *int64     `json:"owner_user_id,omitempty"`
+	ID          int64      `json:"id"`
+	Code        string     `json:"code"`
+	Status      string     `json:"status"`
+	MaxUses     int        `json:"max_uses"`
+	UsedCount   int        `json:"used_count"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	Notes       string     `json:"notes"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type ReusableInvitationCodeUseResponse struct {
@@ -71,7 +73,8 @@ func (h *ReusableInvitationCodeHandler) Create(c *gin.Context) {
 		req.ExpiresAt = &expiresAt
 	}
 	code := &service.ReusableInvitationCode{
-		Code: req.Code, Status: service.ReusableInvitationCodeStatusActive,
+		OwnerUserID: req.OwnerUserID,
+		Code:        req.Code, Status: service.ReusableInvitationCodeStatusActive,
 		MaxUses: req.MaxUses, ExpiresAt: req.ExpiresAt, Notes: strings.TrimSpace(req.Notes),
 	}
 	if err := h.repo.Create(c.Request.Context(), code); err != nil {
@@ -160,7 +163,8 @@ func reusableInvitationCodeToResponse(code *service.ReusableInvitationCode) Reus
 		return ReusableInvitationCodeResponse{}
 	}
 	return ReusableInvitationCodeResponse{
-		ID: code.ID, Code: code.Code, Status: code.Status, MaxUses: code.MaxUses,
+		OwnerUserID: code.OwnerUserID,
+		ID:          code.ID, Code: code.Code, Status: code.Status, MaxUses: code.MaxUses,
 		UsedCount: code.UsedCount, ExpiresAt: code.ExpiresAt, Notes: code.Notes,
 		CreatedAt: code.CreatedAt, UpdatedAt: code.UpdatedAt,
 	}
@@ -174,4 +178,29 @@ func reusableInvitationCodeUseToResponse(use *service.ReusableInvitationCodeUse)
 		ID: use.ID, CodeID: use.CodeID, UserID: use.UserID, Email: use.Email,
 		AuthSource: use.AuthSource, UsedAt: use.UsedAt,
 	}
+}
+
+func (h *ReusableInvitationCodeHandler) SetOwner(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "Invalid invitation code ID")
+		return
+	}
+	var req struct {
+		OwnerUserID int64 `json:"owner_user_id" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid owner user ID")
+		return
+	}
+	result, err := h.repo.SetOwner(c.Request.Context(), id, req.OwnerUserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, struct {
+		Code         ReusableInvitationCodeResponse `json:"code"`
+		BoundCount   int                            `json:"bound_count"`
+		SkippedCount int                            `json:"skipped_count"`
+	}{reusableInvitationCodeToResponse(result.Code), result.BoundCount, result.SkippedCount})
 }

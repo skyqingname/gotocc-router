@@ -256,16 +256,28 @@ func (r *accountRepository) CreateWithAccountGroups(ctx context.Context, account
 		// Reuse a caller-owned transaction when this repository is already transactional.
 		txClient = r.client
 	}
+	groupIDs := make([]int64, 0, len(groups))
+	for i := range groups {
+		groupIDs = append(groupIDs, groups[i].GroupID)
+	}
+	// A newly inserted shadow is invisible to observers, but its parent FK
+	// locks an existing credential owner. Acquire that lock before group locks.
+	if account.ParentAccountID != nil {
+		if err := lockMembershipAccounts(ctx, txClient, []int64{*account.ParentAccountID}); err != nil {
+			return err
+		}
+	}
+	if err := lockLiveGroups(ctx, txClient, groupIDs); err != nil {
+		return err
+	}
 
 	if err := createAccountRecord(ctx, txClient, account); err != nil {
 		return err
 	}
-	groupIDs := make([]int64, 0, len(groups))
 	if len(groups) > 0 {
 		builders := make([]*dbent.AccountGroupCreate, 0, len(groups))
 		for i := range groups {
 			groups[i].AccountID = account.ID
-			groupIDs = append(groupIDs, groups[i].GroupID)
 			builders = append(builders, txClient.AccountGroup.Create().
 				SetAccountID(account.ID).
 				SetGroupID(groups[i].GroupID).
@@ -1669,13 +1681,33 @@ func (r *accountRepository) ClearError(ctx context.Context, id int64) error {
 }
 
 func (r *accountRepository) AddToGroup(ctx context.Context, accountID, groupID int64, priority int) error {
-	_, err := r.client.AccountGroup.Create().
+	tx, err := r.client.Tx(ctx)
+	if err != nil && !errors.Is(err, dbent.ErrTxStarted) {
+		return err
+	}
+	client := r.client
+	if tx != nil {
+		defer func() { _ = tx.Rollback() }()
+		client = tx.Client()
+	}
+	if err := lockMembershipAccounts(ctx, client, []int64{accountID}); err != nil {
+		return err
+	}
+	if err := lockLiveGroups(ctx, client, []int64{groupID}); err != nil {
+		return err
+	}
+	_, err = client.AccountGroup.Create().
 		SetAccountID(accountID).
 		SetGroupID(groupID).
 		SetPriority(priority).
 		Save(ctx)
 	if err != nil {
 		return err
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 	payload := buildSchedulerGroupPayload([]int64{groupID})
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, payload); err != nil {
@@ -1736,6 +1768,12 @@ func (r *accountRepository) BindGroups(ctx context.Context, accountID int64, gro
 	} else {
 		// 已处于外部事务中（ErrTxStarted），复用当前 client
 		txClient = r.client
+	}
+	if err := lockMembershipAccounts(ctx, txClient, []int64{accountID}); err != nil {
+		return err
+	}
+	if err := lockLiveGroups(ctx, txClient, groupIDs); err != nil {
+		return err
 	}
 
 	if _, err := txClient.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(accountID)).Exec(ctx); err != nil {
@@ -2144,6 +2182,61 @@ func (r *accountRepository) ClearRateLimitIfObserved(ctx context.Context, id int
 	return true, nil
 }
 
+// SetRateLimitedIfUnchanged atomically applies a rate-limit reset only while the
+// account still carries exactly the generation the caller observed: its
+// UpdatedAt row version, its RateLimitedAt and its RateLimitResetAt (nil means
+// that field is currently unset). It is the write-back CAS counterpart to
+// ClearRateLimitIfObserved: an async rate-limit reset (e.g. an Ollama Cloud
+// usage probe) must not overwrite a newer 429, an admin clear, a re-armed
+// generation, or a key/state change observed by another writer between the
+// caller's read and this write. The whole update is a single statement, so the
+// write itself is race-free. updated reports whether the write happened, and the
+// caller must ONLY send its scheduling notification when updated == true (this
+// method already performed the DB update; no further SetRateLimited call is
+// allowed, as a second unconditional write would reintroduce the race). No new
+// migration is required.
+func (r *accountRepository) SetRateLimitedIfUnchanged(
+	ctx context.Context,
+	id int64,
+	expectedUpdatedAt time.Time,
+	expectedLimitedAt, expectedResetAt *time.Time,
+	newResetAt time.Time,
+) (bool, error) {
+	preds := []dbpredicate.Account{dbaccount.IDEQ(id), dbaccount.UpdatedAtEQ(expectedUpdatedAt)}
+	if expectedLimitedAt == nil {
+		preds = append(preds, dbaccount.RateLimitedAtIsNil())
+	} else {
+		preds = append(preds, dbaccount.RateLimitedAtEQ(*expectedLimitedAt))
+	}
+	if expectedResetAt == nil {
+		preds = append(preds, dbaccount.RateLimitResetAtIsNil())
+	} else {
+		preds = append(preds, dbaccount.RateLimitResetAtEQ(*expectedResetAt))
+	}
+
+	now := time.Now()
+	updated, err := r.client.Account.Update().
+		Where(preds...).
+		SetRateLimitedAt(now).
+		SetRateLimitResetAt(newResetAt).
+		Save(ctx)
+	if err != nil {
+		return false, err
+	}
+	if updated == 0 {
+		// The generation changed concurrently (cleared, re-armed, or the account
+		// was otherwise updated elsewhere): do not announce anything, just
+		// refresh the local scheduler snapshot.
+		r.syncSchedulerAccountSnapshot(ctx, id)
+		return false, nil
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue rate limit failed: account=%d err=%v", id, err)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
+	return true, nil
+}
+
 func (r *accountRepository) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time, reason ...string) error {
 	if scope == "" {
 		return nil
@@ -2476,11 +2569,13 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates m
 	}
 
 	durableSchedulerChange := shouldEnqueueSchedulerOutboxForExtraUpdates(updates)
+	snapshotTime, _ := updates["codex_usage_updated_at"].(string)
+	snapshotAt, snapshotTimeErr := time.Parse(time.RFC3339Nano, snapshotTime)
 	baseCtx := ctx
 	contextTx := dbent.TxFromContext(ctx)
 	client := clientFromContext(ctx, r.client)
 	var tx *dbent.Tx
-	if durableSchedulerChange && contextTx == nil {
+	if (durableSchedulerChange || snapshotTimeErr == nil) && contextTx == nil {
 		var txErr error
 		tx, txErr = r.client.Tx(ctx)
 		if txErr != nil && !errors.Is(txErr, dbent.ErrTxStarted) {
@@ -2490,6 +2585,36 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates m
 			defer func() { _ = tx.Rollback() }()
 			ctx = dbent.NewTxContext(ctx, tx)
 			client = tx.Client()
+		}
+	}
+	if snapshotTimeErr == nil {
+		// The compare and merge share the row lock across replicas. Otherwise a
+		// delayed quota query or asynchronous header write can undo a newer reset
+		// on the account page even though the reset observer rejects that sample.
+		var savedTime sql.NullString
+		err := scanSingleRow(ctx, client, `SELECT extra->>'codex_usage_updated_at' FROM accounts WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, []any{id}, &savedTime)
+		if errors.Is(err, sql.ErrNoRows) {
+			return service.ErrAccountNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if savedAt, err := time.Parse(time.RFC3339Nano, savedTime.String); err == nil && !snapshotAt.After(savedAt) {
+			freshFields := make(map[string]any, len(updates))
+			for key, value := range updates {
+				if key == "codex_usage_updated_at" || strings.HasPrefix(key, "codex_primary_") ||
+					strings.HasPrefix(key, "codex_secondary_") || strings.HasPrefix(key, "codex_5h_") || strings.HasPrefix(key, "codex_7d_") {
+					continue
+				}
+				freshFields[key] = value
+			}
+			if len(freshFields) == 0 {
+				return nil
+			}
+			payload, err = json.Marshal(freshFields)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	extraExpression := "COALESCE(extra, '{}'::jsonb) || $1::jsonb"
@@ -2514,21 +2639,16 @@ func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates m
 		if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 			return err
 		}
-		if tx != nil {
-			if err := tx.Commit(); err != nil {
-				return err
-			}
+	}
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return err
 		}
-		if contextTx == nil {
-			r.syncSchedulerAccountSnapshot(baseCtx, id)
-		}
-	} else {
-		// 观测型 extra 字段不需要触发 bucket 重建，但仍同步单账号快照，
-		// 让 sticky session / GetAccount 命中缓存时也能读到最新数据，
-		// 同时避免缓存局部 patch 覆盖掉并发写入的其它账号字段。
-		if dbent.TxFromContext(ctx) == nil {
-			r.syncSchedulerAccountSnapshot(ctx, id)
-		}
+	}
+	// Observation-only updates skip bucket rebuilds but still refresh the account
+	// snapshot after commit, including when this method opened a snapshot lock.
+	if contextTx == nil {
+		r.syncSchedulerAccountSnapshot(baseCtx, id)
 	}
 	return nil
 }

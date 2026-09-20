@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package securityaudit
 
 import (
@@ -43,6 +45,9 @@ func (s *fakePromptAdminService) Probe(ctx context.Context, req ProbeRequest) Pr
 		return ProbeResult{}
 	}
 	return s.probe(ctx, req)
+}
+func (s *fakePromptAdminService) PreviewText(context.Context, TextPreviewRequest, string) (TextPreviewResult, error) {
+	return TextPreviewResult{}, errors.New("unexpected PreviewText call")
 }
 func (s *fakePromptAdminService) Runtime(context.Context) RuntimeSnapshot { return s.runtime }
 func (s *fakePromptAdminService) ListEvents(ctx context.Context, filter EventFilter, page, pageSize int) (*EventPage, error) {

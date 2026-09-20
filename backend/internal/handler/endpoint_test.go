@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package handler
 
 import (
@@ -232,6 +234,18 @@ func TestResolveOpenAIUpstreamEndpointPrefersForwardResult(t *testing.T) {
 			account: &service.Account{Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth},
 			result:  &service.OpenAIForwardResult{},
 			want:    EndpointResponses,
+		},
+		{
+			name:    "opencode go conversion result reports responses",
+			account: &service.Account{Platform: service.PlatformOpenCodeGo, Type: service.AccountTypeAPIKey},
+			result:  &service.OpenAIForwardResult{UpstreamEndpoint: EndpointResponses},
+			want:    EndpointResponses,
+		},
+		{
+			name:    "opencode go empty result without runtime stays inbound",
+			account: &service.Account{Platform: service.PlatformOpenCodeGo, Type: service.AccountTypeAPIKey},
+			result:  &service.OpenAIForwardResult{},
+			want:    EndpointChatCompletions,
 		},
 	}
 

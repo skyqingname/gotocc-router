@@ -84,6 +84,21 @@ export default {
     columnAlwaysVisible: '该列固定显示，不可隐藏',
     createKey: '创建密钥',
     editKey: '编辑密钥',
+    bulkEdit: {
+      title: '批量编辑',
+      selectedCount: '已选择 {count} 个密钥',
+      selectKey: '选择密钥 {name}',
+      clearSelection: '取消选择',
+      hint: '勾选需要修改的字段，未勾选的字段保持原值。',
+      limitHint: '输入 0 表示不限制；已用额度保持不变。',
+      ipHint: '每行一个 IP 或 CIDR；留空将清空所选密钥的此项名单。',
+      invalidLimit: '请输入大于或等于 0 的有效金额。',
+      invalidExpiration: '请选择有效的过期时间，或勾选永久有效。',
+      apply: '应用到 {count} 个密钥',
+      success: '已更新 {count} 个密钥',
+      partialFailure: '已更新 {success} 个密钥，{failed} 个失败',
+      failureHint: '以下密钥更新失败，可修改设置后重试。再次提交只会更新失败的密钥。'
+    },
     deleteKey: '删除密钥',
     deleteConfirmMessage: "确定要删除 '{name}' 吗？此操作无法撤销。",
     id: 'ID',
@@ -102,6 +117,19 @@ export default {
     nameLabel: '名称',
     namePlaceholder: '我的 API 密钥',
     groupLabel: '分组',
+    providerLabel: '厂商',
+    providers: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      domestic: '国产模型',
+      other: '其他'
+    },
+    providerHints: {
+      anthropic: '选择 Anthropic / Claude 的可用分组',
+      openai: '选择 OpenAI / GPT 的可用分组',
+      domestic: '包含 DeepSeek、Kimi、智谱 GLM、MiniMax',
+      other: '包含 Gemini、Grok、Antigravity、OpenCode 和混合分组'
+    },
     selectGroup: '选择分组',
     statusLabel: '状态',
     selectStatus: '选择状态',
@@ -226,7 +254,7 @@ export default {
         configTomlHint:
           '官方路径：~/.grok/config.toml（或 $GROK_HOME）。请填写 [endpoints]（models_base_url / models_list_url / xai_api_base_url / cli_chat_proxy_base_url）、[auth] preferred_method=api_key、[models]、[session]、[features] 图片/视频覆盖。优先 env_key，勿硬编码 api_key；文本模型必须 api_backend=responses。合并前备份，保存后运行 grok inspect。',
         codexConfigTomlHint:
-          'Codex 官方：wire_api 仅支持 "responses"；优先 env_key，勿与 experimental_bearer_token 混用；非 OpenAI 网关默认 supports_websockets = false（Sub2API 仍可接客户端 WS 并桥接到 HTTP/SSE）。合并前备份 ~/.codex/config.toml。',
+          'Codex 官方：wire_api 仅支持 "responses"；优先 env_key，勿与 experimental_bearer_token 混用；非 OpenAI 网关默认 supports_websockets = false（Sub2API Plus 仍可接客户端 WS 并桥接到 HTTP/SSE）。合并前备份 ~/.codex/config.toml。',
         note:
           '导出 GROK_MODELS_BASE_URL 与 XAI_API_KEY，将完整 config.toml（endpoints/auth/models/session/features）保存为 ~/.grok/config.toml，运行 grok inspect，再用 /model 选择 grok-4.5（编程场景可用 grok-build-0.1）。',
         noteWindows:
@@ -241,6 +269,12 @@ export default {
       deepseek: {
         description: '通过当前 DeepSeek 分组配置 Claude Code、Codex 或 OpenCode。',
         codexDescription: '使用 API Key 配置 Codex，并通过当前 DeepSeek 分组发送请求。',
+        codexConfigTomlHint: '下载下方模型目录，将两个文件保存到 Codex 配置目录后重启 Codex。',
+        codexNote: '启动 Codex 前先导出 SUB2API_API_KEY。下载的目录只包含模型元数据，不包含 API Key。'
+      },
+      minimax: {
+        description: '通过当前 MiniMax 分组配置 Claude Code、Codex 或 OpenCode。',
+        codexDescription: '使用 API Key 配置 Codex，并通过当前 MiniMax 分组发送请求。',
         codexConfigTomlHint: '下载下方模型目录，将两个文件保存到 Codex 配置目录后重启 Codex。',
         codexNote: '启动 Codex 前先导出 SUB2API_API_KEY。下载的目录只包含模型元数据，不包含 API Key。'
       },
@@ -399,11 +433,9 @@ export default {
     tokens: 'Token',
     cost: '费用',
 		firstToken: '首 Token',
-		firstTokenOrLegacyEvent: '首 Token / 旧版首事件',
     duration: '耗时',
     latency: '延迟',
 		latencyFirstToken: '首字',
-		latencyLegacyFirstEvent: '旧版首事件',
     latencyFirstOutput: '首输出',
     latencyFirstOutputKind: '首输出类型',
     latencyOutputKindText: '文本',
@@ -412,13 +444,20 @@ export default {
     latencyFirstReasoning: '首推理',
     latencyFirstTool: '首工具输出',
     latencyDetails: '延迟详情',
-    latencyLegacyFirstEventHint: '旧版首事件，不可与新口径严格首字直接对比。',
     latencyMediaOnlyHint: '仅有媒体首输出，无严格首字（token-like）样本。',
     latencyMixedModalityHint: '首输出与首字时间不同，存在更早的非文本或聚合输出。',
     latencyNonTextFirstHint: '首个 token-like 输出为推理或工具调用，不一定是正文。',
     latencyDuration: '总耗时',
+    latencyLastToken: '末 Token',
     latencyTps: 'TPS',
-    latencyTpsHint: '估算平均文本输出速率：文本输出 Token ÷（末 Token − 首 Token）；仅完整 stream/ws 请求。生成窗过短或文本 Token 过少时显示为 -；低于 1 或高于 1000 显示为 < 1 / > 1000。',
+    latencyCompaction: '压缩结果',
+    timingUnavailableHistorical: '未采集可确认口径的首字时序',
+    timingUnavailableLive: 'Live 会话汇总，无逐 Token 生成时序',
+    timingUnavailableCompaction: '压缩结果没有可观测的 Token 增量',
+    timingUnavailableNoTokens: '没有可计费的文本 Token 或生成时序',
+    timingUnavailableInvalid: 'Token 或耗时数据无效',
+    timingUnavailableReason: '不可计算原因',
+    latencyTpsHint: '每秒输出 Token 数。流式请求排除首字耗时，非流式请求使用总耗时。',
 	incomplete: '未完成',
 	incompleteHint: '请求在完整终态前结束，当前显示的用量和费用可能只是部分结果。',
 	clientDisconnected: '客户端已断开',
@@ -468,6 +507,7 @@ export default {
     cacheWrite: '写入',
     serviceTier: '服务档位',
     serviceTierPriority: 'Fast',
+    serviceTierUltrafast: 'Ultrafast',
     serviceTierFlex: 'Flex',
     serviceTierStandard: 'Standard',
     rate: '倍率',
@@ -537,7 +577,9 @@ export default {
       antigravity: 'Antigravity',
       kimi: 'Kimi',
       zhipu: '智谱 GLM',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax',
+      opencode_go: 'OpenCode'
     },
     // 检查模式（监控条目的工作方式）
     checkMode: {
@@ -554,6 +596,7 @@ export default {
         '7dSonnet': '7 天 Sonnet',
         '7dFable': '7 天 Fable',
         weekly: '周',
+        monthly: '月',
         daily: '日',
         '30d': '30 天',
         total: '总量'
@@ -709,6 +752,8 @@ export default {
       cacheReadShort: '读',
       tierHint: '按单次请求的总上下文（输入 + 缓存写入 + 缓存读取）所在档位对整单计价',
       tierHintMarginal: '仅超过阈值的部分按该档计价，输出不加价',
+      maxReasoningMultiplierBadge: 'Max ×{multiplier}',
+      maxReasoningMultiplierHint: '最终转发的推理强度为 max 时，整次请求的计费与额度消耗乘以 {multiplier}',
       marginalBadge: '超出部分计价',
       timePricingRowHint: '按 {timezone} 时间，在该时段内发起的请求按本行价格计费',
       timePricingRowHintWeekdays:
@@ -749,9 +794,9 @@ export default {
     loadFailed: '加载邀请返利数据失败',
     transferFailed: '转入余额失败',
     stats: {
-      rebateRate: '我的返利比例',
-      rebateRateHint: '被邀请用户每次充值后你可获得的返利比例',
-      invitedUsers: '邀请人数',
+      rebateRate: "一代 / 二代 / 三代比例",
+      rebateRateHint: "按你与每笔充值账户的邀请距离确定代次",
+      invitedUsers: "直接邀请人数",
       availableQuota: '可转返利额度',
       frozenQuota: '冻结中',
       frozenQuotaHint: '新产生的返利正在冻结期中',
@@ -766,9 +811,11 @@ export default {
       success: '已转入余额：{amount}'
     },
     invitees: {
-      title: '已邀请用户',
+      generation: "第 {level} 代",
+      title: '最近三代邀请用户',
       empty: '暂无邀请记录',
       columns: {
+        level: "邀请代次",
         email: '邮箱',
         username: '用户名',
         rebate: '返利明细',
@@ -778,9 +825,9 @@ export default {
     tips: {
       title: '使用说明',
       line1: '将邀请码或邀请链接分享给新用户。',
-      line2: '被邀请用户充值后，你可获得 {rate} 的返利额度。',
-      line3: '返利额度可随时转入账户余额。',
-      line4: '新产生的返利需要经过冻结期后才能提现。'
+      line2: "每笔有效充值按最近三代的 {rates} 分佣，缺少的代次不补发。",
+      line3: "首充和后续充值均参与；赠额和佣金转余额不产生新佣金。",
+      line4: "冻结期结束后可将返利转入使用余额。"
     }
   },
 
@@ -823,6 +870,7 @@ export default {
     days: '天',
     codeRedeemSuccess: '兑换成功！',
     failedToRedeem: '兑换失败，请检查兑换码后重试。',
+    userRefreshFailed: '兑换成功，但账户信息刷新失败。',
     subscriptionRefreshFailed: '兑换成功，但订阅状态刷新失败。',
     pleaseEnterCode: '请输入兑换码'
   },

@@ -39,8 +39,9 @@ GHCR_IMAGE_RE = re.compile(
     rf"({re.escape(RELEASE_IMAGE)}:)({OCI_TAG_TEXT})()"
 )
 APPLE_CONTAINER_SOURCE_IMAGE_RE = re.compile(
-    rf"(this source revision is tagged sub2api-plus:)({OCI_TAG_TEXT})(; use that value)"
+    rf"(this source revision uses sub2api-plus:)({OCI_TAG_TEXT})( naming; use that value)"
 )
+OCI_NAMING_RE = re.compile(rf"(OCI naming: )({OCI_TAG_TEXT})( \(no image published by the local archive workflow\))")
 OCI_EXAMPLE_RE = re.compile(
     rf"(for example `)({OCI_TAG_TEXT})(`)"
 )
@@ -147,7 +148,7 @@ DOCUMENT_RULES = (
                 APPLICATION_VERSION_VALUE,
                 "current application version",
             ),
-            CurrentValueRule(GHCR_IMAGE_RE, 1, OCI_TAG_VALUE, "current GHCR image"),
+            CurrentValueRule(OCI_NAMING_RE, 1, OCI_TAG_VALUE, "current OCI naming"),
         ),
     ),
 )

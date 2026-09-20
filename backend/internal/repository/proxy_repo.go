@@ -41,7 +41,9 @@ func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) er
 		SetPort(proxyIn.Port).
 		SetStatus(proxyIn.Status).
 		SetFallbackMode(proxyIn.FallbackMode).
-		SetExpiryWarnDays(proxyIn.ExpiryWarnDays)
+		SetExpiryWarnDays(proxyIn.ExpiryWarnDays).
+		SetEgressTimezone(proxyIn.EgressTimezone).
+		SetEgressCountry(proxyIn.EgressCountry)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	}
@@ -155,7 +157,9 @@ func updateProxyAndInvalidateProbeSnapshots(ctx context.Context, client *dbent.C
 		SetPort(proxyIn.Port).
 		SetStatus(proxyIn.Status).
 		SetFallbackMode(proxyIn.FallbackMode).
-		SetExpiryWarnDays(proxyIn.ExpiryWarnDays)
+		SetExpiryWarnDays(proxyIn.ExpiryWarnDays).
+		SetEgressTimezone(proxyIn.EgressTimezone).
+		SetEgressCountry(proxyIn.EgressCountry)
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	} else {
@@ -591,6 +595,8 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		FallbackMode:   m.FallbackMode,
 		BackupProxyID:  m.BackupProxyID,
 		ExpiryWarnDays: m.ExpiryWarnDays,
+		EgressTimezone: m.EgressTimezone,
+		EgressCountry:  m.EgressCountry,
 	}
 	if m.Username != nil {
 		out.Username = *m.Username
@@ -737,17 +743,19 @@ func (r *proxyRepository) sweepOneExpiredProxyOnExec(ctx context.Context, exec s
 		rows *sql.Rows
 		err  error
 	)
+	// Match the current proxy even after an earlier fallback. Keep the first
+	// origin so manual revert still restores the originally assigned proxy.
 	if target == nil {
 		rows, err = exec.QueryContext(ctx, `
-			UPDATE accounts SET proxy_id=NULL, proxy_fallback_origin_id=$1,
+			UPDATE accounts SET proxy_id=NULL, proxy_fallback_origin_id=COALESCE(proxy_fallback_origin_id,$1),
 				updated_at=NOW()
-			WHERE proxy_id=$1 AND proxy_fallback_origin_id IS NULL AND deleted_at IS NULL
+			WHERE proxy_id=$1 AND deleted_at IS NULL
 			RETURNING id`, proxyID)
 	} else {
 		rows, err = exec.QueryContext(ctx, `
-			UPDATE accounts SET proxy_id=$2, proxy_fallback_origin_id=$1,
+			UPDATE accounts SET proxy_id=$2, proxy_fallback_origin_id=COALESCE(proxy_fallback_origin_id,$1),
 				updated_at=NOW()
-			WHERE proxy_id=$1 AND proxy_fallback_origin_id IS NULL AND deleted_at IS NULL
+			WHERE proxy_id=$1 AND deleted_at IS NULL
 			RETURNING id`, proxyID, *target)
 	}
 	if err != nil {

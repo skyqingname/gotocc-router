@@ -176,8 +176,8 @@ SELECT date_trunc('minute', ul.created_at), %s, COALESCE(ul.group_id, 0), %s,
        COALESCE(SUM(ul.output_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
        COALESCE(SUM(ul.cache_creation_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
        COALESCE(SUM(ul.cache_read_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
-       COALESCE(SUM(ul.first_token_ms) FILTER (WHERE ul.first_token_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
-       COUNT(ul.first_token_ms) FILTER (WHERE ` + usageLogSuccessFilterUL + `),
+       COALESCE(SUM(ul.first_token_ms) FILTER (WHERE ul.timing_version = 1 AND ul.first_token_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
+       COUNT(ul.first_token_ms) FILTER (WHERE ul.timing_version = 1 AND ` + usageLogSuccessFilterUL + `),
        COALESCE(SUM(ul.duration_ms) FILTER (WHERE ul.duration_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
        COUNT(ul.duration_ms) FILTER (WHERE ` + usageLogSuccessFilterUL + `), NOW()
 FROM usage_logs ul
@@ -199,8 +199,8 @@ SELECT date_trunc('minute', ul.created_at), %s, COALESCE(ul.group_id, 0), %s, ul
        COALESCE(SUM(ul.output_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
        COALESCE(SUM(ul.cache_creation_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
        COALESCE(SUM(ul.cache_read_tokens) FILTER (WHERE ` + usageLogSuccessFilterUL + `), 0),
-       COALESCE(SUM(ul.first_token_ms) FILTER (WHERE ul.first_token_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
-       COUNT(ul.first_token_ms) FILTER (WHERE ` + usageLogSuccessFilterUL + `),
+       COALESCE(SUM(ul.first_token_ms) FILTER (WHERE ul.timing_version = 1 AND ul.first_token_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
+       COUNT(ul.first_token_ms) FILTER (WHERE ul.timing_version = 1 AND ` + usageLogSuccessFilterUL + `),
        COALESCE(SUM(ul.duration_ms) FILTER (WHERE ul.duration_ms IS NOT NULL AND ` + usageLogSuccessFilterUL + `), 0),
        COUNT(ul.duration_ms) FILTER (WHERE ` + usageLogSuccessFilterUL + `), NOW()
 FROM usage_logs ul
@@ -219,7 +219,7 @@ FROM usage_logs ul
 LEFT JOIN groups g ON g.id = ul.group_id
 LEFT JOIN accounts a ON a.id = ul.account_id
 CROSS JOIN LATERAL (VALUES (0::bigint), (ul.user_id)) audience(user_id)
-CROSS JOIN LATERAL (VALUES ('ttft'::text, ul.first_token_ms), ('duration'::text, ul.duration_ms)) latency(metric, value_ms)
+CROSS JOIN LATERAL (VALUES ('ttft'::text, CASE WHEN ul.timing_version = 1 THEN ul.first_token_ms END), ('duration'::text, ul.duration_ms)) latency(metric, value_ms)
 WHERE ul.created_at >= $1 AND ul.created_at < $2
   AND audience.user_id IS NOT NULL AND latency.value_ms IS NOT NULL AND latency.value_ms >= 0
   AND ` + usageLogSuccessFilterUL + `
@@ -395,11 +395,21 @@ func sameFixedRollupBucket(start, end time.Time, seconds int) bool {
 	return start.Truncate(interval).Equal(end.Add(-time.Nanosecond).Truncate(interval))
 }
 
+// PostgreSQL interprets a TIMESTAMPTZ literal without an explicit offset in
+// the current session timezone. Keep date_bin's origin fixed in UTC so bucket
+// boundaries do not shift when the database session runs in Asia/Shanghai (or
+// any other non-UTC timezone).
+const channelMonitorV2DateBinOrigin = "TIMESTAMPTZ '1970-01-01 00:00:00+00'"
+
+func channelMonitorV2DateBinExpr(column string) string {
+	return "date_bin($1::interval," + column + "," + channelMonitorV2DateBinOrigin + ")"
+}
+
 const channelMonitorV2FixedRollupBoundsSQL = `
 WITH bounds AS (
   SELECT
-    date_bin($1::interval, $3::timestamptz, TIMESTAMPTZ '1970-01-01') AS start_at,
-    date_bin($1::interval, $4::timestamptz - INTERVAL '1 microsecond', TIMESTAMPTZ '1970-01-01') + $1::interval AS end_at
+    date_bin($1::interval, $3::timestamptz, ` + channelMonitorV2DateBinOrigin + `) AS start_at,
+    date_bin($1::interval, $4::timestamptz - INTERVAL '1 microsecond', ` + channelMonitorV2DateBinOrigin + `) + $1::interval AS end_at
 )`
 
 const channelMonitorV2FixedRollupDeleteSQL = channelMonitorV2FixedRollupBoundsSQL + `
@@ -417,7 +427,7 @@ INSERT INTO channel_monitor_v2_metrics_rollup (
   duration_count, computed_at
 )
 ` + channelMonitorV2FixedRollupBoundsSQL + `
-SELECT date_bin($1::interval, m.bucket_start, TIMESTAMPTZ '1970-01-01'), $2::integer,
+SELECT date_bin($1::interval, m.bucket_start, ` + channelMonitorV2DateBinOrigin + `), $2::integer,
        platform, group_id, model, SUM(success_requests), SUM(error_requests),
        SUM(upstream_affected_requests), SUM(upstream_attempt_count), SUM(input_tokens),
        SUM(output_tokens), SUM(cache_creation_tokens), SUM(cache_read_tokens),
@@ -433,7 +443,7 @@ INSERT INTO channel_monitor_v2_user_metrics_rollup (
   ttft_sum_ms, ttft_count, duration_sum_ms, duration_count, computed_at
 )
 ` + channelMonitorV2FixedRollupBoundsSQL + `
-SELECT date_bin($1::interval, m.bucket_start, TIMESTAMPTZ '1970-01-01'), $2::integer,
+SELECT date_bin($1::interval, m.bucket_start, ` + channelMonitorV2DateBinOrigin + `), $2::integer,
        platform, group_id, model, user_id, SUM(success_requests), SUM(error_requests),
        SUM(input_tokens), SUM(output_tokens), SUM(cache_creation_tokens), SUM(cache_read_tokens),
        SUM(ttft_sum_ms), SUM(ttft_count), SUM(duration_sum_ms), SUM(duration_count), NOW()
@@ -446,7 +456,7 @@ INSERT INTO channel_monitor_v2_latency_histograms_rollup (
   bucket_start, bucket_seconds, platform, group_id, model, user_id, metric, upper_bound_ms, sample_count
 )
 ` + channelMonitorV2FixedRollupBoundsSQL + `
-SELECT date_bin($1::interval, h.bucket_start, TIMESTAMPTZ '1970-01-01'), $2::integer,
+SELECT date_bin($1::interval, h.bucket_start, ` + channelMonitorV2DateBinOrigin + `), $2::integer,
        platform, group_id, model, user_id, metric, upper_bound_ms, SUM(sample_count)
 FROM channel_monitor_v2_latency_histograms_1m h, bounds
 WHERE h.bucket_start >= bounds.start_at AND h.bucket_start < bounds.end_at
@@ -457,7 +467,7 @@ INSERT INTO channel_monitor_v2_error_metrics_rollup (
   bucket_start, bucket_seconds, platform, group_id, model, error_category, taxonomy_version, error_requests
 )
 ` + channelMonitorV2FixedRollupBoundsSQL + `
-SELECT date_bin($1::interval, e.bucket_start, TIMESTAMPTZ '1970-01-01'), $2::integer,
+SELECT date_bin($1::interval, e.bucket_start, ` + channelMonitorV2DateBinOrigin + `), $2::integer,
        platform, group_id, model, error_category, taxonomy_version, SUM(error_requests)
 FROM channel_monitor_v2_error_metrics_1m e, bounds
 WHERE e.bucket_start >= bounds.start_at AND e.bucket_start < bounds.end_at

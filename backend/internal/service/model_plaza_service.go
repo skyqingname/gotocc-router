@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"sort"
 	"strings"
 )
@@ -62,6 +63,7 @@ type PlazaGroup struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
+	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 	// 图片按次实付倍率：ImageRateIndependent 为 true 时，图片计费模型的实付
 	// = 档位价 × ImageRateMultiplier，不乘分组/用户专属倍率（与计费口径一致）。
@@ -157,6 +159,7 @@ func (s *ModelPlazaService) listGroupsFromChannelPricing(ctx context.Context) ([
 			PeakStart:                 g.PeakStart,
 			PeakEnd:                   g.PeakEnd,
 			PeakRateMultiplier:        g.PeakRateMultiplier,
+			RateSchedule:              g.RateSchedule,
 			IsExclusive:               g.IsExclusive,
 			ImageRateIndependent:      g.ImageRateIndependent,
 			ImageRateMultiplier:       g.ImageRateMultiplier,
@@ -300,6 +303,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 			PeakStart:                 group.PeakStart,
 			PeakEnd:                   group.PeakEnd,
 			PeakRateMultiplier:        group.PeakRateMultiplier,
+			RateSchedule:              group.RateSchedule,
 			IsExclusive:               group.IsExclusive,
 			ImageRateIndependent:      group.ImageRateIndependent,
 			ImageRateMultiplier:       group.ImageRateMultiplier,
@@ -328,7 +332,7 @@ func (s *ModelPlazaService) fillDisplayPricing(ctx context.Context, m *PlazaMode
 			Platform: m.Platform,
 		})
 		if err == nil && sched != nil && len(sched.Tiers) > 0 {
-			m.Pricing = plazaPricingFromSchedule(m.Pricing, sched)
+			m.Pricing = withDefaultMaxReasoningEffortMultiplier(plazaPricingFromSchedule(m.Pricing, sched), m.Name)
 			if len(sched.Tiers) > 1 {
 				m.LongContextBasis = sched.Basis
 			}
@@ -336,7 +340,20 @@ func (s *ModelPlazaService) fillDisplayPricing(ctx context.Context, m *PlazaMode
 			return
 		}
 	}
-	m.Pricing = plazaImageDisplayPricing(m.Pricing, g)
+	m.Pricing = withDefaultMaxReasoningEffortMultiplier(plazaImageDisplayPricing(m.Pricing, g), m.Name)
+}
+
+func withDefaultMaxReasoningEffortMultiplier(pricing *ChannelModelPricing, model string) *ChannelModelPricing {
+	if pricing == nil || pricing.MaxReasoningEffortMultiplier != nil {
+		return pricing
+	}
+	multiplier := defaultMaxReasoningEffortMultiplier(model)
+	if multiplier == nil {
+		return pricing
+	}
+	cloned := pricing.Clone()
+	cloned.MaxReasoningEffortMultiplier = multiplier
+	return &cloned
 }
 
 // plazaPricingFromSchedule 把阶梯表压成展示用的 ChannelModelPricing：
@@ -347,11 +364,13 @@ func plazaPricingFromSchedule(raw *ChannelModelPricing, sched *ContextPricingSch
 		out.ImageInputPrice = raw.ImageInputPrice
 		out.ImageOutputPrice = raw.ImageOutputPrice
 		out.PerRequestPrice = raw.PerRequestPrice
+		out.MaxReasoningEffortMultiplier = raw.MaxReasoningEffortMultiplier
 	}
 	first := sched.Tiers[0]
 	out.InputPrice = first.Input
 	out.OutputPrice = first.Output
 	out.CacheWritePrice = first.CacheWrite
+	out.CacheWrite1hPrice = first.CacheWrite1h
 	out.CacheReadPrice = first.CacheRead
 	if len(sched.Tiers) > 1 {
 		out.Intervals = plazaIntervalsFromTiers(sched.Tiers)
@@ -363,14 +382,15 @@ func plazaIntervalsFromTiers(tiers []ContextPricingTier) []PricingInterval {
 	intervals := make([]PricingInterval, 0, len(tiers))
 	for i, t := range tiers {
 		intervals = append(intervals, PricingInterval{
-			MinTokens:       t.MinTokens,
-			MaxTokens:       t.MaxTokens,
-			TierLabel:       t.Label,
-			InputPrice:      t.Input,
-			OutputPrice:     t.Output,
-			CacheWritePrice: t.CacheWrite,
-			CacheReadPrice:  t.CacheRead,
-			SortOrder:       i,
+			MinTokens:         t.MinTokens,
+			MaxTokens:         t.MaxTokens,
+			TierLabel:         t.Label,
+			InputPrice:        t.Input,
+			OutputPrice:       t.Output,
+			CacheWritePrice:   t.CacheWrite,
+			CacheWrite1hPrice: t.CacheWrite1h,
+			CacheReadPrice:    t.CacheRead,
+			SortOrder:         i,
 		})
 	}
 	return intervals

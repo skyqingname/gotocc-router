@@ -9,8 +9,8 @@ derives the OCI image tag by preserving the leading `v` and replacing only
 `+` with `-`.
 
 ```text
-Git/GitHub: v0.2.0+custom.004
-GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.0-custom.004
+Git/GitHub: v0.2.5+custom.002
+GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.5-custom.002
 ```
 
 Pin the GHCR version tag for reproducible deployments. See
@@ -74,10 +74,11 @@ retaining one rollback image, and `./apple-container.sh disk-usage` to inspect
 Apple Containers disk use. Set the optional `APPLE_CONTAINER_*_DATA_DIR`
 variables in `.env` to replace an individual named volume with a host bind
 mount; leaving them empty preserves the original named-volume behavior.
-Persistent mounts are never cleared by application redeployment. The script
-does not provide a continuous restart supervisor; run
-`./apple-container.sh up` after a host reboot. Docker Compose remains the
-recommended production deployment path.
+Persistent mounts are never cleared by application redeployment. The
+application container supervises the Sub2API process so the Web UI's
+update-and-restart flow can relaunch an updated binary. It does not provide
+host-level automatic startup; run `./apple-container.sh up` after a host
+reboot. Docker Compose remains the recommended production deployment path.
 
 See [APPLE_CONTAINER.md](./APPLE_CONTAINER.md) for configuration, upgrades, persistence, networking behavior, and limitations.
 
@@ -544,7 +545,7 @@ Replace the immutable tag with another value reported by `list-versions` when
 needed:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.5+custom.002'
 ```
 
 Roll back an existing binary installation to an earlier published version:
@@ -552,7 +553,7 @@ Roll back an existing binary installation to an earlier published version:
 These inherited rollback examples illustrate command syntax. Choose an available, database-compatible release from the owned repository before running them.
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.4+custom.006'
 ```
 
 Upgrade to the latest release:
@@ -576,13 +577,13 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 For a downloaded `install.sh`, invoke one operation at a time. For example:
 
 ```bash
-sudo ./install.sh install --version 'v0.2.0+custom.004'
+sudo ./install.sh install --version 'v0.2.5+custom.002'
 ```
 
 Roll back a downloaded-script installation one operation at a time:
 
 ```bash
-sudo ./install.sh rollback 'v0.1.183+custom.004'
+sudo ./install.sh rollback 'v0.2.4+custom.006'
 ```
 
 Or uninstall while preserving `/etc/sub2api`:

@@ -70,7 +70,7 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 が返す別のタグへ置き換えてください：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.0+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.5+custom.002'
 ```
 
 既存のバイナリインストールを以前の公開済みバージョンへロールバックします：
@@ -78,7 +78,7 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 以下の旧ロールバック例はコマンド構文を示しています。実行前に、自有リポジトリに存在し、現在のデータベースと互換性のあるリリースを選択してください。
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.1.183+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.4+custom.006'
 ```
 
 サービスとバイナリを削除し、`/etc/sub2api` は保持します：
@@ -163,6 +163,7 @@ sudo systemctl reload nginx
 
 - [Grok / xAI](docs/providers/GROK.md)
 - [Antigravity](docs/providers/ANTIGRAVITY.md)
+- [DeepSeek](docs/providers/DEEPSEEK.md)
 - [Sora ステータス](docs/providers/SORA.md)
 - [OpenAI Responses と WebSocket 入口](docs/protocols/OPENAI_RESPONSES.md)
 - [非同期画像タスク](docs/ASYNC_IMAGE_TASKS.md)

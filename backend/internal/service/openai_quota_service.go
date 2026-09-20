@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -24,16 +25,11 @@ var ErrSparkShadowResetNotSupported = infraerrors.New(http.StatusConflict, "SPAR
 
 // Endpoints used by the OpenAI/ChatGPT/Codex quota query and reset feature.
 const (
-	chatGPTUsageURL             = "https://chatgpt.com/backend-api/wham/usage"
-	chatGPTRateLimitCreditsURL  = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits"
-	chatGPTRateLimitResetURL    = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume"
-	openaiQuotaUpstreamTimeout  = 20 * time.Second
-	openaiQuotaCodexBeta        = "codex-1"
-	openaiQuotaCodexLanguageTag = "zh-CN"
-	openaiQuotaSecFetchSite     = "none"
-	openaiQuotaSecFetchMode     = "no-cors"
-	openaiQuotaSecFetchDest     = "empty"
-	openaiQuotaResetCreditsKey  = "codex_reset_credit_snapshot"
+	chatGPTUsageURL            = "https://chatgpt.com/backend-api/wham/usage"
+	chatGPTRateLimitCreditsURL = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits"
+	chatGPTRateLimitResetURL   = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume"
+	openaiQuotaUpstreamTimeout = 20 * time.Second
+	openaiQuotaResetCreditsKey = "codex_reset_credit_snapshot"
 )
 
 // OpenAIRateLimitWindow describes a single rate-limit window returned by
@@ -44,6 +40,24 @@ type OpenAIRateLimitWindow struct {
 	LimitWindowSeconds int64   `json:"limit_window_seconds"`
 	ResetAfterSeconds  int64   `json:"reset_after_seconds"`
 	ResetAt            int64   `json:"reset_at"`
+	missingUsedPercent bool
+}
+
+func (w *OpenAIRateLimitWindow) UnmarshalJSON(data []byte) error {
+	type windowAlias OpenAIRateLimitWindow
+	var raw struct {
+		windowAlias
+		UsedPercent *float64 `json:"used_percent"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*w = OpenAIRateLimitWindow(raw.windowAlias)
+	w.missingUsedPercent = raw.UsedPercent == nil
+	if raw.UsedPercent != nil {
+		w.UsedPercent = *raw.UsedPercent
+	}
+	return nil
 }
 
 // OpenAIRateLimit is a rate-limit envelope (primary + optional secondary window).
@@ -87,6 +101,7 @@ type OpenAIQuotaUsage struct {
 	RateLimitResetCredits *OpenAIRateLimitResetCredits `json:"rate_limit_reset_credits,omitempty"`
 	FetchedAt             int64                        `json:"fetched_at"`
 	autoResetCandidates   []openAIAutoResetCreditCandidate
+	weeklyObservedAt      time.Time
 }
 
 // OpenAIQuotaResetCredit captures the redeemed credit metadata returned by the
@@ -111,8 +126,9 @@ type OpenAIQuotaResetResult struct {
 }
 
 // OpenAIQuotaService queries and consumes ChatGPT/Codex rate-limit reset credits
-// for OpenAI OAuth accounts. It reuses the privacy client factory so all calls
-// flow through the impersonated HTTP client (Cloudflare-friendly TLS fingerprint).
+// for OpenAI OAuth accounts. It reuses the backend-api client factory; identity
+// headers follow the official backend-client surface and no browser TLS
+// fingerprint is applied.
 type OpenAIQuotaService struct {
 	accountRepo            AccountRepository
 	proxyRepo              ProxyRepository
@@ -131,10 +147,12 @@ func (s *OpenAIQuotaService) applyOpenAIOutboundIdentity(ctx context.Context, ac
 	for key, value := range headers {
 		h.Set(key, value)
 	}
+	// Official backend-client WHAM headers are User-Agent + auth + account id.
+	// Originator/Version belong on inference, not /wham/usage or credit APIs.
 	if s != nil && s.openAIIdentityResolver != nil {
-		s.openAIIdentityResolver.applyOpenAIOutboundIdentity(ctx, account, h, true)
+		s.openAIIdentityResolver.applyOpenAIOutboundIdentity(ctx, account, h, false)
 	} else {
-		applyResolvedOpenAIOutboundIdentity(h, resolveOpenAIOutboundIdentityFromSettings(ctx, account, nil), true)
+		applyResolvedOpenAIOutboundIdentity(h, resolveOpenAIOutboundIdentityFromSettings(ctx, account, nil), false)
 	}
 	for key := range headers {
 		delete(headers, key)
@@ -177,6 +195,10 @@ func NewOpenAIQuotaService(
 // OAuth account. Returns infraerrors so the handler layer can map them to
 // stable error codes / HTTP statuses.
 func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*OpenAIQuotaUsage, error) {
+	return s.queryUsage(ctx, accountID, true)
+}
+
+func (s *OpenAIQuotaService) queryUsage(ctx context.Context, accountID int64, includeCredits bool) (*OpenAIQuotaUsage, error) {
 	accessToken, chatGPTAccountID, proxyURL, fedRAMP, err := s.prepareUpstreamCall(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -197,6 +219,7 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 		if headerErr != nil {
 			return nil, infraerrors.Newf(http.StatusBadGateway, "OPENAI_QUOTA_AUTH_FAILED", "failed to build upstream authentication: %v", headerErr)
 		}
+		payload.weeklyObservedAt = time.Now().UTC()
 		resp, err := client.R().
 			SetContext(callCtx).
 			SetHeaders(quotaHeaders).
@@ -226,6 +249,20 @@ func (s *OpenAIQuotaService) QueryUsage(ctx context.Context, accountID int64) (*
 	}
 
 	payload.FetchedAt = time.Now().Unix()
+	// Use the request start to reject old in-flight queries arriving late. The
+	// same sample retains this timestamp through post-reset cache writes.
+	snapshot := openAIQuotaUsageSnapshot(&payload, time.Now())
+	if account, err := s.accountRepo.GetByID(ctx, accountID); err == nil && account != nil && account.Platform == PlatformOpenAI && account.Type == AccountTypeOAuth && !account.IsShadow() {
+		observeOpenAIWeeklyUsageSnapshot(ctx, accountID, snapshot, false)
+		if updates := buildCodexUsageExtraUpdates(snapshot, time.Now()); len(updates) > 0 {
+			if err := s.accountRepo.UpdateExtra(ctx, accountID, updates); err != nil {
+				slog.Warn("openai_quota_usage_cache_failed", "account_id", accountID, "error", err)
+			}
+		}
+	}
+	if !includeCredits {
+		return &payload, nil
+	}
 	details := s.queryResetCreditDetails(callCtx, client, accessToken, chatGPTAccountID, fedRAMP, accountID)
 	if details != nil {
 		payload.autoResetCandidates = details.AutoResetCandidates
@@ -266,6 +303,7 @@ func (s *OpenAIQuotaService) CachePostResetSnapshot(ctx context.Context, account
 	if usage == nil {
 		return s.cacheResetCreditsSnapshot(ctx, accountID, nil, nil)
 	}
+	observeOpenAIWeeklyUsageSnapshot(ctx, accountID, openAIQuotaUsageSnapshot(usage, time.Now()), false)
 	return s.cacheResetCreditsSnapshot(
 		ctx,
 		accountID,
@@ -601,13 +639,7 @@ func buildCodexCommonHeaders(accessToken, chatGPTAccountID string, fedRAMP bool)
 	headers := map[string]string{
 		"authorization":      "Bearer " + accessToken,
 		"chatgpt-account-id": chatGPTAccountID,
-		"openai-beta":        openaiQuotaCodexBeta,
-		"oai-language":       openaiQuotaCodexLanguageTag,
 		"accept":             "application/json",
-		"sec-fetch-site":     openaiQuotaSecFetchSite,
-		"sec-fetch-mode":     openaiQuotaSecFetchMode,
-		"sec-fetch-dest":     openaiQuotaSecFetchDest,
-		"priority":           "u=4, i",
 	}
 	if fedRAMP {
 		headers["x-openai-fedramp"] = "true"

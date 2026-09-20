@@ -188,12 +188,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// Calculate cost
 	tokens := UsageTokens{
-		InputTokens:         actualInputTokens,
-		ImageInputTokens:    result.Usage.ImageInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		InputTokens:          actualInputTokens,
+		ImageInputTokens:     max(result.Usage.ImageInputTokens-result.Usage.ImageCacheReadTokens, 0),
+		ImageCacheReadTokens: result.Usage.ImageCacheReadTokens,
+		OutputTokens:         result.Usage.OutputTokens,
+		CacheCreationTokens:  result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:      result.Usage.CacheReadInputTokens,
+		ImageOutputTokens:    result.Usage.ImageOutputTokens,
 	}
 
 	// Get rate multiplier
@@ -241,7 +242,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
-	longContextBillingGate := openAILongContextBillingGate(billingAccount)
+	longContextBillingGate := openAILongContextBillingGate(billingAccount, billingModels...)
 	var protectedPricingSource string
 	if protectedMismatch {
 		cost, protectedPricingSource, err = s.calculateCodexAutoReviewProtectedCost(
@@ -407,6 +408,14 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		)
 	}
 
+	imageSizeBreakdown := cloneImageSizeBreakdown(result.ImageSizeBreakdown)
+	if result.Usage.ImageCacheReadTokens > 0 {
+		if imageSizeBreakdown == nil {
+			imageSizeBreakdown = make(map[string]int)
+		}
+		// Keep the image cache split in the existing usage_logs JSONB payload.
+		imageSizeBreakdown["image_cache_read_tokens"] = result.Usage.ImageCacheReadTokens
+	}
 	usageLog := &UsageLog{
 		UserID:                   usageActorUserID(apiKey, user),
 		BillingUserID:            user.ID,
@@ -414,6 +423,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,
 		RequestID:                requestID,
+		UpstreamRequestID:        usageUpstreamRequestIDPtr(account, result.UpstreamHeaders, result.OpenAIWSMode),
 		Model:                    result.Model,
 		RequestedModel:           requestedModel,
 		UpstreamModel:            optionalTrimmedStringPtr(result.UpstreamModel),
@@ -437,7 +447,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageInputSize:           optionalTrimmedStringPtr(result.ImageInputSize),
 		ImageOutputSize:          optionalTrimmedStringPtr(result.ImageOutputSize),
 		ImageSizeSource:          optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:       result.ImageSizeBreakdown,
+		ImageSizeBreakdown:       imageSizeBreakdown,
 		NativeCompactionV2:       input.NativeCompactionV2,
 	}
 	if result.ClientDisconnect {
@@ -489,6 +499,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	usageLog.DurationMs = &durationMs
 	usageLog.FirstTokenMs = result.FirstTokenMs
 	usageLog.LastTokenMs = result.LastTokenMs
+	usageLog.TimingVersion = 1
 	usageLog.FirstOutputMs = result.FirstOutputMs
 	usageLog.FirstOutputKind = optionalTrimmedStringPtr(result.FirstOutputKind)
 	usageLog.CreatedAt = time.Now()
@@ -533,7 +544,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if apiKey.GroupID != nil {
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
-			tokens, cost.TotalCost,
+			tokens, cost.TotalCost, pricingAt,
 		)
 	}
 
@@ -597,13 +608,23 @@ func (s *OpenAIGatewayService) hasIdentifiedOpenAIResponsePricing(ctx context.Co
 }
 
 // openAILongContextBillingGate returns the per-account long-context opt-in.
+// Platform API-key requests for GPT-6 Astra always use OpenAI's mandatory
+// whole-request pricing above 272K input tokens.
 // The flag is an OpenAI-only account setting, so other platforms (Grok) return
 // nil — "no per-account gate" — and are governed by the group toggle alone.
 // Returning a hardcoded false for them would veto the official model ladders
 // (e.g. the Grok >=200k 2x card) that no account setting can ever re-enable.
-func openAILongContextBillingGate(account *Account) *bool {
+func openAILongContextBillingGate(account *Account, billingModels ...string) *bool {
 	if account == nil || !account.IsOpenAI() {
 		return nil
+	}
+	if account.Type == AccountTypeAPIKey {
+		for _, model := range billingModels {
+			if isOpenAIGPT6AstraModel(model) {
+				enabled := true
+				return &enabled
+			}
+		}
 	}
 	enabled := account.IsOpenAILongContextBillingEnabled()
 	return &enabled
@@ -674,6 +695,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 				pricingAt,
 				tokens,
 				serviceTier,
+				optionalStringValue(result.ReasoningEffort),
 				longContextBillingGate,
 			)
 			if err == nil {
@@ -767,6 +789,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageTokenCost(
 	pricingAt time.Time,
 	tokens UsageTokens,
 	serviceTier string,
+	reasoningEffort string,
 	longContextBillingGate *bool,
 ) (*CostBreakdown, error) {
 	if s.resolver != nil && apiKey.Group != nil {
@@ -774,17 +797,21 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageTokenCost(
 		return s.billingService.CalculateCostUnified(CostInput{
 			Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
 			Tokens: tokens, RequestCount: 1, RateMultiplier: multiplier, PricingAt: pricingAt,
-			ServiceTier: serviceTier, Resolver: s.resolver,
+			ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Resolver: s.resolver,
 			LongContextBillingEnabled: longContextBillingGate,
 		})
 	}
-	return s.billingService.calculateCostWithServiceTierPolicy(
+	breakdown, err := s.billingService.calculateCostWithServiceTierPolicy(
 		billingModel,
 		tokens,
 		multiplier,
 		serviceTier,
 		longContextBillingGate == nil || *longContextBillingGate,
 	)
+	if err == nil {
+		applyCostBreakdownMultiplier(breakdown, maxReasoningEffortBillingMultiplier(billingModel, reasoningEffort, nil))
+	}
+	return breakdown, err
 }
 
 func isUnmappedCodexAutoReviewLunaMismatch(
@@ -1148,7 +1175,7 @@ func groupMediaPricingLooksIncomplete(group *Group) bool {
 // 运营者的修复手段是配置账号级 model_mapping（映射到已定价的 CN 模型）或
 // 分组/渠道显式定价。
 func (s *OpenAIGatewayService) filterCNProviderBillingModelCandidates(ctx context.Context, account *Account, apiKey *APIKey, candidates []string) []string {
-	if account == nil || !account.IsCNProvider() {
+	if account == nil || (!account.IsCNProvider() && !account.IsOpenCodeGo()) {
 		return candidates
 	}
 	out := make([]string, 0, len(candidates))
@@ -1211,6 +1238,14 @@ func parseCodexRateLimitHeadersAt(headers http.Header, now time.Time) *OpenAICod
 		}
 		return nil
 	}
+	parseInt64 := func(key string) *int64 {
+		if v := strings.TrimSpace(headers.Get(key)); v != "" {
+			if parsed, err := strconv.ParseInt(v, 10, 64); err == nil && parsed > 0 {
+				return &parsed
+			}
+		}
+		return nil
+	}
 
 	// Reset-At is the current Codex protocol. Retain Reset-After-Seconds as a
 	// fallback for older upstreams and malformed absolute timestamps.
@@ -1230,6 +1265,7 @@ func parseCodexRateLimitHeadersAt(headers http.Header, now time.Time) *OpenAICod
 		snapshot.PrimaryResetAfterSeconds = v
 		hasData = true
 	}
+	snapshot.PrimaryResetAtUnix = parseInt64("x-codex-primary-reset-at")
 	if v := parseInt("x-codex-primary-window-minutes"); v != nil {
 		snapshot.PrimaryWindowMinutes = v
 		hasData = true
@@ -1244,6 +1280,7 @@ func parseCodexRateLimitHeadersAt(headers http.Header, now time.Time) *OpenAICod
 		snapshot.SecondaryResetAfterSeconds = v
 		hasData = true
 	}
+	snapshot.SecondaryResetAtUnix = parseInt64("x-codex-secondary-reset-at")
 	if v := parseInt("x-codex-secondary-window-minutes"); v != nil {
 		snapshot.SecondaryWindowMinutes = v
 		hasData = true
@@ -1259,7 +1296,7 @@ func parseCodexRateLimitHeadersAt(headers http.Header, now time.Time) *OpenAICod
 		return nil
 	}
 
-	snapshot.UpdatedAt = now.Format(time.RFC3339)
+	snapshot.UpdatedAt = now.Format(time.RFC3339Nano)
 	return snapshot
 }
 
@@ -1373,7 +1410,7 @@ func buildCodexUsageExtraUpdates(snapshot *OpenAICodexUsageSnapshot, fallbackNow
 	if snapshot.PrimaryOverSecondaryPercent != nil {
 		updates["codex_primary_over_secondary_percent"] = *snapshot.PrimaryOverSecondaryPercent
 	}
-	updates["codex_usage_updated_at"] = baseTime.Format(time.RFC3339)
+	updates["codex_usage_updated_at"] = baseTime.UTC().Format(time.RFC3339Nano)
 
 	// 归一化到 5h/7d 规范字段
 	if normalized := snapshot.Normalize(); normalized != nil {
@@ -1402,6 +1439,29 @@ func buildCodexUsageExtraUpdates(snapshot *OpenAICodexUsageSnapshot, fallbackNow
 			updates["codex_7d_reset_at"] = *reset7dAt
 		}
 	}
+	// Keep the official absolute deadline exact. Reconstructing it from a
+	// clamped/rounded countdown changes the window seen by the account page.
+	for _, window := range []struct {
+		minutes *int
+		reset   *int64
+	}{
+		{snapshot.PrimaryWindowMinutes, snapshot.PrimaryResetAtUnix},
+		{snapshot.SecondaryWindowMinutes, snapshot.SecondaryResetAtUnix},
+	} {
+		if window.minutes == nil || window.reset == nil || !validOpenAIQuotaResetUnix(*window.reset) {
+			continue
+		}
+		var key string
+		switch *window.minutes {
+		case 300:
+			key = "codex_5h_reset_at"
+		case openAIWeeklyQuotaWindowMinutes:
+			key = "codex_7d_reset_at"
+		default:
+			continue
+		}
+		updates[key] = time.Unix(*window.reset, 0).UTC().Format(time.RFC3339)
+	}
 
 	return updates
 }
@@ -1412,12 +1472,17 @@ func buildCodexUsageExtraUpdates(snapshot *OpenAICodexUsageSnapshot, fallbackNow
 // (/wham/usage bengalfox 道)更新,不能被全局头口径污染(外审第7轮 P1)。本函数仅持 accountID,
 // 无法在此自检影子,故守卫前置到各调用点。
 func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot) {
+	s.writeCodexUsageSnapshot(ctx, accountID, snapshot, true)
+}
+
+func (s *OpenAIGatewayService) writeCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot, fromSession bool) {
 	if snapshot == nil {
 		return
 	}
 	if s == nil || s.accountRepo == nil {
 		return
 	}
+	observeOpenAIWeeklyUsageSnapshot(ctx, accountID, snapshot, fromSession)
 
 	now := time.Now()
 	updates := buildCodexUsageExtraUpdates(snapshot, now)
@@ -1438,10 +1503,32 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 }
 
 func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.Context, accountID int64, headers http.Header) {
+	s.writeCodexUsageSnapshotFromHeaders(ctx, accountID, headers, true)
+}
+
+func (s *OpenAIGatewayService) ApplyCodexUsageSnapshotFromResult(ctx context.Context, accountID int64, result *OpenAIForwardResult) {
+	if result == nil {
+		return
+	}
+	s.writeCodexUsageSnapshotFromHeaders(ctx, accountID, result.ResponseHeaders, !result.ResponseHeadersFromHandshake)
+}
+
+func (s *OpenAIGatewayService) writeCodexUsageSnapshotFromHeaders(ctx context.Context, accountID int64, headers http.Header, fromSession bool) {
 	if accountID <= 0 || headers == nil {
 		return
 	}
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
-		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
+		s.writeCodexUsageSnapshot(ctx, accountID, snapshot, fromSession)
 	}
+}
+
+func cloneImageSizeBreakdown(input map[string]int) map[string]int {
+	if len(input) == 0 {
+		return nil
+	}
+	output := make(map[string]int, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }

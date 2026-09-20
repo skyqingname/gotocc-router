@@ -1,6 +1,6 @@
 <template>
   <section
-    class="overflow-hidden rounded-2xl border bg-white shadow-card dark:bg-dark-800/50"
+    class="overflow-hidden rounded-2xl border bg-white shadow-card dark:bg-dark-800"
     :class="[platformBorderStrongClass(group.platform)]"
   >
     <!-- 分组头部:名称/平台/倍率徽章/专属/订阅徽章 + 描述 -->
@@ -16,6 +16,7 @@
           :peak-start="group.peak_start"
           :peak-end="group.peak_end"
           :peak-rate-multiplier="group.peak_rate_multiplier"
+ :rate-schedule="group.rate_schedule"
           always-show-rate
         />
         <span
@@ -63,6 +64,7 @@
         :image-rate-multiplier="group.image_rate_multiplier"
         :peak-window="peakWindow"
         :peak-rate-multiplier="group.peak_rate_multiplier"
+ :rate-schedule="group.rate_schedule"
       />
       <p v-else class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.detail.noModels') }}

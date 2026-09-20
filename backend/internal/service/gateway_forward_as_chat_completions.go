@@ -126,7 +126,7 @@ func (s *GatewayService) ForwardAsChatCompletions(
 	}
 
 	// 11. Send request
-	resp, err := s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.httpUpstream.DoWithTLS(prepareAccountOutboundRequest(upstreamReq, account), proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
@@ -148,6 +148,8 @@ func (s *GatewayService) ForwardAsChatCompletions(
 
 		if s.shouldFailoverUpstreamError(resp.StatusCode) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
@@ -337,6 +339,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 
 	return &ForwardResult{
 		RequestID:       requestID,
+		UpstreamHeaders: resp.Header,
 		Usage:           usage,
 		Model:           originalModel,
 		UpstreamModel:   mappedModel,
@@ -388,6 +391,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 	resultWithUsage := func() *ForwardResult {
 		return &ForwardResult{
 			RequestID:       requestID,
+			UpstreamHeaders: resp.Header,
 			Usage:           usage,
 			Model:           originalModel,
 			UpstreamModel:   mappedModel,

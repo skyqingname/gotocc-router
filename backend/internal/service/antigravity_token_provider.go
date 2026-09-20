@@ -66,6 +66,7 @@ func (p *AntigravityTokenProvider) SetTempUnschedCache(cache TempUnschedCache) {
 
 // GetAccessToken returns a valid access_token.
 func (p *AntigravityTokenProvider) GetAccessToken(ctx context.Context, account *Account) (string, error) {
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	if account == nil {
 		return "", errors.New("account is nil")
 	}
@@ -231,9 +232,5 @@ func (p *AntigravityTokenProvider) markBackfillAttempted(accountID int64) {
 }
 
 func AntigravityTokenCacheKey(account *Account) string {
-	projectID := strings.TrimSpace(account.GetCredential("project_id"))
-	if projectID != "" {
-		return "ag:" + projectID
-	}
 	return "ag:account:" + strconv.FormatInt(account.ID, 10)
 }

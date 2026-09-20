@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package handler
 
 import (
@@ -23,37 +25,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
-
-type asyncImageMemoryStore struct {
-	mu    sync.RWMutex
-	tasks map[string]*service.ImageTaskRecord
-}
-
-type asyncImageObjectRepository struct {
-	object service.ImageObjectRecord
-}
-
-func (r *asyncImageObjectRepository) CreateMany(context.Context, []service.ImageObjectRecord) error {
-	return nil
-}
-
-func (r *asyncImageObjectRepository) GetOwned(_ context.Context, objectID string, userID int64) (*service.ImageObjectRecord, error) {
-	if objectID != r.object.ObjectID || userID != r.object.UserID {
-		return nil, service.ErrImageObjectNotFound
-	}
-	copy := r.object
-	return &copy, nil
-}
-
-type asyncImageSigningStorage struct{}
-
-func (asyncImageSigningStorage) Save(context.Context, string, string, []byte) (string, error) {
-	return "", nil
-}
-
-func (asyncImageSigningStorage) SignURL(_ context.Context, key string) (string, int64, error) {
-	return "https://signed.test/" + key, 1893456000, nil
-}
 
 type asyncImageDownloadStorage struct {
 	objects map[string][]byte
@@ -229,43 +200,6 @@ func (h *asyncImageMemoryHistory) DeleteFailed(_ context.Context, owner service.
 	}
 	delete(h.tasks, id)
 	return true, nil
-}
-
-func (s *asyncImageMemoryStore) Save(_ context.Context, task *service.ImageTaskRecord, _ time.Duration) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	copy := *task
-	copy.Result = append(json.RawMessage(nil), task.Result...)
-	copy.Error = append(json.RawMessage(nil), task.Error...)
-	s.tasks[task.ID] = &copy
-	return nil
-}
-
-func (s *asyncImageMemoryStore) Get(_ context.Context, id string) (*service.ImageTaskRecord, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	task := s.tasks[id]
-	if task == nil {
-		return nil, service.ErrImageTaskNotFound
-	}
-	copy := *task
-	copy.Result = append(json.RawMessage(nil), task.Result...)
-	copy.Error = append(json.RawMessage(nil), task.Error...)
-	return &copy, nil
-}
-
-func (s *asyncImageMemoryStore) DeleteIfStatus(_ context.Context, id, status string) (bool, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	task, exists := s.tasks[id]
-	if !exists {
-		return false, false, nil
-	}
-	if task.Status != status {
-		return false, true, nil
-	}
-	delete(s.tasks, id)
-	return true, true, nil
 }
 
 func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {

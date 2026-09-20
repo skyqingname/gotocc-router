@@ -127,6 +127,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
 		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
+		SettingKeyAffiliateRebateRateL2:                     strconv.FormatFloat(AffiliateRebateRateL2Default, 'f', 8, 64),
+		SettingKeyAffiliateRebateRateL3:                     strconv.FormatFloat(AffiliateRebateRateL3Default, 'f', 8, 64),
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
 		SettingKeyAffiliateRebatePerInviteeCap:              strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
@@ -193,6 +195,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
 		SettingKeyChannelMonitorHideThroughput:         "true",
 		SettingKeyChannelMonitorShowQuota:              "false",
+		SettingKeyChannelMonitorHideUserRanking:        "false",
 
 		// Grok: safe defaults — no cross-vendor model rewrite unless operators enable it.
 		// Keep "false" even though official later flipped the in-tree default
@@ -203,6 +206,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
+
+		// Subscription feature (default enabled; opt-out)
+		SettingKeySubscriptionEnabled: "true",
 
 		// Model plaza feature (default disabled; opt-in, sign-in required when enabled)
 		SettingKeyModelPlazaEnabled:       "false",
@@ -216,8 +222,8 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
-		// 客户端连续断开自动封禁独立于内容审计总开关，默认开启。
-		SettingKeyClientDisconnectConsecutiveBanEnabled:    "true",
+		// 客户端连续断开自动封禁独立于内容审计总开关，默认关闭。
+		SettingKeyClientDisconnectConsecutiveBanEnabled:    "false",
 		SettingKeyClientDisconnectConsecutiveBanThreshold:  "10",
 		SettingKeyClientDisconnectConsecutiveBanGeneration: "1",
 
@@ -249,6 +255,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyEnableClientDatelineNormalization:                  "true",
 		SettingKeyAntigravityUserAgentVersion:                        "",
 		SettingKeyOpenAICodexUserAgent:                               "",
+		SettingKeyOpenAICodexEnvironmentTimezone:                     "",
 		SettingKeyCodexLegacyClientProfileCompatibilityEnabled:       "false",
 		SettingKeyOpenAICodexLocalGroupQuotaEnabled:                  "false",
 		SettingKeyOpenAICodexClientVersion:                           "",
@@ -411,10 +418,20 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	} else {
 		result.DefaultBalance = s.cfg.Default.UserBalance
 	}
-	if rebateRate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
-		result.AffiliateRebateRate = clampAffiliateRebateRate(rebateRate)
+	if rate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRate], 64); err == nil {
+		result.AffiliateRebateRate = clampAffiliateRebateRate(rate)
 	} else {
 		result.AffiliateRebateRate = AffiliateRebateRateDefault
+	}
+	if rate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRateL2], 64); err == nil {
+		result.AffiliateRebateRateL2 = clampAffiliateRebateRate(rate)
+	} else {
+		result.AffiliateRebateRateL2 = AffiliateRebateRateL2Default
+	}
+	if rate, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebateRateL3], 64); err == nil {
+		result.AffiliateRebateRateL3 = clampAffiliateRebateRate(rate)
+	} else {
+		result.AffiliateRebateRateL3 = AffiliateRebateRateL3Default
 	}
 	if freezeHours, err := strconv.Atoi(settings[SettingKeyAffiliateRebateFreezeHours]); err == nil && freezeHours >= 0 {
 		if freezeHours > AffiliateRebateFreezeHoursMax {
@@ -821,6 +838,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// 配额展示默认关闭且 fail-closed：仅字面 "true" 视为开启
 	// （与 setting_public.go 公开读取路径保持一致）。
 	result.ChannelMonitorShowQuota = settings[SettingKeyChannelMonitorShowQuota] == "true"
+	result.ChannelMonitorHideUserRanking = isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking])
 
 	// Grok default mapping policy
 	result.GrokDefaultTextModel = strings.TrimSpace(settings[SettingKeyGrokDefaultTextModel])
@@ -835,6 +853,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
 
+	// Subscription feature (default: enabled; only an explicit false disables)
+	result.SubscriptionEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionEnabled])
+
 	// Model plaza feature (default: disabled; authentication required when enabled).
 	result.ModelPlazaEnabled = settings[SettingKeyModelPlazaEnabled] == "true"
 	result.ModelPlazaRequireAuth = settings[SettingKeyModelPlazaRequireAuth] != "false"
@@ -846,7 +867,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
-	result.ClientDisconnectConsecutiveBanEnabled = !isFalseSettingValue(settings[SettingKeyClientDisconnectConsecutiveBanEnabled])
+	result.ClientDisconnectConsecutiveBanEnabled = strings.EqualFold(
+		strings.TrimSpace(settings[SettingKeyClientDisconnectConsecutiveBanEnabled]),
+		"true",
+	)
 	result.ClientDisconnectConsecutiveBanThreshold = 10
 	if value, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyClientDisconnectConsecutiveBanThreshold])); err == nil {
 		result.ClientDisconnectConsecutiveBanThreshold = boundedIntOrDefault(value, 1, 1000, 10)
@@ -876,7 +900,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Gateway forwarding behavior (defaults: fingerprint=true, metadata_passthrough=false,
 	// cch_signing=false, claude_oauth_system_prompt_injection=true)
-	result.OpenAITTFTMode = normalizeOpenAITTFTMode(settings[SettingKeyOpenAITTFTMode])
 	if v, ok := settings[SettingKeyEnableFingerprintUnification]; ok && v != "" {
 		result.EnableFingerprintUnification = v == "true"
 	} else {
@@ -904,6 +927,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.AntigravityUserAgentVersion = antigravity.NormalizeUserAgentVersion(settings[SettingKeyAntigravityUserAgentVersion])
 	result.OpenAICodexUserAgent = strings.TrimSpace(settings[SettingKeyOpenAICodexUserAgent])
+	result.OpenAICodexEnvironmentTimezone = strings.TrimSpace(settings[SettingKeyOpenAICodexEnvironmentTimezone])
 	result.CodexLegacyClientProfileCompatibilityEnabled = settings[SettingKeyCodexLegacyClientProfileCompatibilityEnabled] == "true"
 	result.OpenAICodexLocalGroupQuotaEnabled = settings[SettingKeyOpenAICodexLocalGroupQuotaEnabled] == "true"
 	result.OpenAICodexClientVersion = NormalizeCodexClientVersion(settings[SettingKeyOpenAICodexClientVersion])
@@ -1018,13 +1042,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	return result
 }
 
-func normalizeOpenAITTFTMode(mode string) string {
-	if strings.EqualFold(strings.TrimSpace(mode), OpenAITTFTModeVisible) {
-		return OpenAITTFTModeVisible
-	}
-	return OpenAITTFTModeSemantic
-}
-
 func clampAffiliateRebateRate(value float64) float64 {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return AffiliateRebateRateDefault
@@ -1041,6 +1058,15 @@ func clampAffiliateRebateRate(value float64) float64 {
 func isFalseSettingValue(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "false", "0", "off", "disabled":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTrueSettingValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "1", "on", "enabled":
 		return true
 	default:
 		return false

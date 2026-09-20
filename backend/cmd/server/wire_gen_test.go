@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package main
 
 import (
@@ -96,6 +98,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // usageAlert
 		nil, // auditLog
 		nil, // openAIAutoReset
+		nil, // openAIGroupQuotaFollowReset
 		nil, // promptAudit
 		nil, // pluginManager
 	)

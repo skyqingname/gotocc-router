@@ -1,6 +1,6 @@
 <template>
-  <div class="plaza-pricing-table overflow-x-auto" :style="accentStyle">
-    <table class="w-full min-w-[1000px] table-fixed border-collapse text-sm tabular-nums">
+  <div class="table-container plaza-pricing-table overflow-x-auto" :style="accentStyle">
+    <table class="w-full min-w-[1000px] table-auto border-collapse text-sm tabular-nums">
       <colgroup>
         <col class="w-[25%]" />
         <col class="w-[11%]" />
@@ -98,6 +98,13 @@
                 :title="t('modelPlaza.table.tierHintMarginal')"
               >
                 {{ t('modelPlaza.table.marginalBadge') }}
+              </span>
+              <span
+                v-if="m.pricing?.max_reasoning_effort_multiplier"
+                class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+                :title="t('modelPlaza.table.maxReasoningMultiplierHint', { multiplier: m.pricing.max_reasoning_effort_multiplier })"
+              >
+                {{ t('modelPlaza.table.maxReasoningMultiplierBadge', { multiplier: m.pricing.max_reasoning_effort_multiplier }) }}
               </span>
             </div>
           </td>
@@ -297,9 +304,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
+import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
-import { formatScaled } from '@/utils/pricing'
+import { formatScaled, resolveIntervalPrices } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import {
   BILLING_MODE_TOKEN,
@@ -327,6 +336,7 @@ const props = defineProps<{
    * 表格所有价格均为不含高峰因子的口径,该窗口仅用于分时时段行的 tooltip 披露:
    * 与高峰重叠的部分实付还会再乘高峰倍率。
    */
+  rateSchedule?: RateScheduleConfig
   peakWindow?: string
   peakRateMultiplier?: number | null
 }>()
@@ -358,7 +368,16 @@ const sortedModels = computed(() => {
   })
 })
 
-const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const appStore = useAppStore()
+const rateNow = ref(new Date())
+let rateTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { rateTimer = setInterval(() => { rateNow.value = new Date() }, 1000) })
+onUnmounted(() => { if (rateTimer) clearInterval(rateTimer) })
+const baseRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const effectiveRate = computed(() => {
+  if (!props.rateSchedule?.enabled) return baseRate.value
+  return compileRateSchedule(props.rateSchedule, appStore.cachedPublicSettings?.server_timezone || '').resolve(rateNow.value, baseRate.value).effective_multiplier
+})
 const hasCustomRate = computed(
   () => props.userRateMultiplier != null && props.userRateMultiplier !== props.rateMultiplier
 )
@@ -434,7 +453,7 @@ function usesIndependentImageRate(m: PlazaModel): boolean {
 
 /** 按次/按图片行的生效倍率。 */
 function requestRate(m: PlazaModel): number {
-  return usesIndependentImageRate(m) ? (props.imageRateMultiplier ?? 1) : effectiveRate.value
+  return usesIndependentImageRate(m) ? (props.imageRateMultiplier ?? 1) : baseRate.value
 }
 
 /** 按次 / 按图片单价(乘该行生效倍率,不换算 1M)。 */
@@ -505,7 +524,7 @@ function sortByContext(intervals: UserPricingInterval[]): UserPricingInterval[] 
 
 /** token 模式的阶梯定价(内联进输入/输出/缓存列)。 */
 function tokenIntervals(m: PlazaModel): UserPricingInterval[] {
-  return sortByContext(m.pricing?.intervals ?? [])
+  return sortByContext(m.pricing?.intervals ?? []).map(iv => resolveIntervalPrices(iv, m.pricing!))
 }
 
 /** 官方阶梯(后端按目录规则合成,不受分组开关影响)。 */
@@ -515,7 +534,10 @@ function officialIntervals(m: PlazaModel): UserPricingInterval[] {
 
 /** 任一档带缓存价才按档渲染缓存列;否则沿用平价的写入/读取两行。 */
 function hasTierCachePricing(intervals: UserPricingInterval[]): boolean {
-  return intervals.some((iv) => iv.cache_write_price != null || iv.cache_write_1h_price != null || iv.cache_read_price != null)
+  return intervals.some((iv) =>
+    iv.cache_write_price != null || iv.cache_write_1h_price != null || iv.cache_read_price != null ||
+    iv.cache_write_multiplier != null || iv.cache_read_multiplier != null
+  )
 }
 
 /** 档位说明:整单按档计价,或(平台旧规则)仅超出部分按档计价。 */

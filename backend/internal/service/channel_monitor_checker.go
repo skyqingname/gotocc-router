@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/brandidentity"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/outboundidentity"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/servertiming"
 	"github.com/tidwall/gjson"
 )
@@ -140,6 +141,7 @@ func pingEndpointOrigin(ctx context.Context, endpoint string) *int {
 	if err != nil {
 		return nil
 	}
+	outboundidentity.ApplyContext(req)
 	start := time.Now()
 	resp, err := monitorPingHTTPClient.Do(req)
 	if err != nil {
@@ -174,9 +176,11 @@ var providerAdapters = map[string]providerAdapter{
 	MonitorProviderGrok:   providerGrokChatAdapter,
 	// 国产 3 家（配额模式引入）：均为 OpenAI 兼容 Chat Completions，
 	// 仅智谱路径前缀不同（/api/paas/v4/chat/completions）。
-	MonitorProviderKimi:     providerKimiChatAdapter,
-	MonitorProviderZhipu:    providerZhipuChatAdapter,
-	MonitorProviderDeepseek: providerDeepseekChatAdapter,
+	MonitorProviderKimi:       providerKimiChatAdapter,
+	MonitorProviderZhipu:      providerZhipuChatAdapter,
+	MonitorProviderDeepseek:   providerDeepseekChatAdapter,
+	MonitorProviderMiniMax:    providerMiniMaxChatAdapter,
+	MonitorProviderOpenCodeGo: providerOpenCodeGoChatAdapter,
 	MonitorProviderAnthropic: {
 		buildPath: func(string) string { return providerAnthropicPath },
 		buildBody: func(model, prompt string) ([]byte, error) {
@@ -200,7 +204,7 @@ var providerAdapters = map[string]providerAdapter{
 		buildBody: func(_, prompt string) ([]byte, error) {
 			return json.Marshal(map[string]any{
 				"contents": []map[string]any{
-					{"parts": []map[string]any{{"text": prompt}}},
+					{"role": "user", "parts": []map[string]any{{"text": prompt}}},
 				},
 				"generationConfig": map[string]any{"maxOutputTokens": monitorChallengeMaxTokens},
 			})
@@ -227,6 +231,12 @@ var providerZhipuChatAdapter = newOpenAICompatibleChatAdapter(providerZhipuPath)
 
 //nolint:gochecknoglobals // 适配器表是只读静态数据，初始化后不变更。
 var providerDeepseekChatAdapter = newOpenAICompatibleChatAdapter(providerOpenAIPath)
+
+//nolint:gochecknoglobals // 适配器表是只读静态数据，初始化后不变更。
+var providerMiniMaxChatAdapter = newOpenAICompatibleChatAdapter(providerOpenAIPath)
+
+//nolint:gochecknoglobals // 适配器表是只读静态数据，初始化后不变更。
+var providerOpenCodeGoChatAdapter = newOpenAICompatibleChatAdapter(providerOpenAIPath)
 
 func newOpenAICompatibleChatAdapter(path string) providerAdapter {
 	return providerAdapter{
@@ -282,6 +292,9 @@ func providerAdapterFor(provider, apiMode string) (providerAdapter, string, bool
 //   - status: HTTP 状态码
 //   - err: 网络 / 序列化错误
 func callProvider(ctx context.Context, provider, endpoint, apiKey, model, prompt string, opts *CheckOptions) (extractedText, rawBody string, status int, err error) {
+	if _, ok := outboundidentity.FromContext(ctx); !ok {
+		ctx = WithStandaloneOutboundIdentity(ctx, provider)
+	}
 	requestedAPIMode := checkAPIMode(opts)
 	if err := validateAPIMode(provider, requestedAPIMode); err != nil {
 		return "", "", 0, err
@@ -376,7 +389,7 @@ func extractOpenAIResponsesText(respBytes []byte) string {
 }
 
 // mergeHeaders 把用户自定义 headers 合并到 adapter 默认 headers 上。
-// 用户值覆盖默认；命中黑名单（hop-by-hop / 由 http.Client 自管的）的 key 静默丢弃。
+// 普通用户值覆盖默认；托管身份、hop-by-hop、客户端自管字段静默丢弃。
 func mergeHeaders(base map[string]string, opts *CheckOptions) map[string]string {
 	if opts == nil || len(opts.ExtraHeaders) == 0 {
 		return base
@@ -457,9 +470,11 @@ var bodyMergeKeyDenyList = map[string]map[string]bool{
 	MonitorProviderAnthropic: {"model": true, "messages": true},
 	MonitorProviderGemini:    {"contents": true},
 	// 国产 3 家与 OpenAI Chat Completions 同构。
-	MonitorProviderKimi:     {"model": true, "messages": true, "stream": true},
-	MonitorProviderZhipu:    {"model": true, "messages": true, "stream": true},
-	MonitorProviderDeepseek: {"model": true, "messages": true, "stream": true},
+	MonitorProviderKimi:       {"model": true, "messages": true, "stream": true},
+	MonitorProviderZhipu:      {"model": true, "messages": true, "stream": true},
+	MonitorProviderDeepseek:   {"model": true, "messages": true, "stream": true},
+	MonitorProviderMiniMax:    {"model": true, "messages": true, "stream": true},
+	MonitorProviderOpenCodeGo: {"model": true, "messages": true, "stream": true},
 }
 
 func checkAPIMode(opts *CheckOptions) string {
@@ -481,7 +496,8 @@ func bodyMergeDenyKey(provider, apiMode string) string {
 func isOpenAICompatibleChatProvider(provider string) bool {
 	switch provider {
 	case MonitorProviderOpenAI, MonitorProviderGrok,
-		MonitorProviderKimi, MonitorProviderZhipu, MonitorProviderDeepseek:
+		MonitorProviderKimi, MonitorProviderZhipu, MonitorProviderDeepseek, MonitorProviderMiniMax,
+		MonitorProviderOpenCodeGo:
 		return true
 	default:
 		return false
@@ -539,6 +555,7 @@ func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers ma
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	outboundidentity.ApplyContext(req)
 
 	resp, err := monitorHTTPClient.Do(req)
 	if err != nil {
@@ -553,12 +570,20 @@ func postRawJSON(ctx context.Context, fullURL string, payload []byte, headers ma
 	return respBody, resp.StatusCode, nil
 }
 
-// joinURL 把 base origin 与 path 拼成完整 URL。
-// 容忍 base 末尾有/无斜杠，path 必带前导斜杠。
+// joinURL 保留 base 的上游路径前缀，并避免重复追加已有的 API 路径前缀。
+// 使用 EscapedPath 匹配完整路径段，避免把 hostname 或编码斜杠当作路径。
 func joinURL(base, path string) string {
 	base = strings.TrimRight(base, "/")
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
+	}
+	if u, err := url.Parse(base); err == nil {
+		basePath := u.EscapedPath()
+		for end := strings.LastIndex(path, "/"); end > 0; end = strings.LastIndex(path[:end], "/") {
+			if strings.HasSuffix(basePath, path[:end]) {
+				return base + path[end:]
+			}
+		}
 	}
 	return base + path
 }

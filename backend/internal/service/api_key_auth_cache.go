@@ -1,6 +1,9 @@
 package service
 
-import "time"
+import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"time"
+)
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
@@ -128,12 +131,15 @@ type APIKeyAuthGroupSnapshot struct {
 	FreeOpenAIFast              bool                              `json:"free_openai_fast"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
-	ModelsListConfig            GroupModelsListConfig             `json:"models_list_config,omitempty"`
+	ModelAllowlist              GroupModelAllowlist               `json:"model_allowlist,omitempty"`
+	// CodexModelsManifestConfig 与 ModelAllowlist 一样在认证快照分组里透传，
+	// Codex /models handler 直接读认证分组对象。
+	CodexModelsManifestConfig GroupCodexModelsManifestConfig `json:"codex_models_manifest_config,omitempty"`
 
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）；用于 billing_cache_service.checkRPM 级联判断。
 	RPMLimit int `json:"rpm_limit"`
 
-	// MaxReasoningEffort OpenAI/Codex 请求的推理强度上限，空字符串表示不限制。
+	// MaxReasoningEffort Anthropic/OpenAI 请求的推理强度上限，空字符串表示不限制。
 	MaxReasoningEffort string `json:"max_reasoning_effort,omitempty"`
 	// MaxReasoningEffortOverLimit 超过上限时的访问控制：downgrade（默认）或 deny。
 	MaxReasoningEffortOverLimit string `json:"max_reasoning_effort_over_limit,omitempty"`
@@ -143,10 +149,11 @@ type APIKeyAuthGroupSnapshot struct {
 	// 高峰时段倍率：PeakRateEnabled 为 true 且请求时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier（详见 Group.PeakMultiplierAt）。
 	// 必须随快照缓存，否则扣费路径拿到的 apiKey.Group 缺字段、高峰倍率失效。
-	PeakRateEnabled    bool    `json:"peak_rate_enabled"`
-	PeakStart          string  `json:"peak_start"`
-	PeakEnd            string  `json:"peak_end"`
-	PeakRateMultiplier float64 `json:"peak_rate_multiplier"`
+	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
+	PeakStart          string              `json:"peak_start"`
+	PeakEnd            string              `json:"peak_end"`
+	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
+	RateSchedule       rateschedule.Config `json:"rate_schedule"`
 
 	// 分组利润控制：调度准入门在直连热路径上读的就是这份快照——门解析
 	// （resolveOpenAIProfitControlGate / resolveProfitControlGroup）优先取

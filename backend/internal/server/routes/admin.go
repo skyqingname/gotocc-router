@@ -201,6 +201,7 @@ func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promptAudit.GET("/config", h.Admin.PromptAudit.GetConfig)
 		promptAudit.PUT("/config", h.Admin.PromptAudit.UpdateConfig)
 		promptAudit.POST("/endpoints/probe", h.Admin.PromptAudit.ProbeEndpoint)
+		promptAudit.POST("/test", h.Admin.PromptAudit.TestText)
 		promptAudit.GET("/runtime", h.Admin.PromptAudit.GetRuntime)
 		promptAudit.GET("/events", h.Admin.PromptAudit.ListEvents)
 		promptAudit.GET("/events/:id", h.Admin.PromptAudit.GetEvent)
@@ -403,7 +404,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		groups.GET("/capacity-summary", h.Admin.Group.GetCapacitySummary)
 		groups.GET("/live-capability", h.Admin.Group.GetLiveCapability)
 		groups.PUT("/sort-order", h.Admin.Group.UpdateSortOrder)
-		groups.GET("/:id/models-list-candidates", h.Admin.Group.GetModelsListCandidates)
+		groups.GET("/:id/model-allowlist-candidates", h.Admin.Group.GetGroupModelAllowlistCandidates)
 		groups.GET("/:id/composite-routes", h.Admin.Group.ListCompositeRoutes)
 		groups.POST("/:id/composite-routes", h.Admin.Group.CreateCompositeRoute)
 		groups.POST("/:id/composite-routes/preview", h.Admin.Group.PreviewCompositeRoute)
@@ -438,6 +439,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/sync/crs", h.Admin.Account.SyncFromCRS)
 		accounts.POST("/sync/crs/preview", h.Admin.Account.PreviewFromCRS)
 		accounts.PUT("/:id", h.Admin.Account.Update)
+		accounts.GET("/:id/grok-media-eligibility", h.Admin.Account.GetGrokMediaEligibility)
+		accounts.PUT("/:id/grok-media-eligibility", h.Admin.Account.UpdateGrokMediaEligibility)
 		accounts.GET("/:id/ollama-cloud-usage", h.Admin.Account.GetOllamaCloudUsage)
 		accounts.PUT("/:id/ollama-cloud-usage/session", h.Admin.Account.SaveOllamaCloudUsageSession)
 		accounts.DELETE("/:id/ollama-cloud-usage/session", h.Admin.Account.DeleteOllamaCloudUsageSession)
@@ -515,6 +518,8 @@ func registerOpenAIOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	openai := admin.Group("/openai")
 	{
 		openai.POST("/generate-auth-url", h.Admin.OpenAIOAuth.GenerateAuthURL)
+		openai.POST("/device-code/start", h.Admin.OpenAIOAuth.StartDeviceCode)
+		openai.POST("/device-code/poll", h.Admin.OpenAIOAuth.PollDeviceCode)
 		openai.POST("/exchange-code", h.Admin.OpenAIOAuth.ExchangeCode)
 		openai.POST("/refresh-token", h.Admin.OpenAIOAuth.RefreshToken)
 		openai.POST("/accounts/:id/refresh", h.Admin.OpenAIOAuth.RefreshAccountToken)
@@ -631,6 +636,7 @@ func registerReusableInvitationCodeRoutes(admin *gin.RouterGroup, h *handler.Han
 	{
 		codes.GET("", h.Admin.ReusableInvitationCode.List)
 		codes.POST("", h.Admin.ReusableInvitationCode.Create)
+		codes.PUT("/:id/owner", h.Admin.ReusableInvitationCode.SetOwner)
 		codes.POST("/:id/disable", h.Admin.ReusableInvitationCode.Disable)
 		codes.GET("/:id/uses", h.Admin.ReusableInvitationCode.ListUses)
 	}
@@ -642,6 +648,9 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.GET("", h.Admin.Setting.GetSettings)
 		adminSettings.PUT("", h.Admin.Setting.UpdateSettings)
 		adminSettings.POST("/openai-codex-version/sync", h.Admin.Setting.SyncOpenAICodexVersion)
+		adminSettings.GET("/outbound-identity", h.Admin.Setting.GetOutboundIdentity)
+		adminSettings.PUT("/outbound-identity", h.Admin.Setting.UpdateOutboundIdentity)
+		adminSettings.POST("/outbound-identity/preview", h.Admin.Setting.PreviewOutboundIdentity)
 		adminSettings.POST("/test-smtp", h.Admin.Setting.TestSMTPConnection)
 		adminSettings.POST("/send-test-email", h.Admin.Setting.SendTestEmail)
 		adminSettings.GET("/email-templates", h.Admin.Setting.ListEmailTemplates)
@@ -758,6 +767,7 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		subscriptions.GET("/:id/progress", h.Admin.Subscription.GetProgress)
 		subscriptions.POST("/assign", h.Admin.Subscription.Assign)
 		subscriptions.POST("/bulk-assign", h.Admin.Subscription.BulkAssign)
+		subscriptions.POST("/bulk-action", h.Admin.Subscription.BulkAction)
 		subscriptions.POST("/:id/extend", h.Admin.Subscription.Extend)
 		subscriptions.POST("/:id/reset-quota", h.Admin.Subscription.ResetQuota)
 		subscriptions.POST("/:id/revoke", h.Admin.Subscription.Revoke)
@@ -896,6 +906,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		affiliates.GET("/invites", h.Admin.Affiliate.ListInviteRecords)
 		affiliates.GET("/rebates", h.Admin.Affiliate.ListRebateRecords)
 		affiliates.GET("/transfers", h.Admin.Affiliate.ListTransferRecords)
+		affiliates.POST("/inviter/resolve", h.Admin.Affiliate.ResolveInviterCode)
 
 		users := affiliates.Group("/users")
 		{
@@ -903,6 +914,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.GET("/lookup", h.Admin.Affiliate.LookupUsers)
 			users.POST("/batch-rate", h.Admin.Affiliate.BatchSetRate)
 			users.GET("/:user_id/overview", h.Admin.Affiliate.GetUserOverview)
+			users.GET("/:user_id/inviter", h.Admin.Affiliate.GetInviter)
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}

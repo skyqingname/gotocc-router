@@ -128,13 +128,10 @@ describe('PromptAuditView', () => {
     expect(wrapper.find('[data-test="confirm"]').exists()).toBe(true)
     await wrapper.get('[data-test="confirm-action"]').trigger('click')
     expect(wrapper.get('[data-test="blocking-toggle"]').attributes('aria-checked')).toBe('true')
-    await wrapper.get('[data-test="blocking-latest-turn-only-toggle"]').trigger('click')
-    expect(wrapper.get('[data-test="blocking-latest-turn-only-toggle"]').attributes('aria-checked')).toBe('true')
     await wrapper.get('[data-test="enabled-toggle"]').trigger('click')
     expect(wrapper.get('[data-test="enabled-toggle"]').attributes('aria-checked')).toBe('false')
     expect(wrapper.get('[data-test="blocking-toggle"]').attributes('aria-checked')).toBe('false')
     expect(wrapper.get('[data-test="blocking-toggle"]').attributes()).toHaveProperty('disabled')
-    expect(wrapper.get('[data-test="blocking-latest-turn-only-toggle"]').attributes()).toHaveProperty('disabled')
   })
 
   it('clears plaintext token state after a successful save', async () => {
@@ -175,12 +172,26 @@ describe('PromptAuditView', () => {
     expect(wrapper.get('[data-test="dialog-preview-state"]').text()).toBe('none')
   })
 
+  it('prevents the save switch label default action while updating the draft once', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-test="tab-config"]').trigger('click')
+    const button = wrapper.get('[data-test="store-pass-toggle"]')
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+    button.element.dispatchEvent(event)
+    await flushPromises()
+    expect(event.defaultPrevented).toBe(true)
+    expect(button.attributes('aria-checked')).toBe('true')
+    expect(mocks.updateConfig).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('uses native labeled switches and a responsive fixed save surface', async () => {
     const wrapper = mountView()
     await flushPromises()
     await wrapper.get('[data-test="tab-config"]').trigger('click')
     const switches = wrapper.findAll('[role="switch"]')
-    expect(switches).toHaveLength(4)
+    expect(switches).toHaveLength(3)
     expect(switches.every((item) => Boolean(item.attributes('aria-label')))).toBe(true)
     expect(wrapper.html()).toContain('fixed inset-x-0 bottom-0')
     expect(wrapper.html()).toContain('flex-wrap')

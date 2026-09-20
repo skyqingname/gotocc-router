@@ -9,13 +9,14 @@ import (
 
 // CustomMenuItem represents a user-configured custom menu entry.
 type CustomMenuItem struct {
-	ID         string `json:"id"`
-	Label      string `json:"label"`
-	IconSVG    string `json:"icon_svg"`
-	URL        string `json:"url"`
-	PageSlug   string `json:"page_slug,omitempty"`
-	Visibility string `json:"visibility"` // "user" or "admin"
-	SortOrder  int    `json:"sort_order"`
+	ID             string `json:"id"`
+	Label          string `json:"label"`
+	IconSVG        string `json:"icon_svg"`
+	URL            string `json:"url"`
+	PageSlug       string `json:"page_slug,omitempty"`
+	Visibility     string `json:"visibility"` // "user" or "admin"
+	SortOrder      int    `json:"sort_order"`
+	HideOpenButton bool   `json:"hide_open_button,omitempty"`
 }
 
 // CustomEndpoint represents an admin-configured API endpoint for quick copy.
@@ -167,6 +168,8 @@ type SystemSettings struct {
 	DefaultConcurrency            int                          `json:"default_concurrency"`
 	DefaultBalance                float64                      `json:"default_balance"`
 	AffiliateRebateRate           float64                      `json:"affiliate_rebate_rate"`
+	AffiliateRebateRateL2         float64                      `json:"affiliate_rebate_rate_l2"`
+	AffiliateRebateRateL3         float64                      `json:"affiliate_rebate_rate_l3"`
 	AffiliateRebateFreezeHours    int                          `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays   int                          `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap  float64                      `json:"affiliate_rebate_per_invitee_cap"`
@@ -202,7 +205,6 @@ type SystemSettings struct {
 	BackendModeEnabled bool `json:"backend_mode_enabled"`
 
 	// Gateway forwarding behavior
-	OpenAITTFTMode                               string `json:"openai_ttft_mode"`
 	EnableFingerprintUnification                 bool   `json:"enable_fingerprint_unification"`
 	EnableMetadataPassthrough                    bool   `json:"enable_metadata_passthrough"`
 	EnableCCHSigning                             bool   `json:"enable_cch_signing"`
@@ -214,6 +216,7 @@ type SystemSettings struct {
 	EnableClientDatelineNormalization            bool   `json:"enable_client_dateline_normalization"`
 	AntigravityUserAgentVersion                  string `json:"antigravity_user_agent_version"`
 	OpenAICodexUserAgent                         string `json:"openai_codex_user_agent"`
+	OpenAICodexEnvironmentTimezone               string `json:"openai_codex_environment_timezone"`
 	CodexLegacyClientProfileCompatibilityEnabled bool   `json:"codex_legacy_client_profile_compatibility_enabled"`
 	OpenAICodexLocalGroupQuotaEnabled            bool   `json:"openai_codex_local_group_quota_enabled"`
 	OpenAICodexClientVersion                     string `json:"openai_codex_client_version"`
@@ -314,6 +317,7 @@ type SystemSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	// Grok model mapping policy (admin settings; empty account mapping falls back to these).
 	GrokDefaultTextModel           string `json:"grok_default_text_model"`
@@ -322,6 +326,10 @@ type SystemSettings struct {
 
 	// Available Channels feature switch (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// Subscription feature switch: gates the whole user-facing subscription surface
+	// (sidebar entries, purchase-page subscription tab, header badge, /subscriptions route).
+	SubscriptionEnabled bool `json:"subscription_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
 	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
@@ -414,6 +422,10 @@ type PublicSettings struct {
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
 	PaymentEnabled                      bool                     `json:"payment_enabled"`
+	// PaymentBalanceDisabled mirrors the payment-config BALANCE_PAYMENT_DISABLED switch so the
+	// user shell can derive the site billing mode (recharge & subscription / recharge only /
+	// subscription only) before any authenticated checkout call.
+	PaymentBalanceDisabled bool   `json:"payment_balance_disabled"`
 	TeamEnabled                         bool                     `json:"team_enabled"`
 	TeamSelfServiceEnabled              bool                     `json:"team_self_service_enabled"`
 	Version                             string                   `json:"version"`
@@ -431,8 +443,11 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
 	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+	ChannelMonitorHideUserRanking        bool   `json:"channel_monitor_hide_user_ranking"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	SubscriptionEnabled bool `json:"subscription_enabled"`
 
 	ModelPlazaEnabled       bool `json:"model_plaza_enabled"`
 	ModelPlazaRequireAuth   bool `json:"model_plaza_require_auth"`

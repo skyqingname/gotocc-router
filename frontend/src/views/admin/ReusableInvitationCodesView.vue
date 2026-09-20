@@ -48,6 +48,9 @@
             </div>
           </template>
 
+          <template #cell-owner_user_id="{ value }">
+            <span>{{ value ? `#${value}` : t('admin.reusableInvitationCodes.noOwner') }}</span>
+          </template>
           <template #cell-status="{ value }">
             <span :class="['badge', value === 'active' ? 'badge-success' : 'badge-gray']">
               {{ t(`admin.reusableInvitationCodes.status.${value}`) }}
@@ -76,6 +79,7 @@
 
           <template #cell-actions="{ row }">
             <div class="flex items-center gap-2 whitespace-nowrap">
+              <button type="button" class="btn btn-secondary btn-sm" @click="openOwnerDialog(row)">{{ t('admin.reusableInvitationCodes.bindOwner') }}</button>
               <button type="button" class="btn btn-secondary btn-sm" @click="openUsesDialog(row)">
                 <Icon name="eye" size="sm" />
                 <span>{{ t('admin.reusableInvitationCodes.uses') }}</span>
@@ -128,6 +132,11 @@
             autocomplete="off"
             required
           />
+        </div>
+        <div>
+          <label for="reusable-code-owner" class="input-label">{{ t('admin.reusableInvitationCodes.ownerLabel') }}</label>
+          <input id="reusable-code-owner" v-model.number="createForm.owner_user_id" type="number" min="1" step="1" class="input" />
+          <p class="mt-1 text-xs text-gray-500">{{ t('admin.reusableInvitationCodes.ownerHint') }}</p>
         </div>
         <div>
           <label for="reusable-code-max-uses" class="input-label">
@@ -215,6 +224,19 @@
       </div>
     </BaseDialog>
 
+    <BaseDialog :show="ownerCode !== null" :title="t('admin.reusableInvitationCodes.bindOwner')" width="normal" @close="ownerCode = null">
+      <form class="space-y-4" @submit.prevent="bindOwner">
+        <p class="font-mono text-sm">{{ ownerCode?.code }}</p>
+        <p class="text-sm text-gray-500">{{ t('admin.reusableInvitationCodes.backfillHint') }}</p>
+        <label class="input-label" for="existing-code-owner">{{ t('admin.reusableInvitationCodes.ownerLabel') }}</label>
+        <input id="existing-code-owner" v-model.number="ownerUserId" type="number" min="1" step="1" class="input" required />
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn btn-secondary" @click="ownerCode = null">{{ t('common.cancel') }}</button>
+          <button type="submit" class="btn btn-primary" :disabled="bindingOwner">{{ t('common.save') }}</button>
+        </div>
+      </form>
+    </BaseDialog>
+
     <ConfirmDialog
       :show="showDisableDialog"
       :title="t('admin.reusableInvitationCodes.disableTitle')"
@@ -244,6 +266,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
+import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -259,12 +282,17 @@ const showDisableDialog = ref(false)
 const showUsesDialog = ref(false)
 const disablingCode = ref<ReusableInvitationCode | null>(null)
 
+const ownerCode = ref<ReusableInvitationCode | null>(null)
+const ownerUserId = ref<number | string>('')
+const bindingOwner = ref(false)
+
 const pagination = reactive({ page: 1, page_size: getPersistedPageSize(), total: 0 })
 const sortState = reactive({ sort_by: 'id', sort_order: 'desc' as 'asc' | 'desc' })
-const createForm = reactive({ code: '', max_uses: 0, expires_at_local: '', notes: '' })
+const createForm = reactive({ code: '', owner_user_id: '' as number | string, max_uses: 0, expires_at_local: '', notes: '' })
 
 const columns = computed<Column[]>(() => [
   { key: 'code', label: t('admin.reusableInvitationCodes.columns.code') },
+  { key: 'owner_user_id', label: t('admin.reusableInvitationCodes.ownerLabel') },
   { key: 'status', label: t('admin.reusableInvitationCodes.columns.status'), sortable: true },
   { key: 'max_uses', label: t('admin.reusableInvitationCodes.columns.maxUses'), sortable: true },
   { key: 'used_count', label: t('admin.reusableInvitationCodes.columns.usedCount'), sortable: true },
@@ -293,7 +321,7 @@ async function loadCodes() {
 }
 
 function resetCreateForm() {
-  Object.assign(createForm, { code: '', max_uses: 0, expires_at_local: '', notes: '' })
+  Object.assign(createForm, { code: '', owner_user_id: '' as number | string, max_uses: 0, expires_at_local: '', notes: '' })
 }
 
 function openCreateDialog() {
@@ -313,6 +341,7 @@ async function handleCreate() {
   try {
     await adminAPI.reusableInvitationCodes.create({
       code,
+      owner_user_id: createForm.owner_user_id === '' ? undefined : Number(createForm.owner_user_id),
       max_uses: createForm.max_uses || 0,
       expires_at: createForm.expires_at_local
         ? new Date(createForm.expires_at_local).toISOString()
@@ -324,10 +353,30 @@ async function handleCreate() {
     pagination.page = 1
     await loadCodes()
   } catch (error) {
-    appStore.showError(t('admin.reusableInvitationCodes.createFailed'))
+    appStore.showError(extractApiErrorMessage(error, t('admin.reusableInvitationCodes.createFailed')))
     console.error('Error creating reusable invitation code:', error)
   } finally {
     creating.value = false
+  }
+}
+
+function openOwnerDialog(code: ReusableInvitationCode) {
+  ownerCode.value = code
+  ownerUserId.value = code.owner_user_id ?? ''
+}
+
+async function bindOwner() {
+  if (!ownerCode.value) return
+  bindingOwner.value = true
+  try {
+    const result = await adminAPI.reusableInvitationCodes.setOwner(ownerCode.value.id, Number(ownerUserId.value))
+    appStore.showSuccess(t('admin.reusableInvitationCodes.ownerBound', { bound: result.bound_count, skipped: result.skipped_count }))
+    ownerCode.value = null
+    await loadCodes()
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('common.error')))
+  } finally {
+    bindingOwner.value = false
   }
 }
 

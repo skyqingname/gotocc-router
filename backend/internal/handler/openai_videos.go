@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"net/http"
 	"strings"
 	"time"
@@ -66,7 +67,11 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	c.Request = c.Request.WithContext(service.WithOpenAIProfitControlSuppressed(c.Request.Context()))
 
 	var body []byte
+	var parameterBody []byte
+	requestContentType := c.GetHeader("Content-Type")
+	originalRequestModel := ""
 	var err error
+	var providerConfig *videoprotocol.Config
 	var persistedTask *service.OpenAIVideoTask
 	var persistedAccount *service.Account
 	requestModel := strings.TrimSpace(c.Query("model"))
@@ -84,16 +89,18 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 			return
 		}
-		if !gjson.ValidBytes(body) {
+		parameterBody, err = service.OpenAIVideoRequestParameters(body, requestContentType)
+		if err != nil {
 			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 			return
 		}
-		modelResult := gjson.GetBytes(body, "model")
+		modelResult := gjson.GetBytes(parameterBody, "model")
 		if !modelResult.Exists() || modelResult.Type != gjson.String || strings.TrimSpace(modelResult.String()) == "" {
 			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
 			return
 		}
 		requestModel = strings.TrimSpace(modelResult.String())
+		originalRequestModel = requestModel
 	}
 	if !chargeRequest && h.gatewayService.OpenAIVideoTaskLifecycleEnabled() {
 		taskID := strings.TrimSpace(c.Param("request_id"))
@@ -118,12 +125,19 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 		requestModel = defaultOpenAIVideoModel
 	}
 	if chargeRequest {
-		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, body); decision != nil && !decision.AllowNextStage {
+		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, parameterBody); decision != nil && !decision.AllowNextStage {
 			h.openAISecurityAuditError(c, decision)
 			return
 		}
-		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &requestModel) {
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &parameterBody, &requestModel) {
 			return
+		}
+		if requestModel != originalRequestModel {
+			body, requestContentType, err = service.ReplaceOpenAIVideoRequestModel(body, requestContentType, requestModel)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply video model mapping")
+				return
+			}
 		}
 		subject, _ = middleware2.GetAuthSubjectFromContext(c)
 	}
@@ -132,6 +146,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	reqLog = reqLog.With(zap.String("model", requestModel), zap.Bool("charge_request", chargeRequest))
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, requestModel)
 	forwardBody := body
+	forwardContentType := requestContentType
 	forwardModel := requestModel
 	if persistedTask != nil {
 		forwardModel = persistedTask.UpstreamModel
@@ -143,7 +158,33 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	} else if channelMapping.Mapped {
 		forwardModel = channelMapping.MappedModel
 		if len(body) > 0 {
-			forwardBody = h.gatewayService.ReplaceModelInBody(body, forwardModel)
+			forwardBody, forwardContentType, err = service.ReplaceOpenAIVideoRequestModel(body, requestContentType, forwardModel)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply video model mapping")
+				return
+			}
+		}
+	}
+	if persistedTask != nil {
+		providerConfig = persistedTask.ProviderConfig
+	} else {
+		providerConfig, err = h.gatewayService.ResolveVideoModel(c.Request.Context(), apiKey, requestModel)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+			return
+		}
+		if providerConfig != nil {
+			body, requestContentType, err = service.PrepareVideoModelRequest(providerConfig, body, requestContentType)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
+			forwardModel = providerConfig.UpstreamModel
+			forwardBody, forwardContentType, err = service.ReplaceOpenAIVideoRequestModel(body, requestContentType, forwardModel)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
 		}
 	}
 	setOpsEndpointContext(c, forwardModel, int16(service.RequestTypeSync))
@@ -176,10 +217,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	var selection *service.AccountSelectionResult
 	account := persistedAccount
 	if persistedTask == nil {
-		selection, _, err = h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(), apiKey.GroupID, "", sessionHash, forwardModel, nil,
-			service.OpenAIUpstreamTransportHTTPSSE, false,
-		)
+		selection, err = h.gatewayService.SelectVideoAccount(c.Request.Context(), apiKey.GroupID, sessionHash, forwardModel)
 		if err != nil || selection == nil || selection.Account == nil {
 			reqLog.Warn("openai_videos.account_select_failed", zap.Error(err))
 			classification := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, forwardModel, service.PlatformOpenAI)
@@ -207,8 +245,8 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	var preparedTask *service.OpenAIVideoTask
 	if chargeRequest && h.gatewayService.OpenAIVideoTaskLifecycleEnabled() {
 		preparedTask, err = h.gatewayService.PrepareOpenAIVideoTask(c.Request.Context(), service.OpenAIVideoTaskCreateInput{
-			APIKey: apiKey, Subscription: subscription, Account: account,
-			RequestedModel: requestModel, UpstreamModel: forwardModel, Body: body,
+			APIKey: apiKey, Subscription: subscription, Account: account, ProviderConfig: providerConfig,
+			RequestedModel: requestModel, UpstreamModel: forwardModel, Body: body, ContentType: requestContentType,
 			ChannelFields:   channelMapping.ToUsageFields(requestModel, forwardModel),
 			InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: "/v1/videos",
 			UserAgent: userAgent, IPAddress: clientIP,
@@ -232,9 +270,17 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	}
 	forwardStart := time.Now()
 	result, forwardErr := h.gatewayService.ForwardVideo(c.Request.Context(), c, account, service.OpenAIVideoForwardInput{
+		ProviderConfig: providerConfig,
+		TaskID: func() string {
+			if persistedTask != nil && persistedTask.TaskID != nil {
+				return *persistedTask.TaskID
+			}
+			return ""
+		}(),
 		Method:        c.Request.Method,
 		Path:          c.Request.URL.Path,
 		Body:          forwardBody,
+		ContentType:   forwardContentType,
 		Model:         requestModel,
 		UpstreamModel: forwardModel,
 		LocalRequestID: func() string {

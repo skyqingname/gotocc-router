@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package service
 
 import (
@@ -32,5 +34,5 @@ func TestAPIKeyAuthSnapshotGroupForceOpenAIFastRoundtrip(t *testing.T) {
 	require.True(t, materialized.Group.Hydrated)
 	require.True(t, materialized.Group.ForceOpenAIFast)
 	require.True(t, materialized.Group.FreeOpenAIFast)
-	require.Equal(t, 24, cached.Snapshot.Version)
+	require.Equal(t, apiKeyAuthSnapshotVersion, cached.Snapshot.Version)
 }

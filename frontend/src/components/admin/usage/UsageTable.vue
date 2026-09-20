@@ -247,6 +247,7 @@
               <div
                 class="group relative"
                 @mouseenter="showTooltip($event, row)"
+                data-testid="cost-details-trigger"
                 @mouseleave="hideTooltip"
               >
                 <div class="flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-blue-100 dark:bg-gray-700 dark:group-hover:bg-blue-900/50">
@@ -285,16 +286,16 @@
                 </div>
               </span>
               <span
-                v-if="row.first_token_ms != null"
+                v-if="strictFirstTokenMs(row) != null"
                 data-testid="first-latency-value"
                 class="font-medium tabular-nums"
                 :class="primaryFirstTokenTextClass(row)"
-              >{{ formatDuration(row.first_token_ms) }}</span>
+              >{{ formatDuration(strictFirstTokenMs(row)) }}</span>
               <span v-else data-testid="first-latency-value" class="text-gray-400 dark:text-gray-500">-</span>
               <span class="text-gray-400 dark:text-gray-500">{{ t('usage.latencyDuration') }}</span>
               <span data-testid="latency-duration" class="font-medium tabular-nums" :class="durationTextClass(row)">{{ formatDuration(row.duration_ms) }}</span>
               <span class="cursor-help text-gray-400 dark:text-gray-500" :title="t('usage.latencyTpsHint')">{{ t('usage.latencyTps') }}</span>
-              <span data-testid="latency-tps" class="cursor-help font-medium tabular-nums" :class="estimatedTps(row) == null ? 'text-gray-400 dark:text-gray-500' : 'text-cyan-600 dark:text-cyan-400'" :title="t('usage.latencyTpsHint')">{{ formatTpsDisplay(estimatedTps(row)) }}</span>
+              <span data-testid="latency-tps" class="cursor-help whitespace-nowrap font-medium tabular-nums" :class="estimatedTps(row) == null ? 'text-gray-400 dark:text-gray-500' : 'text-cyan-600 dark:text-cyan-400'" :title="t('usage.latencyTpsHint')">{{ formatTpsDisplay(estimatedTps(row)) }}</span>
             </div>
           </div>
         </template>
@@ -467,8 +468,12 @@
             <span class="font-medium text-white">{{ formatDuration(latencyDetailFirstOutputMs(latencyTooltipData)) }}</span>
           </div>
           <div v-if="latencyTooltipData?.first_token_ms != null" class="flex items-center justify-between gap-4">
-            <span class="text-gray-400">{{ latencyTooltipData.first_output_kind == null ? t('usage.latencyLegacyFirstEvent') : t('usage.latencyFirstToken') }}</span>
-            <span class="font-medium text-white">{{ formatDuration(latencyTooltipData.first_token_ms) }}</span>
+            <span class="text-gray-400">{{ t("usage.latencyFirstToken") }}</span>
+            <span class="font-medium text-white">{{ formatDuration(strictFirstTokenMs(latencyTooltipData)) }}</span>
+          </div>
+          <div v-if="latencyTooltipData?.last_token_ms != null" class="flex items-center justify-between gap-4">
+            <span class="text-gray-400">{{ t('usage.latencyLastToken') }}</span>
+            <span class="font-medium text-white">{{ formatDuration(latencyTooltipData.last_token_ms) }}</span>
           </div>
           <div v-if="latencyTooltipData?.duration_ms != null" class="flex items-center justify-between gap-4">
             <span class="text-gray-400">{{ t('usage.latencyDuration') }}</span>
@@ -504,19 +509,19 @@
             <div class="text-xs font-semibold text-gray-300 mb-1">{{ t('usage.costDetails') }}</div>
             <div v-if="tooltipData && tooltipData.input_cost > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.inputCost') }}</span>
-              <span class="font-medium text-white">${{ tooltipData.input_cost.toFixed(6) }}</span>
+              <span class="font-medium text-white">${{ tooltipData.input_cost.toFixed(8) }}</span>
             </div>
             <div v-if="tooltipData && hasImageInputCost(tooltipData)" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('usage.imageInputCost') }}</span>
-              <span class="font-medium text-fuchsia-300">${{ tooltipData.image_input_cost.toFixed(6) }}</span>
+              <span class="font-medium text-fuchsia-300">${{ tooltipData.image_input_cost.toFixed(8) }}</span>
             </div>
             <div v-if="tooltipData && tooltipData.output_cost > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.outputCost') }}</span>
-              <span class="font-medium text-white">${{ tooltipData.output_cost.toFixed(6) }}</span>
+              <span class="font-medium text-white">${{ tooltipData.output_cost.toFixed(8) }}</span>
             </div>
             <div v-if="tooltipData && hasImageOutputCost(tooltipData)" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('usage.imageOutputCost') }}</span>
-              <span class="font-medium text-pink-300">${{ tooltipData.image_output_cost.toFixed(6) }}</span>
+              <span class="font-medium text-pink-300">${{ tooltipData.image_output_cost.toFixed(8) }}</span>
             </div>
             <!-- Token billing: show unit prices per 1M tokens -->
             <template v-if="tooltipData && !isImageUsage(tooltipData) && (!tooltipData.billing_mode || tooltipData.billing_mode === BILLING_MODE_TOKEN)">
@@ -564,24 +569,24 @@
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.imageUnitPrice') }}</span>
-                <span class="font-medium text-sky-300">${{ imageUnitPrice(tooltipData).toFixed(6) }}</span>
+                <span class="font-medium text-sky-300">${{ imageUnitPrice(tooltipData).toFixed(8) }}</span>
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.imageTotalPrice') }}</span>
-                <span class="font-medium text-white">${{ tooltipData.total_cost?.toFixed(6) || '0.000000' }}</span>
+                <span class="font-medium text-white">${{ tooltipData.total_cost?.toFixed(8) || '0.00000000' }}</span>
               </div>
             </template>
             <div v-else class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('usage.unitPrice') }}</span>
-              <span class="font-medium text-sky-300">${{ tooltipData?.total_cost?.toFixed(6) || '0.000000' }}</span>
+              <span class="font-medium text-sky-300">${{ tooltipData?.total_cost?.toFixed(8) || '0.00000000' }}</span>
             </div>
             <div v-if="tooltipData && tooltipData.cache_creation_cost > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.cacheCreationCost') }}</span>
-              <span class="font-medium text-white">${{ tooltipData.cache_creation_cost.toFixed(6) }}</span>
+              <span class="font-medium text-white">${{ tooltipData.cache_creation_cost.toFixed(8) }}</span>
             </div>
             <div v-if="tooltipData && tooltipData.cache_read_cost > 0" class="flex items-center justify-between gap-4">
               <span class="text-gray-400">{{ t('admin.usage.cacheReadCost') }}</span>
-              <span class="font-medium text-white">${{ tooltipData.cache_read_cost.toFixed(6) }}</span>
+              <span class="font-medium text-white">${{ tooltipData.cache_read_cost.toFixed(8) }}</span>
             </div>
           </div>
           <!-- Rate and Summary -->
@@ -595,11 +600,11 @@
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.original') }}</span>
-            <span class="font-medium text-white">${{ tooltipData?.total_cost?.toFixed(6) || '0.000000' }}</span>
+            <span class="font-medium text-white">${{ tooltipData?.total_cost?.toFixed(8) || '0.00000000' }}</span>
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.userBilled') }}</span>
-            <span class="font-semibold text-green-400">${{ tooltipData?.actual_cost?.toFixed(6) || '0.000000' }}</span>
+            <span class="font-semibold text-green-400">${{ tooltipData?.actual_cost?.toFixed(8) || '0.00000000' }}</span>
           </div>
           <!-- Account billing (separated from user billing) -->
           <template v-if="showAccountBilling">
@@ -614,7 +619,7 @@
                   total_cost: tooltipData?.total_cost,
                   account_stats_cost: tooltipData?.account_stats_cost,
                   account_rate_multiplier: tooltipData?.account_rate_multiplier,
-                }).toFixed(6) }}
+                }).toFixed(8) }}
               </span>
             </div>
           </template>
@@ -687,6 +692,7 @@ import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { fetchBatch, getEntry } from '@/utils/ipGeoLookup'
 import type { AdminUsageLog } from '@/types'
+import { strictFirstTokenMs, estimatedTps, firstTokenUnavailableReason } from '@/utils/usageTiming'
 import type { Column } from '@/components/common/types'
 
 interface Props {
@@ -881,34 +887,18 @@ const formatDuration = (ms: number | null | undefined): string => {
   return `${Math.floor(totalSec / 3600)}h ${Math.floor((totalSec % 3600) / 60)}m`
 }
 
-const hasStrictFirstToken = (row: AdminUsageLog): boolean =>
-  row.first_output_kind != null && row.first_token_ms != null
+const hasStrictFirstToken = (row: AdminUsageLog): boolean => strictFirstTokenMs(row) != null
 
-// Primary column always uses strict first_token_ms (or legacy first_token only).
-const primaryFirstTokenLabel = (row: AdminUsageLog): string => {
-  if (row.first_output_kind == null && row.first_token_ms != null) {
-    return t('usage.latencyLegacyFirstEvent')
-  }
-  return t('usage.latencyFirstToken')
-}
+const primaryFirstTokenLabel = (_row: AdminUsageLog): string => t("usage.latencyFirstToken")
 
 const primaryFirstTokenTextClass = (row: AdminUsageLog): string => {
-  if (row.first_token_ms == null) {
-    return 'text-gray-400 dark:text-gray-500'
-  }
-  // Only color by TTFT thresholds for new-semantics token-like samples.
-  if (hasStrictFirstToken(row)) {
-    return LATENCY_TEXT_CLASSES[firstTokenSeverity(row.first_token_ms)]
-  }
-  // Legacy first-event values are not comparable TTFT samples.
-  return 'text-gray-600 dark:text-gray-300'
+  const first = strictFirstTokenMs(row)
+  return first == null ? 'text-gray-400 dark:text-gray-500' : LATENCY_TEXT_CLASSES[firstTokenSeverity(first)]
 }
 
 const hasLatencyDetails = (row: AdminUsageLog): boolean => {
   // Legacy first-event needs explanation so it is not mistaken for strict TTFT.
-  if (row.first_output_kind == null) {
-    return row.first_token_ms != null
-  }
+  if (firstTokenUnavailableReason(row)) return true
   // Non-text first output always deserves a detail popover.
   if (row.first_output_kind !== 'text') return true
   // Pure text with matching first output/token is fully represented by the primary column.
@@ -924,6 +914,8 @@ const firstOutputModalityLabel = (
   role: 'kind' | 'timing',
 ): string => {
   switch (row?.first_output_kind) {
+    case 'compaction':
+      return t('usage.latencyCompaction')
     case 'image':
       return t('usage.latencyFirstImage')
     case 'audio':
@@ -948,9 +940,8 @@ const latencyDetailFirstOutputMs = (row: AdminUsageLog | null | undefined): numb
 
 const latencyTooltipNote = (row: AdminUsageLog | null | undefined): string | null => {
   if (row == null) return null
-  if (row.first_output_kind == null && row.first_token_ms != null) {
-    return t('usage.latencyLegacyFirstEventHint')
-  }
+  const reason = firstTokenUnavailableReason(row)
+  if (reason) return t(reason)
   if (row.first_output_kind === 'image' || row.first_output_kind === 'audio') {
     if (row.first_token_ms == null) {
       return t('usage.latencyMediaOnlyHint')
@@ -997,46 +988,15 @@ const latencyBarClasses = (row: AdminUsageLog): string | string[] => {
   return LATENCY_BAR_CLASSES[durationSeverity(row.duration_ms)]
 }
 
-// TPS is a coarse estimate (text tokens / last-first token wall time), not a
-// sampled decode rate. Reliability gates hide short generation windows and tiny
-// samples. Values outside [1, 1000] stay visible as < 1 / > 1000.
-const TPS_MIN_GENERATION_MS = 300
-const TPS_MIN_TEXT_TOKENS = 8
-const TPS_DISPLAY_MIN = 1
-const TPS_DISPLAY_MAX = 1000
-
-const estimatedTps = (row: AdminUsageLog): number | null => {
-  const requestType = resolveUsageRequestType(row)
-  if (requestType !== 'stream' && requestType !== 'ws_v2') return null
-  if (row.is_complete !== true) return null
-  if (!hasStrictFirstToken(row) || row.last_token_ms == null) return null
-
-  const outputTokens = textOutputTokens(row)
-  const generationMs = row.last_token_ms - row.first_token_ms!
-  if (
-    !Number.isFinite(outputTokens) ||
-    outputTokens < TPS_MIN_TEXT_TOKENS ||
-    !Number.isFinite(generationMs) ||
-    generationMs < TPS_MIN_GENERATION_MS
-  ) {
-    return null
-  }
-
-  const value = outputTokens * 1000 / generationMs
-  if (!Number.isFinite(value) || value <= 0) return null
-  return value
-}
-
 const formatTpsNumber = (value: number): string => {
+  if (value < 0.1) return Number(value.toPrecision(2)).toString()
   if (value >= 100) return String(Math.round(value))
   return (Math.round(value * 10) / 10).toFixed(1).replace(/\.0$/, '')
 }
 
 const formatTpsDisplay = (value: number | null): string => {
   if (value == null) return '-'
-  if (value < TPS_DISPLAY_MIN) return `< ${TPS_DISPLAY_MIN}`
-  if (value > TPS_DISPLAY_MAX) return `> ${TPS_DISPLAY_MAX}`
-  return formatTpsNumber(value)
+  return `${formatTpsNumber(value)} tok/s`
 }
 
 // Cost tooltip functions

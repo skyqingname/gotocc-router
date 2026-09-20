@@ -13,6 +13,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/outboundidentity"
+	"github.com/LuckyKuang/sub2api-plus/internal/service"
 )
 
 type ScannerDefinition struct {
@@ -59,6 +62,7 @@ var categoryAliases = map[string]string{
 }
 
 type GuardError struct {
+	EndpointID string
 	Code       string
 	HTTPStatus int
 	Retryable  bool
@@ -194,6 +198,43 @@ type OpenAICompatibleScanner struct {
 func NewOpenAICompatibleScanner() *OpenAICompatibleScanner { return &OpenAICompatibleScanner{} }
 
 func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+	return s.scan(promptEndpointIdentityContext(ctx, endpoint), endpoint, auditPrompt, chunk, enabledScanners)
+}
+
+type promptIdentityScopeKey struct{}
+type promptIdentityOwner struct{ baseURL, token string }
+type promptIdentityScope struct {
+	mu         sync.Mutex
+	identities map[promptIdentityOwner]outboundidentity.Identity
+}
+
+// One evaluation/job retains each supplier's identity across chunks and failover.
+// A later evaluation/job starts fresh, independently of the forwarding account.
+func withPromptIdentityScope(ctx context.Context) context.Context {
+	return context.WithValue(ctx, promptIdentityScopeKey{}, &promptIdentityScope{identities: make(map[promptIdentityOwner]outboundidentity.Identity)})
+}
+
+func promptEndpointIdentityContext(ctx context.Context, endpoint ActiveEndpoint) context.Context {
+	scope, _ := ctx.Value(promptIdentityScopeKey{}).(*promptIdentityScope)
+	if scope == nil {
+		return service.WithStandaloneOutboundIdentity(ctx, service.PlatformOpenAI)
+	}
+	scope.mu.Lock()
+	defer scope.mu.Unlock()
+	owner := promptIdentityOwner{baseURL: endpoint.BaseURL, token: endpoint.Token}
+	identity, ok := scope.identities[owner]
+	if !ok {
+		identity, _ = outboundidentity.FromContext(service.WithStandaloneOutboundIdentity(ctx, service.PlatformOpenAI))
+		scope.identities[owner] = identity
+	}
+	return outboundidentity.WithIdentity(ctx, identity)
+}
+
+// scan reuses the endpoint snapshot when discovery and inference form one probe.
+func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+	if endpoint.Protocol == "typesafe" {
+		return s.scanJev(ctx, endpoint, auditPrompt, chunk, enabledScanners)
+	}
 	client, err := s.clientFor(endpoint)
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}
@@ -224,6 +265,7 @@ func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpo
 	if endpoint.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+endpoint.Token)
 	}
+	outboundidentity.ApplyContext(req)
 	resp, err := client.Do(req)
 	if err != nil {
 		timeout := errors.Is(err, context.DeadlineExceeded)

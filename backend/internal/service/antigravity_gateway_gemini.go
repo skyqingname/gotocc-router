@@ -42,6 +42,8 @@ func WithForwardGeminiSession(groupID int64, sessionHash string) ForwardGeminiOp
 }
 
 func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Context, account *Account, originalModel string, action string, stream bool, body []byte, isStickySession bool, options ...ForwardGeminiOption) (*ForwardResult, error) {
+	ctx = WithOutboundIdentityScope(ctx, c)
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	beginUpstreamResponseModelObservation(c)
 	startTime := time.Now()
 	forwardOpts := forwardGeminiOptions{}
@@ -132,6 +134,11 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		logger.LegacyPrintf("service.antigravity_gateway", "[Antigravity] Failed to clean schema: %v", err)
 	}
 
+	// Antigravity v1internal rejects built-in + functionDeclarations mixes (#6464).
+	if reconciled, err := enableMixedGeminiToolInvocations(injectedBody); err == nil {
+		injectedBody = reconciled
+	}
+
 	// 包装请求
 	wrappedBody, err := s.wrapV1InternalRequest(projectID, mappedModel, injectedBody)
 	if err != nil {
@@ -201,7 +208,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 				if err == nil {
 					fallbackReq, err := antigravity.NewAPIRequest(ctx, upstreamAction, accessToken, fallbackWrapped)
 					if err == nil {
-						fallbackResp, err := s.httpUpstream.Do(fallbackReq, proxyURL, account.ID, account.Concurrency)
+						fallbackResp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(fallbackReq, account), proxyURL, account.ID, account.Concurrency)
 						if err == nil && fallbackResp.StatusCode < 400 {
 							_ = resp.Body.Close()
 							resp = fallbackResp
@@ -228,6 +235,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 			upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractAntigravityErrorMessage(signatureCheckBody)))
 			upstreamDetail := s.getUpstreamErrorDetail(signatureCheckBody)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
@@ -273,6 +282,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 							retryOpsBody = retryUnwrapped
 						}
 						appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+							ProxyID:            opsUpstreamProxyID(account),
+							ProxyName:          opsUpstreamProxyName(account),
 							Platform:           account.Platform,
 							AccountID:          account.ID,
 							AccountName:        account.Name,
@@ -293,6 +304,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 				} else {
 					if switchErr, ok := IsAntigravityAccountSwitchError(retryErr); ok {
 						appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+							ProxyID:            opsUpstreamProxyID(account),
+							ProxyName:          opsUpstreamProxyName(account),
 							Platform:           account.Platform,
 							AccountID:          account.ID,
 							AccountName:        account.Name,
@@ -306,6 +319,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 						}
 					}
 					appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+						ProxyID:            opsUpstreamProxyID(account),
+						ProxyName:          opsUpstreamProxyName(account),
 						Platform:           account.Platform,
 						AccountID:          account.ID,
 						AccountName:        account.Name,
@@ -347,6 +362,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		if resp.StatusCode == http.StatusBadRequest && isGoogleProjectConfigError(strings.ToLower(upstreamMsg)) {
 			log.Printf("%s status=400 google_config_error failover=true upstream_message=%q account=%d", prefix, upstreamMsg, account.ID)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
@@ -356,11 +373,13 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 				Message:            upstreamMsg,
 				Detail:             upstreamDetail,
 			})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: unwrappedForOps, RetryableOnSameAccount: true}
+			return nil, newAntigravityUpstreamFailoverError(resp.StatusCode, unwrappedForOps, true)
 		}
 
 		if s.shouldFailoverUpstreamError(resp.StatusCode) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
 				Platform:           account.Platform,
 				AccountID:          account.ID,
 				AccountName:        account.Name,
@@ -370,12 +389,14 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 				Message:            upstreamMsg,
 				Detail:             upstreamDetail,
 			})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: unwrappedForOps}
+			return nil, newAntigravityUpstreamFailoverError(resp.StatusCode, unwrappedForOps, false)
 		}
 		if contentType == "" {
 			contentType = "application/json"
 		}
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -447,6 +468,7 @@ handleSuccess:
 
 	return &ForwardResult{
 		RequestID:                     requestID,
+		UpstreamHeaders:               resp.Header,
 		Usage:                         *usage,
 		Model:                         originalModel,
 		UpstreamModel:                 forwardedModel,

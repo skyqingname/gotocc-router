@@ -276,6 +276,8 @@ export default {
         kimi: 'Kimi',
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
+        minimax: 'MiniMax',
+        opencode_go: 'OpenCode',
       },
       cnProviders: {
         accountMode: {
@@ -317,11 +319,29 @@ export default {
         balance: '余额 --',
         window5h: '5h',
         windowWeekly: '7d',
+        windowMonthly: '月',
         probe: '查询',
         probeTooltip: '请求供应商额度端点，查询 5 小时 / 每周滚动窗口用量',
         balanceProbeTooltip: '请求供应商余额端点，查询账户余额',
         balanceLow: '余额不足',
         noBalanceEndpoint: '该平台暂无余额查询接口',
+      },
+      opencodeGo: {
+        accountMode: {
+          zen: 'Zen',
+          zenDesc: '按量付费网关，消耗账户余额，按 Token 计费。',
+          go: 'GO',
+          goDesc: '订阅制网关，按 5 小时 / 周 / 月滚动用量窗口限流。',
+        },
+        protocolRules: {
+          title: '模型协议分流',
+          hint: '自适应模式下按模型匹配上游协议。支持精确 ID 或末尾 * 通配（如 grok-*、qwen*）；自上而下第一条命中生效；未命中走 Chat Completions。',
+          patternPlaceholder: 'grok-* 或 deepseek-v4-flash',
+          add: '添加规则',
+          remove: '删除规则',
+          restoreDefaults: '恢复默认',
+          fallback: '未命中以上规则 → Chat Completions（/v1/chat/completions）',
+        },
       },
       types: {
         oauth: 'OAuth',
@@ -443,7 +463,9 @@ export default {
         grokLastProbe: '探测 {time}',
         grokLastHeadersSeen: '响应头 {time}',
         passiveSampled: '被动采样',
-        activeQuery: '查询'
+        activeQuery: '查询',
+        estimatedTotalCost: '预计总费用 ${cost}',
+        estimatedTotalCostTooltip: '根据当前窗口费用和使用率估算达到 100% 使用率时的总费用'
       },
       openaiQuotaReset: {
         count: '次数',
@@ -605,13 +627,21 @@ export default {
       apiKeyRequired: 'API Key *',
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: '您的 Claude Console API Key',
+      upstreamRequestIdHeader: '上游ID',
+      upstreamRequestIdHeaderPlaceholder: '留空不记录',
+      upstreamRequestIdHeaderHelp: {
+        intro: '填写直接上游在响应头中声明请求标识的头名，记录到用量明细数据供运维和诊断使用；留空则不记录。',
+        examplesTitle: '常见取值',
+        sub2apiNote: '对应对方用量明细的请求ID列',
+        official: '{platform} 官方 API'
+      },
       // OpenAI specific hints
       openai: {
         baseUrlHint: '留空使用官方 OpenAI API',
         apiKeyHint: '您的 OpenAI API Key',
-        oauthPassthrough: '自动透传（仅替换认证）',
+        oauthPassthrough: 'HTTP 自动透传',
         oauthPassthroughDesc:
-          '开启后，该 OpenAI 账号将自动透传请求与响应，仅替换认证并保留计费/并发/审计及必要安全过滤；如遇兼容性问题可随时关闭回滚。',
+          '开启后，该 OpenAI 账号使用 HTTP 自动透传。认证和出站客户端身份仍由网关统一设置，并保留必要的协议处理、安全过滤、审计、计费与并发控制。关闭后恢复常规 HTTP 转发；此开关不改变 WebSocket 模式。',
         accountUserAgent: '账号级 Codex User-Agent',
         accountUserAgentPlaceholder: '留空：继承全局 Codex User-Agent',
         accountUserAgentDesc: '可选。为当前账号覆盖全局 Codex 身份；必须是受支持的 Codex User-Agent，清空后恢复继承。旧版身份需先在全局设置开启「旧版 Codex 客户端档案兼容模式」。',
@@ -628,15 +658,16 @@ export default {
           '默认关闭。开启后可启用 responses_websockets_v2 协议能力（受网关全局开关与账号类型开关约束）。',
         wsMode: 'WS mode',
         wsModeDesc:
-          '仅对当前 OpenAI 账号类型生效；包括 http_bridge 在内的账号 WS mode 仅在全局 gateway.openai_ws.mode_router_v2_enabled=true 时生效。',
+          '仅对当前 OpenAI 账号类型生效。选择“关闭”可禁用 WS；其余模式需全局 gateway.openai_ws.mode_router_v2_enabled=true 才按所选方式连接，未开启时统一使用上下文池。',
         wsModeOff: '关闭（off）',
         wsModeCtxPool: '上下文池（ctx_pool）',
         wsModePassthrough: '透传（passthrough）',
         wsModeHttpBridge: 'HTTP 桥接（http_bridge）',
         wsModeShared: '共享（shared）',
         wsModeDedicated: '独享（dedicated）',
-        wsModeConcurrencyHint: '启用 WS mode 后，该账号并发数将作为该账号 WS 连接池上限。',
-        wsModePassthroughHint: 'passthrough 模式不使用 WS 连接池。',
+        wsModeCtxPoolHint: '网关从连接池获取并复用上游 WS 连接，连接池上限由网关配置决定。',
+        wsModePassthroughHint: '网关为每个客户端会话单独建立上游 WS 连接，不使用连接池。',
+        wsModeHttpBridgeHint: '网关将客户端 WS 请求转换为上游 HTTP 请求，再将 SSE 流式响应转换为 WS 消息返回。',
         oauthResponsesWebsocketsV2: 'OAuth WebSocket Mode',
         oauthResponsesWebsocketsV2Desc:
           '仅对 OpenAI OAuth 生效。开启后该账号才允许使用 OpenAI WebSocket Mode 协议。',
@@ -651,6 +682,9 @@ export default {
         responsesModeForceResponses: '强制 Responses',
         responsesModeForceChatCompletions: '强制 Chat Completions',
         responsesModeTextDisabledHint: '未启用 Responses / Chat Completions 端点时，此设置不适用。',
+        imagesUrlToB64Json: '生图结果 URL 转 base64',
+        imagesUrlToB64JsonDesc:
+          '仅对 OpenAI API Key 的 Images 非流式响应生效。上游返回的图片缺少 b64_json 但带 url 时，网关下载该 url 并以 base64 回填 b64_json（url 保留），兼容按官方接口实现的客户端；下载失败则原样返回。',
         endpointCapabilities: '端点能力',
         endpointCapabilitiesDesc:
           '用于调度筛选。文本端点会跟随上方 Responses API 支持显示为 Responses、Chat Completions 或自动模式；Embeddings 独立控制 /v1/embeddings。',
@@ -669,9 +703,13 @@ export default {
         planTypeDesc: '手动纠正本账号的 ChatGPT 订阅档位（Plus / Pro / Free）。注意：令牌临期刷新或命中 429 限流时，会用真实档位自动覆盖此处设置。',
         planTypeClear: '清空（自动识别）',
         codexCLIOnly: '仅允许 Codex 官方客户端档案',
-        codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许已验证的 Codex 请求档案（包括官方 CLI、App 与 IDE 所共享的底层传输身份）；请求头特征可被伪造，不能证明客户端二进制官方性，也不能单独判断账号分享。',
+        codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许已验证的 Codex 请求档案：以 User-Agent 识别官方传输客户端，并独立校验官方线程或产品来源；请求头特征可被伪造，不能证明客户端二进制官方性，也不能单独判断账号分享。',
         codexFingerprintMode: 'Codex 指纹收敛',
         codexFingerprintModeDesc: '对 OpenAI OAuth Responses 会话，将指纹层拥有的客户端标识收敛为账号级恒定值，默认仅收敛设备标识。Native Compact v2 遵循所选模式；ChatGPT Codex OAuth 的 legacy compact 兼容路径仅使用稳定 installation 标识。关闭只停用指纹改写，不会停用 Plus 缓存、安全或会话策略。',
+        codexEnvironmentTimezone: 'Codex environment_context 时区',
+        codexEnvironmentTimezoneDesc:
+          '将 <environment_context> 内模型可见的 <timezone> / <current_date> 成对改写为该 IANA 时区及其当前日期，使可见时间与出口位置一致。优先于代理标注与全局默认；留空依次跟随。',
+        codexEnvironmentTimezonePlaceholder: '如 America/New_York（留空跟随代理/全局默认）',
         codexFingerprintOff: '关闭（不改写指纹）',
         codexFingerprintDevice: '仅设备（默认）',
         codexFingerprintSession: '设备+会话',
@@ -779,6 +817,8 @@ export default {
       modelRestriction: '模型限制（可选）',
       modelWhitelist: '模型白名单',
       modelMapping: '模型映射',
+      fromModel: '请求模型',
+      toModel: '目标模型',
       selectAllowedModels: '选择允许的模型。留空则支持所有模型。',
       mapRequestModels: '将请求模型映射到实际模型。左边是请求的模型，右边是发送到 API 的实际模型。',
       selectedModels: '已选择 {count} 个模型',
@@ -799,7 +839,8 @@ export default {
       syncUpstreamModelsEmpty: '上游没有返回可同步的模型',
       syncUpstreamModelsFailed: '同步上游模型失败',
       syncUpstreamModelsError: '同步上游模型失败：{message}',
-      syncUpstreamModelsMetadataIncomplete: '模型 ID 已同步，但能力元数据不完整，能力信息未更新。',
+      syncUpstreamModelsMetadataIncomplete: '模型 ID 已同步，但未能更新任何能力元数据。',
+      syncUpstreamModelsMetadataPartial: '已更新部分模型的能力元数据；其余模型能力仍不完整。',
       clearAllModels: '清除所有模型',
       customModelName: '自定义模型名称',
       enterCustomModelName: '输入自定义模型名称',
@@ -831,8 +872,8 @@ export default {
       headerOverride: {
         title: '请求头覆写',
         hint: '转发时用配置值覆盖同名请求头（不区分大小写）',
-        info: '仅对本账号的出站请求生效：配置的请求头会在转发前覆盖客户端/网关生成的同名头。认证头（authorization、x-api-key）与连接控制头不允许覆写。',
-        namePlaceholder: '请求头名称（如 user-agent）',
+        info: '仅对本账号的出站请求生效：配置值覆盖同名普通请求头。User-Agent、客户端标识、客户端版本和 SDK 身份头由「出站身份」统一管理，不允许在此覆写；历史身份覆写会被忽略。认证头（authorization、x-api-key）与连接控制头不允许覆写。',
+        namePlaceholder: '请求头名称（如 x-custom-header）',
         valuePlaceholder: '覆写值（留空表示不覆写）',
         addRow: '添加请求头',
         importJson: 'JSON 导入',
@@ -846,7 +887,7 @@ export default {
         bulkReplaceHint: '保存后将用下方配置整体替换所选账号已有的请求头覆写配置。',
         bulkEmptyRows: '请至少添加一行请求头再保存；如需清空已有配置，请关闭上方开关。',
         invalidName: '请求头名称格式不正确（仅允许字母、数字和 !#$%&\'*+-.^_`|~ 字符）',
-        blockedName: '该请求头不允许覆写（认证头与连接控制头由系统管理）',
+        blockedName: '该请求头不允许覆写（客户端身份、认证与连接控制头由系统管理）',
         duplicateName: '存在重复的请求头名称（匹配不区分大小写）',
         invalidValue: '请求头值不合法（不允许控制字符，长度不超过 8192）',
         tooManyEntries: '请求头覆写条目过多（最多 64 条）'
@@ -865,6 +906,30 @@ export default {
       grokClientToolCache: {
         title: '客户端工具缓存（可能改变自动工具选择）',
         hint: '仅对已识别为 Free 的 Grok OAuth 账号生效，默认会为 Codex、Trae 等客户端函数工具请求启用上游提示缓存；如不接受自动工具选择行为，可关闭此开关退出。'
+      },
+      grokMediaEligibility: {
+        title: '媒体生成资格',
+        hint: '控制该 Grok OAuth 账号是否可被图片和视频生成请求选中。',
+        auto: '自动判断',
+        enabled: '强制启用',
+        disabled: '强制禁用',
+        current: '当前判定：',
+        eligible: '可用',
+        ineligible: '不可用',
+        loading: '正在读取媒体资格…',
+        loadFailed: '无法读取媒体资格',
+        autoHint: '自动判断只会清除手工覆盖，不会主动触发媒体请求。',
+        forceEnableWarning: '强制启用会绕过自动资格检查，仅应对已确认支持生图/生视频的账号使用。',
+        partialSave: '账号其他配置可能已保存，但媒体资格未更新，请重试。',
+        reasons: {
+          eligible: '已确认付费资格',
+          billing_inconclusive: 'Billing 信息不明确',
+          billing_forbidden: 'Billing 接口拒绝访问',
+          billing_free_tier: 'Free 账号',
+          billing_unobserved: '尚未探测到 Billing',
+          override_enabled: '手工强制启用',
+          override_disabled: '手工强制禁用'
+        }
       },
       autoPauseOnExpired: '过期自动暂停调度',
       autoPauseOnExpiredDesc: '启用后，账号过期将自动暂停调度',
@@ -1095,6 +1160,16 @@ export default {
             '方式1：复制完整的链接\n(http://localhost:xxx/auth/callback?code=...)\n方式2：仅复制 code 参数的值',
           authCodeHint: '您可以直接复制整个链接或仅复制 code 参数值，系统会自动识别',
           failedToGenerateUrl: '生成 OpenAI 授权链接失败',
+          failedToStartDeviceCode: '启动 OpenAI 设备码登录失败',
+          failedToPollDeviceCode: '完成 OpenAI 设备码登录失败',
+          deviceCodeAuth: '设备码登录',
+          deviceCodeHint: '打开验证链接并输入一次性代码。该流程与官方 Codex device-code 登录一致。',
+          startDeviceCode: '启动设备码登录',
+          deviceCodeUserCode: '一次性代码',
+          deviceCodeVerificationUrl: '验证链接',
+          deviceCodePolling: '等待授权完成…',
+          deviceCodeRestart: '重新启动设备码登录',
+          deviceCodeTimeout: '设备码登录已超时（15 分钟）',
           failedToExchangeCode: 'OpenAI 授权码兑换失败',
           failedToValidateRT: '验证 Refresh Token 失败',
           errors: {

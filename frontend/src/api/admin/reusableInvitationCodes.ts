@@ -2,6 +2,7 @@ import { apiClient } from '../client'
 import type { BasePaginationResponse } from '@/types'
 
 export interface ReusableInvitationCode {
+  owner_user_id?: number | null
   id: number
   code: string
   status: 'active' | 'disabled'
@@ -23,6 +24,7 @@ export interface ReusableInvitationCodeUse {
 }
 
 export interface CreateReusableInvitationCodeRequest {
+  owner_user_id?: number
   code: string
   max_uses?: number
   expires_at?: string | null
@@ -70,4 +72,9 @@ export async function listUses(id: number, limit = 50): Promise<ReusableInvitati
   return data
 }
 
-export default { list, create, disable, listUses }
+export async function setOwner(id: number, ownerUserId: number): Promise<{ code: ReusableInvitationCode; bound_count: number; skipped_count: number }> {
+  const { data } = await apiClient.put(`/admin/reusable-invitation-codes/${id}/owner`, { owner_user_id: ownerUserId })
+  return data
+}
+
+export default { list, create, disable, listUses, setOwner }

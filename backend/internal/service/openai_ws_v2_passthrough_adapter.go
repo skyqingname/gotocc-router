@@ -774,6 +774,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	} else if compatibilityChanged {
 		firstClientMessage = normalized
 	}
+	// Codex 可见时区对齐：首帧与后续帧同一账号/全局配置语义（幂等；失败
+	// 保留原始自洽内容）。
+	firstClientMessage = s.rewriteOpenAICodexEnvironmentContextBytes(ctx, account, firstClientMessage)
 	if account.IsOpenAIOAuthLike() {
 		aliasedBody, reverse, aliased, aliasErr := aliasOpenAIOAuthReservedToolNamesBody(firstClientMessage)
 		if aliasErr != nil {
@@ -1097,6 +1100,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					payload = accountScopedPayload
 				}
 			}
+			// Codex 可见时区对齐：后续 response.create / 携带 input 的帧与首帧
+			// 同一改写语义（幂等；失败保留原始自洽内容，绝不关闭连接）。
+			if account.UsesOpenAICodexProtocol() {
+				payload = s.rewriteOpenAICodexEnvironmentContextBytes(ctx, account, payload)
+			}
 			if isResponseCreate {
 				if responsesLite {
 					litePayload, _, liteErr := normalizeOpenAIResponsesLitePayloadForAccount(payload, account)
@@ -1317,6 +1325,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					UpstreamTerminalEvent:         normalizeOpenAIWSTerminalEvent(turn.TerminalEventType),
 					ClientDisconnect:              !turn.DownstreamComplete,
 					ResponseHeaders:               cloneHeader(handshakeHeaders),
+					ResponseHeadersFromHandshake:  true,
 					Duration:                      turn.Duration,
 					FirstTokenMs:                  turn.FirstTokenMs,
 					LastTokenMs:                   turn.LastTokenMs,
@@ -1354,6 +1363,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 				if msgType != coderws.MessageText {
 					return payload, true, nil
 				}
+				observeOpenAIWeeklyResetEvent(ctx, account, payload)
 				finalized, emit := s.finalizeCodexClientQuotaEvent(payload, c, account)
 				return finalized, emit, nil
 			},
@@ -1416,6 +1426,13 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					truncateOpenAIWSLogValue(errTypeRaw, openAIWSLogValueMaxLen),
 					truncateOpenAIWSLogValue(errMsgRaw, openAIWSLogValueMaxLen),
 				)
+				if completedTurns.Load() > 0 {
+					return NewOpenAIWSClientCloseError(
+						coderws.StatusTryAgainLater,
+						"upstream rate limit exceeded; please reconnect",
+						errors.New("later passthrough turn was rate limited before output"),
+					)
+				}
 				return s.newOpenAIWSRateLimitFailoverError(account, handshakeHeaders, payload, errMsgRaw)
 			},
 			OnTrace: func(event openaiwsv2.RelayTraceEvent) {
@@ -1471,6 +1488,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		OpenAIWSMode:                  true,
 		UpstreamTerminalEvent:         normalizeOpenAIWSTerminalEvent(relayResult.TerminalEventType),
 		ResponseHeaders:               cloneHeader(handshakeHeaders),
+		ResponseHeadersFromHandshake:  true,
 		Duration:                      relayResult.Duration,
 		FirstTokenMs:                  relayResult.FirstTokenMs,
 		LastTokenMs:                   relayResult.LastTokenMs,
@@ -1517,10 +1535,15 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	var firstOutputTimeoutErr *openAIWSPassthroughFirstOutputTimeoutError
 	if errors.As(relayErr, &firstOutputTimeoutErr) {
 		deadline := firstOutputTimeoutErr.deadline
+		// The relay ran over the WebSocket transport, so a missing managed
+		// proxy is an unknown route (http.DefaultClient), not a direct one.
+		wsProxyID, wsProxyName := opsUpstreamWSProxyAttribution(account)
 		failoverErr := s.newOpenAIFirstOutputTimeoutError(
 			ctx,
 			c,
 			account,
+			wsProxyID,
+			wsProxyName,
 			deadline.startedAt,
 			deadline.requestModel,
 			deadline.reasoningEffort,
@@ -1593,21 +1616,9 @@ func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTur
 }
 
 func markOpenAIWSV2PassthroughCyberPolicy(c *gin.Context, payload []byte) bool {
-	hit, code, message := detectOpenAICyberPolicy(payload)
-	if !hit {
-		return false
-	}
 	usage := OpenAIUsage{}
 	parseOpenAIWSResponseUsageFromCompletedEvent(payload, &usage)
-	MarkOpsCyberPolicy(c, CyberPolicyMark{
-		Code:           code,
-		Message:        message,
-		Body:           truncateString(string(payload), 4096),
-		UpstreamStatus: http.StatusOK,
-		UpstreamInTok:  usage.InputTokens,
-		UpstreamOutTok: usage.OutputTokens,
-	})
-	return true
+	return markOpenAICyberPolicyEvent(c, payload, http.StatusOK, &usage)
 }
 
 func (s *OpenAIGatewayService) mapOpenAIWSPassthroughDialError(

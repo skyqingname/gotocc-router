@@ -13,81 +13,33 @@ Use the versions declared by the repository:
 - Application release: `backend/cmd/server/VERSION`
 - Release and lint tools: `.tool-versions`
 
-Install frontend dependencies with pnpm only:
+Install frontend dependencies with pnpm only and synchronize
+`frontend/pnpm-lock.yaml` when they change. Go dependency changes synchronize
+`backend/go.mod` and `backend/go.sum`.
+
+Inside the validation container:
 
 ```bash
 pnpm --dir frontend install --frozen-lockfile
 ```
 
-## Development Checks
+## Local development and acceptance
 
-All validation, including focused checks while iterating, must run in the
-platform validation container: Docker on macOS and Linux, and Docker inside
-WSL2 Debian or Ubuntu on Windows. Do not run tests, lint,
-typechecking, builds, policy checks, or other validation on the host.
-After every validation attempt, successful or failed, remove the one-shot
-project validation container, temporary resources, and historical writable
-snapshots. Retain the Sub2API validation image whose deterministic identity
-matches the current resolved Go, Node, pnpm, golangci-lint, and GoReleaser pins.
-Retain dependency caches only for the generation matching that image and the
-current Go and pnpm lock inputs. Remove stale Sub2API validation generations;
-never prune unrelated projects or global runtime, builder, image, volume, or
-system resources.
+Build application artifacts in the existing local Docker environment with the
+pinned toolchain. Diagnose concrete problems with focused commands as needed.
+The release criterion is the final package running locally and the owner's
+manual acceptance. Do not run repeated full matrices or the old submit-pr /
+release-finalization chain as routine release gates. Documentation and script
+syntax checks can run on the host without starting an application test stack.
 
-Inside that container, with GNU Make available, run the repository checks from
-the root:
+Keep the accepted local environment and reusable dependency caches. Remove old
+worktrees or build outputs only under an explicit cleanup list; do not prune
+unrelated containers, volumes, or project resources.
 
-```bash
-make test
-```
-
-The equivalent focused commands are:
-
-```bash
-# Backend
-cd backend
-go mod tidy -diff
-go test -tags=unit ./...
-go test -tags=integration ./...
-golangci-lint run ./...
-
-# Frontend, from the repository root
-pnpm --dir frontend run lint:check
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test:run
-
-# Repository AGENTS.md contract
-python3 skills/compress-cli/scripts/compress_cli.py check AGENTS.md
-python3 skills/compress-cli/tests/test_compress_cli.py
-```
-
-Run the focused tests for the changed package or component inside the same
-platform validation container while iterating.
-Intermediate branch pushes use the fast path and do not run local tests:
-
-```bash
-python3 skills/push-cli/scripts/push_cli.py push
-```
-
-Before creating or updating the final pull request, run the promotion gate:
-
-```bash
-python3 skills/push-cli/scripts/push_cli.py submit-pr
-```
-
-`submit-pr` defaults to the `full` profile. It requires the latest
-default-branch base and runs the complete matrix inside Docker on macOS and
-Linux or Docker inside WSL2 Debian or Ubuntu on Windows.
-Independent backend-test, backend-lint/policy, and frontend lanes run with
-bounded concurrency and report step/lane wall-clock durations; no check is
-removed. Host-side execution of any validation is forbidden. For diagnosis or a
-same-commit timing baseline, pass `--serial` to `check`.
-
-The `release-finalization` profile is not a general fast option. Only
-`release-cli finalize` may request it for a verified published tag and a tree
-that can be regenerated exactly from its recorded base. Both profiles bind the
-exact base/head SHAs, and finalization also binds the tag. Release PR merging
-and publication use `skills/release-cli` after GitHub required checks pass.
+Publication reuses the same accepted package and follows
+[`docs/RELEASING.md`](docs/RELEASING.md). It does not rebuild after acceptance or
+wait for GitHub builds. The vircs operations workspace provides the build,
+preview and upload commands; the owner completes the online update.
 
 ## Generated Code
 
@@ -113,6 +65,12 @@ numeric prefix and create a forward-only migration.
 - Keep the three README core section IDs aligned.
 - Put detailed operational content in `docs/` or `deploy/`.
 - Add user-visible changes to the release notes.
+- Configuration changes need defaults, storage or environment bindings,
+  relevant tests, and owning documentation appropriate to their source. Update
+  `deploy/` examples when deployment configuration changes.
+- Prefer maintained repository scripts and Make targets when documenting
+  workflows. Verify native tool syntax, supported versions, and execution
+  environments before documenting additional commands.
 
 ## Specifications
 
@@ -122,7 +80,7 @@ APIs, persistent data, security boundaries, or multi-module behavior. The
 included in pull requests. Start from the tracked example under
 `openspec/examples/` when useful.
 
-Record durable behavior in the owning documentation and automated tests. Use
+Record durable behavior in the owning documentation. Use
 pull request descriptions and commit history for change rationale. Small fixes
 and documentation-only changes do not require an OpenSpec plan.
 
@@ -140,9 +98,9 @@ and include:
 Release publication is a separate maintainer action. A pull request must not
 create or move release tags.
 
-Never push `main` directly. The repository ruleset and local CLI must both
-require pull requests. A PR head or default-branch base change after
-`submit-pr` invalidates its local-validation proof and requires resubmission.
+Never push `main` directly. PRs remain available for source collaboration, but
+they are not a prerequisite for publishing a locally accepted tag. Reuse the
+actual acceptance evidence instead of restarting the full validation matrix.
 
 ### Isolated user lifecycle tests
 

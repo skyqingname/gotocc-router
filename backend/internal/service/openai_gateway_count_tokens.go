@@ -50,6 +50,8 @@ func (s *OpenAIGatewayService) ForwardResponsesInputTokens(
 	account *Account,
 	body []byte,
 ) error {
+	ctx = WithOutboundIdentityScope(ctx, c)
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	if account == nil {
 		writeOpenAIResponsesInputTokensError(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI accounts")
 		return fmt.Errorf("responses input_tokens: missing account")
@@ -82,7 +84,7 @@ func (s *OpenAIGatewayService) ForwardResponsesInputTokens(
 	}
 
 	proxyURL := ""
-	if account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
@@ -265,6 +267,8 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 	body []byte,
 	defaultMappedModel string,
 ) error {
+	ctx = WithOutboundIdentityScope(ctx, c)
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	if account == nil {
 		writeAnthropicCountTokensError(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI accounts")
 		return fmt.Errorf("count_tokens: missing account")
@@ -279,6 +283,23 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 		MarkOpsClientBusinessLimited(c, OpsClientBusinessLimitedReasonLocalPolicyDenied)
 		writeAnthropicCountTokensError(c, http.StatusForbidden, "permission_error", CodexClientRestrictionMessage(restrictionResult))
 		return fmt.Errorf("codex_cli_only restriction: approved Codex client profile required")
+	}
+
+	// 国产供应商与 OpenCode（全部协议，含 anthropic）：一律本地估算，不发上游请求。
+	if account.IsCNProvider() || account.IsOpenCodeGo() {
+		estimated, err := estimateAnthropicCountTokensLocally(body)
+		if err != nil {
+			writeAnthropicCountTokensError(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
+			return fmt.Errorf("count_tokens: estimate cn provider input tokens: %w", err)
+		}
+		logger.L().Debug("openai count_tokens: cn provider local estimate",
+			zap.Int64("account_id", account.ID),
+			zap.Int("estimated_input_tokens", estimated),
+		)
+		c.JSON(http.StatusOK, gin.H{
+			"input_tokens": estimated,
+		})
+		return nil
 	}
 
 	prepared, err := prepareOpenAIInputTokensCountRequest(body, account, defaultMappedModel)
@@ -316,7 +337,7 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 	}
 
 	proxyURL := ""
-	if account.Proxy != nil {
+	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
 	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)

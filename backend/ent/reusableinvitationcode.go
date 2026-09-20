@@ -17,6 +17,8 @@ type ReusableInvitationCode struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
+	// OwnerUserID holds the value of the "owner_user_id" field.
+	OwnerUserID *int64 `json:"owner_user_id,omitempty"`
 	// Code holds the value of the "code" field.
 	Code string `json:"code,omitempty"`
 	// Status holds the value of the "status" field.
@@ -62,7 +64,7 @@ func (*ReusableInvitationCode) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case reusableinvitationcode.FieldID, reusableinvitationcode.FieldMaxUses, reusableinvitationcode.FieldUsedCount:
+		case reusableinvitationcode.FieldID, reusableinvitationcode.FieldOwnerUserID, reusableinvitationcode.FieldMaxUses, reusableinvitationcode.FieldUsedCount:
 			values[i] = new(sql.NullInt64)
 		case reusableinvitationcode.FieldCode, reusableinvitationcode.FieldStatus, reusableinvitationcode.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -89,6 +91,13 @@ func (_m *ReusableInvitationCode) assignValues(columns []string, values []any) e
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int64(value.Int64)
+		case reusableinvitationcode.FieldOwnerUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_user_id", values[i])
+			} else if value.Valid {
+				_m.OwnerUserID = new(int64)
+				*_m.OwnerUserID = value.Int64
+			}
 		case reusableinvitationcode.FieldCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field code", values[i])
@@ -179,6 +188,11 @@ func (_m *ReusableInvitationCode) String() string {
 	var builder strings.Builder
 	builder.WriteString("ReusableInvitationCode(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	if v := _m.OwnerUserID; v != nil {
+		builder.WriteString("owner_user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("code=")
 	builder.WriteString(_m.Code)
 	builder.WriteString(", ")

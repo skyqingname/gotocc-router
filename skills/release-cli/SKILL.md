@@ -1,7 +1,10 @@
 ---
 name: release-cli
-description: Legacy GitHub Actions release mode only. Promote a locally validated Sub2API Plus pull request through protected GitHub auto-merge, create an immutable vX.Y.Z+custom.NNN tag at the tested main merge commit, publish and monitor the automatically gated Release workflow, verify immutable assets, and submit post-publication metadata through a follow-up PR. Use for release PR promotion, tag creation/publication, release-environment monitoring, verification, or UPSTREAM.md finalization. Require an authenticated GitHub CLI, exact submit-pr base/head proof, protected default-branch required checks, repository auto-merge, an automatic tag-only release Environment, immutable custom-tag rules, and successful Actions. Never use admin bypass, directly push main, repeat the full local application matrix, approve a deployment, or combine tag publication with monitor/verify.
+description: Legacy GitHub Actions release workflow. Use only when the owner explicitly requests the legacy release-cli mode. Ordinary GoToCC upgrade and publication requests follow docs/RELEASING.md and reuse the locally accepted package.
 ---
+
+> Legacy workflow, outside GoToCC local publication. Use only when the owner explicitly requests this legacy CLI mode. Ordinary upgrade/push/release requests follow `docs/RELEASING.md`; do not start the full matrix or PR/finalization chain.
+
 
 # Release CLI
 
@@ -43,11 +46,19 @@ application matrix.
 
 ## Tag and Publication
 
+Local metadata and deterministic tree checks use `tools/release_validation.py`
+and the container environment defined in `CONTRIBUTING.md`: Apple Containers on
+macOS, Docker inside WSL2 Debian/Ubuntu on Windows, and Docker on Linux. The
+launcher handles Git/GitHub operations and container management. Missing runtime
+or failed checks stop the operation without a host-validation fallback.
+
 `validate` and `tag` require the merged PR number. They run only the focused
 release metadata/notes/tag-absence gate; the complete application matrix was
 already performed by `submit-pr` and GitHub Actions. The checked-out tree must
 match the merged commit tree. `tag` creates one verified annotated local tag at
-the PR's merge commit and never pushes it.
+the PR's merge commit and never pushes it. External notes are staged temporarily
+for container access and removed after the check. Container cleanup runs on
+success and failure and preserves only current validation generations.
 
 `publish` verifies that exact annotated tag is contained by the fetched default
 branch and absent remotely. Before transfer it requires an automatic `release`

@@ -340,6 +340,7 @@
             </div>
 
             <!-- Codex Image Generation Bridge (OpenAI only) -->
+            <VideoModelsEditor v-if="section.platform === 'video'" :key="editingChannel?.id || 'new'" v-model="videoModels" @validity="videoModelsValid = $event" />
             <div v-if="section.platform === 'openai'" class="border-t border-gray-200 pt-3 dark:border-dark-600">
               <div class="flex items-center justify-between gap-4">
                 <div>
@@ -649,6 +650,8 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import VideoModelsEditor from '@/components/admin/channel/VideoModelsEditor.vue'
+import type { VideoModelConfig } from '@/components/admin/channel/video-models'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
@@ -750,6 +753,8 @@ const groupsLoading = ref(false)
 const allChannelsForConflict = ref<Channel[]>([])
 
 // Form data
+const videoModels = ref<Record<string, VideoModelConfig>>({})
+const videoModelsValid = ref(true)
 const form = reactive({
   name: '',
   description: '',
@@ -763,9 +768,9 @@ const form = reactive({
 let abortController: AbortController | null = null
 
 // ── Platform config ──
-const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek']
+const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go', 'video']
 // Composite pricing/mapping may target every concrete schedulable provider.
-const compositePlatforms: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek']
+const compositePlatforms: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go']
 
 // ── Helpers ──
 function formatDate(value: string): string {
@@ -865,6 +870,7 @@ function addPricingEntry(sectionIdx: number) {
     cache_read_price: null,
     fast_multiplier: null,
     flex_multiplier: null,
+    max_reasoning_effort_multiplier: null,
     image_input_price: null,
     image_output_price: null,
     per_request_price: null,
@@ -902,6 +908,7 @@ async function syncLatestModels(sectionIdx: number) {
       cache_read_price: null,
       fast_multiplier: null,
       flex_multiplier: null,
+      max_reasoning_effort_multiplier: null,
       image_input_price: null,
       image_output_price: null,
       per_request_price: null,
@@ -1132,6 +1139,7 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
         cache_read_price: mTokToPerToken(entry.cache_read_price),
         fast_multiplier: entry.fast_multiplier != null && entry.fast_multiplier !== '' ? Number(entry.fast_multiplier) : null,
         flex_multiplier: entry.flex_multiplier != null && entry.flex_multiplier !== '' ? Number(entry.flex_multiplier) : null,
+        max_reasoning_effort_multiplier: entry.max_reasoning_effort_multiplier != null && entry.max_reasoning_effort_multiplier !== '' ? Number(entry.max_reasoning_effort_multiplier) : null,
         image_input_price: mTokToPerToken(entry.image_input_price),
         image_output_price: mTokToPerToken(entry.image_output_price),
         per_request_price: entry.per_request_price != null && entry.per_request_price !== '' ? Number(entry.per_request_price) : null,
@@ -1140,6 +1148,7 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
       })
     }
   }
+  featuresConfig.video_models = videoModels.value
   const uniqueGroupIds = Array.from(new Set(group_ids))
 
   // Collect web_search_emulation (only anthropic platform supports it)
@@ -1234,6 +1243,7 @@ function apiToForm(channel: Channel): PlatformSection[] {
         cache_read_price: perTokenToMTok(p.cache_read_price),
         fast_multiplier: p.fast_multiplier,
         flex_multiplier: p.flex_multiplier,
+        max_reasoning_effort_multiplier: p.max_reasoning_effort_multiplier,
         image_input_price: perTokenToMTok(p.image_input_price),
         image_output_price: perTokenToMTok(p.image_output_price),
         per_request_price: p.per_request_price,
@@ -1346,6 +1356,8 @@ function handleSort(key: string, order: 'asc' | 'desc') {
 
 // ── Dialog ──
 function resetForm() {
+  videoModels.value = {}
+  videoModelsValid.value = true
   form.name = ''
   form.description = ''
   form.status = 'active'
@@ -1376,6 +1388,8 @@ async function openEditDialog(channel: Channel) {
   form.apply_pricing_to_account_stats = channel.apply_pricing_to_account_stats || false
   // Must load groups first so apiToForm can map groupID → platform
   await Promise.all([loadGroups(), loadAllChannelsForConflict()])
+  videoModels.value = JSON.parse(JSON.stringify(channel.features_config?.video_models || {}))
+  videoModelsValid.value = true
   form.platforms = apiToForm(channel)
 
   // Distribute channel-level rules into per-platform sections
@@ -1469,6 +1483,7 @@ function closeDialog() {
 }
 
 async function handleSubmit() {
+  if (!videoModelsValid.value) { appStore.showError('Video 参数 JSON 格式错误'); return }
   if (submitting.value) return
   if (!form.name.trim()) {
     appStore.showError(t('admin.channels.nameRequired', 'Please enter a channel name'))
@@ -1541,7 +1556,8 @@ async function handleSubmit() {
   for (const section of form.platforms.filter(s => s.enabled)) {
     for (const entry of section.model_pricing) {
       if (!isValidPositiveMultiplier(entry.fast_multiplier) ||
-          !isValidPositiveMultiplier(entry.flex_multiplier)) {
+          !isValidPositiveMultiplier(entry.flex_multiplier) ||
+          !isValidPositiveMultiplier(entry.max_reasoning_effort_multiplier)) {
         const platformLabel = t('admin.groups.platforms.' + section.platform, section.platform)
         const modelLabel = entry.models.join(', ') || t('admin.channels.form.unnamed')
         appStore.showError(`${platformLabel} - ${modelLabel}: ${t('admin.channels.form.multiplierPositive')}`)

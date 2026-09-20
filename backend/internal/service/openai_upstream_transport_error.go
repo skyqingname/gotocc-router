@@ -125,6 +125,8 @@ func (s *OpenAIGatewayService) handleOpenAIUpstreamTransportError(ctx context.Co
 	SetOpsRoutingDiagnostics(c, &OpsRoutingDiagnostics{TransportFailure: classification.Classification})
 	setOpsUpstreamError(c, 0, safeErr, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		ProxyID:            opsUpstreamProxyID(account),
+		ProxyName:          opsUpstreamProxyName(account),
 		Platform:           account.Platform,
 		AccountID:          account.ID,
 		AccountName:        account.Name,
@@ -202,8 +204,9 @@ func (s *OpenAIGatewayService) tempUnscheduleOpenAITransportError(ctx context.Co
 	until := time.Now().Add(openAITransportErrorTempUnschedDuration)
 	reason := "upstream transport error (proxy/network): " + safeErr
 
-	// Immediate in-memory block (honoured by the scheduler at selection time),
-	// effective even if the DB write below fails or the account cache lags.
+	// Immediate in-memory block so this process skips the account until the
+	// persisted cooldown is visible on the scheduling Account. Selection is
+	// fail-open: empty snapshot/DB cooldown fields drop a stale local block.
 	s.BlockAccountScheduling(account, until, "transport_error")
 
 	if s.accountRepo == nil {

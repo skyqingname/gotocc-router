@@ -96,7 +96,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
-	pricingCtx, pricingAt := service.WithGatewayTokenRequestPricing(c.Request.Context())
+	pricingCtx, pricingAt := h.gatewayService.WithTokenRequestPricing(c.Request.Context())
 	c.Request = c.Request.WithContext(pricingCtx)
 
 	// Claude Code only restriction
@@ -328,7 +328,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 				zap.Error(err),
 			)
 			// Preserve partial stream usage for billing below. It is explicitly
-			// marked incomplete and therefore excluded from TPS.
+			// marked incomplete; TPS still displays with a confidence note.
 			if result == nil {
 				return
 			}

@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/client'
 import type {
   PromptAuditConfig,
+  PromptTextPreviewResult,
   PromptAuditDraft,
   PromptAuditEvent,
   PromptAuditGroup,
@@ -35,14 +36,22 @@ export async function probeEndpoint(endpoint: PromptAuditEndpointDraft, policy?:
     endpoint: {
       id: endpoint.id,
       name: endpoint.name,
-      protocol: 'openai_compatible',
+      protocol: endpoint.protocol,
       base_url: endpoint.base_url,
       model: endpoint.model,
       token: endpoint.token || undefined,
+      clear_token: endpoint.clear_token,
       timeout_ms: endpoint.timeout_ms,
       input_limit: endpoint.input_limit,
       enabled: endpoint.enabled,
     },
+  })
+  return data
+}
+
+export async function testText(text: string, signal?: AbortSignal): Promise<PromptTextPreviewResult> {
+  const { data } = await apiClient.post<PromptTextPreviewResult>(`${basePath}/test`, { text }, {
+    timeout: 0, signal,
   })
   return data
 }
@@ -112,6 +121,7 @@ export const promptAuditAPI = {
   updateConfig,
   probeEndpoint,
   getRuntime,
+  testText,
   listEvents,
   getEvent,
   deleteEvent,

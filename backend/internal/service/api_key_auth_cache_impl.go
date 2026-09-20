@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 24 // v24 adds the explicit API key routing mode.
+const apiKeyAuthSnapshotVersion = 27 // v27: recurring group rate schedules
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -481,7 +481,8 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			FreeOpenAIFast:                  apiKey.Group.FreeOpenAIFast,
 			DefaultMappedModel:              apiKey.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     apiKey.Group.MessagesDispatchModelConfig,
-			ModelsListConfig:                apiKey.Group.ModelsListConfig,
+			ModelAllowlist:                  apiKey.Group.ModelAllowlist,
+			CodexModelsManifestConfig:       apiKey.Group.CodexModelsManifestConfig,
 			RPMLimit:                        apiKey.Group.RPMLimit,
 			MaxReasoningEffort:              apiKey.Group.MaxReasoningEffort,
 			MaxReasoningEffortOverLimit:     apiKey.Group.MaxReasoningEffortOverLimit,
@@ -490,6 +491,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			PeakStart:                       apiKey.Group.PeakStart,
 			PeakEnd:                         apiKey.Group.PeakEnd,
 			PeakRateMultiplier:              apiKey.Group.PeakRateMultiplier,
+			RateSchedule:                    apiKey.Group.RateSchedule,
 			ProfitControlEnabled:            apiKey.Group.ProfitControlEnabled,
 			ProfitMinMargin:                 apiKey.Group.ProfitMinMargin,
 			ProfitSafetyBuffer:              apiKey.Group.ProfitSafetyBuffer,
@@ -596,7 +598,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			FreeOpenAIFast:                  snapshot.Group.FreeOpenAIFast,
 			DefaultMappedModel:              snapshot.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     snapshot.Group.MessagesDispatchModelConfig,
-			ModelsListConfig:                snapshot.Group.ModelsListConfig,
+			ModelAllowlist:                  snapshot.Group.ModelAllowlist,
+			CodexModelsManifestConfig:       snapshot.Group.CodexModelsManifestConfig,
 			RPMLimit:                        snapshot.Group.RPMLimit,
 			MaxReasoningEffort:              snapshot.Group.MaxReasoningEffort,
 			MaxReasoningEffortOverLimit:     snapshot.Group.MaxReasoningEffortOverLimit,
@@ -605,6 +608,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			PeakStart:                       snapshot.Group.PeakStart,
 			PeakEnd:                         snapshot.Group.PeakEnd,
 			PeakRateMultiplier:              snapshot.Group.PeakRateMultiplier,
+			RateSchedule:                    snapshot.Group.RateSchedule.Clone(),
 			ProfitControlEnabled:            snapshot.Group.ProfitControlEnabled,
 			ProfitMinMargin:                 snapshot.Group.ProfitMinMargin,
 			ProfitSafetyBuffer:              snapshot.Group.ProfitSafetyBuffer,

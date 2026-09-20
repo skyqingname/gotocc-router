@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -26,9 +28,12 @@ var openAIVideoAllowedHeaders = map[string]bool{
 
 // OpenAIVideoForwardInput describes the OpenAI-compatible video task surface.
 type OpenAIVideoForwardInput struct {
+	ProviderConfig     *videoprotocol.Config
+	TaskID             string
 	Method             string
 	Path               string
 	Body               []byte
+	ContentType        string
 	Model              string
 	UpstreamModel      string
 	LocalRequestID     string
@@ -42,6 +47,7 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	input OpenAIVideoForwardInput,
 	token string,
 ) (*http.Request, error) {
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	targetURL := openAIPlatformVideosURL
 	if account != nil {
 		baseURL := account.GetOpenAIBaseURL()
@@ -51,6 +57,15 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 				return nil, err
 			}
 			targetURL = joinOpenAIVideoURL(buildOpenAIVideosBaseURL(validatedURL), input.Path)
+		}
+	}
+
+	publicResult := false
+	if input.ProviderConfig != nil {
+		var err error
+		targetURL, input.Body, publicResult, err = s.videoProviderTarget(ctx, account, input, token)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -79,21 +94,45 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 			}
 		}
 	}
+	if publicResult {
+		request.Header = http.Header{}
+		if c != nil {
+			request.Header.Set("Range", c.GetHeader("Range"))
+			request.Header.Set("Accept", c.GetHeader("Accept"))
+		}
+		s.applyOpenAIOutboundIdentity(ctx, account, request.Header, false)
+		return request, nil
+	}
 	request.Header.Del("Authorization")
 	request.Header.Del("X-Api-Key")
 	request.Header.Set("Authorization", "Bearer "+token)
+	if input.ContentType != "" {
+		request.Header.Set("Content-Type", input.ContentType)
+	}
 	if idempotencyKey := strings.TrimSpace(input.LocalRequestID); idempotencyKey != "" {
 		request.Header.Set("Idempotency-Key", idempotencyKey)
 	}
 	if method == http.MethodPost && request.Header.Get("Content-Type") == "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
+	if input.ProviderConfig != nil && !publicResult {
+		for name, value := range input.ProviderConfig.Headers {
+			request.Header.Set(name, value)
+		}
+	}
 	account.applyOpenAIHeaderOverrides(request.Header)
 	s.applyOpenAIOutboundIdentity(ctx, account, request.Header, false)
+	request = prepareAccountOutboundRequest(request, account)
+	if publicResult {
+		request.Header.Del("Authorization")
+		request.Header.Del("X-Api-Key")
+	}
 	return request, nil
 }
 
 func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context, account *Account, input OpenAIVideoForwardInput) (*OpenAIForwardResult, error) {
+	ctx = WithOutboundIdentityScope(ctx, c)
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	startTime := time.Now()
 	if account == nil {
 		return nil, errors.New("account is required")
@@ -140,7 +179,7 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		_ = response.Body.Close()
 		response.Body = io.NopCloser(bytes.NewReader(body))
 		upstreamMessage := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
-		if s.shouldFailoverOpenAIUpstreamResponse(response.StatusCode, upstreamMessage, body) {
+		if s.shouldFailoverOpenAIUpstreamResponse(account, response.StatusCode, upstreamMessage, body) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				Platform: account.Platform, AccountID: account.ID, AccountName: account.Name,
 				UpstreamStatusCode: response.StatusCode, UpstreamRequestID: response.Header.Get("x-request-id"),
@@ -161,12 +200,23 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		UpstreamEndpoint: input.Path, ResponseHeaders: response.Header.Clone(),
 		StatusCode: response.StatusCode, Duration: time.Since(startTime),
 	}
-	if input.DeferResponseWrite {
+	if input.DeferResponseWrite || (input.ProviderConfig != nil && !strings.HasSuffix(input.Path, "/content")) {
 		body, readErr := s.readOpenAIVideoJSONResponse(response.Body)
 		if readErr != nil {
 			return nil, readErr
 		}
+		if input.ProviderConfig != nil {
+			body, readErr = input.ProviderConfig.NormalizeResponse(body, input.TaskID, input.Method == http.MethodPost)
+			if readErr != nil {
+				return nil, readErr
+			}
+			result.ResponseHeaders.Set("Content-Type", "application/json")
+			result.ResponseHeaders.Del("Content-Length")
+		}
 		result.ResponseBody = body
+		if !input.DeferResponseWrite {
+			return result, s.WriteOpenAIVideoForwardResponse(c, result)
+		}
 		return result, nil
 	}
 	if c != nil && c.Writer != nil {
@@ -216,11 +266,12 @@ func (s *OpenAIGatewayService) readOpenAIVideoJSONResponse(body io.Reader) ([]by
 }
 
 type OpenAIVideoPollResult struct {
-	ProviderStatus string
-	ErrorCode      string
-	ErrorMessage   string
-	Body           []byte
-	StatusCode     int
+	RawProviderStatus string
+	ProviderStatus    string
+	ErrorCode         string
+	ErrorMessage      string
+	Body              []byte
+	StatusCode        int
 }
 
 func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *OpenAIVideoTask, account *Account) (*OpenAIVideoPollResult, error) {
@@ -237,10 +288,12 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 	path := "/v1/videos/" + url.PathEscape(strings.TrimSpace(*task.TaskID))
 	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
 		Method: http.MethodGet, Path: path, Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+		ProviderConfig: task.ProviderConfig, TaskID: *task.TaskID,
 	}, token)
 	if err != nil {
 		return nil, err
 	}
+	request = request.WithContext(WithHTTPUpstreamProfile(ctx, HTTPUpstreamProfileOpenAI))
 	proxyURL := ""
 	if account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -258,18 +311,81 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 		message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
 		return nil, fmt.Errorf("video status upstream returned %d: %s", response.StatusCode, message)
 	}
+	rawProviderStatus := ""
+	if task.ProviderConfig != nil {
+		rawProviderStatus = gjson.GetBytes(body, task.ProviderConfig.StatusField).String()
+		body, err = task.ProviderConfig.NormalizeResponse(body, *task.TaskID, false)
+		if err != nil {
+			return nil, err
+		}
+	}
 	_, providerStatus := parseOpenAIVideoTaskIdentity(body)
 	if providerStatus == "" {
 		return nil, errors.New("upstream video status response is missing status")
 	}
 	errorCode, errorMessage := parseOpenAIVideoProviderError(body)
 	return &OpenAIVideoPollResult{
-		ProviderStatus: providerStatus,
-		ErrorCode:      errorCode,
-		ErrorMessage:   errorMessage,
-		Body:           body,
-		StatusCode:     response.StatusCode,
+		ProviderStatus:    providerStatus,
+		RawProviderStatus: rawProviderStatus,
+		ErrorCode:         errorCode,
+		ErrorMessage:      errorMessage,
+		Body:              body,
+		StatusCode:        response.StatusCode,
 	}, nil
+}
+
+// verifyOpenAIVideoTaskContent returns a terminal delivery failure as code/message,
+// and a retryable transport or readiness failure as err. It reads the first byte
+// of the authenticated content response, without downloading the whole video.
+func (s *OpenAIGatewayService) verifyOpenAIVideoTaskContent(ctx context.Context, task *OpenAIVideoTask, account *Account) (string, string, error) {
+	token, _, err := s.GetAccessToken(ctx, account)
+	if err != nil {
+		return "", "", err
+	}
+	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
+		Method: http.MethodGet, Path: "/v1/videos/" + url.PathEscape(*task.TaskID) + "/content",
+		Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+		ProviderConfig: task.ProviderConfig, TaskID: *task.TaskID,
+	}, token)
+	if err != nil {
+		return "", "", err
+	}
+	request = request.WithContext(WithHTTPUpstreamProfile(ctx, HTTPUpstreamProfileOpenAI))
+	proxyURL := ""
+	if account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	response, err := s.httpUpstream.Do(request, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return "", "", err
+	}
+	defer response.Body.Close()
+	status := response.StatusCode
+	if status >= http.StatusBadRequest && status < http.StatusInternalServerError &&
+		status != http.StatusRequestTimeout && status != http.StatusConflict &&
+		status != http.StatusTooEarly && status != http.StatusTooManyRequests {
+		message := fmt.Sprintf("video content upstream returned %d", status)
+		body, readErr := s.readOpenAIVideoJSONResponse(response.Body)
+		if readErr == nil {
+			detail := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
+			if detail != "" {
+				message += ": " + detail
+			}
+		}
+		return fmt.Sprintf("VIDEO_CONTENT_HTTP_%d", status), truncateOpenAIVideoError(message), nil
+	}
+	if status != http.StatusOK && status != http.StatusPartialContent {
+		return "", "", fmt.Errorf("video content is not ready: HTTP %d", status)
+	}
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || (!strings.HasPrefix(mediaType, "video/") && mediaType != "application/octet-stream") {
+		return "VIDEO_CONTENT_INVALID", "video content endpoint did not return video or binary media", nil
+	}
+	var firstByte [1]byte
+	if _, err := io.ReadFull(response.Body, firstByte[:]); err != nil {
+		return "", "", fmt.Errorf("video content is not readable: %w", err)
+	}
+	return "", "", nil
 }
 
 func parseOpenAIVideoProviderError(body []byte) (string, string) {

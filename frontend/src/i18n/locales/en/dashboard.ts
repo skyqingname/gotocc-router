@@ -84,6 +84,21 @@ export default {
     columnAlwaysVisible: 'This column is always visible',
     createKey: 'Create API Key',
     editKey: 'Edit API Key',
+    bulkEdit: {
+      title: 'Bulk Edit',
+      selectedCount: '{count} keys selected',
+      selectKey: 'Select key {name}',
+      clearSelection: 'Clear selection',
+      hint: 'Check the fields to update. Unchecked fields keep their current values.',
+      limitHint: 'Enter 0 for no limit. Existing usage is preserved.',
+      ipHint: 'One IP or CIDR per line. Leave empty to clear this list on the selected keys.',
+      invalidLimit: 'Enter a valid amount greater than or equal to 0.',
+      invalidExpiration: 'Choose a valid expiration date or select Never expires.',
+      apply: 'Apply to {count} keys',
+      success: 'Updated {count} keys',
+      partialFailure: 'Updated {success} keys; {failed} failed',
+      failureHint: 'These keys could not be updated. Adjust the settings and retry. Only failed keys will be retried.'
+    },
     deleteKey: 'Delete API Key',
     deleteConfirmMessage: "Are you sure you want to delete '{name}'? This action cannot be undone.",
     id: 'ID',
@@ -102,6 +117,19 @@ export default {
     nameLabel: 'Name',
     namePlaceholder: 'My API Key',
     groupLabel: 'Group',
+    providerLabel: 'Provider',
+    providers: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      domestic: 'Chinese AI',
+      other: 'Other'
+    },
+    providerHints: {
+      anthropic: 'Choose an available Anthropic / Claude group',
+      openai: 'Choose an available OpenAI / GPT group',
+      domestic: 'Includes DeepSeek, Kimi, Zhipu GLM and MiniMax',
+      other: 'Includes Gemini, Grok, Antigravity, OpenCode and mixed groups'
+    },
     selectGroup: 'Select a group',
     statusLabel: 'Status',
     selectStatus: 'Select status',
@@ -222,7 +250,7 @@ export default {
         configTomlHint:
           'Official path: ~/.grok/config.toml (or $GROK_HOME). Fill [endpoints] (models_base_url / models_list_url / xai_api_base_url / cli_chat_proxy_base_url), [auth] preferred_method=api_key, [models], [session], and [features] image/video overrides. Prefer env_key over api_key; every text model needs api_backend=responses. Back up before merge, then run grok inspect.',
         codexConfigTomlHint:
-          'Official Codex: wire_api = "responses" only; prefer env_key over experimental_bearer_token; supports_websockets = false for non-OpenAI gateways (Sub2API can still accept client WS and bridge to HTTP/SSE). Back up ~/.codex/config.toml before merge.',
+          'Official Codex: wire_api = "responses" only; prefer env_key over experimental_bearer_token; supports_websockets = false for non-OpenAI gateways (Sub2API Plus can still accept client WS and bridge to HTTP/SSE). Back up ~/.codex/config.toml before merge.',
         note:
           'Export GROK_MODELS_BASE_URL and XAI_API_KEY, save the full config.toml (endpoints/auth/models/session/features) as ~/.grok/config.toml, run grok inspect, then /model grok-4.5 (or grok-build-0.1 for coding).',
         noteWindows:
@@ -237,6 +265,12 @@ export default {
       deepseek: {
         description: 'Configure Claude Code, Codex, or OpenCode through the current DeepSeek group.',
         codexDescription: 'Configure Codex with API key authentication through the current DeepSeek group.',
+        codexConfigTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
+        codexNote: 'Export SUB2API_API_KEY before starting Codex. The downloaded catalog contains model metadata only, not your API key.',
+      },
+      minimax: {
+        description: 'Configure Claude Code, Codex, or OpenCode through the current MiniMax group.',
+        codexDescription: 'Configure Codex with API key authentication through the current MiniMax group.',
         codexConfigTomlHint: 'Download the model catalog below, save both files under the Codex config directory, and restart Codex.',
         codexNote: 'Export SUB2API_API_KEY before starting Codex. The downloaded catalog contains model metadata only, not your API key.',
       },
@@ -394,11 +428,9 @@ export default {
     tokens: 'Tokens',
     cost: 'Cost',
 		firstToken: 'First Token',
-		firstTokenOrLegacyEvent: 'First Token / Legacy First Event',
     duration: 'Duration',
     latency: 'Latency',
 		latencyFirstToken: 'First Token',
-		latencyLegacyFirstEvent: 'First Event (Legacy)',
     latencyFirstOutput: 'First Output',
     latencyFirstOutputKind: 'First Output Kind',
     latencyOutputKindText: 'Text',
@@ -407,13 +439,20 @@ export default {
     latencyFirstReasoning: 'First Reasoning',
     latencyFirstTool: 'First Tool Output',
     latencyDetails: 'Latency Details',
-    latencyLegacyFirstEventHint: 'Legacy first event; not comparable to strict first-token TTFT.',
     latencyMediaOnlyHint: 'Media first output only; no strict first-token sample.',
     latencyMixedModalityHint: 'First output and first token differ; an earlier non-text or aggregate output arrived first.',
     latencyNonTextFirstHint: 'First token-like output was reasoning or a tool call, not necessarily final answer text.',
     latencyDuration: 'Total',
+    latencyLastToken: 'Last Token',
     latencyTps: 'TPS',
-    latencyTpsHint: 'Estimated average text output rate: text output tokens ÷ (last token − first token). Complete stream/ws requests only. Sample too small (short window or few text tokens) shows "-". Values below 1 or above 1000 show as "< 1" / "> 1000".',
+    latencyCompaction: 'Compaction result',
+    timingUnavailableHistorical: 'Verified first-token timing was not collected',
+    timingUnavailableLive: 'Live session summary has no token-generation timing',
+    timingUnavailableCompaction: 'Compaction result has no observable token deltas',
+    timingUnavailableNoTokens: 'No billed text tokens or generation timing observed',
+    timingUnavailableInvalid: 'Invalid token or duration data',
+    timingUnavailableReason: 'Unavailable reason',
+    latencyTpsHint: 'Output tokens per second. Streaming requests exclude first-token latency; non-streaming requests use total duration.',
 	incomplete: 'Incomplete',
 	incompleteHint: 'The request ended before a complete terminal result. Displayed usage and cost may be partial.',
 	clientDisconnected: 'Client disconnected',
@@ -463,6 +502,7 @@ export default {
     cacheWrite: 'Write',
     serviceTier: 'Service tier',
     serviceTierPriority: 'Fast',
+    serviceTierUltrafast: 'Ultrafast',
     serviceTierFlex: 'Flex',
     serviceTierStandard: 'Standard',
     rate: 'Rate',
@@ -532,7 +572,9 @@ export default {
       antigravity: 'Antigravity',
       kimi: 'Kimi',
       zhipu: 'Zhipu GLM',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      minimax: 'MiniMax',
+      opencode_go: 'OpenCode'
     },
     // Check modes (how a monitor performs its checks)
     checkMode: {
@@ -549,6 +591,7 @@ export default {
         '7dSonnet': '7d Sonnet',
         '7dFable': '7d Fable',
         weekly: 'Weekly',
+        monthly: 'Monthly',
         daily: 'Daily',
         '30d': '30d',
         total: 'Total'
@@ -704,6 +747,8 @@ export default {
       cacheReadShort: 'R',
       tierHint: 'The whole request is billed at the tier matching its total context (input + cache write + cache read)',
       tierHintMarginal: 'Only the portion above the threshold is billed at this tier; output is unaffected',
+      maxReasoningMultiplierBadge: 'Max ×{multiplier}',
+      maxReasoningMultiplierHint: 'When the forwarded reasoning effort is max, billing and quota usage for the request are multiplied by {multiplier}',
       marginalBadge: 'excess-only tiers',
       timePricingRowHint: 'Requests made within this period ({timezone} time) are billed at the prices in this row',
       timePricingRowHintWeekdays:
@@ -745,9 +790,9 @@ export default {
     loadFailed: 'Failed to load affiliate data',
     transferFailed: 'Failed to transfer affiliate quota',
     stats: {
-      rebateRate: 'My Rebate Rate',
-      rebateRateHint: 'What you earn each time an invitee recharges',
-      invitedUsers: 'Invited Users',
+      rebateRate: "Generation 1 / 2 / 3 rates",
+      rebateRateHint: "Your generation is your distance from the account making each recharge",
+      invitedUsers: "Direct invitees",
       availableQuota: 'Available Rebate Quota',
       frozenQuota: 'Frozen',
       frozenQuotaHint: 'Recently earned rebates pending release',
@@ -762,9 +807,11 @@ export default {
       success: '{amount} has been transferred to your balance'
     },
     invitees: {
-      title: 'Invited Users',
+      generation: "Generation {level}",
+      title: 'Invitees within three generations',
       empty: 'No invited users yet',
       columns: {
+        level: "Generation",
         email: 'Email',
         username: 'Username',
         rebate: 'Rebate',
@@ -774,9 +821,9 @@ export default {
     tips: {
       title: 'How It Works',
       line1: 'Share your affiliate code or invite link with new users.',
-      line2: 'When invitees recharge, you receive {rate} of the recharge as rebate quota.',
-      line3: 'Transfer rebate quota to balance at any time.',
-      line4: 'Newly earned rebates may have a waiting period before they can be transferred.'
+      line2: "Each valid recharge pays {rates} to its nearest three ancestors. Missing generations are not redistributed.",
+      line3: "First and later recharges qualify. Gifts and commission transfers do not earn further commission.",
+      line4: "Commission becomes transferable to your usage balance after the freeze period."
     }
   },
 
@@ -819,6 +866,7 @@ export default {
     days: ' days',
     codeRedeemSuccess: 'Code redeemed successfully!',
     failedToRedeem: 'Failed to redeem code. Please check the code and try again.',
+    userRefreshFailed: 'Redeemed successfully, but failed to refresh account information.',
     subscriptionRefreshFailed: 'Redeemed successfully, but failed to refresh subscription status.',
     pleaseEnterCode: 'Please enter a redeem code'
   },

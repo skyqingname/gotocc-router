@@ -130,6 +130,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	if err := ValidateLiveCallRequest(request); err != nil {
 		return nil, err
 	}
+	ctx = WithOutboundIdentityScope(ctx, nil)
 	store, err := s.liveStore()
 	if err != nil {
 		return nil, err
@@ -199,7 +200,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		selection.ReleaseFunc()
 		if createErr != nil {
 			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
-			if !s.shouldFailoverLiveCreateError(createErr) {
+			if !s.shouldFailoverLiveCreateError(account, createErr) {
 				return nil, createErr
 			}
 			excluded[account.ID] = struct{}{}
@@ -245,13 +246,13 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	return nil, ErrLiveUnavailable
 }
 
-func (s *OpenAIGatewayService) shouldFailoverLiveCreateError(err error) bool {
+func (s *OpenAIGatewayService) shouldFailoverLiveCreateError(account *Account, err error) bool {
 	var upstreamErr *UpstreamFailoverError
 	if !errors.As(err, &upstreamErr) {
 		// 凭证读取和网络传输错误都可能只影响当前账号或代理。
 		return true
 	}
-	return s.shouldFailoverOpenAIUpstreamResponse(
+	return s.shouldFailoverOpenAIUpstreamResponse(account,
 		upstreamErr.StatusCode,
 		"",
 		upstreamErr.ResponseBody,
@@ -264,6 +265,7 @@ func (s *OpenAIGatewayService) createUpstreamLiveCall(
 	request *LiveCallRequest,
 	attestation string,
 ) (*LiveCallCreated, error) {
+	ctx = WithOutboundIdentityScope(ctx, nil)
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		logLiveCreateStageFailure(ctx, account.ID, "access_token", err)
@@ -419,6 +421,7 @@ func (s *OpenAIGatewayService) liveSidebandHeaders(
 	account *Account,
 	record *LiveCallRecord,
 ) (http.Header, error) {
+	ctx = WithOutboundIdentityScope(ctx, nil)
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -697,6 +700,7 @@ func (s *OpenAIGatewayService) observeLiveCall(record *LiveCallRecord) {
 	if record == nil {
 		return
 	}
+	ctx := WithOutboundIdentityScope(context.Background(), nil)
 	store, err := s.liveStore()
 	if err != nil {
 		return
@@ -740,7 +744,7 @@ func (s *OpenAIGatewayService) observeLiveCall(record *LiveCallRecord) {
 			s.finalizeLiveCall(record)
 			return
 		}
-		upstream, dialErr := s.dialLiveSideband(context.Background(), record)
+		upstream, dialErr := s.dialLiveSideband(ctx, record)
 		if dialErr != nil {
 			if !s.waitForLiveObserverRetry(record) {
 				return
@@ -927,6 +931,7 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 		RateMultiplier:   1,
 		BillingType:      billingType,
 		RequestType:      RequestTypeLive,
+		TimingVersion:    1, // Session summary has no observed token-generation window.
 		DurationMs:       &duration,
 		UserAgent:        &userAgent,
 		IPAddress:        &ipAddress,

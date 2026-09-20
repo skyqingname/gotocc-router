@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package config
 
 import (
@@ -7,6 +9,25 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoadWebAuthnDisplayName(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "Sub2API Plus", cfg.WebAuthn.RPDisplayName)
+
+	viper.Set("webauthn.rp_display_name", "My Gateway")
+	cfg, err = Load()
+	require.NoError(t, err)
+	require.Equal(t, "My Gateway", cfg.WebAuthn.RPDisplayName)
+}
+
+func TestWebAuthnDisplayNameDeployExample(t *testing.T) {
+	example := viper.New()
+	example.SetConfigFile("../../../deploy/config.example.yaml")
+	require.NoError(t, example.ReadInConfig())
+	require.Equal(t, "Sub2API Plus", example.GetString("webauthn.rp_display_name"))
+}
 
 func TestValidateWebAuthnConfig(t *testing.T) {
 	tests := []struct {

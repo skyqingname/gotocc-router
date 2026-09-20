@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package service
 
 import (
@@ -57,6 +59,65 @@ func TestEnsureOpenAIResponsesPromptCacheIdentityAlignsExplicitBodyKey(t *testin
 	require.True(t, isOpenAIAlignedPromptCacheIdentity(c, identity))
 	require.True(t, isOpenAIAlignedPromptCacheIdentityForAccount(c, &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}, identity))
 	require.LessOrEqual(t, len(identity), 64)
+}
+
+func TestSetOpenAIUpstreamSessionIdentityFollowsOAuthFingerprint(t *testing.T) {
+	oauthDefault := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	headers := http.Header{}
+	headers.Set("conversation_id", "stale-conversation")
+	setOpenAIUpstreamSessionIdentityForAccount(headers, oauthDefault, "id-default")
+	require.Equal(t, "id-default", headers.Get(codexSessionIDHeader))
+	require.Empty(t, headers.Get("session_id"))
+	require.Empty(t, headers.Get("conversation_id"))
+
+	oauthDevice := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{CodexFingerprintModeExtraKey: "device"}}
+	headers = http.Header{}
+	headers.Set("conversation_id", "stale-conversation")
+	setOpenAIUpstreamSessionIdentityForAccount(headers, oauthDevice, "id-device")
+	require.Equal(t, "id-device", headers.Get(codexSessionIDHeader))
+	require.Empty(t, headers.Get("session_id"))
+	require.Empty(t, headers.Get("conversation_id"))
+
+	oauthSession := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{CodexFingerprintModeExtraKey: "session"}}
+	headers = http.Header{}
+	setOpenAIUpstreamSessionIdentityForAccount(headers, oauthSession, "id-session")
+	require.Equal(t, "id-session", headers.Get(codexSessionIDHeader))
+	require.Equal(t, "id-session", headers.Get("session_id"))
+
+	apiKey := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	headers = http.Header{}
+	setOpenAIUpstreamSessionIdentityForAccount(headers, apiKey, "id-apikey")
+	require.Equal(t, "id-apikey", headers.Get(codexSessionIDHeader))
+	require.Equal(t, "id-apikey", headers.Get("session_id"))
+}
+
+// conversation_id is never an official Codex header: every Codex account drops
+// it, while the Plus session_id alias survives for session/full convergence.
+func TestClearOpenAICodexLegacySessionAliasesDropsConversationForAllCodexAccounts(t *testing.T) {
+	oauthSession := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{CodexFingerprintModeExtraKey: "session"}}
+	headers := http.Header{}
+	headers.Set("session_id", "alias-session")
+	headers.Set("conversation_id", "client-conversation")
+	clearOpenAICodexLegacySessionAliases(headers, oauthSession)
+	require.Equal(t, "alias-session", headers.Get("session_id"))
+	require.Empty(t, headers.Get("conversation_id"))
+
+	oauthDevice := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Extra: map[string]any{CodexFingerprintModeExtraKey: "device"}}
+	headers = http.Header{}
+	headers.Set("session_id", "alias-session")
+	headers.Set("conversation_id", "client-conversation")
+	clearOpenAICodexLegacySessionAliases(headers, oauthDevice)
+	require.Empty(t, headers.Get("session_id"))
+	require.Empty(t, headers.Get("conversation_id"))
+
+	// Non-Codex (API-key) accounts keep their existing alias behavior.
+	apiKey := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	headers = http.Header{}
+	headers.Set("session_id", "alias-session")
+	headers.Set("conversation_id", "client-conversation")
+	clearOpenAICodexLegacySessionAliases(headers, apiKey)
+	require.Equal(t, "alias-session", headers.Get("session_id"))
+	require.Equal(t, "client-conversation", headers.Get("conversation_id"))
 }
 
 func TestEnsureOpenAIResponsesPromptCacheIdentityIsIdempotent(t *testing.T) {
@@ -203,11 +264,20 @@ func TestEnsureOpenAIResponsesPromptCacheIdentitySkipsModelOnlyFallback(t *testi
 }
 
 func TestNormalizeOpenAIPromptCacheControlsForAccount(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.6-sol","prompt_cache_options":{"mode":"extended","ttl":"24h"},"prompt_cache_retention":"24h"}`)
+	body := []byte(`{"model":"gpt-5.6-sol","prompt_cache_options":{"mode":"explicit","ttl":"30m"},"prompt_cache_retention":"24h"}`)
 
 	t.Run("gpt-5.6 platform api key preserves", func(t *testing.T) {
 		account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
 		normalized, changed, err := normalizeOpenAIPromptCacheControlsForAccount(body, account, "gpt-5.6-sol")
+		require.NoError(t, err)
+		require.True(t, changed)
+		require.True(t, gjson.GetBytes(normalized, "prompt_cache_options").Exists())
+		require.False(t, gjson.GetBytes(normalized, "prompt_cache_retention").Exists())
+	})
+
+	t.Run("gpt-6-astra platform api key preserves", func(t *testing.T) {
+		account := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+		normalized, changed, err := normalizeOpenAIPromptCacheControlsForAccount(body, account, "gpt-6-astra")
 		require.NoError(t, err)
 		require.True(t, changed)
 		require.True(t, gjson.GetBytes(normalized, "prompt_cache_options").Exists())
@@ -283,7 +353,7 @@ func TestOpenAIResponsesCompactPromptCacheFinalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			body := []byte(`{"model":"` + tt.model + `","input":[{"type":"message","role":"user","content":"compact me"}],"prompt_cache_key":"client-compact-cache","prompt_cache_options":{"mode":"extended","ttl":"24h"},"store":true,"stream":true}`)
+			body := []byte(`{"model":"` + tt.model + `","input":[{"type":"message","role":"user","content":"compact me"}],"prompt_cache_key":"client-compact-cache","prompt_cache_options":{"mode":"explicit","ttl":"30m"},"store":true,"stream":true}`)
 			normalizedBody, changed, err := normalizeOpenAICompactRequestBody(body)
 			require.NoError(t, err)
 			require.True(t, changed)
@@ -311,7 +381,11 @@ func TestOpenAIResponsesCompactPromptCacheFinalization(t *testing.T) {
 			identity := gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String()
 			require.NotEmpty(t, identity)
 			require.Equal(t, identity, upstream.lastReq.Header.Get(codexSessionIDHeader))
-			require.Equal(t, identity, upstream.lastReq.Header.Get("session_id"))
+			if accountEmitsCodexConvergedSessionAliases(&tt.account) {
+				require.Equal(t, identity, upstream.lastReq.Header.Get("session_id"))
+			} else {
+				require.Empty(t, upstream.lastReq.Header.Get("session_id"))
+			}
 			expectedThreadID := "thread-compact-1"
 			if tt.account.UsesOpenAICodexProtocol() {
 				expectedThreadID = scopeCodexAccountIdentityValue(&tt.account, 77, "thread", expectedThreadID)

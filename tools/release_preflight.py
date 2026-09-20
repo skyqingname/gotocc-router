@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import release_docs
+import release_validation
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,7 +123,7 @@ def notes_digest(notes_file: Path) -> str:
     return hashlib.sha256(notes_file.read_bytes()).hexdigest()
 
 
-def tag_creation_command(tag: str, commit: str, notes_file: Path) -> tuple[str, ...]:
+def tag_creation_command(tag: str, commit: str, notes: str) -> tuple[str, ...]:
     return (
         "git",
         "tag",
@@ -130,8 +131,8 @@ def tag_creation_command(tag: str, commit: str, notes_file: Path) -> tuple[str, 
         tag,
         commit,
         "--cleanup=verbatim",
-        "-F",
-        str(notes_file),
+        "-m",
+        notes,
     )
 
 
@@ -173,7 +174,9 @@ def run_metadata_check(tag: str, notes_file: Path) -> None:
     )
     print("\n[Release metadata and notes]")
     print(f"$ {display_command(command)}")
-    result = run(command)
+    result = release_validation.run(command, root=ROOT)
+    if result.stdout:
+        print(result.stdout)
     if result.returncode != 0:
         raise RuntimeError(
             f"release metadata validation failed with exit code {result.returncode}"
@@ -198,13 +201,18 @@ def main() -> int:
     notes_file = args.notes_file.expanduser().resolve()
     if not notes_file.is_file():
         parser.error(f"release notes file does not exist: {notes_file}")
-    notes = notes_file.read_text(encoding="utf-8")
-    first_line = next((line.strip() for line in notes.splitlines() if line.strip()), "")
     expected_subject = f"{REQUIRED_SUBJECT_PREFIX}{args.tag}"
-    if first_line != expected_subject:
-        parser.error(f"first non-empty release-notes line must be {expected_subject!r}")
 
-    initial_digest = notes_digest(notes_file)
+    notes_bytes = notes_file.read_bytes()
+    try:
+        notes = (
+            notes_bytes.decode("utf-8")
+            .replace("\r\n", "\n")
+            .replace("\r", "\n")
+        )
+    except UnicodeDecodeError as error:
+        parser.error(f"release notes file must be UTF-8: {error}")
+    initial_digest = hashlib.sha256(notes_bytes).hexdigest()
     try:
         ensure_clean(notes_file)
         commit = git_output("rev-parse", f"{args.commit}^{{commit}}")
@@ -231,7 +239,7 @@ def main() -> int:
         print(f"Release metadata is ready for {args.tag} at {commit}. No tag was created.")
         return 0
 
-    command = tag_creation_command(args.tag, commit, notes_file)
+    command = tag_creation_command(args.tag, commit, notes)
     result = run(command, capture=True)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()

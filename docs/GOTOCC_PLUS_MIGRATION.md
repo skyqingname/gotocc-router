@@ -115,14 +115,28 @@ two units.
 
 With `video_task.enabled`, create validates the numeric JSON `seconds` field
 and resolves `size` to the configured video resolution tier before forwarding.
-Balance-mode requests reserve the exact seconds-based quote first; successful
-provider terminal state captures it, while create failure, provider failure,
-cancellation, or local expiry releases it. Subscription usage is applied only
+Balance-mode requests reserve the exact seconds-based quote first. From owned
+0.2.1+custom.004, provider completion must also pass an authenticated GET of
+`/v1/videos/{task_id}/content` on the original account before capture. A 200/206
+response must identify video/binary media and yield at least one byte; the worker
+closes the response without downloading the entire video. This verifies initial
+content availability, not full-file integrity or permanent future availability.
+HTTP 4xx except 408/409/425/429 and non-media 200/206 responses fail the local
+task and release the quote, retaining the original provider status. Transport
+errors, readiness responses, empty bodies, 408/409/425/429 and 5xx keep the quote
+held and retry until the existing task deadline. Create failure, provider failure,
+cancellation, or local expiry also releases the quote. Subscription usage is applied only
 after success. PostgreSQL stores the task owner and original account, and both
 the worker and client status/content reads use that account instead of running
 the scheduler again. `NOT_START`, `IN_PROGRESS`, and other unknown states stay
 non-terminal; only values in the explicit success/failure/cancelled sets can
 settle or release a task.
+
+Status and content verification share the configured worker request timeout.
+Recovered completed-but-uncaptured rows go through status/content verification
+again; a transient failure moves them back to processing with the next polling
+time. Already captured tasks are not automatically refunded or rechecked by this
+change. No schema/configuration migration is added.
 
 The resolved billing mode is part of the immutable asynchronous-task quote.
 Task settlement and terminal usage recording read that frozen value rather
@@ -278,3 +292,192 @@ Take a matched database/runtime backup before production startup and stop the
 old writer before starting the candidate. Backfill and index creation require
 a measured local rehearsal and a production size/lock review. After forward
 migration or new writes, a binary-only downgrade is not a data rollback.
+
+
+## GoToCC 0.2.1 candidate lineage
+
+Plus input: `v0.2.1+custom.001`, commit `39f6e2908975636956c184bbc084e90c8b392f74`.
+The 303 previously owned SQL files remain byte-for-byte unchanged. PR #5 adds
+`253_api_key_smart_routing.sql` and `254_batch_image_routing_group.sql` unchanged.
+
+| Plus filename | Owned filename |
+| --- | --- |
+| `251_channel_monitor_gpt6_astra.sql` | `255_channel_monitor_gpt6_astra.sql` |
+| `252_add_usage_log_upstream_request_id.sql` | `256_add_usage_log_upstream_request_id.sql` |
+| `253_add_usage_log_upstream_request_id_index_notx.sql` | `257_add_usage_log_upstream_request_id_index_notx.sql` |
+| `254_channel_max_reasoning_effort_multiplier.sql` | `258_channel_max_reasoning_effort_multiplier.sql` |
+| `255_group_codex_models_manifest_config.sql` | `259_group_codex_models_manifest_config.sql` |
+
+Only imported filenames change, preserving SQL contents and checksum identity.
+Column additions and constraints require table locks; constraint validation scans
+API keys, and the usage request-ID index performs a concurrent scan with extra
+index and WAL disk usage. Legacy request IDs and batch group IDs stay NULL;
+no business-data backfill is attempted. The Astra monitor update applies only
+to factory settings. Existing credentials and balances are not changed.
+
+The auth snapshot version includes routing mode, team attribution and Codex
+manifest fields; existing session/JWT data and unrelated Redis keys remain.
+Smart response affinity uses the existing response TTL in shared Redis.
+Downgrades must first disable smart keys or restore explicit fixed groups;
+retain additive schema and historical ownership. Never overlap writer versions
+or restore an older dump over new transactions.
+
+## GoToCC 0.2.1+custom.003 lineage
+
+Plus input: `v0.2.1+custom.002`, commit `1b95c72f186275f582714bed38a1a4af122429f1`.
+All owned SQL through 259 remains unchanged. Upstream
+`256_client_disconnect_session_scope.sql` is imported as
+`260_client_disconnect_session_scope.sql` with identical SQL contents.
+
+Migration 260 adds session identity and user/key display snapshots to disconnect
+events, backfills existing user emails and key names, and assigns old events to
+`legacy`. It replaces the event primary key, drops and recreates the derived
+risk-state table with a per-session key, and builds four ordinary indexes.
+ALTER TABLE, primary-key replacement and non-concurrent indexes take table
+locks; event backfills and indexes require additional heap/index/WAL space.
+Runtime depends on these new columns. Stop the old core before startup and
+keep database and matching runtime backups; old/new writers must not overlap.
+
+The migration turns consecutive-disconnect banning off and advances its
+generation. Administrators must review session scope before re-enabling it.
+It preserves event rows, balances, usage, credentials and task ownership, but
+reinitializes derived streak counters. No Redis flush or new config variables
+are required. The old application is not compatible with the new risk-state
+primary key/session columns: binary-only rollback is unsupported. After new
+business writes, preserve current data and use a forward fix or separately
+planned schema adaptation; never overwrite it with an old dump.
+
+
+## GoToCC 0.2.1+custom.006 lineage
+
+Plus input `v0.2.1+custom.003`, commit `94beb01630fa163bc7c112202eafd9b8946ca725`.
+Owned SQL through 260 is byte-for-byte preserved. Upstream
+`257_usage_timing_version.sql` becomes `261_usage_timing_version.sql`;
+`258_openai_group_quota_follow_reset.sql` becomes `262_openai_group_quota_follow_reset.sql`.
+Both imports retain their exact upstream SQL contents. No checksum exceptions are added.
+
+261 adds the timing version and compaction output constraint, clears derived old
+TTFT aggregates/histograms and removes openai_ttft_mode. Raw usage and money
+remain intact; historical strict token timing cannot be backfilled. ALTER TABLE
+requires table locks and aggregate rewrites consume WAL/space.
+262 adds group source configuration, subscription event markers, observation and
+reset-event tables and ordinary indexes. Index building takes locks and disk;
+initial source observation establishes a baseline without resetting usage.
+Monthly resets require explicit opt-in. No new Redis or external config is needed.
+
+The subscription charge transaction applies pending reset events before charging;
+team/member/key attribution and video terminal settlement remain in the same
+owned transaction flow. Stop old writers before migration. Preserve database
+and matched runtime resources before updating. Older binaries cannot maintain
+follow-reset event/charge ordering after activation, and a binary rollback does
+not restore cleared derived metrics. After migration or new writes, preserve
+current data and forward-fix; do not restore an old dump over live data.
+
+
+## Owned 0.2.4+custom.002: Plus v0.2.4+custom.001
+
+Source: `92e12acd4b39f030b56e635bcc02e239e14843e9`; previous owned tree:
+`6446a85256e206996b9cc0694856fab2a171f053`. The target Plus tree is the base.
+All historical owned SQL through 262 remains byte-for-byte unchanged.
+
+| Plus file | Owned file |
+| --- | --- |
+| `259_group_model_allowlist.sql` | `263_group_model_allowlist.sql` |
+| `260_group_model_allowlist_repair.sql` | `264_group_model_allowlist_repair.sql` |
+| `261_add_minimax_platform.sql` | `265_add_minimax_platform.sql` |
+| `262_normalize_legacy_model_allowlist.sql` | `266_normalize_legacy_model_allowlist.sql` |
+| `263_preserve_existing_access_log_persistence.sql` | `267_preserve_existing_access_log_persistence.sql` |
+
+The five incoming files retain upstream content, including original commentary.
+Their new filenames follow the owned lineage. 263/264 rename and repair the
+groups model policy; 265 adds MiniMax to existing platform constraints; 266
+normalizes legacy allowlists and disables enabled empty lists; 267 preserves
+explicit runtime access-log persistence for existing installations.
+
+DDL takes table locks; constraint validation scans the four existing platform
+columns. Group backfills/normalization take row locks and generate WAL. Reserve
+space for a database backup and WAL; this change creates no business task table
+and does not backfill billing/usage. Invalid model policies or runtime-log JSON
+stop migration with an identifier-only diagnostic. Management clients must move
+from `models_list_config` to `model_allowlist`; enabled policies now govern
+inference as well as discovery. API-key cache version 26 invalidates older
+snapshots through the existing cache mechanism; Redis is not flushed.
+
+The previous binary expects the old group column. After forward migration or
+new writes, keep current data and repair forward; do not restore an old dump
+over current data or describe an old-binary replacement as rollback. Stop the
+old core before starting the candidate; scheduler/billing/video workers must
+not overlap. Local backup and actual runtime evidence belong in the workspace
+history record. Publication and production update remain separate user steps.
+
+## Owned affiliate generation change
+
+Owned custom.003 adds migration 268 for reusable-code ownership, actual invitation-code snapshots and three-generation ledger snapshots/deduplication. It preserves historical money and only backfills unbound referral relationships when an administrator assigns a code owner. See [AFFILIATE.md](AFFILIATE.md) for table locks, index space and old-binary semantic incompatibility.
+
+## Owned v0.2.4 custom.004
+
+The full Plus input is `v0.2.4+custom.002` at `fdb9c6de8a959056d6678778979b60c0b0bf20e6`. Existing owned SQL through 268 remains byte-for-byte unchanged. Upstream `264_clarify_openai_quota_reset_baseline.sql` is imported verbatim as `269_clarify_openai_quota_reset_baseline.sql`; its sole COMMENT statement documents the accepted weekly reset baseline without changing schema or data. The upstream release prose says no new migration, but the source tree does contain this metadata-only SQL file.
+
+The release combines [three-generation affiliate changes](AFFILIATE.md) and PR #6 routing-priority visibility with upstream timing, post-audit WebSocket leases and atomic quota-source/group-copy behavior. No new Redis persistence layout or runtime file is introduced. The first accepted weekly observation remains a non-resetting baseline; later eligible windows and live source membership control reset writes. Keep one writer, preserve current data after writes, and use forward correction for recovery.
+
+
+## 0.2.4+custom.005 邀请列表修复
+
+本版继承 `.004` 的上游与全部既有迁移，只修正管理员邀请记录查询的 GROUP BY 字段。相对 `.004` 无新 migration、数据回填、配置或运行资源变化，不改变返佣计算、余额和邀请关系。无需恢复历史备份。退回 `.004` 会重新出现列表查询错误；此前迁移和资金写入的回滚限制仍然适用。
+
+
+## 0.2.4+custom.006 邀请返利展示
+
+`GET /api/v1/user/aff` 新增 `show_rebate_details` 布尔字段，以 `reusable_invitation_codes.owner_user_id` 是否存在当前用户为准；停用、到期和用尽不清除归属。仅顶部统计、三代分佣说明和最近三代名单读取此字段，分享及转余额仍可使用。这是界面展示条件，不改变 API 原有数据字段或返佣获得资格。无新增SQL迁移、配置和数据回填；回到 `.005` 会重新显示这三部分，既有迁移及资金写入仍遵循原回滚限制。
+
+
+## Owned 0.2.4+custom.007: Plus v0.2.4+custom.004
+
+Target Plus commit: `81505b0c2e35ef9056d55f357a5c4e29c24c2ac9`. All previously
+released owned SQL through 269 remains byte-for-byte unchanged. Upstream
+`265_openai_weekly_reset_observations.sql` is imported verbatim as
+`270_openai_weekly_reset_observations.sql`.
+
+270 allows a missing observation reset_at, adds weekly usage and confirmation
+fields with sequence 0 defaults, and replaces the reset-event unique constraint
+with an index including reset_sequence. DDL takes table locks in the startup
+migration transaction; index creation uses disk proportional to event rows.
+No historical money or usage is recomputed, no manual relation backfill occurs,
+and no Redis persistence format is changed. Capture a local database backup
+before preview; never run candidate migrations on production for validation.
+
+The old binary uses ON CONFLICT on the prior three-column unique key. That key
+is removed by 270, so replacing only the binary with custom.006 is incompatible.
+Retain current data and repair forward; do not restore an old dump over new
+writes. Stop the old core before starting the candidate so scheduler, billing
+and video writers do not overlap.
+
+The source window must now come from fresh real inference. Handshake headers
+and independent quota refreshes may update account cache but cannot establish
+or confirm group follow-reset. Existing bindings may wait for an eligible
+inference to establish missing or post-activation baseline evidence.
+
+Outbound identity presets use the existing settings JSON storage. Existing
+account/global identity precedence remains; package resources are still the
+owned release channel and bundled pricing data. GoToCC Prompt Audit retains
+its configurable full/latest-turn selection, tool content, custom template,
+response format and per-call timeout while adopting supplier identity scopes.
+
+
+## Owned 0.2.4+custom.008: customer invitation-code reassignment
+
+Migration 271 adds current attribution code/type, relation version/effective time,
+append-only business change records, and credited-payment beneficiary chains.
+All existing SQL through 270 remains unchanged. Existing bound profiles receive
+current code attribution; historical binding time remains unknown. Only credited
+unfinished legacy orders without final rebate outcomes receive an explicitly
+marked upgrade-time graph baseline; no historic money is recalculated.
+
+DDL locks tables, profile updates generate WAL, and snapshot/index space follows
+user and outstanding-order counts. One core writer must stop before migration;
+keep a database backup. No Redis persistence or package runtime-file change is
+introduced. Once reassignment or new snapshots exist, old code can settle delayed
+orders against the wrong current graph. Preserve data and repair forward rather
+than replacing only the binary or restoring an old dump over fresh writes.
+
+See [the implemented behavior and API](CUSTOMER_REASSIGNMENT_DESIGN.md).

@@ -11,6 +11,7 @@ import (
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/ent/redeemcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcodeuse"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 )
 
@@ -59,12 +60,6 @@ func (s *AuthService) SendPendingOAuthVerifyCode(ctx context.Context, email stri
 }
 
 func (s *AuthService) validateOAuthRegistrationInvitation(ctx context.Context, invitationCode string) (*registrationInvitation, error) {
-	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
-		return nil, nil
-	}
-	if s.redeemRepo == nil && s.oauthEmailFlowClient(ctx) == nil && s.reusableInvitationRepo == nil {
-		return nil, ErrServiceUnavailable
-	}
 	return s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
 }
 
@@ -270,6 +265,9 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
+	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+		invitationCode = affiliateCode
+	}
 	invitation, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
 	if err != nil {
 		return err
@@ -285,7 +283,7 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
+	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
 	return nil
 }
 
@@ -295,8 +293,45 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 	if s == nil || s.userRepo == nil || userID <= 0 {
 		return ErrServiceUnavailable
 	}
+	// Reversing an unfinished signup includes its referral count and code usage.
+	if s.entClient != nil && dbent.TxFromContext(ctx) == nil {
+		tx, err := s.entClient.Tx(ctx)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := s.RollbackOAuthEmailAccountCreation(dbent.NewTxContext(ctx, tx), userID, invitationCode); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	client := s.oauthEmailFlowClient(ctx)
+	if client != nil {
+		if _, err := client.ExecContext(ctx, "SELECT pg_advisory_xact_lock(hashtext('affiliate_inviter_binding'))"); err != nil {
+			return err
+		}
+	}
 	if err := s.restoreOAuthRegistrationInvitation(ctx, invitationCode, userID); err != nil {
 		return err
+	}
+	if client != nil {
+		// A permanent code may have arrived through aff_code while invitation_code
+		// stayed empty in the pending OAuth request. Restore those uses as well.
+		uses, err := client.ReusableInvitationCodeUse.Query().Where(reusableinvitationcodeuse.UserIDEQ(userID)).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, use := range uses {
+			if err := s.reusableInvitationRepo.Release(ctx, use.CodeID, userID); err != nil {
+				return err
+			}
+		}
+		if _, err := client.ExecContext(ctx, `
+WITH removed AS (DELETE FROM user_affiliates WHERE user_id = $1 RETURNING inviter_id)
+UPDATE user_affiliates SET aff_count = aff_count - 1, updated_at = NOW()
+WHERE user_id IN (SELECT inviter_id FROM removed WHERE inviter_id IS NOT NULL)`, userID); err != nil {
+			return err
+		}
 	}
 	if err := s.userRepo.Delete(ctx, userID); err != nil {
 		return fmt.Errorf("delete created oauth user: %w", err)
@@ -305,9 +340,6 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 }
 
 func (s *AuthService) restoreOAuthRegistrationInvitation(ctx context.Context, invitationCode string, userID int64) error {
-	if s == nil || s.settingService == nil || !s.settingService.IsInvitationCodeEnabled(ctx) {
-		return nil
-	}
 	if s.redeemRepo == nil && s.oauthEmailFlowClient(ctx) == nil {
 		return ErrServiceUnavailable
 	}

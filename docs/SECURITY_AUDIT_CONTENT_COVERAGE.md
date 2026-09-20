@@ -5,8 +5,51 @@ Moderation and Prompt Audit. The shared implementation is
 `backend/internal/auditcontent`; protocol handlers and account paths must not
 maintain alternate text extractors.
 
+Usage timing observers are separate from this ingress extraction contract.
+Classifying upstream `compaction`/`compaction_summary` output for timing does not
+add an ingress extraction rule, policy decision, or audit bypass. Encrypted
+compact output is not treated as a text-token delta; see [usage timing](USAGE_TIMING.md).
+
+## TypeSafe Jev and Video adapters
+
+Jev uses the same canonical extraction and chunking. Audited text is sent in
+`state.content`, while the configured policy and independent risk questions
+are sent in `questions`; each Noul answer maps to the existing audit decision.
+See [TypeSafe integration](TYPESAFE_PROMPT_AUDIT.md).
+
+Video platform requests enter the existing video audit hook before parameter
+mapping, account selection or quota/credit reservation. Provider defaults may
+not supply prompt/input/messages/model fields. Saved provider configurations
+are frozen with asynchronous tasks; polling never selects a new account.
+
 ## Boundary And Ordering
 
+Forwarding-account outbound identity presets are resolved after this boundary
+and account selection. UA/SDK declarations are never audit inputs or an audit bypass.
+Claude billing-header version rewriting uses the selected outbound identity;
+the canonical inbound content shared by both audit engines stays unchanged.
+OAuth, API-key, Bedrock, Vertex and compatible adapters retain the same ordering.
+Token-count forwarding captures its identity only after ingress audit and
+account selection, before token acquisition or request construction. Signature
+retries reuse that snapshot; they do not re-extract or change the audited input.
+Responses WS allocates its outbound identity scope after the first-turn audit
+and before credential refresh or the upstream handshake. The scope only retains
+resolver results; it does not evaluate content, select an account or perform I/O.
+Reusing a scope on retry or reconnection never skips subsequent-turn audit.
+Prompt Audit inference/model probes and Content Moderation calls use their own
+configured supplier credentials and a separate trusted outbound identity under
+[Outbound Identity](OUTBOUND_IDENTITY.md). They resolve the `openai:apikey`
+type default without selecting or inheriting a forwarding account. Prompt
+chunks and same-credential retries retain a supplier snapshot; failover resolves
+the new owner. These headers do not change canonical extraction, scan payloads,
+audit decisions or exception/pass-through semantics. Forwarding still waits for
+the required ingress audit result.
+Standalone search preserves `X-Codex-Turn-Metadata` for OAuth and API keys,
+including opaque `mcp_request_meta` / `openai/search_context` metadata. This
+protocol header is not a content-extraction input or an audit decision. The
+canonical Alpha Search body (`commands`, `settings`, `input`) still enters both
+engines before account selection and outbound header construction; retaining
+metadata or changing the passthrough switch cannot skip that boundary.
 Automatic API-key routing resolves authorized group configuration before this
 boundary so group-scoped policies receive the real group ID. Resolution does
 not select an account, maintain subscription windows, consume quota, or contact
@@ -25,6 +68,13 @@ request validation, but before:
 2. billing, quota reservation, or concurrency acquisition;
 3. routing, retry, probe, fingerprint, or protocol transformations; and
 4. any upstream request or frame write.
+
+Responses WebSocket connection leases also follow this ordering: upgrade and
+first-message syntax/model validation precede first-turn audit, and Redis ingress
+capacity is acquired only after audit permits the turn. Rejected or malformed
+first frames never reserve a lease. The first-message deadline bounds sockets
+awaiting content. After acquisition, renewal and release cover the remaining
+connection lifetime; subsequent frames still cross the canonical audit hook.
 
 Session affinity, account type, inbound role labels, envelope `type` values,
 and protocol adapters cannot bypass the audit hook. Extraction remains
@@ -122,19 +172,27 @@ Both engines consume the same canonical document:
 | Prompt Audit full/async | Scans the client-controlled transcript: user messages (including role-less Responses/Gemini/embeddings/media forms), plus system/developer/instructions, assistant/model text, reasoning, tool definitions/calls/results, reusable prompt variables, search queries, embedding strings, and media prompts. Stored full prompt and redacted preview remain newest-to-oldest so the preview head is the latest turn. Client harness XML blocks inside user text (`environment_context`, `permission_profile`, `system-reminder`, `filesystem`) are stripped; surrounding user sentences remain. |
 | Prompt Audit blocking latest-turn-only | When enabled, scans the latest actual user text after the same client-harness XML strip, its subsequent tool results, and the nearest preceding assistant/model turn so continuation jailbreaks cannot drop the prior output. Older user turns, instructions, and tool schema stay out of this narrow window. A request with no user text cannot be narrowed safely and falls back to the full client-controlled transcript. |
 
-Sharing a canonical document does not mean that the engines select identical
-segments. Content Moderation preserves the `v0.1.177+custom.003` attribution
+Sharing a canonical document does not mean that the engines evaluate identical
+payloads. Content Moderation preserves the `v0.1.177+custom.003` attribution
 rule: only a direct user submission may produce a user content-policy
-violation. Prompt Audit Guard scans the client-controlled transcript, so
-jailbreak text in system/developer/assistant/tool fields remains visible to
-blocking and async review. Ordinary user `hi` still blocks when that text
-itself is a jailbreak. Client wrapper XML such as `<environment_context>`
-inside a user message is stripped so sentences like `你能做什么？` are scanned
-without the harness block. A turn containing only instructions, a tool
-result, or tool schema is still Prompt Audit content; a request with no
-recognized client-controlled text remains an empty selection. Incomplete canonical extraction is
+violation, and it may also scan current-user images. Prompt Audit Guard scans
+that same current-user text through Qwen3Guard and never treats URLs or encoded
+media as prompt text. Ordinary user `hi` still blocks when that text itself is
+a jailbreak. Client wrapper XML such as `<environment_context>` inside a user
+message is stripped so sentences like `你能做什么？` are scanned without the
+harness block. A turn containing only instructions, a tool result, or tool
+schema is an empty Prompt Audit selection. Incomplete canonical extraction is
 observable but does not override either engine's selection policy: extracted
 content is still evaluated, while an empty selection passes through.
+
+The optional Codex environment-timezone alignment rewrites the model-visible
+`<timezone>` / `<current_date>` pair inside the stripped `<environment_context>`
+wrapper block at the outbound build stage — after ingress security audit has
+already consumed the original body, and never on the audit path itself. The
+rewrite is cosmetic (IANA timezone name and that timezone's current date),
+never injects new user text, keeps failures silent by preserving the original
+self-consistent block, and therefore does not create an audit-vs-upstream
+content divergence for either engine.
 
 Content Moderation list rows keep a 240-rune redacted `input_excerpt`. The
 admin detail view stores `input_content` as the same current-user scan window
@@ -323,3 +381,53 @@ the same change and provide all of the following evidence:
 
 Route-call presence or static source-order assertions alone do not prove
 content coverage.
+
+## Upstream v0.2.4 integration
+
+Group `model_allowlist` admission uses the client model before account/channel
+mapping and does not replace content audit. Root route aliases and Plus batch
+and asynchronous image endpoints retain the same audit ordering as `/v1`.
+WebSocket follow-up `response.create` calls invoke `BeforeRequest` for canonical
+audit before `BeforeTurn` acquires resources; each turn invokes that acquisition
+hook once. Unknown valid frames still reach the audit hook and pass extraction
+without an audit-derived rejection. A real policy rejection prevents upstream
+writes, including for successfully extracted content alongside unknown fields.
+
+Named function/custom-tool inputs, allowed-tools metadata and terminal `done`
+argument reconstruction do not introduce a separate extractor. If reconstructed
+output returns as a later request, it follows the same shared extraction matrix
+for both engines. Metadata that is not extractable content remains pass-through;
+known sibling inputs remain auditable. Extraction/evaluation/dependency exceptions
+retain the structured diagnostics and non-blocking behavior specified above.
+
+
+## Administrator text preview
+
+`POST /api/v1/admin/prompt-audit/test` accepts `{ "text": "..." }` under the
+existing administrator authentication. It loads saved policy and wraps the text
+as one Responses user message, then runs the same extraction, splitting,
+endpoint selection, scanner, aggregation and inclusive threshold decision used
+by the blocking guard. It returns the decision, confidence/evidence, latency,
+configuration version and safe endpoint failure details. No business model is
+called and no user violation event, ban or billing entry is created. The admin
+operation log omits the text body. Preview works with auditing switched off;
+live blocking still depends on the configured mode and group scope.
+
+Each chunk/endpoint attempt gets that endpoint's configured `timeout_ms`.
+Earlier chunks cannot consume later chunks' or failover nodes' time budgets.
+The parent request can still cancel processing. Long inputs take multiple calls
+and can therefore exceed a single endpoint timeout in total. Text preview has
+an explicit browser cancel control and no competing 30-second client timeout.
+The input character limit comes from `prompt-audit-defaults.json` and is exposed
+in the public audit configuration.
+
+
+Node connection probes call the configured `/v1/chat/completions` audit model
+and parse its result. `/v1/models` access is not a prerequisite. Both probes
+and text preview distinguish upstream 401/403 authentication failures from
+timeouts and invalid output. Explicitly clearing a credential is also honored
+by probes; stored credentials are reused only for the same endpoint and URL.
+
+Persistent node credentials require a fixed `totp.encryption_key` in the
+service configuration file (64 hexadecimal characters). An automatically
+generated process key cannot be used to save restart-stable node credentials.

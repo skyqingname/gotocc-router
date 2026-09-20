@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package service
 
 import (
@@ -77,7 +79,7 @@ func TestOpenAIUpstreamAccessStateClassification(t *testing.T) {
 			if !tt.want {
 				return
 			}
-			require.True(t, (&OpenAIGatewayService{}).shouldFailoverOpenAIUpstreamResponse(http.StatusForbidden, "", body))
+			require.True(t, (&OpenAIGatewayService{}).shouldFailoverOpenAIUpstreamResponse(newOpenAIUpstreamErrorTestAccount(), http.StatusForbidden, "", body))
 			require.True(t, shouldFailoverOpenAIPassthroughResponse(&Account{Type: AccountTypeOAuth}, http.StatusForbidden, body))
 
 			err := newOpenAIUpstreamFailoverError(http.StatusForbidden, nil, body, "", true)
@@ -105,7 +107,7 @@ func TestOpenAIHTTPAccessStateDoesNotTrustBadRequestMessage(t *testing.T) {
 
 	require.False(t, isOpenAIUpstreamAccessStateError("", body), "free-form stream messages are not durable account evidence")
 	require.False(t, isOpenAIHTTPUpstreamAccessStateError(http.StatusBadRequest, "", body))
-	require.False(t, svc.shouldFailoverOpenAIUpstreamResponse(http.StatusBadRequest, "", body))
+	require.False(t, svc.shouldFailoverOpenAIUpstreamResponse(newOpenAIUpstreamErrorTestAccount(), http.StatusBadRequest, "", body))
 	require.False(t, shouldFailoverOpenAIPassthroughResponse(&Account{Type: AccountTypeOAuth}, http.StatusBadRequest, body))
 
 	err := newOpenAIUpstreamFailoverError(http.StatusBadRequest, nil, body, "", false)
@@ -148,7 +150,7 @@ func TestOpenAIHTTPAccessStateTrustsStructuredCode(t *testing.T) {
 	body := []byte(`{"error":{"code":"organization_deactivated","message":"request rejected"}}`)
 
 	require.True(t, isOpenAIHTTPUpstreamAccessStateError(http.StatusBadRequest, "", body))
-	require.True(t, svc.shouldFailoverOpenAIUpstreamResponse(http.StatusBadRequest, "", body))
+	require.True(t, svc.shouldFailoverOpenAIUpstreamResponse(newOpenAIUpstreamErrorTestAccount(), http.StatusBadRequest, "", body))
 	require.True(t, svc.handleOpenAIAccountUpstreamError(context.Background(), account, http.StatusBadRequest, nil, body))
 	require.Equal(t, 1, repo.setErrorCalls)
 	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
@@ -189,7 +191,7 @@ func TestOpenAIHTTPAuthMessagesUseExistingStatusPolicies(t *testing.T) {
 func TestOpenAICyberPolicyWrapped5xxNeverFailsOver(t *testing.T) {
 	body := []byte(`{"error":{"code":"cyber_policy","message":"blocked"}}`)
 	svc := &OpenAIGatewayService{}
-	require.False(t, svc.shouldFailoverOpenAIUpstreamResponse(http.StatusBadGateway, "wrapped upstream failure", body))
+	require.False(t, svc.shouldFailoverOpenAIUpstreamResponse(newOpenAIUpstreamErrorTestAccount(), http.StatusBadGateway, "wrapped upstream failure", body))
 	require.False(t, shouldFailoverOpenAIPassthroughResponse(&Account{Type: AccountTypeOAuth}, http.StatusBadGateway, body))
 }
 
@@ -199,6 +201,8 @@ func TestOpenAICapacityFailoverCarriesSafeTerminalResponse(t *testing.T) {
 	err := newOpenAIUpstreamFailoverError(http.StatusBadRequest, nil, body, message, false)
 
 	require.True(t, err.IsOpenAICapacityShed())
+	require.False(t, err.RetryableOnSameAccount)
+	require.False(t, err.ShouldRetryNextAccount())
 	require.Equal(t, http.StatusServiceUnavailable, err.ClientStatusCode)
 	require.Equal(t, message, err.ClientMessage)
 	require.NotContains(t, err.ClientMessage, "server_is_overloaded")

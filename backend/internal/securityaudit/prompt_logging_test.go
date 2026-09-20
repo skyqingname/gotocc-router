@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package securityaudit
 
 import (
@@ -83,7 +85,7 @@ func TestPromptValidUnrecognizedJSONProducesSafeExtractionFailureLog(t *testing.
 		RequestID: "req-unrecognized", Endpoint: "/v1/responses", Protocol: "openai_responses", Stage: "http",
 		Body: []byte(`{"future_payload":{"shape":"` + canary + `"}}`),
 	}
-	_, diagnostic, err := extractPromptSnapshotWithDiagnostics(request, true)
+	_, diagnostic, err := extractPromptSnapshotWithDiagnostics(request)
 	require.ErrorIs(t, err, ErrNoPromptText)
 	require.True(t, diagnostic.Failed)
 	require.Equal(t, "incomplete_content", diagnostic.ErrorCode)

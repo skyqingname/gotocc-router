@@ -22,6 +22,8 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return fmt.Errorf("parse request: empty request")
 	}
+	ctx = WithOutboundIdentityScope(ctx, c)
+	ctx = WithAccountOutboundIdentity(ctx, account)
 
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body.Bytes()
@@ -59,9 +61,8 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCodeCT
 
 	if shouldMimicClaudeCode {
-		normalizeOpts := claudeOAuthNormalizeOptions{stripSystemCacheControl: true}
 		var normalizedBody []byte
-		normalizedBody, reqModel = normalizeClaudeOAuthRequestBody(body, reqModel, normalizeOpts)
+		normalizedBody, reqModel = normalizeClaudeOAuthRequestBody(body, reqModel, claudeOAuthNormalizeOptions{})
 		if err := replaceBody(normalizedBody); err != nil {
 			return err
 		}
@@ -77,6 +78,13 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 			if err := replaceBody(applyToolsLastCacheBreakpoint(body)); err != nil {
 				return err
 			}
+		}
+
+		// 4 块上限的兜底：其余四条出口都在自己的转发路径上调过一次，只有这里没有。
+		// 不再剥离客户端 system 断点之后，「客户端 system + 客户端 messages +
+		// 上面刚注入的 tools[-1]」可以直接顶到 5 块，而上游对超限是 400。
+		if err := replaceBody(enforceCacheControlLimit(body)); err != nil {
+			return err
 		}
 	}
 
@@ -144,7 +152,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	}
 
 	// 发送请求
-	resp, err := s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.httpUpstream.DoWithTLS(prepareAccountOutboundRequest(upstreamReq, account), proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(err.Error()), "")
 		s.countTokensError(c, http.StatusBadGateway, "upstream_error", "Request failed")
@@ -174,7 +182,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		filteredBody := FilterThinkingBlocksForRetry(body, reqModel)
 		retryReq, retryWireBody, buildErr := s.buildCountTokensRequest(upstreamCtx, c, account, filteredBody, token, tokenType, reqModel, shouldMimicClaudeCode)
 		if buildErr == nil {
-			retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+			retryResp, retryErr := s.httpUpstream.DoWithTLS(prepareAccountOutboundRequest(retryReq, account), proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 			if retryErr == nil {
 				if retryResp.StatusCode < 400 {
 					// count_tokens 签名重试成功后记录最终 wire body，错误响应仍保留原 body 便于后续处理。
@@ -274,10 +282,12 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 		proxyURL = account.Proxy.URL()
 	}
 
-	resp, err := s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+	resp, err := s.httpUpstream.DoWithTLS(prepareAccountOutboundRequest(upstreamReq, account), proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
 	if err != nil {
 		setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(err.Error()), "")
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -335,6 +345,8 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 		}
 		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			ProxyID:            opsUpstreamProxyID(account),
+			ProxyName:          opsUpstreamProxyName(account),
 			Platform:           account.Platform,
 			AccountID:          account.ID,
 			AccountName:        account.Name,
@@ -425,7 +437,9 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(
 	req.Header.Del("x-api-key")
 	req.Header.Del("x-goog-api-key")
 	req.Header.Del("cookie")
-	setAnthropicAPIKeyAuthHeader(req.Header, account, token)
+	// Ollama Cloud Anthropic 兼容端点按实际 base_url 强制 Bearer（同上方
+	// targetURL 的 base 取值），其余保持 extra/default 行为。
+	setAnthropicAPIKeyAuthHeader(req.Header, account, token, account.GetBaseURL())
 
 	if req.Header.Get("content-type") == "" {
 		req.Header.Set("content-type", "application/json")
@@ -436,12 +450,14 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(
 
 	// 账号级请求头覆写（最终生效，覆盖上面所有来源的同名头）
 	account.ApplyHeaderOverrides(req.Header)
+	ApplyAccountOutboundIdentity(ctx, account, req)
 
 	return req, nil
 }
 
 // buildCountTokensRequest 构建 count_tokens 上游请求
 func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, mimicClaudeCode bool) (*http.Request, []byte, error) {
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	body = stripDeferredToolCacheControl(body)
 	// 确定目标 URL
 	targetURL := claudeAPICountTokensURL
@@ -493,9 +509,8 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 		}
 	}
 
-	// 同步 billing header cc_version 与实际发送的 User-Agent 版本
-	if ctFingerprint != nil && ctEnableFP {
-		body = syncBillingHeaderVersion(body, ctFingerprint.UserAgent)
+	if billingUA := accountOutboundUserAgent(ctx, account); billingUA != "" {
+		body = syncBillingHeaderVersion(body, billingUA)
 	}
 
 	// === 计算最终 anthropic-beta header（先于 body sanitize 与 CCH 签名）===
@@ -526,7 +541,9 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if tokenType == "oauth" {
 		setHeaderRaw(req.Header, "authorization", "Bearer "+token)
 	} else {
-		setAnthropicAPIKeyAuthHeader(req.Header, account, token)
+		// Ollama Cloud Anthropic 兼容端点按实际 base_url 强制 Bearer（同上方
+		// targetURL 的 base 取值），其余保持 extra/default 行为。
+		setAnthropicAPIKeyAuthHeader(req.Header, account, token, account.GetBaseURL())
 	}
 
 	// 白名单透传 headers（恢复真实 wire casing）
@@ -578,6 +595,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 
 	// 账号级请求头覆写（仅 anthropic/openai api_key 账号启用时生效；OAuth 路径 no-op）
 	account.ApplyHeaderOverrides(req.Header)
+	ApplyAccountOutboundIdentity(ctx, account, req)
 
 	if c != nil && tokenType == "oauth" {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))

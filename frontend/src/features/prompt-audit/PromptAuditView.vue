@@ -38,6 +38,9 @@
         </div>
 
         <main class="card px-4 sm:px-6 lg:px-8">
+          <div v-if="activeTab === 'test' && serverConfig" data-test="tab-panel-test">
+            <TextTestPanel :config="serverConfig" :dirty="dirty" />
+          </div>
           <div v-show="activeTab === 'config'" data-test="tab-panel-config">
             <RuntimeOverview :runtime="runtime" :loading="loading.runtime" :error="loadErrors.runtime" @refresh="loadRuntime" />
 
@@ -145,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import Toggle from '@/components/common/Toggle.vue'
 import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -155,6 +159,8 @@ import RuntimeOverview from './components/RuntimeOverview.vue'
 import EndpointPool from './components/EndpointPool.vue'
 import PolicyPanel from './components/PolicyPanel.vue'
 import AuditPromptPanel from './components/AuditPromptPanel.vue'
+import TextTestPanel from './components/TextTestPanel.vue'
+import { useRoute } from 'vue-router'
 import EventWorkspace from './components/EventWorkspace.vue'
 import EventDetailDialog from './components/EventDetailDialog.vue'
 import FilterDeleteDialog from './components/FilterDeleteDialog.vue'
@@ -175,11 +181,13 @@ import { buildUpdateRequest, cloneData, configToDraft, draftFingerprint, emptyEv
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
-type PromptAuditPageTab = 'config' | 'events'
-const activeTab = ref<PromptAuditPageTab>('events')
+type PromptAuditPageTab = 'config' | 'events' | 'test'
+const route = useRoute()
+const activeTab = ref<PromptAuditPageTab>(route.query.tab === 'test' ? 'test' : 'events')
 const pageTabs = computed(() => [
   { id: 'events' as const, label: t('admin.promptAudit.tabs.events') },
   { id: 'config' as const, label: t('admin.promptAudit.tabs.config') },
+  { id: 'test' as const, label: t('admin.promptAudit.tabs.test') },
 ])
 const serverConfig = ref<PromptAuditDraft | null>(null)
 const draft = ref<PromptAuditDraft | null>(null)
@@ -205,7 +213,7 @@ const auditPromptValid = computed(() => {
   const value = draft.value?.audit_prompt ?? ''
   const length = Array.from(value).length
   const threshold = draft.value?.confidence_threshold
-  const policyValid = draft.value?.response_format !== 'confidence_json' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
+  const policyValid = draft.value?.response_format === 'qwen3guard' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
   return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES && policyValid
 })
 
@@ -214,32 +222,16 @@ const SaveToggle = defineComponent({
   props: { label: { type: String, required: true }, modelValue: { type: Boolean, required: true }, disabled: { type: Boolean, default: false } },
   emits: ['update:modelValue'],
   setup(props, { emit, attrs }) {
-    return () => h('label', { class: ['flex items-center gap-2.5 text-sm', props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'] }, [
-      h('button', {
+    return () => h('label', { class: ['flex items-center gap-2.5 text-sm', props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'] }, [
+      h(Toggle, {
         ...attrs,
-        type: 'button',
-        role: 'switch',
-        'aria-checked': props.modelValue,
+        modelValue: props.modelValue,
         'aria-label': props.label,
         disabled: props.disabled,
-        class: [
-          'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
-          props.modelValue ? 'bg-primary-600' : 'bg-gray-300 dark:bg-dark-600',
-          props.disabled ? 'cursor-not-allowed' : 'cursor-pointer',
-        ],
-        onClick: (event: MouseEvent) => {
-          event.preventDefault()
-          if (!props.disabled) emit('update:modelValue', !props.modelValue)
-        },
-      }, [
-        h('span', {
-          class: [
-            'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-in-out',
-            props.modelValue ? 'translate-x-5' : 'translate-x-0',
-          ],
-        }),
-      ]),
-      h('span', { class: 'select-none text-gray-700 dark:text-dark-200' }, props.label),
+        onClick: (event: MouseEvent) => event.preventDefault(),
+        'onUpdate:modelValue': (value: boolean) => emit('update:modelValue', value),
+      }),
+      h('span', { class: ['select-none text-gray-700 dark:text-dark-200', { 'opacity-50': props.disabled }] }, props.label),
     ])
   },
 })

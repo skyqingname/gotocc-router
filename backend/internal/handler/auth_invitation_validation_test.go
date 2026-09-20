@@ -184,3 +184,7 @@ func TestReusableInvitationCodeDoublePathReachesEmailVerification(t *testing.T) 
 	require.ErrorIs(t, err, service.ErrInvalidVerifyCode)
 	require.NotErrorIs(t, err, service.ErrInvitationCodeInvalid)
 }
+
+func (*reusableInvitationValidationRepo) SetOwner(context.Context, int64, int64) (*service.ReusableInvitationCodeOwnerResult, error) {
+	panic("unexpected SetOwner call")
+}

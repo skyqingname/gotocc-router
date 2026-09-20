@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"net/http"
 	"time"
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
+	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 )
 
@@ -48,6 +50,7 @@ type AdminService interface {
 	RecoverDuplicateGroup(ctx context.Context, id int64, actorScope, operationKey string) (*Group, error)
 	UpdateGroup(ctx context.Context, id int64, input *UpdateGroupInput) (*Group, error)
 	DeleteGroup(ctx context.Context, id int64) error
+	DeleteGroupIfEmpty(ctx context.Context, id int64) error
 	ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error)
 	CreateCompositeRoute(ctx context.Context, groupID int64, input CompositeRouteInput) (*CompositeModelRoute, error)
 	UpdateCompositeRoute(ctx context.Context, groupID, routeID int64, input CompositeRouteInput) (*CompositeModelRoute, error)
@@ -80,6 +83,7 @@ type AdminService interface {
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
+	ValidateAccountGroupBindings(ctx context.Context, groupIDs []int64) error
 	// DuplicateAccount creates an independent account from an existing account's configuration.
 	// First-class runtime columns are intentionally reset by the normal account creation path.
 	DuplicateAccount(ctx context.Context, id int64, actorScope, operationKey string) (*Account, error)
@@ -94,8 +98,6 @@ type AdminService interface {
 	RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error)
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
-	// EnsureOpenAIPrivacy 检查 OpenAI OAuth 账号 privacy_mode，未设置则尝试关闭训练数据共享并持久化。
-	EnsureOpenAIPrivacy(ctx context.Context, account *Account) string
 	// EnsureAntigravityPrivacy 检查 Antigravity OAuth 账号 privacy_mode，未设置则调用 setUserSettings 并持久化。
 	EnsureAntigravityPrivacy(ctx context.Context, account *Account) string
 	// ForceOpenAIPrivacy 强制重新设置 OpenAI OAuth 账号隐私，无论当前状态。
@@ -138,6 +140,24 @@ type AdminService interface {
 	ResetAccountQuota(ctx context.Context, id int64) error
 }
 
+type AdminGroupOperation string
+
+const (
+	AdminGroupOperationBasic          AdminGroupOperation = "basic"
+	AdminGroupOperationDuplicate      AdminGroupOperation = "duplicate"
+	AdminGroupOperationCompositeRoute AdminGroupOperation = "composite_route"
+	AdminGroupOperationMultiplier     AdminGroupOperation = "multiplier"
+	AdminGroupOperationRPMOverride    AdminGroupOperation = "rpm_override"
+	AdminGroupOperationSort           AdminGroupOperation = "sort"
+)
+
+func ValidateSimpleModeGroupOperation(cfg *config.Config, operation AdminGroupOperation) error {
+	if cfg != nil && cfg.RunMode == config.RunModeSimple && operation != AdminGroupOperationBasic {
+		return infraerrors.New(http.StatusForbidden, "SIMPLE_MODE_OPERATION_UNSUPPORTED", "This operation is not supported in simple mode")
+	}
+	return nil
+}
+
 // CreateUserInput represents input for creating a new user via admin operations.
 type CreateUserInput struct {
 	Email                string
@@ -155,6 +175,7 @@ type CreateUserInput struct {
 }
 
 type UpdateUserInput struct {
+	InviterChange *AffiliateInviterChange
 	Email         string
 	Password      string
 	Username      *string
@@ -223,6 +244,8 @@ type CreateGroupInput struct {
 	WeeklyLimitUSD            *float64 // 周限额 (USD)
 	MonthlyLimitUSD           *float64 // 月限额 (USD)
 	FiveHourLimitUSD          *float64 // 5 小时滚动限额 (USD)
+	QuotaResetSourceAccountID *int64
+	QuotaResetIncludeMonthly  bool
 	LongContextPricingEnabled *bool
 	ModelPricing              []ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
@@ -239,6 +262,7 @@ type CreateGroupInput struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64
@@ -274,14 +298,16 @@ type CreateGroupInput struct {
 	RequireOAuthOnly            bool
 	RequirePrivacySet           bool
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
-	ModelsListConfig            GroupModelsListConfig
+	ModelAllowlist              GroupModelAllowlist
+	// CodexModelsManifestConfig 固定账号 manifest 配置；创建路径禁止开启，仅编辑可配置。
+	CodexModelsManifestConfig GroupCodexModelsManifestConfig
 	// RPMLimit 分组 RPM 上限（0 = 不限制）
 	RPMLimit int
-	// MaxReasoningEffort OpenAI/Codex 请求的推理强度上限，空字符串表示不限制。
+	// MaxReasoningEffort Anthropic/OpenAI 请求的推理强度上限，空字符串表示不限制。
 	MaxReasoningEffort string
 	// MaxReasoningEffortOverLimit 超过上限时的访问控制：downgrade（默认）或 deny。
 	MaxReasoningEffortOverLimit string
-	// ReasoningEffortMappings OpenAI/Codex 推理强度精确映射。
+	// ReasoningEffortMappings Anthropic/OpenAI 推理强度映射，可按模型精确名、前缀或后缀限定。
 	ReasoningEffortMappings []ReasoningEffortMapping
 	// 分组利润控制（五个 token 平台分组可启用；margin/buffer 为小数，nil 按 0 处理）
 	ProfitControlEnabled bool
@@ -292,19 +318,22 @@ type CreateGroupInput struct {
 }
 
 type UpdateGroupInput struct {
-	Name                      string
-	Description               *string
-	Platform                  string
-	RateMultiplier            *float64 // 使用指针以支持设置为0
-	IsExclusive               *bool
-	Status                    string
-	SubscriptionType          string   // standard/subscription
-	DailyLimitUSD             *float64 // 日限额 (USD)
-	WeeklyLimitUSD            *float64 // 周限额 (USD)
-	MonthlyLimitUSD           *float64 // 月限额 (USD)
-	FiveHourLimitUSD          *float64 // 5 小时滚动限额 (USD)
-	LongContextPricingEnabled *bool
-	ModelPricing              *[]ChannelModelPricing
+	Name                         string
+	Description                  *string
+	Platform                     string
+	RateMultiplier               *float64 // 使用指针以支持设置为0
+	IsExclusive                  *bool
+	Status                       string
+	SubscriptionType             string   // standard/subscription
+	DailyLimitUSD                *float64 // 日限额 (USD)
+	WeeklyLimitUSD               *float64 // 周限额 (USD)
+	MonthlyLimitUSD              *float64 // 月限额 (USD)
+	FiveHourLimitUSD             *float64 // 5 小时滚动限额 (USD)
+	QuotaResetSourceAccountID    *int64
+	QuotaResetSourceAccountIDSet bool
+	QuotaResetIncludeMonthly     *bool
+	LongContextPricingEnabled    *bool
+	ModelPricing                 *[]ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
 	AllowImageGeneration         *bool
 	AllowBatchImageGeneration    *bool
@@ -319,6 +348,7 @@ type UpdateGroupInput struct {
 	PeakStart          *string
 	PeakEnd            *string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64
@@ -354,7 +384,9 @@ type UpdateGroupInput struct {
 	RequireOAuthOnly            *bool
 	RequirePrivacySet           *bool
 	MessagesDispatchModelConfig *OpenAIMessagesDispatchModelConfig
-	ModelsListConfig            *GroupModelsListConfig
+	ModelAllowlist              *GroupModelAllowlist
+	// CodexModelsManifestConfig nil 表示不修改；非 openai 平台会被归一化为关闭。
+	CodexModelsManifestConfig *GroupCodexModelsManifestConfig
 	// RPMLimit 分组 RPM 上限（0 = 不限制），nil 表示未提供不改动。
 	RPMLimit *int
 	// MaxReasoningEffort 空字符串表示清除上限；nil 表示未提供不改动。
@@ -506,20 +538,28 @@ type CreateProxyInput struct {
 	FallbackMode   string
 	BackupProxyID  *int64
 	ExpiryWarnDays int
+	EgressTimezone string
+	EgressCountry  string
 }
 
+// UpdateProxyInput preserves omitted expiry/backup values; Clear flags explicitly
+// remove them. A nil ExpiryWarnDays preserves the current warning period.
 type UpdateProxyInput struct {
 	Name           string
 	Protocol       string
 	Host           string
 	Port           int
-	Username       string
-	Password       string
+	Username       *string
+	Password       *string
 	Status         string
 	ExpiresAt      *time.Time
+	ClearExpiresAt bool
 	FallbackMode   string
 	BackupProxyID  *int64
-	ExpiryWarnDays int
+	ClearBackupID  bool
+	ExpiryWarnDays *int
+	EgressTimezone *string
+	EgressCountry  *string
 }
 
 type GenerateRedeemCodesInput struct {
@@ -653,9 +693,11 @@ var ErrRPMStatusUnavailable = infraerrors.New(http.StatusNotImplemented, "RPM_ST
 
 // adminServiceImpl implements AdminService
 type adminServiceImpl struct {
+	cfg                  *config.Config
 	userRepo             UserRepository
 	groupRepo            GroupRepository
 	groupDuplicateRepo   GroupDuplicateRepository
+	emptyGroupDeleteRepo EmptyGroupDeleteRepository
 	accountRepo          AccountRepository
 	accountDuplicateRepo AccountDuplicateRepository
 	proxyRepo            ProxyRepository
@@ -687,6 +729,8 @@ type ChannelCacheInvalidator interface {
 }
 
 type adminRechargeAffiliateAccruer interface {
+	ChangeInviter(context.Context, int64, *AffiliateInviterChange) error
+	LockInviterBindings(context.Context) error
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
 }
 
@@ -696,6 +740,7 @@ type userGroupRateBatchReader interface {
 
 // NewAdminService creates a new AdminService
 func NewAdminService(
+	cfg *config.Config,
 	userRepo UserRepository,
 	groupRepo AdminGroupRepository,
 	accountRepo AdminAccountRepository,
@@ -720,9 +765,11 @@ func NewAdminService(
 	channelCacheInvalidator ChannelCacheInvalidator,
 ) AdminService {
 	return &adminServiceImpl{
+		cfg:                  cfg,
 		userRepo:             userRepo,
 		groupRepo:            groupRepo,
 		groupDuplicateRepo:   groupRepo,
+		emptyGroupDeleteRepo: groupRepo,
 		accountRepo:          accountRepo,
 		accountDuplicateRepo: accountRepo,
 		proxyRepo:            proxyRepo,

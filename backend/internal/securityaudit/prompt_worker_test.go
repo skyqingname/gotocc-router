@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package securityaudit
 
 import (
@@ -13,10 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fixedClock struct{ now time.Time }
-
-func (c fixedClock) Now() time.Time { return c.now }
-
 type advancingClock struct {
 	mu   sync.Mutex
 	now  time.Time
@@ -29,35 +27,6 @@ func (c *advancingClock) Now() time.Time {
 	c.now = c.now.Add(c.step)
 	return c.now
 }
-
-type fakeConfigStore struct {
-	cfg      ActiveConfig
-	active   bool
-	degraded bool
-}
-
-func (s *fakeConfigStore) Start(context.Context) error    { return nil }
-func (s *fakeConfigStore) Shutdown(context.Context) error { return nil }
-func (s *fakeConfigStore) Active() (ActiveConfig, bool)   { return cloneActiveConfig(s.cfg), s.active }
-func (s *fakeConfigStore) EffectiveMode() Mode {
-	if s.BlockingActivationDegraded() {
-		return ModeBlocking
-	}
-	if !s.active {
-		return ModeOff
-	}
-	return s.cfg.EffectiveMode()
-}
-func (s *fakeConfigStore) BlockingActivationDegraded() bool { return s.degraded }
-func (s *fakeConfigStore) Public() (PublicConfig, error)    { return PublicConfig{}, nil }
-func (s *fakeConfigStore) Save(context.Context, UpdateConfigRequest, int64) (PublicConfig, error) {
-	return PublicConfig{}, nil
-}
-func (s *fakeConfigStore) RuntimeState() (int64, int64, *time.Time, string) {
-	return s.cfg.ConfigVersion, s.cfg.ConfigVersion, nil, ""
-}
-func (s *fakeConfigStore) Encrypt(value string) (string, error) { return value, nil }
-func (s *fakeConfigStore) Decrypt(value string) (string, error) { return value, nil }
 
 type fakeJobRepository struct {
 	mu sync.Mutex
@@ -244,6 +213,20 @@ func asyncConfig() ActiveConfig {
 
 func asyncRequest() Request {
 	return Request{RequestID: "request-async", Protocol: "openai_chat_completions", Body: []byte(`{"messages":[{"role":"user","content":"payload canary text"}]}`)}
+}
+
+func TestEnqueuerStoresCurrentUserTextOnly(t *testing.T) {
+	repo := &fakeJobRepository{createJob: &Job{ID: 41}}
+	payload := &fakePayloadStore{values: map[int64]string{}}
+	req := Request{
+		RequestID: "request-async", Protocol: "openai_chat_completions",
+		Body: []byte(`{"messages":[{"role":"system","content":"system instruction"},{"role":"user","content":"older user input"},{"role":"assistant","content":"previous output"},{"role":"user","content":"latest user input"}]}`),
+	}
+	require.NoError(t, NewEnqueuer(&fakeConfigStore{cfg: asyncConfig(), active: true}, repo, payload).Enqueue(context.Background(), req))
+	require.Equal(t, "latest user input", payload.values[41])
+	require.NotContains(t, payload.values[41], "system instruction")
+	require.NotContains(t, payload.values[41], "older user input")
+	require.NotContains(t, payload.values[41], "previous output")
 }
 
 func TestEnqueuerStagingPayloadPublishProtocolAndFailureCleanup(t *testing.T) {

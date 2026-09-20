@@ -23,6 +23,7 @@ REQUIRED_CATEGORIES = (
     "README",
     "Locales",
     "Codex Identity",
+    "Outbound Identity",
     "Security Audit",
     "OpenSpec",
     "Secrets",
@@ -39,7 +40,6 @@ REQUIRED_CATEGORIES = (
     "Publication Safety",
     "Upstream Merge",
     "Local Skill",
-    "Skill Trigger",
 )
 
 REQUIRED_PATHS = (
@@ -57,12 +57,26 @@ REQUIRED_PATHS = (
     "README_CN.md",
     "README_JA.md",
     "docs/SECURITY_AUDIT_CONTENT_COVERAGE.md",
+    "docs/OUTBOUND_IDENTITY.md",
     "skills/compress-cli",
     "skills/push-cli",
     "skills/release-cli",
 )
 
 PROTECTED_FRAGMENTS = {
+    "Outbound Identity": (
+        "Every provider-bound request must use a trusted User-Agent/client identifier/version triple under docs/OUTBOUND_IDENTITY.md",
+        "OAuth, setup-token, API Key, upstream, Bedrock, Vertex/service_account, compatible suppliers, and new account types have no bypass",
+        "Preserve the Codex Identity contract unchanged",
+        "Non-Codex precedence: valid credential-owning account > configured global preset/type default > valid environment/compiled default; empty/invalid candidates fall through atomically as documented",
+        "Inbound headers, generic overrides, cached fingerprints, SDK defaults, classification, and adapters must not select or overwrite identity",
+        "Reuse the same-account snapshot across HTTP/WS, retries, probes, discovery, usage, OAuth, and batch paths; failover resolves the new credential owner",
+        "Apply before signing and preserve signed declarations at send time",
+        "Render only provider-defined identity headers and keep companion/body declarations coherent",
+        "Version-only updates preserve source, client family, identifier, OS, architecture, terminal, and SDK fingerprint",
+        "New types/paths, version/dependency upgrades, and upstream merges must preserve this contract and pass source/default, header/body, transport-path, signing, failover, and fingerprint regressions; synchronize owning docs and tests before merge",
+        "Do not weaken identity rules or checks to accommodate upstream behavior",
+    ),
     "Codex Identity": (
         "credentials.user_agent > valid global openai_codex_user_agent > compiled default",
         "Empty/invalid candidates fall through only to the next source",
@@ -105,45 +119,47 @@ PROTECTED_FRAGMENTS = {
     ),
     "Documented Commands": (
         "repository scripts or Make targets",
+        "verify syntax, supported version, and execution environment",
     ),
     "Verification": (
-        "All validation must run in Docker on macOS/Linux",
-        "Docker inside WSL2 Debian/Ubuntu on Windows",
-        "Host-side validation is forbidden",
-        "After every validation remove project validation containers, temporary resources, and historical writable snapshots",
-        "Retain only project validation images and dependency caches whose deterministic identities match the current pinned toolchain and dependency-lock inputs",
-        "Remove stale project validation generations without pruning unrelated projects or global runtime resources",
+        "Build the final release package locally in Docker",
+        "user manual acceptance",
+        "Do not require full matrices, four-level gates, or repeated validation after acceptance",
+        "Retain the local acceptance environment and reusable dependency caches",
+        "explicit scoped cleanup authorization",
     ),
     "Push": (
-        "skills/push-cli push",
         "Never target the repository default branch",
+        "not the default publication path",
     ),
     "Submit PR": (
-        "skills/push-cli submit-pr",
-        "full profile",
-        "deterministic finalization tree",
-        "release-finalization",
-        "Host-side execution of the full matrix is forbidden",
+        "PRs are optional source collaboration, not a release prerequisite",
+        "actual local runtime and user acceptance evidence",
     ),
     "Release Promotion": (
-        "skills/release-cli",
-        "exact typed submit-pr proof",
-        "Independently regenerate release-finalization trees",
-        "without admin bypass",
-        "Release metadata validation must not repeat the complete local application matrix",
+        "Upload the same accepted package",
+        "No rebuild, repackaging, repeated checks, or GitHub builds after acceptance",
     ),
     "Release Flow": (
         "Never push or commit release changes directly to main",
-        "Tag only the actual PR merge commit",
-        "exact main push CI and Security Scan evidence",
-        "reuse that exact evidence rather than rerun the application matrix",
-        "separate and resumable",
+        "Tag the source commit recorded in the accepted local package",
+        "Upload all archives and pricing assets to a draft before publishing",
+        "No preparation or finalization PR is required",
     ),
     "Publication Safety": (
+        "release tags, Releases, or publication images",
         "without explicit publication request",
+        "Local validation image builds, reuse, and scoped cleanup follow Verification",
     ),
-    "Local Skill": ("skills/compress-cli",),
-    "Skill Trigger": ("Use compress-cli", "AGENTS.md"),
+    "Release Consistency": (
+        "For each release artifact",
+        "independently of the current embedded version",
+        "Never reuse or retag a published version",
+    ),
+    "Local Skill": (
+        "Use compress-cli at skills/compress-cli",
+        "when a request creates, compresses, validates, or updates AGENTS.md repository rules",
+    ),
 }
 
 CATEGORY_RE = re.compile(r"^\|([^:|]+):(.+)$")
@@ -240,9 +256,6 @@ def validate_agents(path: Path, *, repo_root: Path = ROOT) -> list[str]:
     source_value = categories.get("Sources")
     if source_value is not None:
         validate_source_paths(source_value, repo_root=repo_root, errors=errors)
-
-    if categories.get("Local Skill") not in (None, "skills/compress-cli"):
-        errors.append("category 'Local Skill' must be exactly 'skills/compress-cli'")
 
     return errors
 

@@ -18,6 +18,9 @@ type OpenAIOAuthClient interface {
 	RefreshToken(ctx context.Context, refreshToken, proxyURL string) (*openai.TokenResponse, error)
 	RefreshTokenWithClientID(ctx context.Context, refreshToken, proxyURL string, clientID string) (*openai.TokenResponse, error)
 	RefreshTokenWithClientIDAndIdentity(ctx context.Context, refreshToken, proxyURL, clientID, userAgent, originator, version string) (*openai.TokenResponse, error)
+	RevokeToken(ctx context.Context, token, tokenTypeHint, clientID, proxyURL, userAgent, originator string) error
+	StartDeviceCode(ctx context.Context, proxyURL, clientID string) (*openai.DeviceUserCodeResponse, error)
+	PollDeviceCode(ctx context.Context, proxyURL, deviceAuthID, userCode string) (*openai.DeviceTokenPollResponse, bool, error)
 }
 
 // GrokOAuthClient interface for xAI/Grok OAuth operations.
@@ -303,6 +306,7 @@ func (s *OAuthService) RefreshToken(ctx context.Context, refreshToken string, pr
 
 // RefreshAccountToken refreshes token for an account
 func (s *OAuthService) RefreshAccountToken(ctx context.Context, account *Account) (*TokenInfo, error) {
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	refreshToken := account.GetCredential("refresh_token")
 	if refreshToken == "" {
 		return nil, fmt.Errorf("no refresh token available")

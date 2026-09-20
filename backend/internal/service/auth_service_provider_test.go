@@ -52,3 +52,7 @@ func TestProvideAuthServiceWiresReusableInvitationRepository(t *testing.T) {
 
 	require.Same(t, reusableRepo, authService.reusableInvitationRepo)
 }
+
+func (*providerReusableInvitationRepoStub) SetOwner(context.Context, int64, int64) (*ReusableInvitationCodeOwnerResult, error) {
+	panic("unexpected SetOwner call")
+}

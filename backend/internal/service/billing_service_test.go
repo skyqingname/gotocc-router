@@ -344,6 +344,117 @@ func TestFallbackPricing_OpenAIGPT55ProUsesOfficialPrices(t *testing.T) {
 	require.Zero(t, pricing.OutputPricePerTokenPriority)
 }
 
+func TestFallbackPricing_OpenAIGPT6AstraUsesOfficialPrices(t *testing.T) {
+	svc := newTestBillingService()
+
+	pricing, err := svc.GetModelPricing("gpt-6-astra")
+	require.NoError(t, err)
+	require.InDelta(t, 10e-6, pricing.InputPricePerToken, 1e-12)
+	require.InDelta(t, 50e-6, pricing.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 1e-6, pricing.CacheReadPricePerToken, 1e-12)
+	require.InDelta(t, 12.5e-6, pricing.CacheCreationPricePerToken, 1e-12)
+	require.InDelta(t, 20e-6, pricing.InputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 100e-6, pricing.OutputPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 2e-6, pricing.CacheReadPricePerTokenPriority, 1e-12)
+	require.InDelta(t, 25e-6, pricing.CacheCreationPricePerTokenPriority, 1e-12)
+	require.Equal(t, 272_000, pricing.LongContextInputThreshold)
+	require.InDelta(t, 2.0, pricing.LongContextInputMultiplier, 1e-12)
+	require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12)
+}
+
+func TestCalculateCost_OpenAIGPT6AstraLongContextBoundaryAndTiers(t *testing.T) {
+	svc := newTestBillingService()
+
+	atBoundary, err := svc.CalculateCost("gpt-6-astra", UsageTokens{InputTokens: 272_000, OutputTokens: 10}, 1)
+	require.NoError(t, err)
+	require.False(t, atBoundary.LongContextBillingApplied)
+	require.InDelta(t, 272_000*10e-6, atBoundary.InputCost, 1e-10)
+	require.InDelta(t, 10*50e-6, atBoundary.OutputCost, 1e-10)
+
+	tokens := UsageTokens{
+		InputTokens:         272_001,
+		CacheReadTokens:     1_000,
+		CacheCreationTokens: 2_000,
+		OutputTokens:        100,
+	}
+	standard, err := svc.CalculateCost("gpt-6-astra", tokens, 1)
+	require.NoError(t, err)
+	require.True(t, standard.LongContextBillingApplied)
+	require.InDelta(t, float64(tokens.InputTokens)*10e-6*2, standard.InputCost, 1e-10)
+	require.InDelta(t, float64(tokens.CacheReadTokens)*1e-6*2, standard.CacheReadCost, 1e-10)
+	require.InDelta(t, float64(tokens.CacheCreationTokens)*12.5e-6*2, standard.CacheCreationCost, 1e-10)
+	require.InDelta(t, float64(tokens.OutputTokens)*50e-6*1.5, standard.OutputCost, 1e-10)
+
+	fast, err := svc.CalculateCostWithServiceTier("gpt-6-astra", tokens, 1, "fast")
+	require.NoError(t, err)
+	require.InDelta(t, standard.TotalCost*2, fast.TotalCost, 1e-10)
+
+	flex, err := svc.CalculateCostWithServiceTier("gpt-6-astra", tokens, 1, "flex")
+	require.NoError(t, err)
+	require.InDelta(t, standard.TotalCost*0.5, flex.TotalCost, 1e-10)
+}
+
+func TestCalculateCost_OpenAIGPT6AstraWholeRequestStartsAt272001TotalInput(t *testing.T) {
+	svc := newTestBillingService()
+	atBoundary := UsageTokens{
+		InputTokens:         100_000,
+		CacheCreationTokens: 100_000,
+		CacheReadTokens:     72_000,
+		OutputTokens:        100,
+	}
+	boundaryCost, err := svc.CalculateCost("gpt-6-astra", atBoundary, 1)
+	require.NoError(t, err)
+	require.False(t, boundaryCost.LongContextBillingApplied)
+	require.InDelta(t, 100_000*10e-6, boundaryCost.InputCost, 1e-12)
+	require.InDelta(t, 100_000*12.5e-6, boundaryCost.CacheCreationCost, 1e-12)
+	require.InDelta(t, 72_000*1e-6, boundaryCost.CacheReadCost, 1e-12)
+	require.InDelta(t, 100*50e-6, boundaryCost.OutputCost, 1e-12)
+
+	aboveBoundary := atBoundary
+	aboveBoundary.CacheReadTokens++
+	aboveCost, err := svc.CalculateCost("gpt-6-astra", aboveBoundary, 1)
+	require.NoError(t, err)
+	require.True(t, aboveCost.LongContextBillingApplied)
+	require.InDelta(t, 100_000*10e-6*2, aboveCost.InputCost, 1e-12)
+	require.InDelta(t, 100_000*12.5e-6*2, aboveCost.CacheCreationCost, 1e-12)
+	require.InDelta(t, 72_001*1e-6*2, aboveCost.CacheReadCost, 1e-12)
+	require.InDelta(t, 100*50e-6*1.5, aboveCost.OutputCost, 1e-12)
+}
+
+func TestBillingServiceGetModelPricing_OpenAIGPT6AstraOverridesStaleDefaultCatalogOnly(t *testing.T) {
+	pricingSvc := &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-6-astra": {
+			InputCostPerToken:               1e-6,
+			OutputCostPerToken:              2e-6,
+			CacheReadInputTokenCost:         3e-7,
+			LongContextInputTokenThreshold:  999_999,
+			LongContextInputCostMultiplier:  1.1,
+			LongContextOutputCostMultiplier: 1.2,
+		},
+		"gpt-5.6-sol": {
+			InputCostPerToken:  7e-6,
+			OutputCostPerToken: 31e-6,
+		},
+	}}
+	svc := NewBillingService(&config.Config{}, pricingSvc)
+
+	astra, err := svc.GetModelPricing("gpt-6-astra")
+	require.NoError(t, err)
+	require.InDelta(t, 10e-6, astra.InputPricePerToken, 1e-12)
+	require.InDelta(t, 50e-6, astra.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 1e-6, astra.CacheReadPricePerToken, 1e-12)
+	require.InDelta(t, 12.5e-6, astra.CacheCreationPricePerToken, 1e-12)
+	require.Equal(t, 272_000, astra.LongContextInputThreshold)
+	require.InDelta(t, 2.0, astra.LongContextInputMultiplier, 1e-12)
+	require.InDelta(t, 1.5, astra.LongContextOutputMultiplier, 1e-12)
+
+	// The Astra policy must not rewrite any existing model's catalog prices.
+	sol, err := svc.GetModelPricing("gpt-5.6-sol")
+	require.NoError(t, err)
+	require.InDelta(t, 7e-6, sol.InputPricePerToken, 1e-12)
+	require.InDelta(t, 31e-6, sol.OutputPricePerToken, 1e-12)
+}
+
 // 回归测试 #2293：长上下文计费触发时，cache_read_tokens 也应应用 LongContextInputMultiplier。
 // 修复前：CacheReadCost = tokens * 0.25e-6 （漏乘倍率，少计费用）。
 // 修复后：CacheReadCost = tokens * 0.25e-6 * LongContextInputMultiplier(=2.0)。
@@ -514,41 +625,63 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 		{
 			name:              "deepseek v4 flash",
 			model:             "deepseek-v4-flash",
-			expectedInput:     2.2e-7,
-			expectedOutput:    floatPtr(6.6e-7),
-			expectedCacheRead: floatPtr(7e-9),
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
+		},
+		{
+			// deepseek-flash（= V4.1-Flash 新名）经前缀兜底同样命中 flash 价卡。
+			name:              "deepseek flash v41 name maps to flash",
+			model:             "deepseek-flash",
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
 		},
 		{
 			name:              "deepseek v4 flash vision exp",
 			model:             "deepseek-v4-flash-vision-exp",
-			expectedInput:     2.2e-7,
-			expectedOutput:    floatPtr(6.6e-7),
-			expectedCacheRead: floatPtr(7e-9),
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
 		},
 		{
 			// deepseek-chat / deepseek-reasoner 已停止服务，统一按 flash 价兜底。
 			name:              "deepseek chat discontinued maps to flash",
 			model:             "deepseek-chat",
-			expectedInput:     2.2e-7,
-			expectedOutput:    floatPtr(6.6e-7),
-			expectedCacheRead: floatPtr(7e-9),
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
 		},
 		{
 			name:              "deepseek reasoner discontinued maps to flash",
 			model:             "deepseek-reasoner",
-			expectedInput:     2.2e-7,
-			expectedOutput:    floatPtr(6.6e-7),
-			expectedCacheRead: floatPtr(7e-9),
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
 		},
 		{
 			name:              "unknown deepseek maps to flash",
 			model:             "deepseek-foo",
-			expectedInput:     2.2e-7,
-			expectedOutput:    floatPtr(6.6e-7),
-			expectedCacheRead: floatPtr(7e-9),
+			expectedInput:     1.5e-7,
+			expectedOutput:    floatPtr(6e-7),
+			expectedCacheRead: floatPtr(3e-9),
 		},
 
 		// ---- 智谱 GLM（z.ai USD 口径）----
+		{
+			name:              "glm 5.3 flagship",
+			model:             "glm-5.3",
+			expectedInput:     1.4e-6,
+			expectedOutput:    floatPtr(4.4e-6),
+			expectedCacheRead: floatPtr(0.26e-6),
+		},
+		{
+			name:              "glm 5.3 flash",
+			model:             "glm-5.3-flash",
+			expectedInput:     0.15e-6,
+			expectedOutput:    floatPtr(0.5e-6),
+			expectedCacheRead: floatPtr(0.03e-6),
+		},
 		{
 			name:              "glm 5.2 flagship",
 			model:             "glm-5.2",
@@ -639,7 +772,21 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 			expectedInput:  0.1e-6,
 			expectedOutput: floatPtr(0.1e-6),
 		},
-		// 关键：5.1 / 5.2 必须先于 5 匹配（避免被 glm-5 抢走）
+		// 关键：5.1 / 5.2 / 5.3 必须先于 5 匹配（避免被 glm-5 抢走）
+		{
+			name:              "glm 5.3-flash vs glm 5.3 ordering (verbatim 5.3-flash)",
+			model:             "glm-5.3-flash",
+			expectedInput:     0.15e-6, // = glm-5.3-flash 价格（不是 glm-5.3 的 1.4e-6，更不是 glm-5 的 1e-6）
+			expectedOutput:    floatPtr(0.5e-6),
+			expectedCacheRead: floatPtr(0.03e-6),
+		},
+		{
+			name:              "glm 5.3 vs glm 5 ordering (verbatim 5.3)",
+			model:             "glm-5.3",
+			expectedInput:     1.4e-6, // = glm-5.3 价格（不是 glm-5 的 1e-6）
+			expectedOutput:    floatPtr(4.4e-6),
+			expectedCacheRead: floatPtr(0.26e-6),
+		},
 		{
 			name:              "glm 5.1 vs glm 5 ordering (verbatim 5.1)",
 			model:             "glm-5.1",
@@ -1431,6 +1578,7 @@ func TestCalculateCost_LargeTokenCount(t *testing.T) {
 func TestServiceTierCostMultiplier(t *testing.T) {
 	require.InDelta(t, 2.0, serviceTierCostMultiplier("priority"), 1e-12)
 	require.InDelta(t, 2.0, serviceTierCostMultiplier(" Priority "), 1e-12)
+	require.InDelta(t, 2.0, serviceTierCostMultiplier("ultrafast"), 1e-12)
 	require.InDelta(t, 0.5, serviceTierCostMultiplier("flex"), 1e-12)
 	require.InDelta(t, 1.0, serviceTierCostMultiplier(""), 1e-12)
 	require.InDelta(t, 1.0, serviceTierCostMultiplier("default"), 1e-12)
@@ -1770,6 +1918,8 @@ func TestGetModelPricing_Fable51FallbackPricing(t *testing.T) {
 	require.InDelta(t, 12.5e-6, pricing.CacheCreation5mPrice, 1e-12)
 	require.InDelta(t, 20e-6, pricing.CacheCreation1hPrice, 1e-12)
 	require.InDelta(t, 0.25e-6, pricing.CacheReadPricePerToken, 1e-12)
+	require.NotNil(t, pricing.MaxReasoningEffortMultiplier)
+	require.Equal(t, 3.0, *pricing.MaxReasoningEffortMultiplier)
 }
 
 func TestGetModelPricingWithChannel_CacheReadPriceAffectsPriority(t *testing.T) {

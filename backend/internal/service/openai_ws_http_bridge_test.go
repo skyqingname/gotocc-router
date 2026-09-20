@@ -1,6 +1,9 @@
+//go:build unit || !integration
+
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -1052,6 +1055,79 @@ func TestProxyOpenAIWSHTTPBridgeTurnBareErrorUsesAuthoritativeFailed(t *testing.
 	require.Equal(t, "response.failed", gjson.GetBytes(writes[1], "type").String())
 }
 
+func TestProxyOpenAIWSHTTPBridgeTurnMarksCyberPolicyForFailureShapes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantStatus int
+		wantInput  int
+		wantOutput int
+		wantResult bool
+		wantError  bool
+	}{
+		{
+			name:       "http_error_body",
+			statusCode: http.StatusBadRequest,
+			body:       `{"error":{"code":"cyber_policy","message":"blocked by HTTP cyber policy"}}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  true,
+		},
+		{
+			name:       "sse_error_event",
+			statusCode: http.StatusOK,
+			body:       "data: {\"type\":\"error\",\"error\":{\"code\":\"cyber_policy\",\"message\":\"blocked by error event\"},\"usage\":{\"input_tokens\":5,\"output_tokens\":1}}\n\n",
+			wantStatus: http.StatusOK,
+			wantInput:  5,
+			wantOutput: 1,
+			wantResult: true,
+			wantError:  true,
+		},
+		{
+			name:       "sse_response_failed_event",
+			statusCode: http.StatusOK,
+			body:       "data: {\"type\":\"response.failed\",\"response\":{\"id\":\"resp_cyber\",\"error\":{\"code\":\"cyber_policy\",\"message\":\"blocked by failed event\"},\"usage\":{\"input_tokens\":9,\"output_tokens\":2}}}\n\n",
+			wantStatus: http.StatusOK,
+			wantInput:  9,
+			wantOutput: 2,
+			wantResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			upstream := &httpUpstreamRecorder{resp: &http.Response{
+				StatusCode: tt.statusCode,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(tt.body)),
+			}}
+			svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+			account := &Account{ID: 112, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Concurrency: 1}
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
+			payload := []byte(`{"type":"response.create","model":"gpt-5","input":"hi"}`)
+
+			result, err := svc.proxyOpenAIWSHTTPBridgeTurn(
+				context.Background(), c, account, "sk-test", payload, len(payload),
+				"gpt-5", "", "", "", "", 1, func([]byte) error { return nil },
+			)
+
+			require.Equal(t, tt.wantResult, result != nil)
+			require.Equal(t, tt.wantError, err != nil)
+			mark := GetOpsCyberPolicy(c)
+			require.NotNil(t, mark)
+			require.Equal(t, "cyber_policy", mark.Code)
+			require.Equal(t, tt.wantStatus, mark.UpstreamStatus)
+			require.Equal(t, tt.wantInput, mark.UpstreamInTok)
+			require.Equal(t, tt.wantOutput, mark.UpstreamOutTok)
+			require.Contains(t, mark.Body, `"code":"cyber_policy"`)
+		})
+	}
+}
+
 func TestProxyOpenAIWSHTTPBridgeTurnBareErrorEOFSynthesizesFailed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_eof\",\"status\":\"in_progress\"}}\n\n" +
@@ -1113,6 +1189,39 @@ func TestProxyOpenAIWSHTTPBridgeTurnBareErrorFollowedByCompletedUsesCompleted(t 
 	require.Equal(t, "response.completed", gjson.GetBytes(writes[1], "type").String())
 }
 
+func TestProxyOpenAIWSHTTPBridgeTurnHTTPCapacityShedWritesClientErrorWithoutFailover(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	message := "Our servers are currently overloaded. Please try again later."
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusBadRequest,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":{"code":"server_is_overloaded","message":"` + message + `"}}`)),
+	}}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	account := &Account{ID: 13, Platform: PlatformOpenAI, Type: AccountTypeOAuth, Concurrency: 1}
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
+	payload := []byte(`{"type":"response.create","model":"gpt-5","input":"hi"}`)
+	var writes [][]byte
+
+	result, err := svc.proxyOpenAIWSHTTPBridgeTurn(
+		context.Background(), c, account, "sk-test", payload, len(payload),
+		"gpt-5", "", "", "", "", 1,
+		func(message []byte) error {
+			writes = append(writes, append([]byte(nil), message...))
+			return nil
+		},
+	)
+
+	require.NoError(t, err)
+	require.Nil(t, result)
+	require.Len(t, writes, 1)
+	require.Contains(t, string(writes[0]), `"code":"server_error"`)
+	require.NotContains(t, string(writes[0]), "server_is_overloaded")
+	require.Contains(t, string(writes[0]), message)
+}
+
 func TestProxyOpenAIWSHTTPBridgeTurnStagesMetadataBeforeCapacityFailover(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := strings.Join([]string{
@@ -1145,12 +1254,14 @@ func TestProxyOpenAIWSHTTPBridgeTurnStagesMetadataBeforeCapacityFailover(t *test
 		},
 	)
 
-	require.Nil(t, result)
-	var failoverErr *UpstreamFailoverError
-	require.ErrorAs(t, err, &failoverErr)
-	require.True(t, failoverErr.RetryableOnSameAccount)
-	require.True(t, failoverErr.RequestScopedTransient)
-	require.Empty(t, writes)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "response.failed", result.UpstreamTerminalEvent)
+	require.NotEmpty(t, writes)
+	joined := string(bytes.Join(writes, nil))
+	require.Contains(t, joined, `"code":"server_error"`)
+	require.NotContains(t, joined, "server_is_overloaded")
+	require.Contains(t, joined, "Our servers are currently overloaded")
 }
 
 func TestProxyOpenAIWSHTTPBridgeTurnDoesNotReplayCapacityAfterSemanticOutput(t *testing.T) {
@@ -1469,7 +1580,11 @@ func TestProxyOpenAIWSHTTPBridgeTurnFinalizesPromptCacheIdentity(t *testing.T) {
 			cacheIdentity := gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String()
 			require.NotEmpty(t, cacheIdentity)
 			require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get(codexSessionIDHeader))
-			require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get("session_id"))
+			if accountEmitsCodexConvergedSessionAliases(tt.account) {
+				require.Equal(t, cacheIdentity, upstream.lastReq.Header.Get("session_id"))
+			} else {
+				require.Empty(t, upstream.lastReq.Header.Get("session_id"))
+			}
 			require.Equal(t, "thread-cache-bridge", upstream.lastReq.Header.Get("x-client-request-id"))
 			require.Equal(t, tt.wantOptions, gjson.GetBytes(upstream.lastBody, "prompt_cache_options").Exists())
 			if tt.wantOriginalKeyGone {

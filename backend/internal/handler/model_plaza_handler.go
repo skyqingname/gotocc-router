@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"log/slog"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
@@ -15,7 +16,7 @@ import (
 // 广场路由挂 OptionalJWT 中间件：匿名可访问（除非 require_auth 开启），带 token 则
 // 识别用户。可见性规则（橱窗语义，与「可用渠道」的可绑定语义不同）：
 //   - 匿名：仅非专属分组（订阅型照常展示）；
-//   - 登录：非专属分组 + user_allowed_groups 授权的专属分组（不检查订阅有效性）；
+//   - 登录：非专属分组 + user_allowed_groups 授权或持有有效订阅的专属分组；
 //     若该用户开启了公开分组限制，则公开分组同样需要落在授权集合内。
 type ModelPlazaHandler struct {
 	modelPlazaService *service.ModelPlazaService
@@ -76,18 +77,19 @@ type modelPlazaModel struct {
 
 // modelPlazaGroup 广场分组条目（白名单字段）。
 type modelPlazaGroup struct {
-	ID                 int64    `json:"id"`
-	Name               string   `json:"name"`
-	Description        string   `json:"description"`
-	Platform           string   `json:"platform"`
-	SubscriptionType   string   `json:"subscription_type"`
-	RateMultiplier     float64  `json:"rate_multiplier"`
-	UserRateMultiplier *float64 `json:"user_rate_multiplier,omitempty"`
-	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
-	PeakStart          string   `json:"peak_start"`
-	PeakEnd            string   `json:"peak_end"`
-	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
-	IsExclusive        bool     `json:"is_exclusive"`
+	ID                 int64               `json:"id"`
+	Name               string              `json:"name"`
+	Description        string              `json:"description"`
+	Platform           string              `json:"platform"`
+	SubscriptionType   string              `json:"subscription_type"`
+	RateMultiplier     float64             `json:"rate_multiplier"`
+	UserRateMultiplier *float64            `json:"user_rate_multiplier,omitempty"`
+	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
+	PeakStart          string              `json:"peak_start"`
+	PeakEnd            string              `json:"peak_end"`
+	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
+	RateSchedule       rateschedule.Config `json:"rate_schedule"`
+	IsExclusive        bool                `json:"is_exclusive"`
 	// 生图独立倍率：为 true 时图片计费模型的实付倍率取 ImageRateMultiplier，
 	// 不取分组/用户专属倍率。
 	ImageRateIndependent bool    `json:"image_rate_independent"`
@@ -160,7 +162,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 }
 
 // filterPlazaVisibleGroups 按登录态裁剪分组可见性。
-// allowedGroups == nil 表示匿名（仅非专属）；非 nil 表示登录（非专属 + 授权专属）。
+// allowedGroups == nil 表示匿名（仅非专属）；非 nil 包含普通授权及有效订阅分组。
 // restrictPublicGroups 为 true 时，公开分组也必须落在 allowedGroups 内，否则用户会
 // 在广场看到自己实际绑定不了的分组。
 func filterPlazaVisibleGroups(
@@ -208,6 +210,7 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) mo
 		PeakStart:                 g.PeakStart,
 		PeakEnd:                   g.PeakEnd,
 		PeakRateMultiplier:        g.PeakRateMultiplier,
+		RateSchedule:              g.RateSchedule,
 		IsExclusive:               g.IsExclusive,
 		ImageRateIndependent:      g.ImageRateIndependent,
 		ImageRateMultiplier:       g.ImageRateMultiplier,

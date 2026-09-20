@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -14,7 +16,10 @@ import check_release
 import check_new_migrations
 import check_published_release
 import release_docs
+import release_finalization
 import release_preflight
+import release_validation
+import validation_runtime
 import workflow_provenance
 
 
@@ -95,7 +100,258 @@ class ReleaseNotesTests(unittest.TestCase):
         self.assertTrue(any("does not name official commit" in error for error in errors))
 
 
+class ReleaseContainerTests(unittest.TestCase):
+    command = [sys.executable, "tools/check_release.py", "--tag", TAG]
+
+    def test_validation_container_forwards_proxy_names_without_values(self) -> None:
+        runtime = validation_runtime.Runtime("linux-docker", (), None)
+        with mock.patch.dict(
+            os.environ,
+            {
+                "HTTP_PROXY": "http://proxy-user:proxy-secret@example.invalid:8080",
+                "https_proxy": "http://lowercase.example.invalid:8080",
+                "HTTPS_PROXY": "",
+                "NO_PROXY": "",
+                "http_proxy": "",
+                "no_proxy": "",
+            },
+            clear=True,
+        ), mock.patch.object(Path, "home", side_effect=RuntimeError):
+            argv = validation_runtime.validation_run_command(
+                runtime,
+                self.command,
+                root=ROOT,
+                image="sub2api-validation:test",
+                user=None,
+                caches=[],
+            )
+        self.assertIn("HTTP_PROXY", argv)
+        self.assertIn("https_proxy", argv)
+        self.assertNotIn("HTTPS_PROXY", argv)
+        self.assertNotIn("proxy-secret", " ".join(argv))
+        self.assertIn(
+            f"{validation_runtime.CONTAINER_HOME}/.cache/sub2api-validation/",
+            " ".join(argv),
+        )
+
+    def test_unavailable_runtime_never_runs_check_on_host(self) -> None:
+        with (
+            mock.patch.dict(os.environ, {validation_runtime.IN_VALIDATION_ENV: ""}),
+            mock.patch.object(validation_runtime, "in_validation_container", return_value=False),
+            mock.patch.object(validation_runtime, "probe_runtime", side_effect=validation_runtime.ValidationRuntimeError("WSL2 Docker unavailable")),
+            mock.patch.object(release_validation, "execute") as execute,
+        ):
+            result = release_validation.run(self.command, root=ROOT)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("WSL2 Docker unavailable", result.stdout)
+        execute.assert_not_called()
+
+    def test_flag_without_container_marker_is_rejected(self) -> None:
+        with (
+            mock.patch.dict(os.environ, {validation_runtime.IN_VALIDATION_ENV: "1"}),
+            mock.patch.object(validation_runtime, "in_validation_container", return_value=False),
+            mock.patch.object(release_validation, "execute") as execute,
+        ):
+            result = release_validation.run(self.command, root=ROOT)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("marker", result.stdout)
+        execute.assert_not_called()
+
+    def test_existing_container_runs_check_without_nested_runtime(self) -> None:
+        completed = subprocess.CompletedProcess(self.command, 3, "metadata rejected")
+        with (
+            mock.patch.object(validation_runtime, "in_validation_container", return_value=True),
+            mock.patch.object(validation_runtime, "require_in_validation") as guard,
+            mock.patch.object(validation_runtime, "probe_runtime") as probe,
+            mock.patch.object(release_validation, "execute", return_value=completed) as execute,
+        ):
+            result = release_validation.run(self.command, root=ROOT)
+        self.assertEqual(result.returncode, 3)
+        guard.assert_called_once_with(tool="release validation")
+        execute.assert_called_once_with(self.command, root=ROOT)
+        probe.assert_not_called()
+
+    def test_container_failure_preserves_status_and_cleans_runtime(self) -> None:
+        selected = validation_runtime.Runtime("wsl2-docker", ("wsl.exe", "-d", "Debian", "--"), "/mnt/c/repo")
+        with (
+            mock.patch.dict(os.environ, {validation_runtime.IN_VALIDATION_ENV: ""}),
+            mock.patch.object(validation_runtime, "in_validation_container", return_value=False),
+            mock.patch.object(validation_runtime, "probe_runtime", return_value=selected),
+            mock.patch.object(validation_runtime, "ensure_validation_image"),
+            mock.patch.object(validation_runtime, "runtime_user", return_value="1000:1000"),
+            mock.patch.object(validation_runtime, "cache_mounts", return_value=[]),
+            mock.patch.object(validation_runtime, "cleanup_validation_runtime") as cleanup,
+            mock.patch.object(release_validation, "execute", return_value=subprocess.CompletedProcess([], 7, "bad metadata")) as execute,
+        ):
+            result = release_validation.run(self.command, root=ROOT)
+        self.assertEqual(result.returncode, 7)
+        self.assertIn("bad metadata", result.stdout)
+        cleanup.assert_called_once()
+        argv = execute.call_args.args[0]
+        self.assertEqual(argv[:6], ["wsl.exe", "-d", "Debian", "--", "docker", "run"])
+        self.assertIn("--rm", argv)
+        self.assertIn("PYTHONDONTWRITEBYTECODE=1", argv)
+        self.assertEqual(argv[-4:], ["python3", "/mnt/c/repo/tools/check_release.py", "--tag", TAG])
+
+    def test_external_notes_are_staged_and_removed_even_on_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "repo with spaces"
+            root.mkdir()
+            notes = Path(temp) / "external notes.md"
+            content = valid_notes()
+            notes.write_text(content, encoding="utf-8")
+            selected = validation_runtime.Runtime("wsl2-docker", (), "/mnt/c/repo with spaces")
+            staged: list[Path] = []
+
+            def launch(runtime, argv, **kwargs):
+                argument = argv[argv.index("--notes-file") + 1]
+                relative = argument.removeprefix("/mnt/c/repo with spaces/")
+                stage = root / relative
+                self.assertEqual(stage.read_text(encoding="utf-8"), content)
+                self.assertNotEqual(stage, notes)
+                staged.append(stage)
+                raise subprocess.CalledProcessError(4, ["docker", "run"], "rejected")
+
+            with (
+                mock.patch.dict(os.environ, {validation_runtime.IN_VALIDATION_ENV: ""}),
+                mock.patch.object(validation_runtime, "in_validation_container", return_value=False),
+                mock.patch.object(validation_runtime, "probe_runtime", return_value=selected),
+                mock.patch.object(validation_runtime, "ensure_validation_image"),
+                mock.patch.object(validation_runtime, "launch_in_validation", side_effect=launch),
+            ):
+                result = release_validation.run([*self.command, "--notes-file", str(notes)], root=root)
+            self.assertEqual(result.returncode, 4)
+            self.assertTrue(staged)
+            self.assertFalse(staged[0].exists())
+            self.assertFalse((root / "temp").exists())
+            self.assertEqual(notes.read_text(encoding="utf-8"), content)
+
+    def test_runner_cannot_launch_publication_commands(self) -> None:
+        with mock.patch.object(release_validation, "execute") as execute:
+            result = release_validation.run(
+                [sys.executable, "skills/release-cli/scripts/release_cli.py", "publish", "--tag", TAG],
+                root=ROOT,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        execute.assert_not_called()
+
+    def test_metadata_failure_prevents_local_tag_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            notes = Path(temp) / "notes.md"
+            notes.write_text(valid_notes(), encoding="utf-8")
+            with (
+                mock.patch.object(sys, "argv", ["release_preflight.py", "--tag", TAG, "--notes-file", str(notes), "--create-tag"]),
+                mock.patch.object(release_preflight, "ensure_clean"),
+                mock.patch.object(release_preflight, "ensure_tag_absent"),
+                mock.patch.object(release_preflight, "git_output", side_effect=["a" * 40, "b" * 40, "b" * 40]),
+                mock.patch.object(release_validation, "run", return_value=subprocess.CompletedProcess([], 1, "metadata rejected")) as check,
+                mock.patch.object(release_preflight, "run") as mutate,
+            ):
+                self.assertEqual(release_preflight.main(), 1)
+        check.assert_called_once()
+        mutate.assert_not_called()
+
+    def test_successful_preflight_verifies_tag_against_release_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            notes_file = Path(temp) / "notes.md"
+            notes = valid_notes()
+            notes_file.write_bytes(notes.replace("\n", "\r\n").encode("utf-8"))
+            commit = "a" * 40
+            tree = "b" * 40
+            with (
+                mock.patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "release_preflight.py",
+                        "--tag",
+                        TAG,
+                        "--notes-file",
+                        str(notes_file),
+                        "--create-tag",
+                    ],
+                ),
+                mock.patch.object(release_preflight, "ensure_clean"),
+                mock.patch.object(release_preflight, "ensure_tag_absent"),
+                mock.patch.object(
+                    release_preflight,
+                    "git_output",
+                    side_effect=[commit, tree, tree, tree],
+                ),
+                mock.patch.object(release_preflight, "run_metadata_check"),
+                mock.patch.object(
+                    release_preflight,
+                    "run",
+                    return_value=subprocess.CompletedProcess([], 0, ""),
+                ) as create_tag,
+                mock.patch.object(release_preflight, "verify_created_tag") as verify,
+            ):
+                self.assertEqual(release_preflight.main(), 0)
+
+        create_tag.assert_called_once_with(
+            release_preflight.tag_creation_command(TAG, commit, notes),
+            capture=True,
+        )
+        verify.assert_called_once_with(
+            TAG,
+            commit,
+            f"Sub2API Plus {TAG}",
+            notes,
+        )
+
+
 class ReleaseBaselineTests(unittest.TestCase):
+    def test_finalization_regenerates_exact_tree_and_removes_temporary_worktree(self) -> None:
+        current_tag = "v" + ROOT.joinpath("backend/cmd/server/VERSION").read_text().strip()
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            paths = [rule.path for rule in release_docs.DOCUMENT_RULES]
+            paths.extend([
+                "backend/cmd/server/VERSION", "UPSTREAM.md",
+                "tools/update_release_docs.py", "tools/release_docs.py",
+            ])
+            for relative in paths:
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(ROOT.joinpath(relative).read_text(encoding="utf-8"), encoding="utf-8")
+            upstream = root / "UPSTREAM.md"
+            original = upstream.read_text(encoding="utf-8")
+            planned = re.sub(
+                rf"^(\|\s*`{re.escape(current_tag)}`.*\|\s*)published(\s*\|)$",
+                r"\1planned\2", original, flags=re.MULTILINE,
+            )
+            upstream.write_text(planned, encoding="utf-8")
+
+            def git(*args):
+                return subprocess.check_output(
+                    ["git", "-C", str(root), *args], text=True, stderr=subprocess.STDOUT
+                ).strip()
+
+            git("init", "--quiet")
+            git("config", "user.email", "fixture@example.invalid")
+            git("config", "user.name", "Release fixture")
+            git("config", "commit.gpgsign", "false")
+            git("add", ".")
+            git("commit", "--quiet", "-m", "base fixture")
+            base = git("rev-parse", "HEAD")
+            upstream.write_text(release_finalization.replace_planned_mapping(planned, current_tag), encoding="utf-8")
+            git("add", "UPSTREAM.md")
+            git("commit", "--quiet", "-m", "finalization fixture")
+            head = git("rev-parse", "HEAD")
+            result = release_finalization.validate_finalization(
+                root, base=base, head=head, expected_tag=current_tag,
+                branch=release_finalization.finalization_branch(current_tag),
+            )
+            self.assertEqual(result.paths, frozenset({"UPSTREAM.md"}))
+            self.assertEqual(git("status", "--porcelain"), "")
+            self.assertEqual(git("worktree", "list", "--porcelain").count("worktree "), 1)
+            root.joinpath("unexpected.txt").write_text("unrelated change")
+            git("add", "unexpected.txt")
+            git("commit", "--quiet", "-m", "unrelated change")
+            with self.assertRaisesRegex(release_finalization.ReleaseFinalizationError, "not the deterministic"):
+                release_finalization.validate_finalization(root, base=base, head=git("rev-parse", "HEAD"))
+            self.assertEqual(git("worktree", "list", "--porcelain").count("worktree "), 1)
+
     def test_required_status_is_exact(self) -> None:
         errors: list[str] = []
         check_release.validate_required_status(TAG, "published", "planned", errors)
@@ -381,7 +637,8 @@ class WorkflowPolicyTests(unittest.TestCase):
         expected_jobs = {
             "backend-ci.yml": {
                 "deployment-config",
-                "test",
+                "test-unit",
+                "test-integration",
                 "frontend",
                 "golangci-lint",
                 "goreleaser-config",
@@ -424,7 +681,36 @@ class WorkflowPolicyTests(unittest.TestCase):
         workflow = ROOT.joinpath(".github/workflows/security-scan.yml").read_text(
             encoding="utf-8"
         )
-        self.assertRegex(workflow, r"push:\n\s+branches:\n\s+- \"\*\*\"")
+        self.assertRegex(workflow, r"push:\n\s+branches:\n\s+- main\n")
+        self.assertNotIn("tags:", workflow)
+
+    def test_ci_and_security_scan_run_on_main_push_and_pull_request(self) -> None:
+        for name in ("backend-ci.yml", "security-scan.yml"):
+            workflow = ROOT.joinpath(".github", "workflows", name).read_text(
+                encoding="utf-8"
+            )
+            with self.subTest(workflow=name):
+                self.assertRegex(workflow, r"push:\n\s+branches:\n\s+- main\n")
+                self.assertIn("pull_request:", workflow)
+                self.assertNotRegex(workflow, r'branches:\n\s+- "\*\*"')
+                self.assertIn("cancel-in-progress:", workflow)
+
+    def test_backend_test_aggregator_requires_unit_and_integration_lanes(self) -> None:
+        workflow = ROOT.joinpath(".github/workflows/backend-ci.yml").read_text(
+            encoding="utf-8"
+        )
+        job_re = re.compile(
+            r"^  (?P<job>[a-z0-9-]+):\n(?P<body>.*?)(?=^  [a-z0-9-]+:\n|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        jobs = {match.group("job"): match.group("body") for match in job_re.finditer(workflow)}
+        body = jobs["test"]
+        self.assertIn("needs: [test-unit, test-integration]", body)
+        self.assertIn("if: always()", body)
+        self.assertNotIn(
+            "uses: ./.github/actions/classify-release-finalization",
+            body,
+        )
 
     def test_actionlint_container_is_pinned_to_a_digest(self) -> None:
         workflow = ROOT.joinpath(".github/workflows/backend-ci.yml").read_text(
@@ -467,6 +753,7 @@ class WorkflowPolicyTests(unittest.TestCase):
             "python skills/release-cli/tests/test_release_cli.py",
             workflow,
         )
+        self.assertIn("python tools/check_test_build_tags.py", workflow)
 
 
 class ReleaseTagTests(unittest.TestCase):
@@ -482,7 +769,7 @@ class ReleaseTagTests(unittest.TestCase):
                 ("git", "config", "user.name", "Release Policy Test"),
                 ("git", "config", "user.email", "release-policy@example.invalid"),
                 ("git", "commit", "--allow-empty", "--quiet", "-m", "initial"),
-                release_preflight.tag_creation_command(TAG, "HEAD", notes_file),
+                release_preflight.tag_creation_command(TAG, "HEAD", notes),
             )
             for command in commands:
                 result = release_preflight.run(command, cwd=root, capture=True)
@@ -506,6 +793,25 @@ class ReleaseTagTests(unittest.TestCase):
             self.assertEqual(result.stdout.strip(), notes.strip())
             self.assertIn("## Highlights", result.stdout)
             self.assertIn("## Upstream baseline", result.stdout)
+            commit = release_preflight.run(
+                ("git", "rev-parse", "HEAD"), cwd=root, capture=True
+            ).stdout.strip()
+            original_run = release_preflight.run
+            with mock.patch.object(
+                release_preflight,
+                "run",
+                side_effect=lambda command, **options: original_run(
+                    command,
+                    cwd=root,
+                    capture=options.get("capture", False),
+                ),
+            ):
+                release_preflight.verify_created_tag(
+                    TAG,
+                    commit,
+                    f"Sub2API Plus {TAG}",
+                    notes,
+                )
 
 
 class ReleaseDocumentTests(unittest.TestCase):

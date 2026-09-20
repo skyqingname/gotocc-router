@@ -40,6 +40,25 @@ class CompressCliTest(unittest.TestCase):
     def test_current_agents_document_passes(self) -> None:
         self.assertEqual([], self.validate_text(self.valid_document))
 
+    def test_clarified_rules_preserve_publication_and_validation_boundaries(self) -> None:
+        regressions = (
+            ("release tags, Releases, or publication images", "public images only"),
+            ("without explicit publication request", "when convenient"),
+            ("Local validation image builds, reuse, and scoped cleanup follow Verification", "Local validation images are unregulated"),
+            ("Verification container environment", "any available environment"),
+            ("focused checks use the same container environment", "focused checks may run on the host"),
+            ("independently of the current embedded version", "by resetting the current version to the old tag"),
+            ("Use compress-cli at skills/compress-cli", "Use an arbitrary compression tool"),
+            ("when a request creates, compresses, validates, or updates AGENTS.md repository rules", "for any repository task"),
+        )
+        for original, replacement in regressions:
+            with self.subTest(original=original):
+                self.assertIn(original, self.valid_document)
+                self.assert_error_contains(
+                    self.validate_text(self.valid_document.replace(original, replacement)),
+                    "missing protected content",
+                )
+
     def test_cli_check_is_read_only_and_passes_current_document(self) -> None:
         before = ROOT.joinpath("AGENTS.md").read_bytes()
         result = subprocess.run(
@@ -126,6 +145,60 @@ class CompressCliTest(unittest.TestCase):
         errors = self.validate_text(changed)
         self.assert_error_contains(errors, "credentials.user_agent")
 
+    def test_missing_outbound_identity_category_fails(self) -> None:
+        changed = "\n".join(
+            line
+            for line in self.valid_document.splitlines()
+            if not line.startswith("|Outbound Identity:")
+        )
+        self.assert_error_contains(
+            self.validate_text(changed), "missing required category 'Outbound Identity'"
+        )
+
+    def test_outbound_identity_contract_cannot_be_weakened(self) -> None:
+        regressions = (
+            ("trusted User-Agent/client identifier/version triple", "a User-Agent"),
+            ("new account types have no bypass", "new account types may bypass"),
+            ("Preserve the Codex Identity contract unchanged", "Use a new Codex source chain"),
+            (
+                "valid credential-owning account > configured global preset/type default > valid environment/compiled default",
+                "SDK defaults > inbound headers > account settings",
+            ),
+            ("empty/invalid candidates fall through atomically", "mix candidate fields"),
+            ("must not select or overwrite identity", "may overwrite identity"),
+            ("Reuse the same-account snapshot", "Resolve again on every send"),
+            ("HTTP/WS, retries, probes, discovery, usage, OAuth, and batch paths", "HTTP inference only"),
+            ("failover resolves the new credential owner", "failover retains the previous owner"),
+            ("Apply before signing and preserve signed declarations at send time", "Apply identity after signing"),
+            ("Render only provider-defined identity headers", "Send Codex headers to every provider"),
+            ("keep companion/body declarations coherent", "preserve caller body versions"),
+            (
+                "Version-only updates preserve source, client family, identifier, OS, architecture, terminal, and SDK fingerprint",
+                "Version updates may replace the client fingerprint",
+            ),
+            (
+                "New types/paths, version/dependency upgrades, and upstream merges must preserve this contract",
+                "Upstream upgrades may bypass this contract",
+            ),
+            (
+                "pass source/default, header/body, transport-path, signing, failover, and fingerprint regressions",
+                "pass a smoke test",
+            ),
+            ("synchronize owning docs and tests before merge", "update documentation later"),
+            (
+                "Do not weaken identity rules or checks to accommodate upstream behavior",
+                "Disable failing identity checks during upstream merges",
+            ),
+        )
+        for original, replacement in regressions:
+            with self.subTest(regression=original):
+                self.assertIn(original, self.valid_document)
+                changed = self.valid_document.replace(original, replacement)
+                self.assert_error_contains(
+                    self.validate_text(changed),
+                    "category 'Outbound Identity' is missing protected content",
+                )
+
     def test_codex_version_sync_cannot_change_identity_fingerprint(self) -> None:
         changed = self.valid_document.replace(
             "Version sync may update only selected identity version declarations and must not change source, client family, Originator, OS, architecture, or terminal fingerprint",
@@ -149,65 +222,6 @@ class CompressCliTest(unittest.TestCase):
         )
         errors = self.validate_text(changed)
         self.assert_error_contains(errors, "owning documentation and tests")
-
-    def test_release_finalization_profile_cannot_lose_deterministic_gate(self) -> None:
-        changed = self.valid_document.replace(
-            "Only a verified published tag on its deterministic finalization tree may use release-finalization",
-            "Finalization may use a smaller check set",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "deterministic finalization tree")
-
-    def test_all_validation_remains_platform_container_only(self) -> None:
-        changed = self.valid_document.replace(
-            "Host-side validation is forbidden",
-            "Host-side focused validation is allowed",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "Host-side validation is forbidden")
-
-    def test_macos_validation_remains_docker_based(self) -> None:
-        changed = self.valid_document.replace(
-            "All validation must run in Docker on macOS/Linux",
-            "Validation runtime is operator-selected",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "Docker on macOS/Linux")
-
-    def test_validation_ephemeral_cleanup_remains_mandatory(self) -> None:
-        changed = self.valid_document.replace(
-            "After every validation remove project validation containers, temporary resources, and historical writable snapshots",
-            "Validation cleanup is optional",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "After every validation remove")
-
-    def test_current_validation_generation_must_remain_reusable(self) -> None:
-        changed = self.valid_document.replace(
-            "Retain only project validation images and dependency caches whose deterministic identities match the current pinned toolchain and dependency-lock inputs",
-            "Delete all project validation images and caches",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "Retain only project validation images")
-
-    def test_stale_validation_cleanup_remains_scoped(self) -> None:
-        changed = self.valid_document.replace(
-            "Remove stale project validation generations without pruning unrelated projects or global runtime resources",
-            "Prune the container runtime after validation",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(errors, "without pruning unrelated projects")
-
-    def test_tag_workflow_must_reuse_exact_main_evidence(self) -> None:
-        changed = self.valid_document.replace(
-            "The tag workflow must reuse that exact evidence rather than rerun the application matrix",
-            "The tag workflow validates the release",
-        )
-        errors = self.validate_text(changed)
-        self.assert_error_contains(
-            errors,
-            "reuse that exact evidence rather than rerun the application matrix",
-        )
 
     def test_unknown_source_path_fails(self) -> None:
         changed = self.valid_document.replace(

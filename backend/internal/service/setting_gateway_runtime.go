@@ -53,7 +53,6 @@ const backendModeDBTimeout = 5 * time.Second
 
 // cachedGatewayForwardingSettings 缓存网关转发行为设置（进程内缓存，60s TTL）
 type cachedGatewayForwardingSettings struct {
-	openAITTFTMode                   string
 	fingerprintUnification           bool
 	metadataPassthrough              bool
 	cchSigning                       bool
@@ -97,7 +96,7 @@ const antigravityUserAgentVersionErrorTTL = 5 * time.Second
 const antigravityUserAgentVersionDBTimeout = 5 * time.Second
 
 // DefaultOpenAICodexUserAgent 是 OpenAI Codex 默认 User-Agent，用于规避浏览器 UA 的质询。
-// 默认采用 codex-tui 身份，版本段随 codexCLIVersion 一起更新。
+// 默认采用官方 CLI originator，OS/终端指纹钉死 Ubuntu，版本段随 codexCLIVersion 一起更新。
 const DefaultOpenAICodexUserAgent = codexCLIUserAgent
 
 // DefaultOpenAICodexVersion is the version paired with DefaultOpenAICodexUserAgent.
@@ -112,6 +111,11 @@ type cachedOpenAICodexUserAgent struct {
 	value                      string
 	legacyCompatibilityEnabled bool
 	expiresAt                  int64 // unix nano
+}
+
+type cachedOpenAICodexEnvironmentTimezone struct {
+	value     string
+	expiresAt int64 // unix nano
 }
 
 // cachedOpenAICodexLocalGroupQuota keeps the local Codex quota switch on the
@@ -143,6 +147,9 @@ type cachedOpenAIQuotaAutoPauseSettings struct {
 const openAICodexUserAgentCacheTTL = 60 * time.Second
 const openAICodexUserAgentErrorTTL = 5 * time.Second
 const openAICodexUserAgentDBTimeout = 5 * time.Second
+const openAICodexEnvironmentTimezoneCacheTTL = 60 * time.Second
+const openAICodexEnvironmentTimezoneErrorTTL = 5 * time.Second
+const openAICodexEnvironmentTimezoneDBTimeout = 5 * time.Second
 const openAICodexLocalGroupQuotaCacheTTL = 60 * time.Second
 const openAICodexLocalGroupQuotaErrorTTL = 5 * time.Second
 const openAICodexLocalGroupQuotaDBTimeout = 5 * time.Second
@@ -332,6 +339,51 @@ func (s *SettingService) GetOpenAICodexOutboundProfile(ctx context.Context) (str
 		return cached.value, cached.legacyCompatibilityEnabled
 	}
 	return fallback, false
+}
+
+// GetOpenAICodexEnvironmentTimezone returns the global model-visible
+// environment_context timezone (IANA name) for Codex accounts. An empty
+// result means the feature is off. The stored value is validated here so
+// callers receive "" instead of a misconfigured string.
+func (s *SettingService) GetOpenAICodexEnvironmentTimezone(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return ""
+	}
+	if cached, ok := s.openAICodexEnvironmentTimezoneCache.Load().(*cachedOpenAICodexEnvironmentTimezone); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+		return cached.value
+	}
+	result, _, _ := s.openAICodexEnvironmentTimezoneSF.Do("openai_codex_environment_timezone", func() (any, error) {
+		if cached, ok := s.openAICodexEnvironmentTimezoneCache.Load().(*cachedOpenAICodexEnvironmentTimezone); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+			return cached, nil
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), openAICodexEnvironmentTimezoneDBTimeout)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, SettingKeyOpenAICodexEnvironmentTimezone)
+		if err != nil && !errors.Is(err, ErrSettingNotFound) {
+			slog.Warn("failed to get openai codex environment timezone setting", "error", err)
+			entry := &cachedOpenAICodexEnvironmentTimezone{expiresAt: time.Now().Add(openAICodexEnvironmentTimezoneErrorTTL).UnixNano()}
+			if cached, ok := s.openAICodexEnvironmentTimezoneCache.Load().(*cachedOpenAICodexEnvironmentTimezone); ok && cached != nil {
+				entry.value = cached.value
+			}
+			s.openAICodexEnvironmentTimezoneCache.Store(entry)
+			return entry, nil
+		}
+		entry := &cachedOpenAICodexEnvironmentTimezone{
+			value:     strings.TrimSpace(value),
+			expiresAt: time.Now().Add(openAICodexEnvironmentTimezoneCacheTTL).UnixNano(),
+		}
+		s.openAICodexEnvironmentTimezoneCache.Store(entry)
+		return entry, nil
+	})
+	if entry, ok := result.(*cachedOpenAICodexEnvironmentTimezone); ok && entry != nil {
+		if normalized, err := NormalizeOpenAICodexEnvironmentTimezone(entry.value); err == nil {
+			return normalized
+		}
+	}
+	return ""
 }
 
 // IsOpenAICodexLocalGroupQuotaEnabled reports whether Codex clients should
@@ -787,7 +839,6 @@ func (s *SettingService) IsBackendModeEnabled(ctx context.Context) bool {
 }
 
 type gatewayForwardingSettingsResult struct {
-	openAITTFTMode                                                                        string
 	fp, mp, cch, claudeOAuthSystemPromptInjection, cacheTTL1h, rewriteMessageCacheControl bool
 	clientDatelineNormalization                                                           bool
 	claudeOAuthSystemPrompt, claudeOAuthSystemPromptBlocks                                string
@@ -797,7 +848,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 	if cached, ok := gatewayForwardingCache.Load().(*cachedGatewayForwardingSettings); ok && cached != nil {
 		if time.Now().UnixNano() < cached.expiresAt {
 			return gatewayForwardingSettingsResult{
-				openAITTFTMode:                   cached.openAITTFTMode,
 				fp:                               cached.fingerprintUnification,
 				mp:                               cached.metadataPassthrough,
 				cch:                              cached.cchSigning,
@@ -814,7 +864,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 		if cached, ok := gatewayForwardingCache.Load().(*cachedGatewayForwardingSettings); ok && cached != nil {
 			if time.Now().UnixNano() < cached.expiresAt {
 				return gatewayForwardingSettingsResult{
-					openAITTFTMode:                   cached.openAITTFTMode,
 					fp:                               cached.fingerprintUnification,
 					mp:                               cached.metadataPassthrough,
 					cch:                              cached.cchSigning,
@@ -830,7 +879,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gatewayForwardingDBTimeout)
 		defer cancel()
 		values, err := s.settingRepo.GetMultiple(dbCtx, []string{
-			SettingKeyOpenAITTFTMode,
 			SettingKeyEnableFingerprintUnification,
 			SettingKeyEnableMetadataPassthrough,
 			SettingKeyEnableCCHSigning,
@@ -844,7 +892,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 		if err != nil {
 			slog.Warn("failed to get gateway forwarding settings", "error", err)
 			gatewayForwardingCache.Store(&cachedGatewayForwardingSettings{
-				openAITTFTMode:                   OpenAITTFTModeSemantic,
 				fingerprintUnification:           true,
 				metadataPassthrough:              false,
 				cchSigning:                       false,
@@ -854,9 +901,8 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 				clientDatelineNormalization:      true,
 				expiresAt:                        time.Now().Add(gatewayForwardingErrorTTL).UnixNano(),
 			})
-			return gatewayForwardingSettingsResult{openAITTFTMode: OpenAITTFTModeSemantic, fp: true, claudeOAuthSystemPromptInjection: true, rewriteMessageCacheControl: s.defaultRewriteMessageCacheControl(), clientDatelineNormalization: true}, nil
+			return gatewayForwardingSettingsResult{fp: true, claudeOAuthSystemPromptInjection: true, rewriteMessageCacheControl: s.defaultRewriteMessageCacheControl(), clientDatelineNormalization: true}, nil
 		}
-		ttftMode := normalizeOpenAITTFTMode(values[SettingKeyOpenAITTFTMode])
 		fp := true
 		if v, ok := values[SettingKeyEnableFingerprintUnification]; ok && v != "" {
 			fp = v == "true"
@@ -879,7 +925,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 			clientDatelineNormalization = v == "true"
 		}
 		gatewayForwardingCache.Store(&cachedGatewayForwardingSettings{
-			openAITTFTMode:                   ttftMode,
 			fingerprintUnification:           fp,
 			metadataPassthrough:              mp,
 			cchSigning:                       cch,
@@ -892,7 +937,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 			expiresAt:                        time.Now().Add(gatewayForwardingCacheTTL).UnixNano(),
 		})
 		return gatewayForwardingSettingsResult{
-			openAITTFTMode:                   ttftMode,
 			fp:                               fp,
 			mp:                               mp,
 			cch:                              cch,
@@ -908,11 +952,6 @@ func (s *SettingService) getGatewayForwardingSettingsCached(ctx context.Context)
 		return r
 	}
 	return gatewayForwardingSettingsResult{fp: true, claudeOAuthSystemPromptInjection: true, clientDatelineNormalization: true}
-}
-
-// GetOpenAITTFTMode 返回 Responses first_token_ms 的统计口径。
-func (s *SettingService) GetOpenAITTFTMode(ctx context.Context) string {
-	return s.getGatewayForwardingSettingsCached(ctx).openAITTFTMode
 }
 
 // GetGatewayForwardingSettings returns cached gateway forwarding settings.

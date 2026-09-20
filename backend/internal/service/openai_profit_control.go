@@ -134,6 +134,7 @@ type openAIProfitControlGate struct {
 func (s *OpenAIGatewayService) WithOpenAIRequestPricingContext(ctx context.Context, groupID *int64) (context.Context, time.Time) {
 	pricingAt := timezone.Now()
 	ctx = context.WithValue(ctx, openAIPricingAtCtxKey{}, pricingAt)
+	freezeRequestGroupRate(ctx, pricingAt, s.ResolveUserGroupRateMultiplier)
 	return s.withOpenAIProfitControlGate(ctx, groupID), pricingAt
 }
 
@@ -152,6 +153,7 @@ func WithOpenAIProfitControlSuppressed(ctx context.Context) context.Context {
 func (s *OpenAIGatewayService) WithOpenAITurnPricingContext(ctx context.Context, groupID *int64) (context.Context, time.Time) {
 	pricingAt := timezone.Now()
 	ctx = context.WithValue(ctx, openAIPricingAtCtxKey{}, pricingAt)
+	freezeRequestGroupRate(ctx, pricingAt, s.ResolveUserGroupRateMultiplier)
 	if _, suppressed := ctx.Value(openAIProfitControlSuppressCtxKey{}).(struct{}); suppressed {
 		return ctx, pricingAt
 	}
@@ -256,6 +258,9 @@ func (s *OpenAIGatewayService) resolveOpenAIProfitControlGate(ctx context.Contex
 	downstream := billingGroup.RateMultiplier
 	if userID, _ := ctx.Value(ctxkey.UserID).(int64); userID > 0 {
 		downstream = s.ResolveUserGroupRateMultiplier(ctx, userID, billingGroup.ID, billingGroup.RateMultiplier)
+	}
+	if snapshot, ok := billingGroup.requestRateAt(pricingAt); ok {
+		downstream = snapshot.Base
 	}
 	downstream *= billingGroup.PeakMultiplierAt(pricingAt)
 

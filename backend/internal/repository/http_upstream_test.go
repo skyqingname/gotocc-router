@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package repository
 
 import (
@@ -189,7 +191,7 @@ func serveTestSOCKS5Conn(client net.Conn) {
 	_, _ = io.Copy(client, target)
 }
 
-func TestHTTPUpstreamDoAppliesGrokCLIIdentityBeforeOAuthRoundTrip(t *testing.T) {
+func TestHTTPUpstreamDoAppliesSelectedGrokIdentityBeforeOAuthRoundTrip(t *testing.T) {
 	t.Setenv("XAI_GROK_CLI_VERSION", "")
 
 	for _, endpoint := range []string{"responses", "chat/completions"} {
@@ -230,6 +232,9 @@ func TestHTTPUpstreamDoAppliesGrokCLIIdentityBeforeOAuthRoundTrip(t *testing.T) 
 			req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/"+endpoint, nil)
 			require.NoError(t, err)
 			req.Header.Set("User-Agent", "legacy-client/1.0")
+			req = req.WithContext(service.WithAccountOutboundIdentity(req.Context(), &service.Account{
+				ID: accountID, Platform: service.PlatformGrok, Type: service.AccountTypeOAuth,
+			}))
 
 			resp, err := svc.Do(req, "", accountID, 1)
 			require.NoError(t, err)
@@ -450,97 +455,28 @@ func TestHTTPUpstreamDoDoesNotFallbackForGrokEntitlementDenial(t *testing.T) {
 	require.JSONEq(t, `{"error":"subscription required"}`, string(body))
 }
 
-func TestApplyGrokCLIProxyHeaders(t *testing.T) {
-	t.Run("uses pinned stable version for the CLI proxy", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "")
-		req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/responses", nil)
-		require.NoError(t, err)
-		req.Header.Set("User-Agent", "legacy-client/1.0")
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Equal(t, xai.CLIClientVersion, req.Header.Get("x-grok-client-version"))
-		require.Equal(t, "xai-grok-cli", req.Header.Get("X-XAI-Token-Auth"))
-		require.Equal(t, xai.CLIUserAgent(xai.CLIClientVersion), req.Header.Get("User-Agent"))
-	})
-
-	t.Run("accepts a valid operator override", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "0.2.121-alpha.1")
-		req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/chat/completions", nil)
-		require.NoError(t, err)
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Equal(t, "0.2.121-alpha.1", req.Header.Get("x-grok-client-version"))
-		require.Equal(t, xai.CLIUserAgent("0.2.121-alpha.1"), req.Header.Get("User-Agent"))
-	})
-
-	t.Run("rejects an unsafe override", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "0.2.121\r\nX-Injected: true")
-		req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/responses", nil)
-		require.NoError(t, err)
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Equal(t, xai.CLIClientVersion, req.Header.Get("x-grok-client-version"))
-		require.Empty(t, req.Header.Get("X-Injected"))
-	})
-
-	t.Run("rejects an override below the supported minimum", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "0.2.119")
-		req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/responses", nil)
-		require.NoError(t, err)
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Equal(t, xai.CLIClientVersion, req.Header.Get("x-grok-client-version"))
-		require.Equal(t, xai.CLIUserAgent(xai.CLIClientVersion), req.Header.Get("User-Agent"))
-	})
-
-	t.Run("rejects a prerelease override at the minimum version", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "0.2.120-beta.1")
-		req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/responses", nil)
-		require.NoError(t, err)
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Equal(t, xai.CLIClientVersion, req.Header.Get("x-grok-client-version"))
-		require.Equal(t, xai.CLIUserAgent(xai.CLIClientVersion), req.Header.Get("User-Agent"))
-	})
-
-	// Every entry sits above the pinned minimum, so a rejection here can only be
-	// caused by the malformed semver and never by the version being too old.
-	for _, version := range []string{
-		"0.2.0121",
-		"0.2.121-alpha..1",
-		"0.3",
-		"1",
-		"0.2.121+build.1",
-	} {
-		t.Run("rejects invalid semver "+version, func(t *testing.T) {
+func TestApplyGrokCLIProxyAuthenticationPreservesIdentity(t *testing.T) {
+	for _, version := range []string{"", "0.2.121-alpha.1", "0.2.119", "unsafe\r\nX-Injected: true"} {
+		t.Run(version, func(t *testing.T) {
 			t.Setenv("XAI_GROK_CLI_VERSION", version)
 			req, err := http.NewRequest(http.MethodPost, "https://cli-chat-proxy.grok.com/v1/responses", nil)
 			require.NoError(t, err)
-
-			applyGrokCLIProxyHeaders(req)
-
-			require.Equal(t, xai.CLIClientVersion, req.Header.Get("x-grok-client-version"))
-			require.Equal(t, xai.CLIUserAgent(xai.CLIClientVersion), req.Header.Get("User-Agent"))
+			req.Header.Set("User-Agent", "codex-tui/0.147.0 trusted-fingerprint")
+			req.Header.Set("Authorization", "Bearer retained")
+			applyGrokCLIProxyAuthentication(req)
+			require.Equal(t, "codex-tui/0.147.0 trusted-fingerprint", req.Header.Get("User-Agent"))
+			require.Equal(t, "Bearer retained", req.Header.Get("Authorization"))
+			require.Equal(t, xai.CLITokenAuth, req.Header.Get("X-XAI-Token-Auth"))
+			require.Empty(t, req.Header.Get("X-Grok-Client-Version"))
+			require.Empty(t, req.Header.Get("X-Grok-Client-Identifier"))
+			require.Empty(t, req.Header.Get("X-Injected"))
 		})
 	}
-
-	t.Run("leaves direct xAI API requests unchanged", func(t *testing.T) {
-		t.Setenv("XAI_GROK_CLI_VERSION", "0.2.95")
-		req, err := http.NewRequest(http.MethodPost, "https://api.x.ai/v1/responses", nil)
-		require.NoError(t, err)
-		req.Header.Set("User-Agent", "direct-api-client/1.0")
-
-		applyGrokCLIProxyHeaders(req)
-
-		require.Empty(t, req.Header.Get("x-grok-client-version"))
-		require.Empty(t, req.Header.Get("X-XAI-Token-Auth"))
-		require.Equal(t, "direct-api-client/1.0", req.Header.Get("User-Agent"))
-	})
+	req, err := http.NewRequest(http.MethodPost, "https://api.x.ai/v1/responses", nil)
+	require.NoError(t, err)
+	req.Header.Set("User-Agent", "retained")
+	applyGrokCLIProxyAuthentication(req)
+	require.Equal(t, http.Header{"User-Agent": {"retained"}}, req.Header)
 }
 
 // HTTPUpstreamSuite HTTP 上游服务测试套件
@@ -627,6 +563,24 @@ func (s *HTTPUpstreamSuite) TestOpenAIProfileDefaultsToHTTP2AndNoHeaderTimeout()
 	require.Equal(s.T(), time.Duration(0), transport.ResponseHeaderTimeout, "OpenAI profile should not inherit generic header timeout")
 	require.True(s.T(), transport.ForceAttemptHTTP2, "OpenAI profile should prefer HTTP/2")
 	require.Equal(s.T(), upstreamProtocolModeOpenAIH2, entry.protocolMode)
+}
+
+func (s *HTTPUpstreamSuite) TestLongStreamProfileUsesSharedHTTP2KeepAlive() {
+	s.cfg.Gateway = config.GatewayConfig{
+		ResponseHeaderTimeout: 600,
+		OpenAIHTTP2: config.GatewayOpenAIHTTP2Config{
+			Enabled: false,
+		},
+	}
+	svc := s.newService()
+	entry, err := svc.getClientEntry("", 1, 1, service.HTTPUpstreamProfileLongStream, false, false)
+	require.NoError(s.T(), err)
+	transport, ok := entry.client.Transport.(*http.Transport)
+	require.True(s.T(), ok, "expected *http.Transport")
+	require.Equal(s.T(), 600*time.Second, transport.ResponseHeaderTimeout, "long-stream profile should retain the generic header timeout")
+	require.True(s.T(), transport.ForceAttemptHTTP2, "long-stream profile must enable HTTP/2 independently of OpenAI settings")
+	require.True(s.T(), transport.Protocols.HTTP2(), "long-stream profile must install HTTP/2 PING health checks")
+	require.Equal(s.T(), upstreamProtocolModeLongStreamH2, entry.protocolMode)
 }
 
 func (s *HTTPUpstreamSuite) TestOpenAIProfileCustomHeaderTimeout() {
@@ -960,4 +914,64 @@ func hasEntry(svc *httpUpstreamService, target *upstreamClientEntry) bool {
 		}
 	}
 	return false
+}
+
+func TestHTTPUpstreamDoPublicHostsOnlyRejectsPrivateDestinationBeforeConnecting(t *testing.T) {
+	var calls atomic.Int64
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(target.Close)
+
+	upstream := NewHTTPUpstream(nil)
+
+	plain, err := http.NewRequestWithContext(t.Context(), http.MethodGet, target.URL, nil)
+	require.NoError(t, err)
+	resp, err := upstream.Do(plain, "", 1, 1)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, int64(1), calls.Load(), "loopback stays reachable for requests without the marker")
+
+	guarded, err := http.NewRequestWithContext(service.WithHTTPUpstreamPublicHostsOnly(t.Context()), http.MethodGet, target.URL, nil)
+	require.NoError(t, err)
+	resp, err = upstream.Do(guarded, "", 1, 1)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "not allowed")
+	require.Equal(t, int64(1), calls.Load(), "marked request must be rejected before any connection is made")
+}
+
+func TestHTTPUpstreamPublicHostsOnlyValidatesEveryRedirectHop(t *testing.T) {
+	upstream, ok := NewHTTPUpstream(nil).(*httpUpstreamService)
+	require.True(t, ok)
+	base := &http.Client{}
+
+	plain, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://cdn.example.com/a.png", nil)
+	require.NoError(t, err)
+	require.Same(t, base, upstream.httpClientForUpstreamRequest(base, plain))
+
+	guarded, err := http.NewRequestWithContext(service.WithHTTPUpstreamPublicHostsOnly(t.Context()), http.MethodGet, "https://cdn.example.com/a.png", nil)
+	require.NoError(t, err)
+	client := upstream.httpClientForUpstreamRequest(base, guarded)
+	require.NotSame(t, base, client)
+	require.NotNil(t, client.CheckRedirect)
+	require.Nil(t, base.CheckRedirect, "the cached client must stay untouched")
+
+	via := []*http.Request{guarded}
+	for _, hop := range []string{
+		"http://127.0.0.1:8080/a.png",
+		"http://[::1]:8080/a.png",
+		"http://10.0.0.8/a.png",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://0.0.0.0/a.png",
+	} {
+		hopReq, err := http.NewRequestWithContext(guarded.Context(), http.MethodGet, hop, nil)
+		require.NoError(t, err)
+		require.Error(t, client.CheckRedirect(hopReq, via), "hop=%s", hop)
+	}
+	publicHop, err := http.NewRequestWithContext(guarded.Context(), http.MethodGet, "http://93.184.216.34/a.png", nil)
+	require.NoError(t, err)
+	require.NoError(t, client.CheckRedirect(publicHop, via))
+	require.Error(t, client.CheckRedirect(publicHop, make([]*http.Request, 10)), "redirect chain stays capped")
 }

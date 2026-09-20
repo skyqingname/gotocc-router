@@ -615,8 +615,10 @@ type AudioUsage struct {
 
 type ForwardResult struct {
 	RequestID string
-	Usage     ClaudeUsage
-	Model     string
+	// UpstreamHeaders 是直接上游的响应头，用于按账户配置解析上游请求标识。
+	UpstreamHeaders http.Header
+	Usage           ClaudeUsage
+	Model           string
 	// UpstreamModel is the actual upstream model after mapping.
 	// Prefer empty when it is identical to Model; persistence normalizes equal values away as no-op mappings.
 	UpstreamModel string
@@ -707,7 +709,7 @@ type UpstreamFailoverError struct {
 	SameAccountRetryDelay    time.Duration // 同账号重试的最小间隔；零值使用 handler 默认值
 	SameAccountRetryDeadline time.Time     // 同账号重试截止时间；零值表示仅受 retryLimit 限制
 	SameAccountRetryMax      int           // 可选的错误级同账号重试上限，低于 handler 默认预算时优先采用
-	RequestScopedTransient   bool          // 故障因素与账号无关（如上游按客户端身份/模型容量降载）：可同账号重试，但不得据此对账号做临时封禁
+	RequestScopedTransient   bool          // 故障因素与账号无关（如上游按客户端身份/模型容量降载）：不得据此对账号做临时封禁。容量降载本身不再同账号重试或换号。
 	SafeToFailoverAfterWrite bool          // 仅写出 SSE 注释等非语义字节时，仍可在同一客户端流中切换账号
 	Stage                    GatewayFailureStage
 	Scope                    GatewayFailureScope
@@ -1262,6 +1264,7 @@ func (s *GatewayService) hashContent(content string) string {
 
 // GetAccessToken 获取账号凭证
 func (s *GatewayService) GetAccessToken(ctx context.Context, account *Account) (string, string, error) {
+	ctx = WithAccountOutboundIdentity(ctx, account)
 	switch account.Type {
 	case AccountTypeOAuth, AccountTypeSetupToken:
 		// Both oauth and setup-token use OAuth token flow
@@ -1368,7 +1371,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	resp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(upstreamReq, account), proxyURL, account.ID, account.Concurrency)
 	if err != nil {
 		return nil, &UpstreamFailoverError{StatusCode: http.StatusBadGateway, Reason: GatewayFailureReason("grok_search_transport")}
 	}
@@ -1397,6 +1400,10 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 }
 
 func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string {
+	if platform == PlatformVideo && groupID != nil {
+		models, _ := s.VideoModelIDs(ctx, *groupID)
+		return models
+	}
 	cacheKey := modelsListCacheKey(groupID, platform)
 	if s.modelsListCache != nil {
 		if cached, found := s.modelsListCache.Get(cacheKey); found {
@@ -1472,6 +1479,10 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		models = append(models, model)
 	}
 	sort.Strings(models)
+
+	if platform == PlatformOpenAI {
+		models = supplementUnmappedOpenAIModels(accounts, models)
+	}
 
 	if s.modelsListCache != nil {
 		s.modelsListCache.Set(cacheKey, cloneStringSlice(models), s.modelsListCacheTTL)

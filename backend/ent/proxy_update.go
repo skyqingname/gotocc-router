@@ -247,6 +247,34 @@ func (_u *ProxyUpdate) AddExpiryWarnDays(v int) *ProxyUpdate {
 	return _u
 }
 
+// SetEgressTimezone sets the "egress_timezone" field.
+func (_u *ProxyUpdate) SetEgressTimezone(v string) *ProxyUpdate {
+	_u.mutation.SetEgressTimezone(v)
+	return _u
+}
+
+// SetNillableEgressTimezone sets the "egress_timezone" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableEgressTimezone(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetEgressTimezone(*v)
+	}
+	return _u
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (_u *ProxyUpdate) SetEgressCountry(v string) *ProxyUpdate {
+	_u.mutation.SetEgressCountry(v)
+	return _u
+}
+
+// SetNillableEgressCountry sets the "egress_country" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableEgressCountry(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetEgressCountry(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_u *ProxyUpdate) AddAccountIDs(ids ...int64) *ProxyUpdate {
 	_u.mutation.AddAccountIDs(ids...)
@@ -260,6 +288,21 @@ func (_u *ProxyUpdate) AddAccounts(v ...*Account) *ProxyUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAccountIDs(ids...)
+}
+
+// AddPrimaryProxyIDs adds the "primary_proxies" edge to the Proxy entity by IDs.
+func (_u *ProxyUpdate) AddPrimaryProxyIDs(ids ...int64) *ProxyUpdate {
+	_u.mutation.AddPrimaryProxyIDs(ids...)
+	return _u
+}
+
+// AddPrimaryProxies adds the "primary_proxies" edges to the Proxy entity.
+func (_u *ProxyUpdate) AddPrimaryProxies(v ...*Proxy) *ProxyUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPrimaryProxyIDs(ids...)
 }
 
 // SetBackupProxy sets the "backup_proxy" edge to the Proxy entity.
@@ -291,6 +334,27 @@ func (_u *ProxyUpdate) RemoveAccounts(v ...*Account) *ProxyUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAccountIDs(ids...)
+}
+
+// ClearPrimaryProxies clears all "primary_proxies" edges to the Proxy entity.
+func (_u *ProxyUpdate) ClearPrimaryProxies() *ProxyUpdate {
+	_u.mutation.ClearPrimaryProxies()
+	return _u
+}
+
+// RemovePrimaryProxyIDs removes the "primary_proxies" edge to Proxy entities by IDs.
+func (_u *ProxyUpdate) RemovePrimaryProxyIDs(ids ...int64) *ProxyUpdate {
+	_u.mutation.RemovePrimaryProxyIDs(ids...)
+	return _u
+}
+
+// RemovePrimaryProxies removes "primary_proxies" edges to Proxy entities.
+func (_u *ProxyUpdate) RemovePrimaryProxies(v ...*Proxy) *ProxyUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePrimaryProxyIDs(ids...)
 }
 
 // ClearBackupProxy clears the "backup_proxy" edge to the Proxy entity.
@@ -378,6 +442,16 @@ func (_u *ProxyUpdate) check() error {
 			return &ValidationError{Name: "fallback_mode", err: fmt.Errorf(`ent: validator failed for field "Proxy.fallback_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EgressTimezone(); ok {
+		if err := proxy.EgressTimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "egress_timezone", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_timezone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.EgressCountry(); ok {
+		if err := proxy.EgressCountryValidator(v); err != nil {
+			return &ValidationError{Name: "egress_country", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_country": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -447,6 +521,12 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedExpiryWarnDays(); ok {
 		_spec.AddField(proxy.FieldExpiryWarnDays, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.EgressTimezone(); ok {
+		_spec.SetField(proxy.FieldEgressTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EgressCountry(); ok {
+		_spec.SetField(proxy.FieldEgressCountry, field.TypeString, value)
+	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -492,13 +572,58 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.PrimaryProxiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPrimaryProxiesIDs(); len(nodes) > 0 && !_u.mutation.PrimaryProxiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PrimaryProxiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.BackupProxyCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   proxy.BackupProxyTable,
 			Columns: []string{proxy.BackupProxyColumn},
-			Bidi:    true,
+			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
 			},
@@ -507,11 +632,11 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if nodes := _u.mutation.BackupProxyIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   proxy.BackupProxyTable,
 			Columns: []string{proxy.BackupProxyColumn},
-			Bidi:    true,
+			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
 			},
@@ -759,6 +884,34 @@ func (_u *ProxyUpdateOne) AddExpiryWarnDays(v int) *ProxyUpdateOne {
 	return _u
 }
 
+// SetEgressTimezone sets the "egress_timezone" field.
+func (_u *ProxyUpdateOne) SetEgressTimezone(v string) *ProxyUpdateOne {
+	_u.mutation.SetEgressTimezone(v)
+	return _u
+}
+
+// SetNillableEgressTimezone sets the "egress_timezone" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableEgressTimezone(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetEgressTimezone(*v)
+	}
+	return _u
+}
+
+// SetEgressCountry sets the "egress_country" field.
+func (_u *ProxyUpdateOne) SetEgressCountry(v string) *ProxyUpdateOne {
+	_u.mutation.SetEgressCountry(v)
+	return _u
+}
+
+// SetNillableEgressCountry sets the "egress_country" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableEgressCountry(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetEgressCountry(*v)
+	}
+	return _u
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
 func (_u *ProxyUpdateOne) AddAccountIDs(ids ...int64) *ProxyUpdateOne {
 	_u.mutation.AddAccountIDs(ids...)
@@ -772,6 +925,21 @@ func (_u *ProxyUpdateOne) AddAccounts(v ...*Account) *ProxyUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAccountIDs(ids...)
+}
+
+// AddPrimaryProxyIDs adds the "primary_proxies" edge to the Proxy entity by IDs.
+func (_u *ProxyUpdateOne) AddPrimaryProxyIDs(ids ...int64) *ProxyUpdateOne {
+	_u.mutation.AddPrimaryProxyIDs(ids...)
+	return _u
+}
+
+// AddPrimaryProxies adds the "primary_proxies" edges to the Proxy entity.
+func (_u *ProxyUpdateOne) AddPrimaryProxies(v ...*Proxy) *ProxyUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPrimaryProxyIDs(ids...)
 }
 
 // SetBackupProxy sets the "backup_proxy" edge to the Proxy entity.
@@ -803,6 +971,27 @@ func (_u *ProxyUpdateOne) RemoveAccounts(v ...*Account) *ProxyUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAccountIDs(ids...)
+}
+
+// ClearPrimaryProxies clears all "primary_proxies" edges to the Proxy entity.
+func (_u *ProxyUpdateOne) ClearPrimaryProxies() *ProxyUpdateOne {
+	_u.mutation.ClearPrimaryProxies()
+	return _u
+}
+
+// RemovePrimaryProxyIDs removes the "primary_proxies" edge to Proxy entities by IDs.
+func (_u *ProxyUpdateOne) RemovePrimaryProxyIDs(ids ...int64) *ProxyUpdateOne {
+	_u.mutation.RemovePrimaryProxyIDs(ids...)
+	return _u
+}
+
+// RemovePrimaryProxies removes "primary_proxies" edges to Proxy entities.
+func (_u *ProxyUpdateOne) RemovePrimaryProxies(v ...*Proxy) *ProxyUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePrimaryProxyIDs(ids...)
 }
 
 // ClearBackupProxy clears the "backup_proxy" edge to the Proxy entity.
@@ -903,6 +1092,16 @@ func (_u *ProxyUpdateOne) check() error {
 			return &ValidationError{Name: "fallback_mode", err: fmt.Errorf(`ent: validator failed for field "Proxy.fallback_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EgressTimezone(); ok {
+		if err := proxy.EgressTimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "egress_timezone", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_timezone": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.EgressCountry(); ok {
+		if err := proxy.EgressCountryValidator(v); err != nil {
+			return &ValidationError{Name: "egress_country", err: fmt.Errorf(`ent: validator failed for field "Proxy.egress_country": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -989,6 +1188,12 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	if value, ok := _u.mutation.AddedExpiryWarnDays(); ok {
 		_spec.AddField(proxy.FieldExpiryWarnDays, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.EgressTimezone(); ok {
+		_spec.SetField(proxy.FieldEgressTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EgressCountry(); ok {
+		_spec.SetField(proxy.FieldEgressCountry, field.TypeString, value)
+	}
 	if _u.mutation.AccountsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1034,13 +1239,58 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.PrimaryProxiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPrimaryProxiesIDs(); len(nodes) > 0 && !_u.mutation.PrimaryProxiesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PrimaryProxiesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   proxy.PrimaryProxiesTable,
+			Columns: []string{proxy.PrimaryProxiesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.BackupProxyCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   proxy.BackupProxyTable,
 			Columns: []string{proxy.BackupProxyColumn},
-			Bidi:    true,
+			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
 			},
@@ -1049,11 +1299,11 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	}
 	if nodes := _u.mutation.BackupProxyIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2O,
+			Rel:     sqlgraph.M2O,
 			Inverse: false,
 			Table:   proxy.BackupProxyTable,
 			Columns: []string{proxy.BackupProxyColumn},
-			Bidi:    true,
+			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(proxy.FieldID, field.TypeInt64),
 			},

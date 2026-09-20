@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package repository
 
 import (
@@ -108,10 +110,12 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // upstream_request_id
 			sqlmock.AnyArg(), // session_id
 			service.UsageCompletionUnknown,
 			service.UsageSourceUnknown,
 			log.NativeCompactionV2,
+			log.TimingVersion,
 			createdAt,
 			log.UserID,       // billing_user_id defaults to the actor for personal keys
 			sqlmock.AnyArg(), // team_id
@@ -211,10 +215,12 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // billing_tier
 			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // account_stats_cost
+			sqlmock.AnyArg(), // upstream_request_id
 			sqlmock.AnyArg(), // session_id
 			service.UsageCompletionUnknown,
 			service.UsageSourceUnknown,
 			log.NativeCompactionV2,
+			log.TimingVersion,
 			createdAt,
 			log.UserID,       // billing_user_id defaults to the actor for personal keys
 			sqlmock.AnyArg(), // team_id
@@ -288,6 +294,7 @@ func TestPrepareUsageLogInsert_PersistsTPSMetadata(t *testing.T) {
 		APIKeyID:          2,
 		AccountID:         3,
 		RequestID:         "req-tps-metadata",
+		TimingVersion:     1,
 		Model:             "gpt-5",
 		AudioOutputTokens: 17,
 		IsComplete:        &incomplete,
@@ -298,6 +305,7 @@ func TestPrepareUsageLogInsert_PersistsTPSMetadata(t *testing.T) {
 
 	require.Equal(t, 17, prepared.args[18])
 	require.Equal(t, false, prepared.args[39])
+	require.Equal(t, 1, prepared.args[len(prepared.args)-2])
 	require.NotNil(t, log.IsComplete)
 	require.False(t, *log.IsComplete)
 
@@ -311,6 +319,7 @@ func TestPrepareUsageLogInsert_PersistsTPSMetadata(t *testing.T) {
 	}
 	defaultPrepared := prepareUsageLogInsert(defaultLog)
 	require.Nil(t, defaultPrepared.args[39])
+	require.Equal(t, 0, defaultPrepared.args[len(defaultPrepared.args)-2])
 	require.Nil(t, defaultLog.IsComplete)
 }
 
@@ -330,8 +339,8 @@ func TestPrepareUsageLogInsert_PersistsNativeCompactionV2WithoutChangingRequestT
 	prepared := prepareUsageLogInsert(log)
 
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
-	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-4])
-	require.Equal(t, true, prepared.args[len(prepared.args)-4])
+	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-5])
+	require.Equal(t, true, prepared.args[len(prepared.args)-5])
 	require.Equal(t, int16(service.RequestTypeStream), prepared.args[31])
 	require.Equal(t, service.RequestTypeStream, log.RequestType)
 	require.True(t, log.Stream)
@@ -1013,10 +1022,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullFloat64{},
+			sql.NullString{}, // upstream_request_id
 			sql.NullString{},
 			service.UsageCompletionCompleted,
 			service.UsageSourceUpstreamExact,
 			false, // native_compaction_v2
+			0,     // timing_version
 			now,
 			int64(13),
 			sql.NullInt64{},
@@ -1112,10 +1123,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // upstream_request_id
 			sql.NullString{},  // session_id
 			service.UsageCompletionUnknown,
 			service.UsageSourceUnknown,
 			false, // native_compaction_v2
+			0,     // timing_version
 			now,
 			int64(10),
 			sql.NullInt64{},
@@ -1182,10 +1195,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // upstream_request_id
 			sql.NullString{},  // session_id
 			service.UsageCompletionUnknown,
 			service.UsageSourceUnknown,
 			true, // native_compaction_v2
+			0,    // timing_version
 			now,
 			int64(11),
 			sql.NullInt64{},
@@ -1253,10 +1268,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},  // billing_tier
 			sql.NullString{},  // billing_mode
 			sql.NullFloat64{}, // account_stats_cost
+			sql.NullString{},  // upstream_request_id
 			sql.NullString{},  // session_id
 			service.UsageCompletionUnknown,
 			service.UsageSourceUnknown,
 			false, // native_compaction_v2
+			0,     // timing_version
 			now,
 			int64(12),
 			sql.NullInt64{},

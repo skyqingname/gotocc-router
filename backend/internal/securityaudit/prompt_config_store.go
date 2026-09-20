@@ -381,7 +381,7 @@ func (m *ConfigManager) buildNextStorage(current storageConfig, req UpdateConfig
 		case strings.TrimSpace(endpoint.Token) != "":
 			if !m.encryptionKeyConfigured {
 				return storageConfig{}, infraerrors.BadRequest(ErrorCodeEncryptionKeyRequired,
-					"未配置固定加密密钥，审计节点 Token 将在服务重启后失效。请先设置 TOTP_ENCRYPTION_KEY 环境变量（64 位十六进制）并重启服务")
+					"未配置固定加密密钥，审计节点 Token 将在服务重启后失效。请先在服务配置文件中设置 totp.encryption_key（64 位十六进制）并重启服务")
 			}
 			ciphertext, err := m.encryptor.Encrypt(strings.TrimSpace(endpoint.Token))
 			if err != nil {

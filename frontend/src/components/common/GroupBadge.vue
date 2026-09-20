@@ -32,6 +32,8 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
+import type { RateScheduleConfig } from '@/utils/rate-schedule'
+import { hasPeakRate as hasRateSchedule } from '@/utils/peak-rate'
 import PlatformIcon from './PlatformIcon.vue'
 
 interface Props {
@@ -40,6 +42,7 @@ interface Props {
   subscriptionType?: SubscriptionType
   rateMultiplier?: number
   userRateMultiplier?: number | null // 用户专属倍率
+  rateSchedule?: RateScheduleConfig
   peakRateEnabled?: boolean
   peakStart?: string
   peakEnd?: string
@@ -80,12 +83,13 @@ const hasCustomRate = computed(() => {
 const appStore = useAppStore()
 
 const hasPeakRate = computed(() => {
-  return Boolean(props.showRate && props.peakRateEnabled && props.peakStart && props.peakEnd)
+  return Boolean(props.showRate && hasRateSchedule({ rate_schedule: props.rateSchedule, peak_rate_enabled: props.peakRateEnabled, peak_start: props.peakStart, peak_end: props.peakEnd }))
 })
 
 const peakRateText = computed(() => {
   return formatPeakRateWindow(
     {
+      rate_schedule: props.rateSchedule,
       peak_rate_enabled: props.peakRateEnabled,
       peak_start: props.peakStart,
       peak_end: props.peakEnd,
@@ -171,6 +175,9 @@ const labelClass = computed(() => {
   if (props.platform === 'deepseek') {
     return `${base} bg-teal-200/60 text-teal-800 dark:bg-teal-800/40 dark:text-teal-300`
   }
+  if (props.platform === 'minimax') {
+    return `${base} bg-rose-200/60 text-rose-800 dark:bg-rose-800/40 dark:text-rose-300`
+  }
   if (props.platform === 'composite') {
     return `${base} bg-cyan-200/70 text-cyan-900 dark:bg-cyan-900/50 dark:text-cyan-300`
   }
@@ -223,6 +230,11 @@ const badgeClass = computed(() => {
     return isSubscription.value
       ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
       : 'bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-400'
+  }
+  if (props.platform === 'minimax') {
+    return isSubscription.value
+      ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+      : 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400'
   }
   if (props.platform === 'composite') {
     return isSubscription.value

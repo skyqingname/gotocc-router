@@ -449,6 +449,11 @@ export default {
         loadFailed: 'Failed to load affiliate records'
       },
       records: {
+        sources: { admin_recharge: 'Admin deposit', legacy: 'Legacy commission', payment: 'Online recharge' },
+        rebateLevel: "Generation",
+        rebateRate: "Commission rate",
+        rebateBase: "Commission principal (USD)",
+        generation: "Generation {level}",
         search: 'Search',
         searchPlaceholder: 'Email, username, user ID, or order number',
         startAt: 'Start date',
@@ -486,9 +491,38 @@ export default {
 
     // Users
     users: {
+      inviter: {
+        title: "Invitation code and rebate attribution",
+        current: "Current referrer",
+        unbound: "No referrer assigned",
+        loading: "Loading referrer…",
+        retry: "Reload",
+        codeType: "Invitation code type",
+        permanent: "Permanent invitation code",
+        aff: "AFF invitation code",
+        permanentPlaceholder: "Enter a permanent invitation code",
+        affPlaceholder: "Enter the referrer’s AFF code",
+        permanentHint: "Uses the owner assigned to this permanent code without consuming a registration use.",
+        affHint: "Uses the referrer who owns this AFF code.",
+        resolve: "Find referrer",
+        resolving: "Looking up…",
+        next: "Referrer after update",
+        matched: "Referrer for this code",
+        resolveFirst: "The code has changed. Find and check the referrer before updating.",
+        self: "A user cannot be their own referrer. Enter another referrer’s code.",
+        notFound: "No code of this type was found. Check the code and its type.",
+        effect: "Takes effect when you click Update below. Past commissions stay unchanged. Future three-generation rebates for this customer and their descendants follow the new relationship.",
+      },
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',
+      bulkDelete: {
+        action: 'Delete selected ({count})',
+        title: 'Delete selected users',
+        confirm: 'Delete the {count} selected users? This action cannot be undone. Administrator accounts cannot be deleted.',
+        success: 'Deleted {count} users',
+        failed: 'Failed to delete {count} users. They remain selected for retry.'
+      },
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',
@@ -547,6 +581,7 @@ export default {
       leaveEmptyToKeep: 'Leave empty to keep current password',
       generatePassword: 'Generate random password',
       copyPassword: 'Copy password',
+      passwordCopied: 'Password copied',
       creating: 'Creating...',
       updating: 'Updating...',
       form: {
@@ -812,6 +847,7 @@ export default {
         clearAllConfirm: 'Clear daily / weekly / monthly limits for ALL platforms? All platforms will become "unlimited" with no local undo — you must manually re-enter values before saving.',
         reset: {
           button: 'Reset window',
+          unavailable: 'No limit configured for this platform, so there is no usage window to reset',
           confirm: 'Reset the {window} usage for {platform} for this user? This is effective immediately.',
           success: 'Reset {platform} {window} usage',
           failed: 'Reset failed',
@@ -884,7 +920,7 @@ export default {
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
-      accountsUnit: '',
+      accountsUnit: 'accounts',
       rateAndAccounts: '{rate}x rate · {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
@@ -914,13 +950,13 @@ export default {
         rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Once set, it takes over per-user rate limiting in this group (overrides the user-level rpm_limit fallback).',
         maxReasoningEffort: 'Max reasoning effort',
         maxReasoningEffortUnlimited: 'Unlimited (follow request)',
-        maxReasoningEffortHint: 'Limits explicit OpenAI reasoning effort requests only. For Composite groups, it applies only to requests resolved to OpenAI. Omitted effort stays omitted. The ceiling takes precedence over reasoning effort mappings.',
+        maxReasoningEffortHint: 'Limits explicit Anthropic and OpenAI reasoning effort requests. For Composite groups, it applies to the resolved target platform. Omitted effort stays omitted. The ceiling takes precedence over reasoning effort mappings.',
         maxReasoningEffortOverLimit: 'Over-limit access control',
         maxReasoningEffortOverLimitDowngrade: 'Automatically downgrade when over limit',
         maxReasoningEffortOverLimitDeny: 'Deny access',
         maxReasoningEffortOverLimitHint: 'Applies after a ceiling is set. Downgrade rewrites values above the ceiling to the ceiling. Deny rejects the request.',
         reasoningEffortMappings: 'Reasoning effort mappings',
-        reasoningEffortMappingsHint: 'Type and model can both be left empty to match every model. One type and model can hold multiple request mappings, for example prefix gpt mapping both high and xhigh to medium. Exact matches beat affixes, and longer affixes beat shorter ones.',
+        reasoningEffortMappingsHint: 'Type and model can both be left empty to match every model. One type and model can hold multiple request mappings, for example prefix gpt mapping both high and xhigh to medium. Choose Deny as the forwarded value to reject that request value. Exact matches beat affixes, and longer affixes beat shorter ones.',
         addReasoningEffortMapping: 'Add mapping',
         addReasoningEffortPair: 'Add request value',
         removeReasoningEffortMapping: 'Remove mapping',
@@ -934,6 +970,7 @@ export default {
         reasoningEffortModelPlaceholder: 'Empty = all / gpt / gpt-5.4',
         reasoningEffortFrom: 'Request value',
         reasoningEffortTo: 'Forwarded value',
+        reasoningEffortToDeny: 'Deny',
         reasoningEffortFromPlaceholder: 'Select A',
         reasoningEffortToPlaceholder: 'Select B',
         fromRequired: 'Select request value A',
@@ -1028,6 +1065,9 @@ export default {
         kimi: 'Kimi',
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
+        minimax: 'MiniMax',
+        opencode_go: 'OpenCode',
+        video: 'Video',
         composite: 'Composite',
       },
       deleteConfirm:
@@ -1048,7 +1088,26 @@ export default {
         fiveHourLimit: '5-Hour Limit (USD)',
         defaultValidityDays: 'Default Validity (Days)',
         validityHint: 'Number of days the subscription is valid when assigned to a user',
-        noLimit: 'No limit'
+        noLimit: 'No limit',
+        quotaFollowReset: {
+          source: 'Follow OpenAI OAuth weekly reset',
+          disabled: 'Disabled',
+          searchSource: 'Search OpenAI OAuth accounts',
+          noSources: 'No bound OpenAI OAuth accounts in this group',
+          hint: 'Select a bound OpenAI OAuth account. Enabling, re-enabling or changing the source waits for a real inference session on that account to establish a fresh official weekly baseline without resetting quotas. Each subsequent confirmed natural or early official reset clears usage once. Standalone quota refresh does not establish or confirm it. Observing zero usage is not required. Historical spending is not replayed or backfilled. Account routing is unchanged.',
+          includeMonthly: 'Reset monthly quota at the same time',
+          includeMonthlyHint: 'Available only when this group has a monthly limit. Groups without a monthly limit are skipped automatically.',
+          invalidSource: 'Source {name} (ID {id}) is no longer a bound OpenAI OAuth account in this group. Automatic reset is inactive until another source is selected.',
+          invalidSourceOption: '[Invalid] {name} (ID {id})',
+          waitingBaseline: "Waiting for a real inference session on the bound source to establish this activation's official weekly baseline. Old baselines will not be reused and quotas will not reset immediately.",
+          currentBaseline: 'Current official reset-time baseline: {time}',
+          status: {
+            active: 'Following {source}',
+            waiting: 'Waiting for {source} baseline',
+            invalid: 'Source invalid: {source}',
+            disabled: 'Disabled'
+          }
+        }
       },
       imagePricing: {
         title: 'Image Generation Pricing',
@@ -1126,14 +1185,36 @@ export default {
         bufferRangeError: 'Safety buffer must be between 0 and 99.99',
         sumTooHigh: 'Min gross margin plus safety buffer must be less than 100%, otherwise every account would be excluded'
       },
-      modelsList: {
-        title: 'Custom /v1/models Model List',
-        hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',
-        loading: 'Loading model list...',
-        empty: 'No displayable models',
+      modelAllowlist: {
+        title: 'Model Allowlist',
+        hint: 'When enabled, models outside the allowlist are rejected with 404 model_not_found, and model listing endpoints only show allowlisted models. Entries support exact model IDs and trailing * wildcards. Note: Claude Code probes with haiku-family models for titles/summaries and /messages/count_tokens is also allowlist-controlled, so make sure the small models you need are selected too.',
+        loading: 'Loading candidate models...',
+        empty: 'No candidate models; add custom entries below',
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
-        invertSelection: 'Invert'
+        invertSelection: 'Invert',
+        wildcardTag: 'wildcard',
+        customPlaceholder: 'Custom entry, e.g. claude-* or gpt-5.5-codex',
+        addCustom: 'Add',
+        emptySelectionError: 'The model allowlist is enabled; select or add at least one model entry',
+        errors: {
+          empty: 'Please enter a model entry',
+          invalidWildcard: 'Wildcard * is only allowed at the end of an entry',
+          duplicate: 'This entry already exists'
+        }
+      },
+      codexModelsManifest: {
+        title: 'Pinned Accounts for Model Lists',
+        hint: 'When enabled, ordinary model lists and Codex Model Manifest are discovered from the pinned accounts first, then merged and filtered using account mappings and the group model list. Rate-limited or overloaded pinned accounts are still used.',
+        enable: 'Fetch model lists with specific accounts',
+        enabledHint: 'Accounts are limited to OpenAI accounts bound to this group, at most 10.',
+        disabledHint: 'Disabled: ordinary lists use local mappings or defaults; Codex uses a local catalog when configured, otherwise scheduler discovery.',
+        accounts: 'Pinned accounts',
+        searchPlaceholder: 'Search accounts (OpenAI accounts in this group)',
+        searchEmpty: 'No matching accounts',
+        fallback: 'Fall back to the scheduler when all pinned accounts are unavailable',
+        fallbackHint: 'Off: return 503 / the upstream error. On: fall back to the existing scheduler path.',
+        selectAtLeastOne: 'Select at least one account after enabling pinned accounts'
       },
       compositeRoutes: {
         action: 'Routes',
@@ -1219,9 +1300,9 @@ export default {
       openaiLive: {
         title: 'OpenAI Live',
         allow: 'Allow Live access',
-        hint: 'When enabled, API keys in this OpenAI group can create and control Live voice sessions. Disabled by default. The Sub2API server must run on Apple Silicon macOS with the official ChatGPT app installed; client platforms are unrestricted.',
+        hint: 'When enabled, API keys in this OpenAI group can create and control Live voice sessions. Disabled by default. The Sub2API Plus server must run on Apple Silicon macOS with the official ChatGPT app installed; client platforms are unrestricted.',
         unsupportedTitle: 'Current server does not support Live',
-        unsupportedMessage: 'This Sub2API server cannot generate the required Live attestation. Live will not work even if enabled. Continue anyway?',
+        unsupportedMessage: 'This Sub2API Plus server cannot generate the required Live attestation. Live will not work even if enabled. Continue anyway?',
         enableAnyway: 'Enable anyway'
       },
       openaiFast: {
@@ -1264,12 +1345,6 @@ export default {
         searchAccountPlaceholder: 'Search accounts...',
         accountsHint: 'Select accounts to prioritize for this model pattern'
       },
-      mcpXml: {
-        title: 'MCP XML Protocol Injection',
-        tooltip: 'When enabled, if the request contains MCP tools, an XML format call protocol prompt will be injected into the system prompt. Disable this to avoid interference with certain clients.',
-        enabled: 'Enabled',
-        disabled: 'Disabled'
-      },
       claudeMaxSimulation: {
         title: 'Claude Max Usage Simulation',
         tooltip:
@@ -1277,6 +1352,12 @@ export default {
         enabled: 'Enabled (simulate 1h cache)',
         disabled: 'Disabled',
         hint: 'Only token categories in usage billing logs are adjusted. No per-request mapping state is persisted.'
+      },
+      mcpXml: {
+        title: 'MCP XML Protocol Injection',
+        tooltip: 'When enabled, if the request contains MCP tools, an XML format call protocol prompt will be injected into the system prompt. Disable this to avoid interference with certain clients.',
+        enabled: 'Enabled',
+        disabled: 'Disabled'
       },
       supportedScopes: {
         title: 'Supported Model Families',

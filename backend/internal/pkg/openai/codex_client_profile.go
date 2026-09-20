@@ -49,6 +49,17 @@ var codexBuiltInProfileByOriginator = map[string]CodexClientProfile{
 	"codex_atlas":           CodexClientProfileDesktop,
 }
 
+// codexOfficialThreadOriginators is the closed set of product-service
+// originators that the public Codex ThreadManager may apply to a request while
+// retaining the process-level transport User-Agent.
+var codexOfficialThreadOriginators = map[string]struct{}{
+	"chatgpt_cca":        {},
+	"codex_work_desktop": {},
+	"codex_work_web":     {},
+	"codex_work_mobile":  {},
+	"codex_work_cca":     {},
+}
+
 // codexLegacyCompatibilityOriginators is a temporary, deliberately closed
 // migration set. These names are not present in the current public Codex
 // first-party predicates, so callers must opt in with allowLegacyCompatibility
@@ -115,6 +126,57 @@ func ClassifyCodexClientProfile(userAgent, originator string, allowLegacyCompati
 	return CodexClientProfileMatch{}, false
 }
 
+// ClassifyOfficialCodexIngressProfile recognizes the public Codex ingress
+// shape. Official clients keep a process-level transport User-Agent but may
+// override originator with a reviewed product-service source for the current
+// thread. This ingress rule is intentionally separate from configured outbound
+// identity and third-party compatibility rules, which require a coherent pair.
+func ClassifyOfficialCodexIngressProfile(userAgent, originator string) (CodexClientProfileMatch, bool) {
+	ua := strings.TrimSpace(userAgent)
+	if originator != strings.TrimSpace(originator) {
+		return CodexClientProfileMatch{}, false
+	}
+	originator = strings.TrimSpace(originator)
+	if ua == "" || originator == "" || !isSaneCodexOriginator(originator) {
+		return CodexClientProfileMatch{}, false
+	}
+
+	slash := strings.IndexByte(ua, '/')
+	if slash <= 0 {
+		return CodexClientProfileMatch{}, false
+	}
+	transportOriginator := ua[:slash]
+	version := CodexUserAgentVersion(ua)
+	if !isStrictCodexClientProfileVersion(version) {
+		return CodexClientProfileMatch{}, false
+	}
+
+	profile, transportMatched := codexBuiltInProfileByOriginator[transportOriginator]
+	if !transportMatched && strings.HasPrefix(transportOriginator, "Codex ") && isSaneCodexProductFamilyName(transportOriginator) {
+		profile, transportMatched = CodexClientProfileFamily, true
+	}
+	if !transportMatched || !isOfficialCodexIngressOriginator(transportOriginator, originator) {
+		return CodexClientProfileMatch{}, false
+	}
+
+	return CodexClientProfileMatch{Profile: profile, Originator: originator, Version: version}, true
+}
+
+func isOfficialCodexIngressOriginator(transportOriginator, originator string) bool {
+	if originator == transportOriginator {
+		return true
+	}
+	return IsOfficialCodexThreadOriginator(originator)
+}
+
+// IsOfficialCodexThreadOriginator reports whether originator is a reviewed
+// product-service override that official Codex may send without rewriting the
+// process-level User-Agent.
+func IsOfficialCodexThreadOriginator(originator string) bool {
+	_, ok := codexOfficialThreadOriginators[strings.TrimSpace(originator)]
+	return ok
+}
+
 func isStrictCodexClientProfileVersion(version string) bool {
 	if strings.TrimSpace(version) != version || version == "" || strings.HasPrefix(version, "v") {
 		return false
@@ -138,6 +200,9 @@ func ClassifyOfficialCodexClientProfile(userAgent, originator string) (CodexClie
 // case folding, substring matching, or legacy trailer recovery: a configured
 // identity must already be coherent in its leading token.
 func PairConfiguredCodexClientIdentity(userAgent string, allowLegacyCompatibility bool) (CodexClientProfileMatch, string, bool) {
+	if !validCodexUserAgentValue(userAgent) {
+		return CodexClientProfileMatch{}, "", false
+	}
 	ua := strings.TrimSpace(userAgent)
 	slash := strings.IndexByte(ua, '/')
 	if slash <= 0 {

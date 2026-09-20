@@ -45,6 +45,7 @@
       @submit.prevent="handleSubmit"
       class="space-y-5"
     >
+      <OutboundIdentityEditor v-model="outboundIdentitySelection" :platform="form.platform" :account-type="form.type" :codex-user-agent="openaiAccountUserAgent" />
       <div>
         <label class="input-label">{{ t('admin.accounts.accountName') }}</label>
         <input
@@ -161,13 +162,13 @@
             Grok
           </button>
         </div>
-        <!-- CN providers row: Kimi / Zhipu GLM / DeepSeek -->
+        <!-- Multi-protocol API-key providers: Kimi / Zhipu GLM / DeepSeek / OpenCode -->
         <div class="mt-2 flex flex-wrap rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
           <button
             type="button"
             @click="selectCNPlatform('kimi')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'kimi'
                 ? 'bg-white text-pink-600 shadow-sm dark:bg-dark-600 dark:text-pink-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -180,7 +181,7 @@
             type="button"
             @click="selectCNPlatform('zhipu')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'zhipu'
                 ? 'bg-white text-indigo-600 shadow-sm dark:bg-dark-600 dark:text-indigo-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -193,7 +194,7 @@
             type="button"
             @click="selectCNPlatform('deepseek')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'deepseek'
                 ? 'bg-white text-teal-600 shadow-sm dark:bg-dark-600 dark:text-teal-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -201,6 +202,32 @@
           >
             <PlatformIcon platform="deepseek" size="sm" />
             DeepSeek
+          </button>
+          <button
+            type="button"
+            @click="selectCNPlatform('minimax')"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'minimax'
+                ? 'bg-white text-rose-600 shadow-sm dark:bg-dark-600 dark:text-rose-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <PlatformIcon platform="minimax" size="sm" />
+            MiniMax
+          </button>
+          <button
+            type="button"
+            @click="selectOpenCodeGoPlatform()"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'opencode_go'
+                ? 'bg-white text-amber-700 shadow-sm dark:bg-dark-600 dark:text-amber-300'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <PlatformIcon platform="opencode_go" size="sm" />
+            OpenCode
           </button>
         </div>
       </div>
@@ -453,8 +480,61 @@
         </div>
       </div>
 
+      <!-- OpenCode Zen vs Go -->
+      <div v-if="isOpenCodeGoPlatform">
+        <label class="input-label">{{ t('admin.accounts.cnProviders.accountMode.title') }}</label>
+        <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            @click="openCodeAccountMode = 'zen'"
+            :class="[
+              'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+              openCodeAccountMode === 'zen'
+                ? cnAccentActiveClass
+                : 'border-gray-200 hover:border-gray-400 dark:border-dark-600 dark:hover:border-gray-600'
+            ]"
+          >
+            <div
+              :class="[
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                openCodeAccountMode === 'zen' ? cnAccentIconClass : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+              ]"
+            >
+              <Icon name="creditCard" size="sm" />
+            </div>
+            <div>
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.accounts.opencodeGo.accountMode.zen') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.accountMode.zenDesc') }}</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            @click="openCodeAccountMode = 'go'"
+            :class="[
+              'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+              openCodeAccountMode === 'go'
+                ? cnAccentActiveClass
+                : 'border-gray-200 hover:border-gray-400 dark:border-dark-600 dark:hover:border-gray-600'
+            ]"
+          >
+            <div
+              :class="[
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                openCodeAccountMode === 'go' ? cnAccentIconClass : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+              ]"
+            >
+              <Icon name="bolt" size="sm" />
+            </div>
+            <div>
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.accounts.opencodeGo.accountMode.go') }}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.accountMode.goDesc') }}</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <!-- Account Mode Selection (Kimi / Zhipu / DeepSeek) -->
-      <div v-if="isCNPlatform">
+      <div v-if="isCNPlatform && !isOpenCodeGoPlatform">
         <label class="input-label">{{ t('admin.accounts.cnProviders.accountMode.title') }}</label>
         <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2" data-tour="account-form-mode">
           <!-- Pay-as-you-go (token balance) -->
@@ -513,8 +593,8 @@
         </div>
       </div>
 
-      <!-- API Protocol Selection (Kimi / Zhipu / DeepSeek) -->
-      <div v-if="isCNPlatform" class="mt-4">
+      <!-- API Protocol Selection (Kimi / Zhipu / DeepSeek / OpenCode) -->
+      <div v-if="isMultiProtocolPlatform" class="mt-4">
         <label class="input-label">{{ t('admin.accounts.cnProviders.apiProtocol.title') }}</label>
         <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
@@ -1266,7 +1346,7 @@
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
       <div v-if="form.type === 'apikey' && form.platform !== 'antigravity'" class="space-y-4">
-        <div v-if="!isCNPlatform || apiProtocol !== 'adaptive'">
+        <div v-if="!isMultiProtocolPlatform || apiProtocol !== 'adaptive'">
           <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
           <input
             v-model="apiKeyBaseUrl"
@@ -1281,7 +1361,7 @@
             @select="apiKeyBaseUrl = $event"
           />
           <CnBaseUrlPresets
-            v-if="isCNPlatform"
+            v-if="isCNPlatform && !isOpenCodeGoPlatform"
             class="mt-2"
             :platform="cnPresetPlatform"
             :mode="accountMode"
@@ -1309,6 +1389,11 @@
             {{ t('admin.accounts.cnProviders.apiProtocol.responsesFallbackDesc') }}
           </p>
         </div>
+        <OpenCodeGoProtocolRulesEditor
+          v-if="isOpenCodeGoPlatform && apiProtocol === 'adaptive'"
+          v-model:rows="openCodeGoProtocolRules"
+          :plan="openCodeAccountMode"
+        />
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKeyRequired') }}</label>
           <input
@@ -1531,21 +1616,9 @@
                 {{ t('admin.accounts.poolModeHint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="poolModeEnabled = !poolModeEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                poolModeEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  poolModeEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="poolModeEnabled"
+            />
           </div>
           <div v-if="poolModeEnabled" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
             <p class="text-xs text-blue-700 dark:text-blue-400">
@@ -1595,21 +1668,9 @@
                 {{ t('admin.accounts.customErrorCodesHint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="customErrorCodesEnabled = !customErrorCodesEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                customErrorCodesEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  customErrorCodesEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="customErrorCodesEnabled"
+            />
           </div>
 
           <div v-if="customErrorCodesEnabled" class="space-y-3">
@@ -1696,21 +1757,9 @@
                 {{ t('admin.accounts.headerOverride.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="headerOverrideEnabled = !headerOverrideEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                headerOverrideEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  headerOverrideEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="headerOverrideEnabled"
+            />
           </div>
 
           <div v-if="headerOverrideEnabled" class="space-y-3">
@@ -1937,21 +1986,9 @@
                 {{ t('admin.accounts.poolModeHint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="poolModeEnabled = !poolModeEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                poolModeEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  poolModeEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="poolModeEnabled"
+            />
           </div>
           <div v-if="poolModeEnabled" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
             <p class="text-xs text-blue-700 dark:text-blue-400">
@@ -2109,22 +2146,10 @@
               {{ t('admin.accounts.grokCustomBaseUrl.hint') }}
             </p>
           </div>
-          <button
-            type="button"
+          <Toggle
+            v-model="grokOAuthCustomBaseUrlEnabled"
             data-testid="grok-custom-base-url-toggle"
-            @click="grokOAuthCustomBaseUrlEnabled = !grokOAuthCustomBaseUrlEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              grokOAuthCustomBaseUrlEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                grokOAuthCustomBaseUrlEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          />
         </div>
         <div v-if="grokOAuthCustomBaseUrlEnabled" class="space-y-2">
           <input
@@ -2150,21 +2175,9 @@
               {{ t('admin.accounts.headerOverride.hint') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="headerOverrideEnabled = !headerOverrideEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              headerOverrideEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                headerOverrideEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="headerOverrideEnabled"
+          />
         </div>
 
         <div v-if="headerOverrideEnabled" class="space-y-3">
@@ -2332,21 +2345,9 @@
               {{ t('admin.accounts.tempUnschedulable.hint') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="tempUnschedEnabled = !tempUnschedEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              tempUnschedEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                tempUnschedEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="tempUnschedEnabled"
+          />
         </div>
 
         <div v-if="tempUnschedEnabled" class="space-y-3">
@@ -2485,21 +2486,9 @@
               {{ t('admin.accounts.interceptWarmupRequestsDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="interceptWarmupRequests = !interceptWarmupRequests"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              interceptWarmupRequests ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                interceptWarmupRequests ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="interceptWarmupRequests"
+          />
         </div>
       </div>
 
@@ -2524,21 +2513,9 @@
                 {{ t('admin.accounts.quotaControl.windowCost.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="windowCostEnabled = !windowCostEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                windowCostEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  windowCostEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="windowCostEnabled"
+            />
           </div>
 
           <div v-if="windowCostEnabled" class="grid grid-cols-2 gap-4">
@@ -2584,21 +2561,9 @@
                 {{ t('admin.accounts.quotaControl.sessionLimit.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="sessionLimitEnabled = !sessionLimitEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                sessionLimitEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  sessionLimitEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="sessionLimitEnabled"
+            />
           </div>
 
           <div v-if="sessionLimitEnabled" class="grid grid-cols-2 gap-4">
@@ -2641,21 +2606,9 @@
                 {{ t('admin.accounts.quotaControl.rpmLimit.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="rpmLimitEnabled = !rpmLimitEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                rpmLimitEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  rpmLimitEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="rpmLimitEnabled"
+            />
           </div>
 
           <div v-if="rpmLimitEnabled" class="space-y-4">
@@ -2754,21 +2707,9 @@
                 {{ t('admin.accounts.quotaControl.tlsFingerprint.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="tlsFingerprintEnabled = !tlsFingerprintEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                tlsFingerprintEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  tlsFingerprintEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="tlsFingerprintEnabled"
+            />
           </div>
           <!-- Profile selector -->
           <div v-if="tlsFingerprintEnabled" class="mt-3">
@@ -2789,21 +2730,9 @@
                 {{ t('admin.accounts.quotaControl.sessionIdMasking.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="sessionIdMaskingEnabled = !sessionIdMaskingEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                sessionIdMaskingEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  sessionIdMaskingEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="sessionIdMaskingEnabled"
+            />
           </div>
         </div>
 
@@ -2816,21 +2745,9 @@
                 {{ t('admin.accounts.quotaControl.cacheTTLOverride.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="cacheTTLOverrideEnabled = !cacheTTLOverrideEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                cacheTTLOverrideEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  cacheTTLOverrideEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="cacheTTLOverrideEnabled"
+            />
           </div>
           <div v-if="cacheTTLOverrideEnabled" class="mt-3">
             <label class="input-label text-xs">{{ t('admin.accounts.quotaControl.cacheTTLOverride.target') }}</label>
@@ -2856,21 +2773,9 @@
                 {{ t('admin.accounts.quotaControl.customBaseUrl.hint') }}
               </p>
             </div>
-            <button
-              type="button"
-              @click="customBaseUrlEnabled = !customBaseUrlEnabled"
-              :class="[
-                'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                customBaseUrlEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-              ]"
-            >
-              <span
-                :class="[
-                  'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                  customBaseUrlEnabled ? 'translate-x-5' : 'translate-x-0'
-                ]"
-              />
-            </button>
+            <Toggle
+              v-model="customBaseUrlEnabled"
+            />
           </div>
           <div v-if="customBaseUrlEnabled" class="mt-3">
             <input
@@ -2887,6 +2792,12 @@
         <label class="input-label">{{ t('admin.accounts.proxy') }}</label>
         <ProxySelector v-model="form.proxy_id" :proxies="proxies" />
       </div>
+
+      <UpstreamRequestIdHeaderField
+        v-model="upstreamRequestIdHeader"
+        :platform="form.platform"
+        :type="form.type"
+      />
 
       <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div>
@@ -2921,6 +2832,14 @@
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
+        <div class="mt-2 flex gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" @click="form.expires_at = getAccountExpiryTimestamp(1)">
+            {{ t('payment.oneMonth') }}
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" @click="form.expires_at = getAccountExpiryTimestamp(12)">
+            {{ t('payment.oneYear') }}
+          </button>
+        </div>
         <p class="input-hint">
           {{ t('admin.accounts.expiresAtHint') }}
           {{ t('admin.accounts.expiresAtTimezoneHint', { timezone: browserTimeZone }) }}
@@ -2939,21 +2858,9 @@
               {{ t('admin.accounts.openai.oauthPassthroughDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="openaiPassthroughEnabled = !openaiPassthroughEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              openaiPassthroughEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                openaiPassthroughEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="openaiPassthroughEnabled"
+          />
         </div>
       </div>
 
@@ -2987,21 +2894,9 @@
               {{ t('admin.accounts.openai.oauthSessionSharingDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="openaiOAuthSessionSharingEnabled = !openaiOAuthSessionSharingEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              openaiOAuthSessionSharingEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                openaiOAuthSessionSharingEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="openaiOAuthSessionSharingEnabled"
+          />
         </div>
         <p v-if="openaiOAuthSessionSharingEnabled" class="mt-2 text-xs text-amber-700 dark:text-amber-300">
           {{ t('admin.accounts.openai.oauthSessionSharingGroupsHint') }}
@@ -3020,22 +2915,10 @@
               {{ t('admin.accounts.openai.flattenNamespacesDesc') }}
             </p>
           </div>
-          <button
-            type="button"
+          <Toggle
+            v-model="openaiFlattenNamespacesEnabled"
             data-testid="create-openai-flatten-namespaces-toggle"
-            @click="openaiFlattenNamespacesEnabled = !openaiFlattenNamespacesEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              openaiFlattenNamespacesEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                openaiFlattenNamespacesEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          />
         </div>
       </div>
 
@@ -3051,8 +2934,8 @@
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.openai.wsModeDesc') }}
             </p>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t(openAIWSModeConcurrencyHintKey) }}
+            <p v-if="openAIWSModeHintKey" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t(openAIWSModeHintKey) }}
             </p>
           </div>
           <div class="w-52">
@@ -3073,21 +2956,9 @@
               {{ t('admin.accounts.anthropic.apiKeyPassthroughDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="anthropicPassthroughEnabled = !anthropicPassthroughEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              anthropicPassthroughEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                anthropicPassthroughEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="anthropicPassthroughEnabled"
+          />
         </div>
       </div>
 
@@ -3141,24 +3012,10 @@
               {{ t('admin.accounts.openai.longContextBillingDesc') }}
             </p>
           </div>
-          <button
-            type="button"
+          <Toggle
+            :model-value="!!openAILongContextBillingEnabled" @update:model-value="toggleOpenAILongContextBilling"
             data-testid="openai-long-context-billing-toggle"
-            role="switch"
-            :aria-checked="openAILongContextBillingEnabled"
-            @click="toggleOpenAILongContextBilling"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              openAILongContextBillingEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                openAILongContextBillingEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          />
         </div>
       </div>
 
@@ -3173,21 +3030,9 @@
               {{ t('admin.accounts.openai.codexCLIOnlyDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="codexCLIOnlyEnabled = !codexCLIOnlyEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              codexCLIOnlyEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                codexCLIOnlyEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="codexCLIOnlyEnabled"
+          />
         </div>
       </div>
 
@@ -3206,6 +3051,21 @@
           <div class="w-52 flex-shrink-0">
             <Select v-model="codexFingerprintMode" data-testid="create-codex-fingerprint-mode-select" :options="codexFingerprintModeOptions" />
           </div>
+        </div>
+        <div class="mt-4 space-y-2">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.codexEnvironmentTimezone') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.codexEnvironmentTimezoneDesc') }}
+            </p>
+          </div>
+          <input
+            v-model="codexEnvironmentTimezone"
+            data-testid="create-codex-environment-timezone-input"
+            type="text"
+            :placeholder="t('admin.accounts.openai.codexEnvironmentTimezonePlaceholder')"
+            class="input w-full"
+          />
         </div>
       </div>
 
@@ -3276,6 +3136,18 @@
         >
           {{ t('admin.accounts.openai.responsesModeTextDisabledHint') }}
         </p>
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.imagesUrlToB64Json') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.imagesUrlToB64JsonDesc') }}
+            </p>
+          </div>
+          <Toggle
+            v-model="openAIImagesUrlToB64JsonEnabled"
+            data-testid="openai-images-url-to-b64-json-toggle"
+          />
+        </div>
         <div>
           <label class="input-label mb-2 block">{{ t('admin.accounts.openai.endpointCapabilities') }}</label>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -3308,21 +3180,9 @@
               {{ t('admin.accounts.autoPauseOnExpiredDesc') }}
             </p>
           </div>
-          <button
-            type="button"
-            @click="autoPauseOnExpired = !autoPauseOnExpired"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              autoPauseOnExpired ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                autoPauseOnExpired ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
+          <Toggle
+            v-model="autoPauseOnExpired"
+          />
         </div>
       </div>
 
@@ -3386,7 +3246,6 @@
 
         <!-- Group Selection - 仅标准模式显示 -->
         <GroupSelector
-          v-if="!authStore.isSimpleMode"
           v-model="form.group_ids"
           :groups="groups"
           :platform="form.platform"
@@ -3420,10 +3279,15 @@
         :show-sso-option="form.platform === 'grok'"
         :show-email-password-option="false"
         :show-manual-option="true"
+        :show-device-code-option="form.platform === 'openai'"
+        :device-user-code="openaiDeviceCode?.user_code || ''"
+        :device-verification-url="openaiDeviceCode?.verification_url || ''"
+        :device-code-polling="openaiDeviceCodePolling"
         :initial-input-method="'manual'"
         :platform="form.platform"
         :show-project-id="geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
+        @start-device-code="handleStartOpenAIDeviceCode"
         @cookie-auth="handleCookieAuth"
         @validate-refresh-token="handleValidateRefreshToken"
         @validate-mobile-refresh-token="handleOpenAIValidateMobileRT"
@@ -3598,7 +3462,7 @@
         <p class="mb-4 text-xs text-amber-600 dark:text-amber-400">
           {{ t('admin.accounts.gemini.quotaPolicy.note') }}
         </p>
-        <div class="overflow-x-auto">
+        <div class="table-container overflow-x-auto">
           <table class="w-full text-xs">
             <thead class="bg-gray-50 dark:bg-dark-600">
               <tr>
@@ -3749,9 +3613,13 @@
 </template>
 
 <script setup lang="ts">
+import OutboundIdentityEditor from './OutboundIdentityEditor.vue'
+import type { IdentitySelection } from '@/api/admin/outboundIdentity'
+import Toggle from '@/components/common/Toggle.vue'
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+
 import {
   claudeModels,
   getPresetMappingsByPlatform,
@@ -3761,7 +3629,6 @@ import {
   fetchAntigravityDefaultMappings,
   isValidWildcardPattern
 } from '@/composables/useModelWhitelist'
-import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import {
@@ -3769,7 +3636,7 @@ import {
   type AddMethod,
   type AuthInputMethod
 } from '@/composables/useAccountOAuth'
-import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
+import { useOpenAIOAuth, type OpenAITokenInfo } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import { useGrokOAuth } from '@/composables/useGrokOAuth'
@@ -3789,6 +3656,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
+import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
@@ -3797,21 +3665,29 @@ import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
 import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
+import OpenCodeGoProtocolRulesEditor from '@/components/account/OpenCodeGoProtocolRulesEditor.vue'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import { allSelectedGroupsEnableLongContextPricing } from '@/components/account/longContextBilling'
 import {
   applyAntigravityProjectID,
   applyHeaderOverride,
   applyInterceptWarmup,
+  applyOpenCodeGoProtocolRules,
+  cloneOpenCodeGoProtocolRules,
   cnSupportsNativeResponses,
   defaultCNAdaptiveBaseUrls,
   defaultCNBaseUrl,
+  defaultOpenCodeProtocolRules,
+  isCNProviderPlatform,
   isHeaderOverrideCapable,
   validateHeaderOverrideRows,
   type CnAccountMode,
   type CnApiProtocol,
   type CnNativeApiProtocol,
-  type HeaderOverrideRow
+  type CnProviderPlatform,
+  type HeaderOverrideRow,
+  type OpenCodeAccountMode,
+  type OpenCodeGoProtocolRule
 } from '@/components/account/credentialsBuilder'
 import {
   formatDateTimeLocalInput,
@@ -3819,6 +3695,7 @@ import {
   parseDateTimeLocalInput
 } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import { getAccountExpiryTimestamp } from '@/components/account/accountExpiry'
 import { VERTEX_LOCATION_OPTIONS } from '@/constants/account'
 import {
   OPENAI_WS_MODE_CTX_POOL,
@@ -3826,7 +3703,7 @@ import {
   OPENAI_WS_MODE_PASSTHROUGH,
   OPENAI_WS_MODE_HTTP_BRIDGE,
   isOpenAIWSModeEnabled,
-  resolveOpenAIWSModeConcurrencyHintKey,
+  resolveOpenAIWSModeHintKey,
   type OpenAIWSMode
 } from '@/utils/openaiWsMode'
 import OAuthAuthorizationFlow from './OAuthAuthorizationFlow.vue'
@@ -3848,7 +3725,6 @@ interface OAuthFlowExposed {
 }
 
 const { t } = useI18n()
-const authStore = useAuthStore()
 const browserTimeZone = getBrowserTimeZone()
 
 const oauthStepTitle = computed(() => {
@@ -3876,8 +3752,9 @@ const apiKeyHint = computed(() => {
 
 // Base URL / API Key 占位符：国产供应商随账号类型变化。
 const apiKeyBaseUrlPlaceholder = computed(() => {
-  if (isCNPlatform.value) {
-    return defaultCNBaseUrl(form.platform, accountMode.value, apiProtocol.value) || 'https://api.example.com'
+  if (isMultiProtocolPlatform.value) {
+    const mode = form.platform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
+    return defaultCNBaseUrl(form.platform, mode, apiProtocol.value) || 'https://api.example.com'
   }
   switch (form.platform) {
     case 'openai':
@@ -3904,6 +3781,9 @@ const apiKeyValuePlaceholder = computed(() => {
     case 'zhipu':
       return '<api-key>.<secret>'
     case 'deepseek':
+      return 'sk-...'
+    case 'minimax':
+    case 'opencode_go':
       return 'sk-...'
     default:
       return 'sk-ant-...'
@@ -3970,6 +3850,14 @@ const currentOAuthError = computed(() => {
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
+const openaiDeviceCode = ref<{
+  session_id: string
+  user_code: string
+  verification_url: string
+  interval_seconds: number
+} | null>(null)
+const openaiDeviceCodePolling = ref(false)
+let openaiDeviceCodeGeneration = 0
 
 // Model mapping type
 interface ModelMapping {
@@ -3994,9 +3882,13 @@ const apiKeyValue = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
 const accountMode = ref<CnAccountMode>('payg')
+const openCodeAccountMode = ref<OpenCodeAccountMode>('zen')
 // API 协议决定转发端点与格式：cc=现有转换链，anthropic=原生直通（Claude Code），
 // responses=deepseek / kimi 原生 Responses 端点（Codex）。与账号类型正交。
 const apiProtocol = ref<CnApiProtocol>('adaptive')
+const openCodeGoProtocolRules = ref<OpenCodeGoProtocolRule[]>(
+  cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
+)
 // 智谱团队版 Coding Plan：组织/项目 ID，写入 credentials 供额度探测切换团队端点
 const zhipuOrganization = ref('')
 const zhipuProject = ref('')
@@ -4005,16 +3897,23 @@ const adaptiveBaseUrls = ref<Record<CnNativeApiProtocol, string>>({
   anthropic: '',
   responses: ''
 })
-const isCNPlatform = computed(
-  () => form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek'
-)
+const isCNPlatform = computed(() => isCNProviderPlatform(form.platform))
+const isOpenCodeGoPlatform = computed(() => form.platform === 'opencode_go')
+const isMultiProtocolPlatform = computed(() => isCNPlatform.value || isOpenCodeGoPlatform.value)
+function currentOpenCodeOrCNMode(): CnAccountMode | OpenCodeAccountMode {
+  return isOpenCodeGoPlatform.value ? openCodeAccountMode.value : accountMode.value
+}
 // CnBaseUrlPresets 的 platform prop 是平台字面量联合类型，模板里不能写
 // `as` 断言（其中的 `|` 会被 eslint 误判为 Vue2 filter 语法），经此 computed 传递。
-const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
-  if (form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek') {
+const cnPresetPlatform = computed<CnProviderPlatform>(() => {
+  if (isCNProviderPlatform(form.platform)) {
     return form.platform
   }
   return 'kimi'
+})
+const adaptivePresetPlatform = computed<CnProviderPlatform | 'opencode_go'>(() => {
+  if (form.platform === 'opencode_go') return 'opencode_go'
+  return cnPresetPlatform.value
 })
 // 当前平台可选的协议档（responses 仅 deepseek / kimi）。
 const cnProtocolOptions = computed<Array<{ value: CnApiProtocol; labelKey: string }>>(() => {
@@ -4037,7 +3936,10 @@ const cnAdaptiveProtocolOptions = computed<Array<{ value: CnNativeApiProtocol; l
   return opts
 })
 
-function resetAdaptiveBaseUrls(platform: 'kimi' | 'zhipu' | 'deepseek', mode: CnAccountMode) {
+function resetAdaptiveBaseUrls(
+  platform: CnProviderPlatform | 'opencode_go',
+  mode: CnAccountMode | OpenCodeAccountMode
+) {
   adaptiveBaseUrls.value = defaultCNAdaptiveBaseUrls(platform, mode)
 }
 // 当前选中平台的品牌色（选中卡片描边 / 图标底色），与 platformColors 取色一致。
@@ -4049,6 +3951,10 @@ const cnAccentActiveClass = computed(() => {
       return 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
     case 'deepseek':
       return 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
+    case 'minimax':
+      return 'border-rose-500 bg-rose-50 dark:bg-rose-900/20'
+    case 'opencode_go':
+      return 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
     default:
       return 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
   }
@@ -4061,13 +3967,17 @@ const cnAccentIconClass = computed(() => {
       return 'bg-indigo-500 text-white'
     case 'deepseek':
       return 'bg-teal-500 text-white'
+    case 'minimax':
+      return 'bg-rose-500 text-white'
+    case 'opencode_go':
+      return 'bg-amber-500 text-white'
     default:
       return 'bg-primary-500 text-white'
   }
 })
 // 切换国产供应商平台：强制 apikey 类型，deepseek 无 coding 套餐故锁定 payg，
 // 协议回落 adaptive，并把 base url 重置为该平台默认端点。
-function selectCNPlatform(platform: 'kimi' | 'zhipu' | 'deepseek') {
+function selectCNPlatform(platform: CnProviderPlatform) {
   form.platform = platform
   form.type = 'apikey'
   accountCategory.value = 'apikey'
@@ -4078,12 +3988,41 @@ function selectCNPlatform(platform: 'kimi' | 'zhipu' | 'deepseek') {
   apiKeyBaseUrl.value = defaultCNBaseUrl(platform, accountMode.value, apiProtocol.value)
   resetAdaptiveBaseUrls(platform, accountMode.value)
 }
+function selectOpenCodeGoPlatform() {
+  form.platform = 'opencode_go'
+  form.type = 'apikey'
+  accountCategory.value = 'apikey'
+  apiProtocol.value = 'adaptive'
+  openCodeAccountMode.value = 'zen'
+  apiKeyBaseUrl.value = defaultCNBaseUrl('opencode_go', openCodeAccountMode.value, 'adaptive')
+  resetAdaptiveBaseUrls('opencode_go', openCodeAccountMode.value)
+  openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules(openCodeAccountMode.value))
+}
 // 账号类型 / 协议变更时同步默认 base url。
-watch(accountMode, (mode, previousMode) => {
-  if (!isCNPlatform.value) return
+watch(openCodeAccountMode, (mode, previousMode) => {
+  if (!isOpenCodeGoPlatform.value) return
   if (apiProtocol.value === 'adaptive') {
-    const previousDefaults = defaultCNAdaptiveBaseUrls(cnPresetPlatform.value, previousMode)
-    const nextDefaults = defaultCNAdaptiveBaseUrls(cnPresetPlatform.value, mode)
+    const previousDefaults = defaultCNAdaptiveBaseUrls('opencode_go', previousMode)
+    const nextDefaults = defaultCNAdaptiveBaseUrls('opencode_go', mode)
+    for (const item of cnAdaptiveProtocolOptions.value) {
+      if (!adaptiveBaseUrls.value[item.value] || adaptiveBaseUrls.value[item.value] === previousDefaults[item.value]) {
+        adaptiveBaseUrls.value[item.value] = nextDefaults[item.value]
+      }
+    }
+    apiKeyBaseUrl.value = adaptiveBaseUrls.value.chat_completions
+  } else {
+    apiKeyBaseUrl.value = defaultCNBaseUrl('opencode_go', mode, apiProtocol.value)
+  }
+  const previousRules = JSON.stringify(defaultOpenCodeProtocolRules(previousMode))
+  if (JSON.stringify(openCodeGoProtocolRules.value) === previousRules) {
+    openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules(mode))
+  }
+})
+watch(accountMode, (mode, previousMode) => {
+  if (!isMultiProtocolPlatform.value || isOpenCodeGoPlatform.value) return
+  if (apiProtocol.value === 'adaptive') {
+    const previousDefaults = defaultCNAdaptiveBaseUrls(adaptivePresetPlatform.value, previousMode)
+    const nextDefaults = defaultCNAdaptiveBaseUrls(adaptivePresetPlatform.value, mode)
     for (const item of cnAdaptiveProtocolOptions.value) {
       if (!adaptiveBaseUrls.value[item.value] || adaptiveBaseUrls.value[item.value] === previousDefaults[item.value]) {
         adaptiveBaseUrls.value[item.value] = nextDefaults[item.value]
@@ -4095,16 +4034,16 @@ watch(accountMode, (mode, previousMode) => {
   apiKeyBaseUrl.value = defaultCNBaseUrl(form.platform, mode, apiProtocol.value)
 })
 watch(apiProtocol, (protocol) => {
-  if (!isCNPlatform.value) return
+  if (!isMultiProtocolPlatform.value) return
   if (protocol === 'adaptive') {
-    const defaults = defaultCNAdaptiveBaseUrls(cnPresetPlatform.value, accountMode.value)
+    const defaults = defaultCNAdaptiveBaseUrls(adaptivePresetPlatform.value, currentOpenCodeOrCNMode())
     for (const item of cnAdaptiveProtocolOptions.value) {
       if (!adaptiveBaseUrls.value[item.value]) adaptiveBaseUrls.value[item.value] = defaults[item.value]
     }
     apiKeyBaseUrl.value = adaptiveBaseUrls.value.chat_completions
     return
   }
-  apiKeyBaseUrl.value = defaultCNBaseUrl(form.platform, accountMode.value, protocol)
+  apiKeyBaseUrl.value = defaultCNBaseUrl(form.platform, currentOpenCodeOrCNMode(), protocol)
 })
 // 点击预设端点：同时回填 base url、账号类型与协议。
 function onCnPresetSelect(preset: { mode: CnAccountMode; protocol: CnApiProtocol; url: string }) {
@@ -4115,7 +4054,7 @@ function onCnPresetSelect(preset: { mode: CnAccountMode; protocol: CnApiProtocol
 
 const syncPreviewCredentials = computed(() => {
   if (!apiKeyValue.value) return undefined
-  const baseUrl = isCNPlatform.value && apiProtocol.value === 'adaptive'
+  const baseUrl = isMultiProtocolPlatform.value && apiProtocol.value === 'adaptive'
     ? adaptiveBaseUrls.value.chat_completions.trim() || apiKeyBaseUrl.value.trim()
     : apiKeyBaseUrl.value.trim()
   const modelMapping = buildModelMappingObject(
@@ -4214,6 +4153,7 @@ const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
 const openaiPassthroughEnabled = ref(false)
 const openaiAccountUserAgent = ref('')
+const outboundIdentitySelection = ref<IdentitySelection | null>(null)
 const openaiOAuthSessionSharingEnabled = ref(false)
 // OpenAI Codex namespace 工具摊平兼容开关（仅 OAuth），缺省关闭即原样保留
 const openaiFlattenNamespacesEnabled = ref(false)
@@ -4221,12 +4161,15 @@ const openAILongContextBillingEnabled = ref(false)
 const openAILongContextBillingTouched = ref(false)
 const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
+const upstreamRequestIdHeader = ref('')
+const openAIImagesUrlToB64JsonEnabled = ref(false)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const codexFingerprintMode = ref<CodexFingerprintMode>('device')
+const codexEnvironmentTimezone = ref('')
 const codexFingerprintModeOptions = computed(() => [
   { value: 'off' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintOff') },
   { value: 'device' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintDevice') },
@@ -4440,8 +4383,8 @@ const openaiResponsesWebSocketV2Mode = computed({
   }
 })
 
-const openAIWSModeConcurrencyHintKey = computed(() =>
-  resolveOpenAIWSModeConcurrencyHintKey(openaiResponsesWebSocketV2Mode.value)
+const openAIWSModeHintKey = computed(() =>
+  resolveOpenAIWSModeHintKey(openaiResponsesWebSocketV2Mode.value)
 )
 
 const isOpenAIModelRestrictionDisabled = computed(() =>
@@ -4619,8 +4562,9 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (newPlatform === 'kimi' || newPlatform === 'zhipu' || newPlatform === 'deepseek') {
-      apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, accountMode.value, apiProtocol.value)
+    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
+      const mode = newPlatform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
+      apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, mode, apiProtocol.value)
     } else {
       apiKeyBaseUrl.value =
         (newPlatform === 'openai')
@@ -4978,13 +4922,17 @@ const openMixedChannelDialog = (opts: {
 }
 
 const withAntigravityConfirmFlag = (payload: CreateAccountRequest): CreateAccountRequest => {
+  const normalizedPayload = {
+    ...payload,
+    extra: withUpstreamRequestIdHeader(payload.extra)
+  }
   if (needsMixedChannelCheck(payload.platform) && antigravityMixedChannelConfirmed.value) {
     return {
-      ...payload,
+      ...normalizedPayload,
       confirm_mixed_channel_risk: true
     }
   }
-  const cloned = { ...payload }
+  const cloned = { ...normalizedPayload }
   delete cloned.confirm_mixed_channel_risk
   return cloned
 }
@@ -5019,10 +4967,15 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
   }
 }
 
+const createAccountWithOutboundIdentity = (payload: CreateAccountRequest) => adminAPI.accounts.create({
+  ...payload,
+  credentials: { ...payload.credentials, ...(outboundIdentitySelection.value ? { outbound_identity: outboundIdentitySelection.value } : {}) }
+})
+
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
-    const account = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const account = await createAccountWithOutboundIdentity(withAntigravityConfirmFlag(payload))
     const modelMapping = payload.credentials.model_mapping
     const hasConcreteMappedTarget = payload.type === 'apikey' &&
       typeof modelMapping === 'object' &&
@@ -5033,8 +4986,11 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
     if (upstreamModelsPreviewed.value || hasConcreteMappedTarget) {
       try {
         const result = await adminAPI.accounts.syncUpstreamModels(account.id)
-        if (result.warnings?.some(warning => warning.code === 'upstream_model_metadata_incomplete')) {
+        const warnings = result.warnings ?? []
+        if (warnings.some(warning => warning.code === 'upstream_model_metadata_incomplete')) {
           appStore.showWarning(t('admin.accounts.syncUpstreamModelsMetadataIncomplete'))
+        } else if (warnings.some(warning => warning.code === 'upstream_model_metadata_partial')) {
+          appStore.showWarning(t('admin.accounts.syncUpstreamModelsMetadataPartial'))
         }
       } catch {
         appStore.showWarning(t('admin.accounts.syncUpstreamModelsFailed'))
@@ -5078,10 +5034,13 @@ const resetForm = () => {
   accountCategory.value = 'oauth-based'
   addMethod.value = 'oauth'
   accountMode.value = 'payg'
+  openCodeAccountMode.value = 'zen'
   apiProtocol.value = 'adaptive'
+  openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
   adaptiveBaseUrls.value = { chat_completions: '', anthropic: '', responses: '' }
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
   apiKeyValue.value = ''
+  upstreamRequestIdHeader.value = ''
   editQuotaLimit.value = null
   editQuotaDailyLimit.value = null
   editQuotaWeeklyLimit.value = null
@@ -5115,17 +5074,20 @@ const resetForm = () => {
   autoPauseOnExpired.value = true
   openaiPassthroughEnabled.value = false
   openaiAccountUserAgent.value = ''
+  outboundIdentitySelection.value = null
   openaiOAuthSessionSharingEnabled.value = false
   openaiFlattenNamespacesEnabled.value = false
   openAILongContextBillingEnabled.value = false
   openAILongContextBillingTouched.value = false
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
+  openAIImagesUrlToB64JsonEnabled.value = false
   openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   codexCLIOnlyEnabled.value = false
   codexFingerprintMode.value = 'device'
+  codexEnvironmentTimezone.value = ''
   anthropicPassthroughEnabled.value = false
   anthropicAPIKeyAuthScheme.value = 'x_api_key'
   webSearchEmulationMode.value = 'default'
@@ -5175,6 +5137,9 @@ const resetForm = () => {
 }
 
 const handleClose = () => {
+  openaiDeviceCodeGeneration += 1
+  openaiDeviceCode.value = null
+  openaiDeviceCodePolling.value = false
   antigravityMixedChannelConfirmed.value = false
   clearMixedChannelDialog()
   emit('close')
@@ -5228,8 +5193,16 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
   delete extra.codex_cli_only_allow_app_server
   if (form.type === 'oauth') {
     extra.codex_fingerprint_mode = codexFingerprintMode.value
+    const envTz = codexEnvironmentTimezone.value.trim()
+    if (envTz) {
+      extra.codex_environment_timezone = envTz
+    } else {
+      // Empty means "follow the global default"; do not persist the key.
+      delete extra.codex_environment_timezone
+    }
   } else {
     delete extra.codex_fingerprint_mode
+    delete extra.codex_environment_timezone
   }
   if (openAICompactMode.value !== 'auto') {
     extra.openai_compact_mode = openAICompactMode.value
@@ -5247,7 +5220,23 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     delete extra.openai_responses_mode
   }
 
+  if (accountCategory.value === 'apikey' && openAIImagesUrlToB64JsonEnabled.value) {
+    extra.images_url_to_b64_json = true
+  } else {
+    delete extra.images_url_to_b64_json
+  }
+
   return Object.keys(extra).length > 0 ? extra : undefined
+}
+
+const withUpstreamRequestIdHeader = (
+  extra?: Record<string, unknown>
+): Record<string, unknown> | undefined => {
+  const name = upstreamRequestIdHeader.value.trim()
+  if (!name) {
+    return extra
+  }
+  return { ...(extra || {}), upstream_request_id_header: name }
 }
 
 const buildOpenAICodexImportExtra = (): Record<string, unknown> | undefined => {
@@ -5545,11 +5534,14 @@ const handleSubmit = async () => {
   // 国产供应商：账号模式 + 协议 + 对应端点写入凭据；后端按 account_mode 路由
   // 额度/余额探测，按 api_protocol 路由转发端点与格式。注意 CN apikey 走本函数
   // 的通用路径（直接 doCreateAccount），不经过 createAccountAndFinish。
-  if (form.platform === 'kimi' || form.platform === 'zhipu' || form.platform === 'deepseek') {
-    credentials.account_mode = accountMode.value
+  if (isCNProviderPlatform(form.platform) || form.platform === 'opencode_go') {
+    credentials.account_mode = form.platform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
     credentials.api_protocol = apiProtocol.value
     if (apiProtocol.value === 'adaptive') {
-      const defaults = defaultCNAdaptiveBaseUrls(form.platform, accountMode.value)
+      const defaults = defaultCNAdaptiveBaseUrls(
+        form.platform,
+        form.platform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
+      )
       const protocolBaseUrls: Record<string, string> = {}
       for (const item of cnAdaptiveProtocolOptions.value) {
         protocolBaseUrls[item.value] = (adaptiveBaseUrls.value[item.value] || defaults[item.value]).trim()
@@ -5558,7 +5550,7 @@ const handleSubmit = async () => {
       credentials.base_url = protocolBaseUrls.chat_completions
     }
     const resolvedCNBase = (
-      apiKeyBaseUrl.value.trim() || defaultCNBaseUrl(form.platform, accountMode.value, apiProtocol.value)
+      apiKeyBaseUrl.value.trim() || defaultCNBaseUrl(form.platform, currentOpenCodeOrCNMode(), apiProtocol.value)
     ).trim()
     if (apiProtocol.value !== 'adaptive' && resolvedCNBase) {
       credentials.base_url = resolvedCNBase
@@ -5567,6 +5559,9 @@ const handleSubmit = async () => {
     if (form.platform === 'zhipu' && accountMode.value === 'coding') {
       if (zhipuOrganization.value.trim()) credentials.zhipu_organization = zhipuOrganization.value.trim()
       if (zhipuProject.value.trim()) credentials.zhipu_project = zhipuProject.value.trim()
+    }
+    if (form.platform === 'opencode_go') {
+      applyOpenCodeGoProtocolRules(credentials, openCodeGoProtocolRules.value, 'create')
     }
   }
 
@@ -5815,13 +5810,13 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithOutboundIdentity({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
           type: 'oauth',
           credentials,
-          extra,
+          extra: withUpstreamRequestIdHeader(extra),
           proxy_id: form.proxy_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
@@ -5992,13 +5987,13 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithOutboundIdentity({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
           type: 'oauth',
           credentials,
-          extra,
+          extra: withUpstreamRequestIdHeader(extra),
           proxy_id: form.proxy_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,
@@ -6043,31 +6038,13 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
 }
 
 // OpenAI OAuth 授权码兑换
-const handleOpenAIExchange = async (authCode: string) => {
+const createOpenAIAccountFromTokenInfo = async (tokenInfo: OpenAITokenInfo) => {
   const oauthClient = openaiOAuth
-  if (!authCode.trim() || !oauthClient.sessionId.value) return
-
   oauthClient.loading.value = true
   oauthClient.error.value = ''
-
   try {
-    const stateToUse = (oauthFlowRef.value?.oauthState || oauthClient.oauthState.value || '').trim()
-    if (!stateToUse) {
-      oauthClient.error.value = t('admin.accounts.oauth.authFailed')
-      appStore.showError(oauthClient.error.value)
-      return
-    }
-
-    const tokenInfo = await oauthClient.exchangeAuthCode(
-      authCode.trim(),
-      oauthClient.sessionId.value,
-      stateToUse,
-      form.proxy_id
-    )
-    if (!tokenInfo) return
-
     const credentials = oauthClient.buildCredentials(tokenInfo)
-		applyOpenAIAccountUserAgent(credentials)
+    applyOpenAIAccountUserAgent(credentials)
     const oauthExtra = oauthClient.buildExtraInfo(tokenInfo) as Record<string, unknown> | undefined
     const extra = buildOpenAIExtra(oauthExtra)
     const shouldCreateOpenAI = form.platform === 'openai'
@@ -6092,13 +6069,13 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await createAccountWithOutboundIdentity({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
         type: 'oauth',
         credentials,
-        extra,
+        extra: withUpstreamRequestIdHeader(extra),
         proxy_id: form.proxy_id,
         concurrency: form.concurrency,
         load_factor: form.load_factor ?? undefined,
@@ -6118,6 +6095,57 @@ const handleOpenAIExchange = async (authCode: string) => {
     appStore.showError(oauthClient.error.value)
   } finally {
     oauthClient.loading.value = false
+  }
+}
+
+const handleOpenAIExchange = async (authCode: string) => {
+  const oauthClient = openaiOAuth
+  if (!authCode.trim() || !oauthClient.sessionId.value) return
+  const stateToUse = (oauthFlowRef.value?.oauthState || oauthClient.oauthState.value || '').trim()
+  if (!stateToUse) {
+    oauthClient.error.value = t('admin.accounts.oauth.authFailed')
+    appStore.showError(oauthClient.error.value)
+    return
+  }
+  const tokenInfo = await oauthClient.exchangeAuthCode(
+    authCode.trim(),
+    oauthClient.sessionId.value,
+    stateToUse,
+    form.proxy_id
+  )
+  if (!tokenInfo) return
+  await createOpenAIAccountFromTokenInfo(tokenInfo)
+}
+
+const handleStartOpenAIDeviceCode = async () => {
+  const generation = ++openaiDeviceCodeGeneration
+  openaiDeviceCodePolling.value = false
+  const started = await openaiOAuth.startDeviceCode(form.proxy_id)
+  if (!started || generation !== openaiDeviceCodeGeneration) return
+  openaiDeviceCode.value = started
+  openaiDeviceCodePolling.value = true
+  const intervalMs = Math.max(1, started.interval_seconds || 5) * 1000
+  const startedAt = Date.now()
+  const timeoutMs = 15 * 60 * 1000
+  while (generation === openaiDeviceCodeGeneration) {
+    const result = await openaiOAuth.pollDeviceCode(started.session_id)
+    if (generation !== openaiDeviceCodeGeneration) return
+    if (!result) {
+      openaiDeviceCodePolling.value = false
+      return
+    }
+    if ('pending' in result && result.pending) {
+      if (Date.now() - startedAt >= timeoutMs) {
+        openaiDeviceCodePolling.value = false
+        appStore.showError(t('admin.accounts.oauth.openai.deviceCodeTimeout'))
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+      continue
+    }
+    openaiDeviceCodePolling.value = false
+    await createOpenAIAccountFromTokenInfo(result as OpenAITokenInfo)
+    return
   }
 }
 
@@ -6214,7 +6242,7 @@ const handleOpenAIImportCodexSession = async (content: string) => {
       expires_at: form.expires_at,
       auto_pause_on_expired: autoPauseOnExpired.value,
       credential_extras: Object.keys(credentialExtras).length > 0 ? credentialExtras : undefined,
-      extra,
+      extra: withUpstreamRequestIdHeader(extra),
       update_existing: true
     })
 
@@ -6292,10 +6320,10 @@ const handleOpenAIImportCodexPAT = async (accessToken: string) => {
       expires_at: form.expires_at,
       auto_pause_on_expired: autoPauseOnExpired.value,
       credential_extras: Object.keys(credentialExtras).length > 0 ? credentialExtras : undefined,
-      extra
+      extra: withUpstreamRequestIdHeader(extra)
     })
 
-    appStore.showSuccess(t('admin.accounts.messages.accountCreated'))
+    appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
     handleClose()
   } catch (error: any) {
@@ -6375,13 +6403,13 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await createAccountWithOutboundIdentity({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
             type: 'oauth',
             credentials,
-            extra,
+            extra: withUpstreamRequestIdHeader(extra),
             proxy_id: form.proxy_id,
             concurrency: form.concurrency,
             load_factor: form.load_factor ?? undefined,
@@ -6490,7 +6518,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await createAccountWithOutboundIdentity(createPayload)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -6855,13 +6883,13 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await createAccountWithOutboundIdentity({
           name: accountName,
           notes: form.notes,
           platform: form.platform,
           type: addMethod.value, // Use addMethod as type: 'oauth' or 'setup-token'
           credentials,
-          extra,
+          extra: withUpstreamRequestIdHeader(extra),
           proxy_id: form.proxy_id,
           concurrency: form.concurrency,
           load_factor: form.load_factor ?? undefined,

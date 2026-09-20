@@ -102,3 +102,9 @@ historical incidents and must not be used for routine development.
 
 Runner implementation:
 `backend/internal/repository/migrations_runner.go`.
+
+
+Owned `0.2.4+custom.002` imports Plus `v0.2.4+custom.001` migrations 259–263
+unchanged under owned filenames 263–267. Earlier owned files remain unchanged;
+see `docs/GOTOCC_PLUS_MIGRATION.md` for the exact filename mapping and data,
+lock, API compatibility, and forward-recovery implications.

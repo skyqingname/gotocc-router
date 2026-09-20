@@ -70,7 +70,12 @@ const messages: Record<string, string> = {
 	'usage.latencyNonTextFirstHint': 'First token-like output was reasoning or a tool call, not necessarily final answer text.',
 	'usage.latencyDuration': 'Total',
 	'usage.latencyTps': 'TPS',
-	'usage.latencyTpsHint': 'Estimated average text output rate: text output tokens ÷ (last token − first token). Complete stream/ws requests only. Sample too small (short window or few text tokens) shows "-". Values below 1 or above 1000 show as "< 1" / "> 1000".',
+		'usage.latencyLastToken': 'Last Token',
+		'usage.timingUnavailableHistorical': 'Verified first-token timing was not collected',
+		'usage.timingUnavailableLive': 'Live session summary has no token-generation timing',
+		'usage.timingUnavailableCompaction': 'Compaction result has no observable token deltas',
+		'usage.timingUnavailableNoTokens': 'No billed text tokens or generation timing observed',
+		'usage.latencyTpsHint': 'Output tokens per second. Streaming requests exclude first-token latency; non-streaming requests use total duration.',
 		'usage.incomplete': 'Incomplete',
 		'usage.incompleteHint': 'The request ended before a complete terminal result.',
 		'usage.clientDisconnected': 'Client disconnected',
@@ -123,6 +128,7 @@ const DataTableStub = {
 }
 
 const baseImageRow = {
+  timing_version: 1,
   request_id: 'req-admin-image',
   model: 'gpt-image-2',
   actual_cost: 0.4,
@@ -297,6 +303,7 @@ describe('admin UsageTable tooltip', () => {
         first_token_ms: 55,
         first_output_ms: null,
         first_output_kind: null,
+        timing_version: 0,
         duration_ms: 900,
       },
       {
@@ -322,11 +329,12 @@ describe('admin UsageTable tooltip', () => {
     })
 
     const text = wrapper.text()
-    // Primary column is always First Token / Legacy, never modality labels.
+    // Primary column always uses First Token, with unverified history unavailable.
     expect(text).toContain('First Token 120ms')
     expect(text).toContain('First Token 85ms')
     expect(text).toContain('First Token 88ms')
-    expect(text).toContain('First Event (Legacy) 55ms')
+    expect(text).not.toContain('First Event (Legacy)')
+    expect(text).not.toContain('55ms')
     expect(text).not.toContain('First Image Data')
     expect(text).not.toContain('First Audio Data')
     expect(text).not.toContain('First Reasoning')
@@ -336,10 +344,8 @@ describe('admin UsageTable tooltip', () => {
     expect(values[0].text()).toBe('120ms')
     expect(values[0].classes()).toContain('text-emerald-600')
     expect(values[1].text()).toBe('-')
-    expect(values[7].text()).toBe('55ms')
-    expect(values[7].classes()).toContain('text-gray-600')
+    expect(values[7].text()).toBe('-')
 
-    // Detail icon for non-plain cases; plain text with matching times has no icon.
     const triggers = wrapper.findAll('[data-testid="latency-details-trigger"]')
     expect(triggers).toHaveLength(8)
 
@@ -355,7 +361,21 @@ describe('admin UsageTable tooltip', () => {
     expect(tooltip.text()).toContain('First output and first token differ')
   })
 
-  it('shows estimated TPS from last-first token time, clamped outside [1, 1000]', () => {
+  it('keeps very low positive TPS visible and uses total duration when first-token timing is absent', () => {
+    const row = { ...baseImageRow, request_type: 'stream', stream: true, first_output_kind: 'text', first_token_ms: 100, last_token_ms: 120000, duration_ms: 120500, output_tokens: 1 }
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row, { ...row, request_id: 'billed-compaction', first_output_kind: 'compaction', first_token_ms: null, last_token_ms: null, output_tokens: 100 }],
+        loading: false,
+        columns: [{ key: 'latency', label: 'Latency' }],
+      },
+      global: { stubs: { DataTable: DataTableStub, Pagination: true, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.findAll('[data-testid="latency-tps"]').map(node => node.text())).toEqual(['0.0083 tok/s', '0.8 tok/s'])
+    wrapper.unmount()
+  })
+
+  it('shows TPS from the streaming generation window or the non-streaming total duration', () => {
     const rows = [
       {
         ...baseImageRow,
@@ -465,6 +485,7 @@ describe('admin UsageTable tooltip', () => {
         last_token_ms: 1_000,
         first_output_ms: null,
         first_output_kind: null,
+        timing_version: 0,
         duration_ms: 1_000,
       },
       {
@@ -505,20 +526,20 @@ describe('admin UsageTable tooltip', () => {
         duration_ms: 1_100,
       },
       {
-        // generationMs = 250 < 300 → dash
+        // 100 output tokens / (250ms - 100ms) = 666.7
         ...baseImageRow,
         request_id: 'req-tps-short-generation',
         request_type: 'stream',
         stream: true,
         output_tokens: 100,
         first_token_ms: 100,
-        last_token_ms: 350,
+        last_token_ms: 250,
         first_output_ms: 100,
         first_output_kind: 'text',
-        duration_ms: 350,
+        duration_ms: 250,
       },
       {
-        // text tokens = 7 < 8 → dash
+        // 7 output tokens / (1100ms - 100ms) = 7
         ...baseImageRow,
         request_id: 'req-tps-few-tokens',
         request_type: 'stream',
@@ -532,7 +553,7 @@ describe('admin UsageTable tooltip', () => {
         duration_ms: 1_100,
       },
       {
-        // 1000 tokens / 500ms = 2000 → > 1000
+        // 1000 tokens / 500ms decode window = 2000
         ...baseImageRow,
         request_id: 'req-tps-unrealistically-high',
         request_type: 'stream',
@@ -546,7 +567,7 @@ describe('admin UsageTable tooltip', () => {
         duration_ms: 600,
       },
       {
-        // 8 tokens / 10000ms = 0.8 → < 1
+        // 8 tokens / 10000ms decode window = 0.8
         ...baseImageRow,
         request_id: 'req-tps-below-one',
         request_type: 'stream',
@@ -560,7 +581,7 @@ describe('admin UsageTable tooltip', () => {
         duration_ms: 10_100,
       },
       {
-        // boundary: generationMs = 300, tokens = 8, TPS = 26.7
+        // 8 tokens / 300ms decode window = 26.7
         ...baseImageRow,
         request_id: 'req-tps-min-gates-pass',
         request_type: 'stream',
@@ -588,7 +609,7 @@ describe('admin UsageTable tooltip', () => {
         duration_ms: 400,
       },
       {
-        // 300 * 1000 / 300 = 1000 → show 1000
+        // 300 * 1000 / 300 = 1000
         ...baseImageRow,
         request_id: 'req-tps-max-boundary',
         request_type: 'stream',
@@ -615,28 +636,30 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    expect(wrapper.findAll('[data-testid="latency-tps"]').map((node) => node.text())).toEqual([
-      '37',
-      '50',
-      '100',
-      '100',
+    const tpsNodes = wrapper.findAll('[data-testid="latency-tps"]')
+    expect(tpsNodes.map((node) => node.text())).toEqual([
+      '37 tok/s',
+      '50 tok/s',
+      '105 tok/s',
+      '150 tok/s',
+      '100 tok/s',
+      '100 tok/s',
+      '100 tok/s',
+      '111 tok/s',
       '-',
-      '-',
-      '-',
-      '-',
-      '-',
-      '-',
-      '-',
-      '-',
-      '-',
-      '> 1000',
-      '< 1',
-      '26.7',
-      '500',
-      '1000',
+      '5.6 tok/s',
+      '100 tok/s',
+      '667 tok/s',
+      '7 tok/s',
+      '2000 tok/s',
+      '0.8 tok/s',
+      '26.7 tok/s',
+      '500 tok/s',
+      '1000 tok/s',
     ])
-    expect(wrapper.text()).toContain('First Token 721msTotal10.86sTPS37')
-    expect(wrapper.text()).toContain('First Token 100msTotal1.10sTPS100')
+    expect(tpsNodes.every((node) => node.attributes('title') === messages['usage.latencyTpsHint'])).toBe(true)
+    expect(wrapper.text()).toContain('First Token 721msTotal10.86sTPS37 tok/s')
+    expect(wrapper.text()).toContain('First Token 100msTotal1.10sTPS105 tok/s')
     expect(wrapper.text()).not.toContain('First Image Data')
     expect(wrapper.text()).not.toContain('First Audio Data')
   })
@@ -787,8 +810,8 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    const tooltipTriggers = wrapper.findAll('.group.relative')
-    await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
+    const costTrigger = wrapper.get('[data-testid="cost-details-trigger"]')
+    await costTrigger.trigger('mouseenter')
     await nextTick()
 
     const text = wrapper.text()
@@ -803,6 +826,53 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')
     expect(text).toContain('$0.069568')
+  })
+
+  it.each(['token', 'image', 'per_request'])('keeps eight decimal places in %s cost details', async (billingMode) => {
+    const row = {
+      ...baseImageRow,
+      billing_mode: billingMode,
+      image_count: billingMode === 'image' ? 2 : 0,
+      input_cost: 0.00000001,
+      image_input_cost: 0.00000002,
+      output_cost: 0.00000003,
+      image_output_cost: 0.00000004,
+      cache_creation_cost: 0.00000005,
+      cache_read_cost: 0.00000006,
+      total_cost: 0.00000022,
+      actual_cost: 0.00000042,
+      account_stats_cost: 0.00000012,
+      account_rate_multiplier: 1.5,
+    }
+    const wrapper = mount(UsageTable, {
+      props: { data: [row], loading: false, columns: [] },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    await wrapper.get('[data-testid="cost-details-trigger"]').trigger('mouseenter')
+    await nextTick()
+    const amounts = wrapper.get('.fixed').findAll('span').map(span => span.text())
+    expect(amounts).toEqual(expect.arrayContaining([
+      '$0.00000001', '$0.00000002', '$0.00000003', '$0.00000004',
+      '$0.00000005', '$0.00000006', '$0.00000022', '$0.00000042', '$0.00000018',
+    ]))
+    if (billingMode === 'image') expect(amounts).toContain('$0.00000011')
+    wrapper.unmount()
+  })
+
+  it('uses eight decimal places for missing cost values', async () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{ ...baseImageRow, billing_mode: 'per_request', image_count: 0, total_cost: undefined, actual_cost: undefined }],
+        loading: false,
+        columns: [],
+      },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    await wrapper.get('[data-testid="cost-details-trigger"]').trigger('mouseenter')
+    await nextTick()
+    const amounts = wrapper.get('.fixed').findAll('span').map(span => span.text()).filter(text => text.startsWith('$'))
+    expect(amounts).toEqual(['$0.00000000', '$0.00000000', '$0.00000000', '$0.00000000'])
+    wrapper.unmount()
   })
 
   it('shows requested and upstream models separately for admin rows', () => {

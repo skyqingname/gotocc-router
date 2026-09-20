@@ -1,3 +1,5 @@
+//go:build unit || !integration
+
 package service
 
 // 投影漏列回归（service 半程）：认证快照 build → L2 JSON 序列化
@@ -53,7 +55,7 @@ func TestAPIKeyAuthSnapshotProfitControlRoundtrip(t *testing.T) {
 	snapshot := svc.snapshotFromAPIKey(context.Background(), apiKey)
 	require.NotNil(t, snapshot)
 	require.Equal(t, apiKeyAuthSnapshotVersion, snapshot.Version)
-	require.Equal(t, 24, snapshot.Version, "v24 保留既有计费和团队字段，并增加 API Key 路由模式")
+	require.Equal(t, apiKeyAuthSnapshotVersion, snapshot.Version, "认证快照版本必须与当前常量一致")
 
 	// 模拟 L2 缓存的完整 JSON 往返（与 apiKeyCache.SetAuthCache/GetAuthCache 同构）。
 	payload, err := json.Marshal(&APIKeyAuthCacheEntry{Snapshot: snapshot})

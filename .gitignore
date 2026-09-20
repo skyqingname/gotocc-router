@@ -144,12 +144,17 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/OUTBOUND_IDENTITY.md
 !docs/README.md
+!docs/AFFILIATE.md
 !docs/RELEASING.md
+!docs/UPSTREAM_V0_2_4_INTEGRATION.md
+!docs/UPSTREAM_V0_2_5_INTEGRATION.md
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
+!docs/USAGE_TIMING.md
 !docs/SECURITY_AUDIT_CONTENT_COVERAGE.md
 !docs/CLIENT_DISCONNECT_RISK_CONTROL.md
 !docs/BATCH_IMAGE_MVP.md
@@ -186,3 +191,8 @@ __pycache__/
 
 # 本地闭源插件开发目录及构建产物不进入 Sub2API Plus 仓库
 /plugins/
+.codebuddy/
+# Owned gateway feature contracts
+!docs/VIDEO_PLATFORM.md
+!docs/TYPESAFE_PROMPT_AUDIT.md
+!docs/GROUP_RATE_SCHEDULES.md

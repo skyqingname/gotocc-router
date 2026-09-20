@@ -274,6 +274,16 @@ func UsageRecordedAt(v time.Time) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldUsageRecordedAt, v))
 }
 
+// ProviderConfigIsNil applies the IsNil predicate on the "provider_config" field.
+func ProviderConfigIsNil() predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldIsNull(FieldProviderConfig))
+}
+
+// ProviderConfigNotNil applies the NotNil predicate on the "provider_config" field.
+func ProviderConfigNotNil() predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldNotNull(FieldProviderConfig))
+}
+
 // LocalRequestIDEQ applies the EQ predicate on the "local_request_id" field.
 func LocalRequestIDEQ(v string) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldLocalRequestID, v))

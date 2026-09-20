@@ -301,12 +301,12 @@ func (_q *ReusableInvitationCodeQuery) WithUses(opts ...func(*ReusableInvitation
 // Example:
 //
 //	var v []struct {
-//		Code string `json:"code,omitempty"`
+//		OwnerUserID int64 `json:"owner_user_id,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.ReusableInvitationCode.Query().
-//		GroupBy(reusableinvitationcode.FieldCode).
+//		GroupBy(reusableinvitationcode.FieldOwnerUserID).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *ReusableInvitationCodeQuery) GroupBy(field string, fields ...string) *ReusableInvitationCodeGroupBy {
@@ -324,11 +324,11 @@ func (_q *ReusableInvitationCodeQuery) GroupBy(field string, fields ...string) *
 // Example:
 //
 //	var v []struct {
-//		Code string `json:"code,omitempty"`
+//		OwnerUserID int64 `json:"owner_user_id,omitempty"`
 //	}
 //
 //	client.ReusableInvitationCode.Query().
-//		Select(reusableinvitationcode.FieldCode).
+//		Select(reusableinvitationcode.FieldOwnerUserID).
 //		Scan(ctx, &v)
 func (_q *ReusableInvitationCodeQuery) Select(fields ...string) *ReusableInvitationCodeSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

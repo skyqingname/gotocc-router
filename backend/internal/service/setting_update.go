@@ -107,7 +107,7 @@ func (s *SettingService) normalizeClientDisconnectRiskGeneration(ctx context.Con
 		return nil
 	}
 
-	currentEnabled := !isFalseSettingValue(requestedValue)
+	currentEnabled := strings.EqualFold(strings.TrimSpace(requestedValue), "true")
 	currentGeneration := settings.ClientDisconnectConsecutiveBanGeneration
 	if currentGeneration < 1 {
 		currentGeneration = 1
@@ -122,7 +122,7 @@ func (s *SettingService) normalizeClientDisconnectRiskGeneration(ctx context.Con
 		}
 	}
 
-	requestedEnabled := !isFalseSettingValue(requestedValue)
+	requestedEnabled := strings.EqualFold(strings.TrimSpace(requestedValue), "true")
 	if requestedEnabled != currentEnabled {
 		currentGeneration++
 	}
@@ -192,6 +192,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		return nil, err
 	}
 	settings.OpenAICodexUserAgent = normalizedOpenAICodexUserAgent
+	normalizedOpenAICodexEnvironmentTimezone, err := NormalizeOpenAICodexEnvironmentTimezone(settings.OpenAICodexEnvironmentTimezone)
+	if err != nil {
+		return nil, err
+	}
+	settings.OpenAICodexEnvironmentTimezone = normalizedOpenAICodexEnvironmentTimezone
 	settings.PaymentVisibleMethodAlipaySource = alipaySource
 	settings.PaymentVisibleMethodWxpaySource = wxpaySource
 	settings.WeChatConnectAppID = strings.TrimSpace(settings.WeChatConnectAppID)
@@ -431,6 +436,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
+	settings.AffiliateRebateRateL2 = clampAffiliateRebateRate(settings.AffiliateRebateRateL2)
+	updates[SettingKeyAffiliateRebateRateL2] = strconv.FormatFloat(settings.AffiliateRebateRateL2, 'f', 8, 64)
+	settings.AffiliateRebateRateL3 = clampAffiliateRebateRate(settings.AffiliateRebateRateL3)
+	updates[SettingKeyAffiliateRebateRateL3] = strconv.FormatFloat(settings.AffiliateRebateRateL3, 'f', 8, 64)
 	if settings.AffiliateRebateFreezeHours < 0 {
 		settings.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	}
@@ -488,6 +497,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	}
 	updates[SettingKeyChannelMonitorHideThroughput] = strconv.FormatBool(settings.ChannelMonitorHideThroughput)
 	updates[SettingKeyChannelMonitorShowQuota] = strconv.FormatBool(settings.ChannelMonitorShowQuota)
+	updates[SettingKeyChannelMonitorHideUserRanking] = strconv.FormatBool(settings.ChannelMonitorHideUserRanking)
 
 	// Grok model mapping policy
 	if v := strings.TrimSpace(settings.GrokDefaultTextModel); v != "" {
@@ -500,6 +510,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Available channels feature switch
 	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+
+	// Subscription feature switch
+	updates[SettingKeySubscriptionEnabled] = strconv.FormatBool(settings.SubscriptionEnabled)
 
 	// Model plaza feature switches + description
 	updates[SettingKeyModelPlazaEnabled] = strconv.FormatBool(settings.ModelPlazaEnabled)
@@ -539,11 +552,6 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 
 	// Gateway forwarding behavior
-	mode := normalizeOpenAITTFTMode(settings.OpenAITTFTMode)
-	if strings.TrimSpace(settings.OpenAITTFTMode) != "" && strings.ToLower(strings.TrimSpace(settings.OpenAITTFTMode)) != OpenAITTFTModeSemantic && strings.ToLower(strings.TrimSpace(settings.OpenAITTFTMode)) != OpenAITTFTModeVisible {
-		return nil, fmt.Errorf("%s must be one of: %s/%s", SettingKeyOpenAITTFTMode, OpenAITTFTModeSemantic, OpenAITTFTModeVisible)
-	}
-	updates[SettingKeyOpenAITTFTMode] = mode
 	updates[SettingKeyEnableFingerprintUnification] = strconv.FormatBool(settings.EnableFingerprintUnification)
 	updates[SettingKeyEnableMetadataPassthrough] = strconv.FormatBool(settings.EnableMetadataPassthrough)
 	updates[SettingKeyEnableCCHSigning] = strconv.FormatBool(settings.EnableCCHSigning)
@@ -558,6 +566,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyEnableClientDatelineNormalization] = strconv.FormatBool(settings.EnableClientDatelineNormalization)
 	updates[SettingKeyAntigravityUserAgentVersion] = antigravity.NormalizeUserAgentVersion(settings.AntigravityUserAgentVersion)
 	updates[SettingKeyOpenAICodexUserAgent] = strings.TrimSpace(settings.OpenAICodexUserAgent)
+	updates[SettingKeyOpenAICodexEnvironmentTimezone] = strings.TrimSpace(settings.OpenAICodexEnvironmentTimezone)
 	updates[SettingKeyCodexLegacyClientProfileCompatibilityEnabled] = strconv.FormatBool(settings.CodexLegacyClientProfileCompatibilityEnabled)
 	updates[SettingKeyOpenAICodexLocalGroupQuotaEnabled] = strconv.FormatBool(settings.OpenAICodexLocalGroupQuotaEnabled)
 	updates[SettingKeyOpenAICodexClientVersion] = NormalizeCodexClientVersion(settings.OpenAICodexClientVersion)
@@ -783,7 +792,6 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 	})
 	gatewayForwardingSF.Forget("gateway_forwarding")
 	gatewayForwardingCache.Store(&cachedGatewayForwardingSettings{
-		openAITTFTMode:                   normalizeOpenAITTFTMode(settings.OpenAITTFTMode),
 		fingerprintUnification:           settings.EnableFingerprintUnification,
 		metadataPassthrough:              settings.EnableMetadataPassthrough,
 		cchSigning:                       settings.EnableCCHSigning,
@@ -813,6 +821,11 @@ func (s *SettingService) refreshCachedSettings(settings *SystemSettings) {
 		value:                      codexUA,
 		legacyCompatibilityEnabled: settings.CodexLegacyClientProfileCompatibilityEnabled,
 		expiresAt:                  time.Now().Add(openAICodexUserAgentCacheTTL).UnixNano(),
+	})
+	s.openAICodexEnvironmentTimezoneSF.Forget("openai_codex_environment_timezone")
+	s.openAICodexEnvironmentTimezoneCache.Store(&cachedOpenAICodexEnvironmentTimezone{
+		value:     strings.TrimSpace(settings.OpenAICodexEnvironmentTimezone),
+		expiresAt: time.Now().Add(openAICodexEnvironmentTimezoneCacheTTL).UnixNano(),
 	})
 	s.openAICodexLocalQuotaSF.Forget("openai_codex_local_group_quota")
 	s.openAICodexLocalQuotaCache.Store(&cachedOpenAICodexLocalGroupQuota{

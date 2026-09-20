@@ -43,8 +43,14 @@ const (
 	FieldBackupProxyID = "backup_proxy_id"
 	// FieldExpiryWarnDays holds the string denoting the expiry_warn_days field in the database.
 	FieldExpiryWarnDays = "expiry_warn_days"
+	// FieldEgressTimezone holds the string denoting the egress_timezone field in the database.
+	FieldEgressTimezone = "egress_timezone"
+	// FieldEgressCountry holds the string denoting the egress_country field in the database.
+	FieldEgressCountry = "egress_country"
 	// EdgeAccounts holds the string denoting the accounts edge name in mutations.
 	EdgeAccounts = "accounts"
+	// EdgePrimaryProxies holds the string denoting the primary_proxies edge name in mutations.
+	EdgePrimaryProxies = "primary_proxies"
 	// EdgeBackupProxy holds the string denoting the backup_proxy edge name in mutations.
 	EdgeBackupProxy = "backup_proxy"
 	// Table holds the table name of the proxy in the database.
@@ -56,6 +62,10 @@ const (
 	AccountsInverseTable = "accounts"
 	// AccountsColumn is the table column denoting the accounts relation/edge.
 	AccountsColumn = "proxy_id"
+	// PrimaryProxiesTable is the table that holds the primary_proxies relation/edge.
+	PrimaryProxiesTable = "proxies"
+	// PrimaryProxiesColumn is the table column denoting the primary_proxies relation/edge.
+	PrimaryProxiesColumn = "backup_proxy_id"
 	// BackupProxyTable is the table that holds the backup_proxy relation/edge.
 	BackupProxyTable = "proxies"
 	// BackupProxyColumn is the table column denoting the backup_proxy relation/edge.
@@ -79,6 +89,8 @@ var Columns = []string{
 	FieldFallbackMode,
 	FieldBackupProxyID,
 	FieldExpiryWarnDays,
+	FieldEgressTimezone,
+	FieldEgressCountry,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -125,6 +137,14 @@ var (
 	FallbackModeValidator func(string) error
 	// DefaultExpiryWarnDays holds the default value on creation for the "expiry_warn_days" field.
 	DefaultExpiryWarnDays int
+	// DefaultEgressTimezone holds the default value on creation for the "egress_timezone" field.
+	DefaultEgressTimezone string
+	// EgressTimezoneValidator is a validator for the "egress_timezone" field. It is called by the builders before save.
+	EgressTimezoneValidator func(string) error
+	// DefaultEgressCountry holds the default value on creation for the "egress_country" field.
+	DefaultEgressCountry string
+	// EgressCountryValidator is a validator for the "egress_country" field. It is called by the builders before save.
+	EgressCountryValidator func(string) error
 )
 
 // OrderOption defines the ordering options for the Proxy queries.
@@ -205,6 +225,16 @@ func ByExpiryWarnDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExpiryWarnDays, opts...).ToFunc()
 }
 
+// ByEgressTimezone orders the results by the egress_timezone field.
+func ByEgressTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEgressTimezone, opts...).ToFunc()
+}
+
+// ByEgressCountry orders the results by the egress_country field.
+func ByEgressCountry(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEgressCountry, opts...).ToFunc()
+}
+
 // ByAccountsCount orders the results by accounts count.
 func ByAccountsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -216,6 +246,20 @@ func ByAccountsCount(opts ...sql.OrderTermOption) OrderOption {
 func ByAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPrimaryProxiesCount orders the results by primary_proxies count.
+func ByPrimaryProxiesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPrimaryProxiesStep(), opts...)
+	}
+}
+
+// ByPrimaryProxies orders the results by primary_proxies terms.
+func ByPrimaryProxies(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPrimaryProxiesStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
 
@@ -232,10 +276,17 @@ func newAccountsStep() *sqlgraph.Step {
 		sqlgraph.Edge(sqlgraph.O2M, true, AccountsTable, AccountsColumn),
 	)
 }
+func newPrimaryProxiesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(Table, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, PrimaryProxiesTable, PrimaryProxiesColumn),
+	)
+}
 func newBackupProxyStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(Table, FieldID),
-		sqlgraph.Edge(sqlgraph.O2O, false, BackupProxyTable, BackupProxyColumn),
+		sqlgraph.Edge(sqlgraph.M2O, false, BackupProxyTable, BackupProxyColumn),
 	)
 }
