@@ -4,7 +4,7 @@
 
 依据 [TypeSafe API](https://docs.typesafe.ai/api) 与 [模型文档](https://docs.typesafe.ai/models)，调用 `POST /v1/systemone`，使用 Bearer 认证。待审文本只放在 `state.content`；审核策略及每类判断问题放入 `questions`。一次请求同时提交全部启用类别的 Noul 问题，读取 `answers.<类别>.noul`。
 
-任一类别概率达到 `confidence_threshold` 即按原有阻断策略处理，默认 0.8。Noul 是该类别成立的概率，不是 Choice/Score 的 confidence。兼容事件和预览界面将最大类别概率放在现有 confidence 展示位，原因显示相应类别名，不伪造模型生成的解释。事件 `scanner_version` 记录 API 实际返回的模型版本。
+任一类别概率达到 `confidence_threshold` 即按原有阻断策略处理，默认 0.8。Noul 是该类别成立的概率，不是 Choice/Score 的 confidence。为兼容事件结构，最大类别概率仍保存在现有 confidence 字段；文本测试显示“最高风险概率”，原因只列达到阈值的类别，全部低于阈值时明确显示未命中，不伪造模型生成的解释。事件 `scanner_version` 记录 API 实际返回的模型版本，文本测试也显示该版本。
 
 同步、异步、节点探测与文本审核共用同一个实现，沿用原来的提取、分段、优先级、每节点/每段超时和聚合。HTTP 401/422/429/5xx、超时、缺失类别或非法概率均保留为调用失败，不冒充审核通过。这里的 API 适配不证明用户实际审核政策的准确率，须用用户样例进行人工验收。
 

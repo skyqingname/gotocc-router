@@ -4,6 +4,8 @@ export default {
       hint: '逐项判断选中的风险类别；任一类别概率达到阈值即拦截。切换保留自定义审核标准；请填写 TypeSafe API Key，旧节点密钥不会带入。',
       delivery: '待审文本仅放在 state.content；审核标准放在 questions。Jev 返回风险概率，界面原因显示命中的类别。',
       protocol: '审核服务',
+      score: '最高风险概率',
+      noMatch: '所选风险类别均未达到拦截阈值',
     },
     title: '提示词审计',
     description: '通过 TypeSafe Jev 按风险类别判断提示词，支持异步复核与同步阻止；保留旧协议配置以便迁移。',
@@ -34,6 +36,7 @@ export default {
       "latency": "耗时",
       "chunks": "分段总数",
       "node": "审计节点",
+      "model": "实际审核模型",
       "mode": "当前运行模式",
       "characters": "{count} / {limit} 字",
       "longInput": "长文本会分段审计；每段使用节点配置的超时时间，可随时取消等待。",
@@ -97,7 +100,7 @@ export default {
     policy: {
       title: '审计策略', description: '配置适用分组、九类输入风险、Worker 与队列边界。', scope: '适用范围', allGroups: '全部分组', selectedGroups: '指定分组',
       searchGroups: '搜索分组', noGroups: '没有匹配分组', missingGroups: '配置中包含已删除的分组 ID', selectedCount: '已选择 {count} 个分组',
-      scanners: 'Qwen3Guard 输入风险分类', workerCount: 'Worker 数量', queueCapacity: '持久队列容量', strategy: '节点策略', strategyHint: '按配置顺序优先尝试，必要时故障切换。',
+      scanners: '输入风险分类', workerCount: 'Worker 数量', queueCapacity: '持久队列容量', strategy: '节点策略', strategyHint: '按配置顺序优先尝试，必要时故障切换。',
     },
     auditPrompt: {
       responseFormat: '模型输出格式',

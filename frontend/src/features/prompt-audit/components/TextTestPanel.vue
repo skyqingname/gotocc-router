@@ -31,7 +31,7 @@
           <template v-if="result?.ok && result.result">
             <div v-if="score !== undefined" class="mb-5 rounded-xl bg-white px-4 py-4 dark:bg-dark-800">
               <div class="flex items-end justify-between gap-3">
-                <span class="text-sm text-gray-500 dark:text-dark-300">{{ t('admin.promptAudit.textTest.score') }}</span>
+                <span class="text-sm text-gray-500 dark:text-dark-300">{{ t(result.response_format === 'jev' ? 'admin.promptAudit.jev.score' : 'admin.promptAudit.textTest.score') }}</span>
                 <strong class="text-3xl font-semibold tabular-nums text-gray-950 dark:text-white">{{ score.toFixed(2) }}</strong>
               </div>
               <div class="my-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700"><div class="h-full rounded-full" :class="toneDot" :style="{ width: `${score * 100}%` }" /></div>
@@ -51,6 +51,7 @@
             <div v-if="result.http_status"><dt class="text-xs text-gray-500">{{ t('admin.promptAudit.textTest.httpStatus') }}</dt><dd class="mt-1 text-gray-900 dark:text-white">{{ result.http_status }}</dd></div>
             <div class="col-span-2"><dt class="text-xs text-gray-500">{{ t('admin.promptAudit.textTest.mode') }}</dt><dd class="mt-1 text-gray-900 dark:text-white">{{ t(`admin.promptAudit.mode.${result.effective_mode}`) }}</dd></div>
             <div v-if="endpointName" class="col-span-2"><dt class="text-xs text-gray-500">{{ t('admin.promptAudit.textTest.node') }}</dt><dd class="mt-1 break-words text-gray-900 dark:text-white">{{ endpointName }}</dd></div>
+            <div v-if="result.result?.scanner_version" class="col-span-2"><dt class="text-xs text-gray-500">{{ t('admin.promptAudit.textTest.model') }}</dt><dd class="mt-1 break-words text-gray-900 dark:text-white">{{ result.result.scanner_version }}</dd></div>
           </dl>
         </template>
         <div v-else class="flex min-h-64 flex-col items-center justify-center text-center">
@@ -81,7 +82,15 @@ let controller: AbortController | null = null
 const characters = computed(() => Array.from(text.value).length)
 const tooLong = computed(() => props.config.text_test_max_runes !== undefined && characters.value > props.config.text_test_max_runes)
 const score = computed(() => result.value?.result?.scanner_scores.confidence)
-const reason = computed(() => Object.values(result.value?.result?.scanner_evidence ?? {}).filter(Boolean).join('\n'))
+const reason = computed(() => {
+  if (result.value?.response_format === 'jev') {
+    const categories = result.value.result?.categories ?? []
+    return categories.length
+      ? categories.map(category => t(`admin.promptAudit.scanners.${category}`)).join('\n')
+      : t('admin.promptAudit.jev.noMatch')
+  }
+  return Object.values(result.value?.result?.scanner_evidence ?? {}).filter(Boolean).join('\n')
+})
 const endpointName = computed(() => props.config.endpoints.find(endpoint => endpoint.id === result.value?.guard_endpoint_id)?.name)
 const failed = computed(() => !!error.value || (result.value !== null && !result.value.ok))
 const outcome = computed(() => t(`admin.promptAudit.textTest.${failed.value ? 'failed' : result.value?.decision}`))

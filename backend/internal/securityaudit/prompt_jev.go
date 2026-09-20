@@ -107,13 +107,12 @@ func parseJevResponse(body []byte, scanners []string, endpoint ActiveEndpoint) (
 		}
 		score := *answer.Noul
 		result.ScannerScores[id] = score
-		result.ScannerEvidence[id] = ScannerCatalog[id].LabelZH
 		if score > maxScore {
 			maxScore = score
 			result.ScannerScores["confidence"] = score
-			result.ScannerEvidence["confidence"] = ScannerCatalog[id].LabelZH
 		}
 		if score >= endpoint.ConfidenceThreshold {
+			result.ScannerEvidence[id] = ScannerCatalog[id].LabelZH
 			result.Categories = append(result.Categories, id)
 			result.MatchedScanners = append(result.MatchedScanners, id)
 			result.Decision, result.RiskLevel, result.Action, result.Safety = EventCritical, RiskCritical, ActionBlock, "Unsafe"

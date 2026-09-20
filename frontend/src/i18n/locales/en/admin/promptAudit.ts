@@ -4,6 +4,8 @@ export default {
       hint: 'Evaluate selected categories independently; block if any probability reaches the threshold. Switching preserves custom audit policies. Enter a TypeSafe API key after switching. Existing provider secrets are not reused.',
       delivery: 'Text is sent only in state.content; policy is sent in questions. Jev returns probabilities; reasons show the matched categories.',
       protocol: 'Audit service',
+      score: 'Highest risk probability',
+      noMatch: 'None of the selected risk categories reached the blocking threshold',
     },
     title: 'Prompt Audit',
     description: 'Evaluate prompt risk categories with TypeSafe Jev for asynchronous review or synchronous blocking. Existing protocols remain available during migration.',
@@ -34,6 +36,7 @@ export default {
       "latency": "Elapsed",
       "chunks": "Total chunks",
       "node": "Audit endpoint",
+      "model": "Actual audit model",
       "mode": "Current mode",
       "characters": "{count} / {limit} characters",
       "longInput": "Long text is split into chunks. Each call uses the endpoint timeout; you can cancel at any time.",
@@ -97,7 +100,7 @@ export default {
     policy: {
       title: 'Audit policy', description: 'Configure group scope, nine input-risk categories, workers, and queue bounds.', scope: 'Scope', allGroups: 'All groups', selectedGroups: 'Selected groups',
       searchGroups: 'Search groups', noGroups: 'No matching groups', missingGroups: 'Configured IDs for groups that no longer exist', selectedCount: '{count} groups selected',
-      scanners: 'Qwen3Guard input-risk categories', workerCount: 'Worker count', queueCapacity: 'Persistent queue capacity', strategy: 'Node strategy', strategyHint: 'Try nodes in configuration order and fail over when allowed.',
+      scanners: 'Input-risk categories', workerCount: 'Worker count', queueCapacity: 'Persistent queue capacity', strategy: 'Node strategy', strategyHint: 'Try nodes in configuration order and fail over when allowed.',
     },
     auditPrompt: {
       responseFormat: 'Model response format',
