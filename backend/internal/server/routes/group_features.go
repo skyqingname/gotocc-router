@@ -23,4 +23,8 @@ func RegisterGroupFeatureRoutes(
 	rates := h.Admin.Group.RateScheduleHandler(settings)
 	admin.GET("/:id/rate-schedule", rates)
 	admin.PUT("/:id/rate-schedule", rates)
+	video := h.Admin.Group.VideoGroupConfigHandler(settings, false)
+	admin.GET("/:id/video-config", video)
+	admin.PUT("/:id/video-config", video)
+	admin.POST("/:id/video-preview", h.Admin.Group.VideoGroupConfigHandler(settings, true))
 }
