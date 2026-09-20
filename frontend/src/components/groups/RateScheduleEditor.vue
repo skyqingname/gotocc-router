@@ -96,8 +96,8 @@ const emit = defineEmits<{
 }>()
 
 const en = {
-  enabled: 'Enable time-window rates',
-  semantics: 'Additional factor: effective multiplier = resolved base multiplier × window factor. Disabling preserves the saved rules.',
+  enabled: 'Enable text time-window rates',
+  semantics: 'Additional factor: effective multiplier = resolved base multiplier × window factor. Images and videos retain their existing rates. Disabling preserves the saved rules.',
   timezone: 'IANA timezone',
   inheritTimezone: 'Leave blank to inherit the server timezone: {timezone}.',
   active: 'Active', start: 'Start', end: 'End', factor: 'Additional factor',
@@ -121,8 +121,8 @@ const en = {
   }
 }
 const zh: typeof en = {
-  enabled: '启用时段倍率',
-  semantics: '时段系数与基础倍率相乘：实际倍率 = 已确定的基础倍率 × 时段系数。关闭开关会保留规则。',
+  enabled: '启用文本时段倍率',
+  semantics: '时段系数与基础倍率相乘：文本实际倍率 = 已确定的基础倍率 × 时段系数。图片和视频保持原有倍率，关闭开关会保留规则。',
   timezone: 'IANA 时区',
   inheritTimezone: '留空则继承服务器时区：{timezone}。',
   active: '启用', start: '开始时间', end: '结束时间', factor: '时段系数',

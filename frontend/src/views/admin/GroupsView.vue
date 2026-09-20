@@ -654,6 +654,7 @@
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
         <RateScheduleEditor
+          v-if="createForm.platform !== 'video'"
           v-model="createForm.rate_schedule"
           :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''"
           :base-multiplier="createForm.rate_multiplier"
@@ -2314,7 +2315,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <RateScheduleEditor v-model="editForm.rate_schedule" :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''" :base-multiplier="editForm.rate_multiplier" />
+        <RateScheduleEditor v-if="editForm.platform !== 'video'" v-model="editForm.rate_schedule" :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''" :base-multiplier="editForm.rate_multiplier" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input

@@ -7,7 +7,7 @@
             {{ t('admin.promptAudit.auditPrompt.title') }}
           </h2>
           <p class="mt-1 max-w-4xl text-sm text-gray-500 dark:text-dark-300">
-            {{ t('admin.promptAudit.auditPrompt.description') }}
+            {{ t(draft.response_format === 'jev' ? 'admin.promptAudit.jev.delivery' : 'admin.promptAudit.auditPrompt.description') }}
           </p>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" data-test="restore-default-audit-prompt" @click="restoreDefault">
@@ -91,7 +91,9 @@ function restoreDefault() {
 function updateFormat(response_format: AuditResponseFormat) {
   const draft = cloneData(props.draft)
   if (response_format === 'jev') {
-    draft.audit_prompt = JEV_DEFAULTS.audit_prompt
+    if (draft.audit_prompt === draft.default_audit_prompt || draft.audit_prompt === draft.default_confidence_audit_prompt) {
+      draft.audit_prompt = JEV_DEFAULTS.audit_prompt
+    }
     draft.endpoints = draft.endpoints.map(endpoint => endpoint.protocol === 'typesafe' ? endpoint : ({
       ...endpoint, protocol: 'typesafe', base_url: JEV_DEFAULTS.base_url, model: JEV_DEFAULTS.model,
       token: '', has_token: false, clear_token: true, token_status: 'missing',

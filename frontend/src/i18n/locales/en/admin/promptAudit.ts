@@ -1,12 +1,12 @@
 export default {
   promptAudit: {
     jev: {
-      hint: 'Evaluate selected categories independently; block if any probability reaches the threshold. Enter a TypeSafe API key after switching. Existing provider secrets are not reused.',
+      hint: 'Evaluate selected categories independently; block if any probability reaches the threshold. Switching preserves custom audit policies. Enter a TypeSafe API key after switching. Existing provider secrets are not reused.',
       delivery: 'Text is sent only in state.content; policy is sent in questions. Jev returns probabilities; reasons show the matched categories.',
       protocol: 'Audit service',
     },
     title: 'Prompt Audit',
-    description: 'Review requests asynchronously or block them synchronously through OpenAI-compatible audit nodes with classification or confidence JSON output. Bounded retained content is available for admin review.',
+    description: 'Evaluate prompt risk categories with TypeSafe Jev for asynchronous review or synchronous blocking. Existing protocols remain available during migration.',
     configVersion: 'Config version v{version}',
     tabs: { config: 'Configuration', events: 'Events', test: 'Text test' },
     textTest: {
@@ -85,7 +85,7 @@ export default {
     },
     metrics: { total: 'Total', allowed: 'Allowed', flagged: 'Flagged', blocked: 'Blocked', unavailable: 'Unavailable', timeouts: 'Timeouts', failovers: 'Failovers', extractionAttempted: 'Attempted', extractionSucceeded: 'Succeeded', extractionEmpty: 'No text', extractionFailed: 'Failed' },
     pool: {
-      title: 'Audit pool', description: 'Enabled OpenAI-compatible nodes are tried in order. Probes run from the server network.',
+      title: 'Audit pool', description: 'Enabled audit nodes are tried in order. Jev uses a dedicated TypeSafe key; probes run from the server network.',
       add: 'Add node', edit: 'Edit node', empty: 'No audit nodes configured.', node: 'Node', model: 'Model', limits: 'Timeout / chunk limit', credential: 'Credential and probe',
       configured: 'API Key configured', missing: 'API Key missing', invalid: 'API Key cannot be decrypted; re-enter it', probe: 'Test connection', probing: 'Probing…',
       probeProgress: 'Config validated ✓ · request sent · awaiting service response…', probeResult: 'Config ✓ · request ✓ · HTTP {http} · {status} · {latency} ms',

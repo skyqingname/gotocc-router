@@ -1,12 +1,12 @@
 export default {
   promptAudit: {
     jev: {
-      hint: '逐项判断选中的风险类别；任一类别概率达到阈值即拦截。切换至 Jev 后请填写 TypeSafe API Key，旧节点密钥不会带入。',
+      hint: '逐项判断选中的风险类别；任一类别概率达到阈值即拦截。切换保留自定义审核标准；请填写 TypeSafe API Key，旧节点密钥不会带入。',
       delivery: '待审文本仅放在 state.content；审核标准放在 questions。Jev 返回风险概率，界面原因显示命中的类别。',
       protocol: '审核服务',
     },
     title: '提示词审计',
-    description: '通过 OpenAI 兼容审核节点异步复核或同步阻止请求，支持分类输出和评分 JSON；事件会按上限留存审计内容，供管理员复核。',
+    description: '通过 TypeSafe Jev 按风险类别判断提示词，支持异步复核与同步阻止；保留旧协议配置以便迁移。',
     configVersion: '配置版本 v{version}',
     tabs: { config: '配置', events: '事件', test: '文本测试' },
     textTest: {
@@ -85,7 +85,7 @@ export default {
     },
     metrics: { total: '总计', allowed: '放行', flagged: '标记', blocked: '阻止', unavailable: '不可用', timeouts: '超时', failovers: '故障切换', extractionAttempted: '尝试提取', extractionSucceeded: '提取成功', extractionEmpty: '无文本', extractionFailed: '提取失败' },
     pool: {
-      title: '审计池', description: '按顺序使用启用的 OpenAI 兼容节点；探测由服务端真实网络环境发起。',
+      title: '审计池', description: '按顺序使用启用的审核节点；Jev 使用 TypeSafe 专用密钥，探测由服务端真实网络环境发起。',
       add: '新增节点', edit: '编辑节点', empty: '尚未配置审计节点。', node: '节点', model: '模型', limits: '超时 / 单片上限', credential: '凭据与探测',
       configured: 'API Key 已配置', missing: '未配置 API Key', invalid: 'API Key 无法解密，请重新输入', probe: '连接测试', probing: '探测中…',
       probeProgress: '配置校验 ✓ · 请求已发送 · 等待服务响应…', probeResult: '配置校验 ✓ · 请求 ✓ · HTTP {http} · {status} · {latency} ms',
