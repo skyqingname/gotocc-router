@@ -54,7 +54,7 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 	if err != nil {
 		return nil, err
 	}
-	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, groupID, PlatformOpenAI)
+	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, groupID, []string{PlatformVideo, PlatformOpenAI})
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 		}
 		for i := range accounts {
 			account := &accounts[i]
-			if account.IsOpenAIApiKey() && account.IsSchedulableForModelWithContext(ctx, config.UpstreamModel) && gatewayAccountSupportsModel(ctx, account, config.UpstreamModel) {
+			if account.IsVideoAPIKey() && account.IsSchedulableForModelWithContext(ctx, config.UpstreamModel) && gatewayAccountSupportsModel(ctx, account, config.UpstreamModel) {
 				ids = append(ids, model)
 				break
 			}
@@ -74,7 +74,15 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 	return ids, nil
 }
 
-func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *int64, sessionHash, model string) (*AccountSelectionResult, error) {
+func (s *OpenAIGatewayService) listVideoAccounts(ctx context.Context, groupID *int64) ([]Account, error) {
+	platforms := []string{PlatformVideo, PlatformOpenAI}
+	if groupID == nil {
+		return s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, platforms)
+	}
+	return s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, platforms)
+}
+
+func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *int64, sessionHash, model, platform string) (*AccountSelectionResult, error) {
 	var accounts []Account
 	var err error
 	if groupID == nil {
@@ -87,11 +95,11 @@ func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *
 	}
 	excluded := make(map[int64]struct{})
 	for i := range accounts {
-		if !accounts[i].IsOpenAIApiKey() {
+		if !accounts[i].IsVideoAPIKey() {
 			excluded[accounts[i].ID] = struct{}{}
 		}
 	}
-	selected, _, err := s.SelectAccountWithScheduler(ctx, groupID, "", sessionHash, model, excluded, OpenAIUpstreamTransportHTTPSSE, false)
+	selected, _, err := s.SelectAccountWithSchedulerForCapability(ctx, groupID, "", sessionHash, model, excluded, OpenAIUpstreamTransportHTTPSSE, "", false, false, false, platform)
 	return selected, err
 }
 

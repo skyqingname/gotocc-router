@@ -229,10 +229,18 @@
             <PlatformIcon platform="opencode_go" size="sm" />
             OpenCode
           </button>
+          <button type="button" @click="form.platform = 'video'" :class="['flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all', form.platform === 'video' ? 'bg-white text-cyan-600 shadow-sm dark:bg-dark-600 dark:text-cyan-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400']">
+            <PlatformIcon platform="video" size="sm" />
+            <span>Video</span>
+          </button>
         </div>
       </div>
 
       <!-- Account Type Selection (Anthropic) -->
+      <div v-if="form.platform === 'video'" class="rounded-lg border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-800 dark:bg-cyan-950/30">
+        <p class="font-medium">Video · API Key</p>
+        <p class="input-hint">{{ t('admin.accounts.videoAccountHint') }}</p>
+      </div>
       <div v-if="form.platform === 'anthropic'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
         <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="account-form-type">
@@ -3737,6 +3745,7 @@ const oauthStepTitle = computed(() => {
 
 // Platform-specific hints for API Key type
 const baseUrlHint = computed(() => {
+  if (form.platform === 'video') return t('admin.accounts.videoBaseUrlHint')
   if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (form.platform === 'grok') return ''
@@ -3744,6 +3753,7 @@ const baseUrlHint = computed(() => {
 })
 
 const apiKeyHint = computed(() => {
+  if (form.platform === 'video') return ''
   if (form.platform === 'openai') return t('admin.accounts.openai.apiKeyHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.apiKeyHint')
   if (form.platform === 'grok') return ''
@@ -3757,6 +3767,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
     return defaultCNBaseUrl(form.platform, mode, apiProtocol.value) || 'https://api.example.com'
   }
   switch (form.platform) {
+    case 'video':
+      return t('admin.accounts.videoBaseUrlPlaceholder')
     case 'openai':
       return 'https://api.openai.com'
     case 'gemini':
@@ -3770,6 +3782,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
 
 const apiKeyValuePlaceholder = computed(() => {
   switch (form.platform) {
+    case 'video':
+      return 'API Key'
     case 'openai':
       return 'sk-proj-...'
     case 'gemini':
@@ -4562,7 +4576,10 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
+    if (newPlatform === 'video') {
+      apiKeyBaseUrl.value = ''
+      accountCategory.value = 'apikey'
+    } else if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
       const mode = newPlatform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, mode, apiProtocol.value)
     } else {
@@ -5512,6 +5529,11 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.platform === 'video' && !apiKeyBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.videoBaseUrlRequired'))
+    return
+  }
+
   // Determine default base URL based on platform
   const defaultBaseUrl =
     form.platform === 'openai'
@@ -5524,7 +5546,7 @@ const handleSubmit = async () => {
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
-    base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
+    base_url: form.platform === 'video' ? apiKeyBaseUrl.value.trim() : apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
   }
   if (form.platform === 'gemini') {

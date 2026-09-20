@@ -20,12 +20,12 @@ export const CONCRETE_PLATFORM_OPTIONS = [
   { value: 'zhipu', label: 'Zhipu GLM' },
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'minimax', label: 'MiniMax' },
-  { value: 'opencode_go', label: 'OpenCode' }
+  { value: 'opencode_go', label: 'OpenCode' },
+  { value: 'video', label: 'Video' }
 ] as const satisfies readonly PlatformOption<AccountPlatform>[]
 
 /** Platforms that can own a group. */
 export const GROUP_PLATFORM_OPTIONS = [
   ...CONCRETE_PLATFORM_OPTIONS,
-  { value: 'video', label: 'Video' },
   { value: 'composite', label: 'Composite' }
 ] as const satisfies readonly PlatformOption<GroupPlatform>[]

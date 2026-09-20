@@ -217,7 +217,11 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	var selection *service.AccountSelectionResult
 	account := persistedAccount
 	if persistedTask == nil {
-		selection, err = h.gatewayService.SelectVideoAccount(c.Request.Context(), apiKey.GroupID, sessionHash, forwardModel)
+		accountPlatform := service.PlatformOpenAI
+		if providerConfig != nil {
+			accountPlatform = service.PlatformVideo
+		}
+		selection, err = h.gatewayService.SelectVideoAccount(c.Request.Context(), apiKey.GroupID, sessionHash, forwardModel, accountPlatform)
 		if err != nil || selection == nil || selection.Account == nil {
 			reqLog.Warn("openai_videos.account_select_failed", zap.Error(err))
 			classification := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, forwardModel, service.PlatformOpenAI)

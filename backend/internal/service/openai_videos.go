@@ -137,7 +137,7 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 	if account == nil {
 		return nil, errors.New("account is required")
 	}
-	if !account.IsOpenAIApiKey() {
+	if !account.IsVideoAPIKey() {
 		writeOpenAIVideoError(c, http.StatusBadGateway, "upstream_error", "Video generation requires an OpenAI-compatible API key account")
 		return nil, errors.New("video generation requires an OpenAI-compatible API key account")
 	}

@@ -1,10 +1,10 @@
 # Video 平台
 
-Video 是独立的分组平台，使用现有 OpenAI 兼容 API Key 账号作为渠道凭据与上游地址。它复用既有异步任务、账务预占、原账号轮询和成功交付后结算。既有 OpenAI 视频分组和历史任务继续使用原协议。
+Video 是独立的分组与账号平台，账号类型为 API Key，供应商地址必须明确填写。Video 分组同时支持 Video 账号和既有 OpenAI 兼容 API Key 账号。它复用既有异步任务、账务预占、原账号轮询和成功交付后结算。既有 OpenAI 视频分组和历史任务继续使用原协议。
 
 ## 管理配置
 
-1. 创建 Video 分组；在账号管理给该分组绑定 OpenAI 兼容 API Key 账号，或从已有 OpenAI 分组复制账号。
+1. 创建 Video 分组。在“添加账号”选择 Video，填写供应商地址与 API Key，再绑定 Video 分组；账号列表和筛选显示 Video。已有 OpenAI API Key 账号仍可直接绑定或复制到 Video 分组。
 2. 在渠道管理添加 Video 平台，绑定该组。
 3. 在“Video 模型与协议”逐个添加公开模型名、上游模型名、启停和调用协议。
 4. 在同一渠道下方的模型定价中配置该模型的按次或按秒价格及分辨率档位。
@@ -16,7 +16,7 @@ Video 是独立的分组平台，使用现有 OpenAI 兼容 API Key 账号作为
 - `openai`：JSON/multipart 视频请求保留原正文与文件，支持配置创建、查询和内容路径。
 - `custom_json`：客户端使用 JSON 及公开媒体 URL，配置 canonical 字段到上游 JSON 点路径的映射，例如 `prompt → input.prompt`、`seconds → parameters.duration`。不包含需要厂商签名 SDK 或可执行插件的协议。
 
-默认参数只填充未传入的值；可按模型声明参数类型、必填和枚举允许值。数值范围可通过同一配置中的 `min/max` 声明。公开名与上游模型名不同时，报价遵循渠道设置的请求模型/渠道映射模型/上游模型计费基准。计费仍读取 canonical `seconds` 和 `resolution`，应给它们配置明确值或默认值，再映射到供应商字段。模型映射由公开模型的 `upstream_model` 确定，不根据名称猜测协议。
+默认参数只填充未传入的值；可按模型声明参数类型、必填和枚举允许值。数值范围可通过同一配置中的 `min/max` 声明。公开名与上游模型名不同时，报价遵循渠道设置的请求模型/渠道映射模型/上游模型计费基准。计费仍读取 canonical `seconds` 和 `resolution`，应给它们配置明确值或默认值，再映射到供应商字段。模型映射由公开模型的 `upstream_model` 确定，不根据名称猜测协议。Video 账号不预置文本模型；按需手动填写上游模型白名单，供应商支持 /v1/models 时也可同步。账号菜单不提供文本连通测试或文本定时测试；视频生成验证使用已配置渠道的 Videos API。
 
 路径从账号 API 站点根地址开始，显式包含所需前缀；查询/内容路径中的 `{task_id}` 自动替换。字段路径指定任务 ID、状态和结果视频 URL。创建响应省略状态时由明确配置的 `create_status` 指定状态，未配置则拒绝不完整响应；供应商状态映射为 `pending|processing|completed|failed|cancelled|expired`。
 

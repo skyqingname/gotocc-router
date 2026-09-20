@@ -1,5 +1,10 @@
 export default {
     accounts: {
+      videoAccountHint: 'Enter the video provider URL and API key, then bind a Video group. Configure model protocols, parameters and pricing in Channels.',
+      videoBaseUrlHint: 'Use the video provider API origin. Request paths come from the channel model protocol.',
+      videoBaseUrlRequired: 'Enter the video provider URL',
+      videoBaseUrlPlaceholder: 'Video provider API URL',
+
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
       createAccount: 'Create Account',

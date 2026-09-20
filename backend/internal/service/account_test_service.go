@@ -381,6 +381,10 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return nil
 	}
 
+	if account.Platform == PlatformVideo {
+		return s.sendErrorAndEnd(c, "Video generation requires the channel model protocol and parameters; use the Videos API")
+	}
+
 	// Route to platform-specific test method
 	if account.IsCNProvider() {
 		switch account.GetAPIProtocol() {
