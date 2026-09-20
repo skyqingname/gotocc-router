@@ -1,9 +1,12 @@
 <template>
-  <RouterLink
+  <nav
     v-if="auth.isAdmin && route.name === 'AdminGroups'"
-    to="/admin/group-features"
-    class="btn btn-primary fixed bottom-6 right-6 z-20 shadow-lg"
-  >{{ t('open') }}</RouterLink>
+    class="fixed bottom-6 right-6 z-20 flex flex-wrap gap-2"
+    :aria-label="t('label')"
+  >
+    <RouterLink to="/admin/group-features" class="btn btn-primary shadow-lg">{{ t('rates') }}</RouterLink>
+    <RouterLink to="/admin/video-models" class="btn btn-secondary shadow-lg">{{ t('video') }}</RouterLink>
+  </nav>
 </template>
 
 <script setup lang="ts">
@@ -15,6 +18,9 @@ const route = useRoute()
 const auth = useAuthStore()
 const { t } = useI18n({
   useScope: 'local', inheritLocale: true,
-  messages: { en: { open: 'Configure time-window rates' }, zh: { open: '配置分组时段倍率' } }
+  messages: {
+    en: { label: 'Group configuration', rates: 'Time-window rates', video: 'Video channel models' },
+    zh: { label: '分组配置', rates: '分组时段倍率', video: 'Video 渠道模型' }
+  }
 })
 </script>
