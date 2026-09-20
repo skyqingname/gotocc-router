@@ -79,6 +79,7 @@ export default {
     },
     allGroups: '全部分组',
     allStatus: '全部状态',
+    allRoutingModes: '全部路由模式',
     columnSettings: '列设置',
     columnAlwaysVisible: '该列固定显示，不可隐藏',
     createKey: '创建密钥',
@@ -145,9 +146,35 @@ export default {
     failedToDelete: '删除 API 密钥失败',
     failedToUpdateStatus: '更新 API 密钥状态失败',
     clickToChangeGroup: '点击更换分组',
+    clickToChangeRouting: '点击切换路由模式',
     groupChangedSuccess: '分组更换成功',
+    routingChangedSuccess: '路由模式已更新',
     failedToChangeGroup: '更换分组失败',
     groupRequired: '请选择分组',
+    routingMode: {
+      label: '路由模式',
+      fixed: '固定分组',
+      auto: '智能路由',
+      fixedHint: '每个请求都会通过所选分组发送。',
+      autoHint: '每个请求由服务端自动选择一个有权限的分组。'
+    },
+    routingPriority: {
+      title: '智能路由分组优先级',
+      readOnly: '只读',
+      notice: '现在可在此查看分组优先级。仅展示同一模型有多个可选分组时的顺序；只有一个可选分组的模型不参与排名。',
+      loading: '正在加载当前分组优先级…',
+      loadFailed: '分组优先级加载失败，请重试。',
+      retry: '重新加载',
+      defaultOrder: '默认分组顺序',
+      highFirst: '由高到低',
+      adminSource: '管理员默认顺序；未单独排列的分组按分组排序补充。仅在分组支持同一请求时比较优先级。',
+      fallbackSource: '按分组排序，排序值相同时按分组 ID 从小到大。仅在分组支持同一请求时比较优先级。',
+      empty: '暂无需要比较优先级的分组。当前可展示的模型没有多个兼容分组，因此不显示排名。',
+      exceptionsTitle: '部分模型有独立规则（{count} 个模型）· 展开查看',
+      exceptionsHint: '以下模型使用各自的分组顺序，优先于默认顺序。列表已包含规则之外仍可参与的默认分组；精确匹配优先，其次采用最长前缀匹配。',
+      matchedRule: '匹配规则：{rule}',
+      catalogHint: '基于当前权限和可列出的模型配置；通配符或透传模型可能无法完整列出。实际选组还取决于接口和客户端要求。选组后额度不足或上游故障不会自动切换分组。'
+    },
     usage: '用量',
     today: '今日',
     total: '近30天',
@@ -155,6 +182,11 @@ export default {
     lastUsedAt: '上次使用时间',
     lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
+    oneClickAccess: '一键接入',
+    oneClickSelect: {
+      title: '选择要接入的密钥',
+      description: '请选择一个个人 API 密钥，然后打开一键接入配置。'
+    },
     useKeyModal: {
       title: '使用 API 密钥',
       description: '将以下环境变量添加到您的终端配置文件或直接在终端中运行。',
@@ -165,6 +197,20 @@ export default {
       noGroupTitle: '请先分配分组',
       noGroupDescription:
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',
+      auto: {
+        description: '使用统一基础 URL 和此密钥。服务端会为每个请求自动选择有权限的分组。',
+        baseUrl: '基础 URL',
+        credential: '凭据',
+        modelCatalog: '模型目录',
+        protocolsLabel: '当前可用协议',
+        capabilitiesHint: '协议和媒体能力基于当前授权配置计算；实际容量和剩余额度会在提交请求时再次检查。',
+        capabilitiesUnavailable: '暂时无法加载当前协议能力。在依赖特定协议功能前请稍后重试。',
+        protocols: {
+          openai: 'OpenAI 兼容',
+          anthropic: 'Anthropic',
+          gemini: 'Gemini'
+        }
+      },
       openai: {
         description: '将以下配置文件添加到 Codex CLI 配置目录中。',
         authModeTitle: 'Codex 认证模式',
@@ -650,7 +696,7 @@ export default {
       billingModeToken: '按 Token',
       billingModePerRequest: '按次',
       billingModeImage: '按图片',
-      billingModeVideo: '按视频',
+      billingModeVideo: '按秒（视频）',
       inputPrice: '输入',
       outputPrice: '输出',
       cacheWritePrice: '缓存写入',
@@ -660,9 +706,11 @@ export default {
       imageInputPrice: '图片输入',
       imageOutputPrice: '图片输出',
       perRequestPrice: '每次请求',
+      perSecondPrice: '每秒视频',
       intervals: '阶梯定价',
       unitPerMillion: '/ 1M token',
-      unitPerRequest: '/ 次'
+      unitPerRequest: '/ 次',
+      unitPerSecond: '/ 秒'
     }
   },
 
@@ -717,10 +765,16 @@ export default {
       officialPrice: '官方价格',
       rate: '折扣倍率',
       unitPerMillion: '$ / 1M token',
+      unitPerRequest: '$ / 次',
+      unitPerImage: '$ / 张',
+      unitPerSecond: '$ / 秒',
+      unitMixed: '$ / 计费单位',
       perUnitRequest: '/ 次',
       perUnitImage: '/ 张',
+      perUnitSecond: '/ 秒',
       perRequest: '按次计费',
-      perImage: '按图片计费'
+      perImage: '按图片计费',
+      perSecondVideo: '按秒计费'
     },
     nav: {
       login: '登录',
@@ -740,9 +794,9 @@ export default {
     loadFailed: '加载邀请返利数据失败',
     transferFailed: '转入余额失败',
     stats: {
-      rebateRate: '我的返利比例',
-      rebateRateHint: '被邀请用户每次充值后你可获得的返利比例',
-      invitedUsers: '邀请人数',
+      rebateRate: "一代 / 二代 / 三代比例",
+      rebateRateHint: "按你与每笔充值账户的邀请距离确定代次",
+      invitedUsers: "直接邀请人数",
       availableQuota: '可转返利额度',
       frozenQuota: '冻结中',
       frozenQuotaHint: '新产生的返利正在冻结期中',
@@ -757,9 +811,11 @@ export default {
       success: '已转入余额：{amount}'
     },
     invitees: {
-      title: '已邀请用户',
+      generation: "第 {level} 代",
+      title: '最近三代邀请用户',
       empty: '暂无邀请记录',
       columns: {
+        level: "邀请代次",
         email: '邮箱',
         username: '用户名',
         rebate: '返利明细',
@@ -769,9 +825,9 @@ export default {
     tips: {
       title: '使用说明',
       line1: '将邀请码或邀请链接分享给新用户。',
-      line2: '被邀请用户充值后，你可获得 {rate} 的返利额度。',
-      line3: '返利额度可随时转入账户余额。',
-      line4: '新产生的返利需要经过冻结期后才能提现。'
+      line2: "每笔有效充值按最近三代的 {rates} 分佣，缺少的代次不补发。",
+      line3: "首充和后续充值均参与；赠额和佣金转余额不产生新佣金。",
+      line4: "冻结期结束后可将返利转入使用余额。"
     }
   },
 

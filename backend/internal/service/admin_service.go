@@ -65,6 +65,7 @@ type AdminService interface {
 
 	// API Key management (admin)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
+	AdminUpdateAPIKeyRouting(ctx context.Context, keyID int64, input APIKeyRoutingUpdate) (*AdminUpdateAPIKeyGroupIDResult, error)
 	AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error)
 
 	// ReplaceUserGroup 替换用户的专属分组：授予新分组权限、迁移 Key、移除旧分组权限
@@ -173,6 +174,7 @@ type CreateUserInput struct {
 }
 
 type UpdateUserInput struct {
+	InviterChange *AffiliateInviterChange
 	Email         string
 	Password      string
 	Username      *string
@@ -724,6 +726,8 @@ type ChannelCacheInvalidator interface {
 }
 
 type adminRechargeAffiliateAccruer interface {
+	ChangeInviter(context.Context, int64, *AffiliateInviterChange) error
+	LockInviterBindings(context.Context) error
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
 }
 

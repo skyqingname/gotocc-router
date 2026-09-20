@@ -49,6 +49,60 @@ func (_u *BatchImageJobUpdate) AddUserID(v int64) *BatchImageJobUpdate {
 	return _u
 }
 
+// SetBillingUserID sets the "billing_user_id" field.
+func (_u *BatchImageJobUpdate) SetBillingUserID(v int64) *BatchImageJobUpdate {
+	_u.mutation.ResetBillingUserID()
+	_u.mutation.SetBillingUserID(v)
+	return _u
+}
+
+// SetNillableBillingUserID sets the "billing_user_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableBillingUserID(v *int64) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetBillingUserID(*v)
+	}
+	return _u
+}
+
+// AddBillingUserID adds value to the "billing_user_id" field.
+func (_u *BatchImageJobUpdate) AddBillingUserID(v int64) *BatchImageJobUpdate {
+	_u.mutation.AddBillingUserID(v)
+	return _u
+}
+
+// ClearBillingUserID clears the value of the "billing_user_id" field.
+func (_u *BatchImageJobUpdate) ClearBillingUserID() *BatchImageJobUpdate {
+	_u.mutation.ClearBillingUserID()
+	return _u
+}
+
+// SetTeamID sets the "team_id" field.
+func (_u *BatchImageJobUpdate) SetTeamID(v int64) *BatchImageJobUpdate {
+	_u.mutation.ResetTeamID()
+	_u.mutation.SetTeamID(v)
+	return _u
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableTeamID(v *int64) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetTeamID(*v)
+	}
+	return _u
+}
+
+// AddTeamID adds value to the "team_id" field.
+func (_u *BatchImageJobUpdate) AddTeamID(v int64) *BatchImageJobUpdate {
+	_u.mutation.AddTeamID(v)
+	return _u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (_u *BatchImageJobUpdate) ClearTeamID() *BatchImageJobUpdate {
+	_u.mutation.ClearTeamID()
+	return _u
+}
+
 // SetAPIKeyID sets the "api_key_id" field.
 func (_u *BatchImageJobUpdate) SetAPIKeyID(v int64) *BatchImageJobUpdate {
 	_u.mutation.ResetAPIKeyID()
@@ -415,6 +469,20 @@ func (_u *BatchImageJobUpdate) AddActualCost(v float64) *BatchImageJobUpdate {
 // ClearActualCost clears the value of the "actual_cost" field.
 func (_u *BatchImageJobUpdate) ClearActualCost() *BatchImageJobUpdate {
 	_u.mutation.ClearActualCost()
+	return _u
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (_u *BatchImageJobUpdate) SetAllowanceReserved(v bool) *BatchImageJobUpdate {
+	_u.mutation.SetAllowanceReserved(v)
+	return _u
+}
+
+// SetNillableAllowanceReserved sets the "allowance_reserved" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableAllowanceReserved(v *bool) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetAllowanceReserved(*v)
+	}
 	return _u
 }
 
@@ -919,6 +987,24 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(batchimagejob.FieldUserID, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.BillingUserID(); ok {
+		_spec.SetField(batchimagejob.FieldBillingUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingUserID(); ok {
+		_spec.AddField(batchimagejob.FieldBillingUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.BillingUserIDCleared() {
+		_spec.ClearField(batchimagejob.FieldBillingUserID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.TeamID(); ok {
+		_spec.SetField(batchimagejob.FieldTeamID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTeamID(); ok {
+		_spec.AddField(batchimagejob.FieldTeamID, field.TypeInt64, value)
+	}
+	if _u.mutation.TeamIDCleared() {
+		_spec.ClearField(batchimagejob.FieldTeamID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.APIKeyID(); ok {
 		_spec.SetField(batchimagejob.FieldAPIKeyID, field.TypeInt64, value)
 	}
@@ -936,6 +1022,9 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.AccountIDCleared() {
 		_spec.ClearField(batchimagejob.FieldAccountID, field.TypeInt64)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(batchimagejob.FieldGroupID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)
@@ -1026,6 +1115,9 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.ActualCostCleared() {
 		_spec.ClearField(batchimagejob.FieldActualCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AllowanceReserved(); ok {
+		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)
@@ -1173,6 +1265,60 @@ func (_u *BatchImageJobUpdateOne) SetNillableUserID(v *int64) *BatchImageJobUpda
 // AddUserID adds value to the "user_id" field.
 func (_u *BatchImageJobUpdateOne) AddUserID(v int64) *BatchImageJobUpdateOne {
 	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// SetBillingUserID sets the "billing_user_id" field.
+func (_u *BatchImageJobUpdateOne) SetBillingUserID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.ResetBillingUserID()
+	_u.mutation.SetBillingUserID(v)
+	return _u
+}
+
+// SetNillableBillingUserID sets the "billing_user_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableBillingUserID(v *int64) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetBillingUserID(*v)
+	}
+	return _u
+}
+
+// AddBillingUserID adds value to the "billing_user_id" field.
+func (_u *BatchImageJobUpdateOne) AddBillingUserID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.AddBillingUserID(v)
+	return _u
+}
+
+// ClearBillingUserID clears the value of the "billing_user_id" field.
+func (_u *BatchImageJobUpdateOne) ClearBillingUserID() *BatchImageJobUpdateOne {
+	_u.mutation.ClearBillingUserID()
+	return _u
+}
+
+// SetTeamID sets the "team_id" field.
+func (_u *BatchImageJobUpdateOne) SetTeamID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.ResetTeamID()
+	_u.mutation.SetTeamID(v)
+	return _u
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableTeamID(v *int64) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetTeamID(*v)
+	}
+	return _u
+}
+
+// AddTeamID adds value to the "team_id" field.
+func (_u *BatchImageJobUpdateOne) AddTeamID(v int64) *BatchImageJobUpdateOne {
+	_u.mutation.AddTeamID(v)
+	return _u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (_u *BatchImageJobUpdateOne) ClearTeamID() *BatchImageJobUpdateOne {
+	_u.mutation.ClearTeamID()
 	return _u
 }
 
@@ -1542,6 +1688,20 @@ func (_u *BatchImageJobUpdateOne) AddActualCost(v float64) *BatchImageJobUpdateO
 // ClearActualCost clears the value of the "actual_cost" field.
 func (_u *BatchImageJobUpdateOne) ClearActualCost() *BatchImageJobUpdateOne {
 	_u.mutation.ClearActualCost()
+	return _u
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (_u *BatchImageJobUpdateOne) SetAllowanceReserved(v bool) *BatchImageJobUpdateOne {
+	_u.mutation.SetAllowanceReserved(v)
+	return _u
+}
+
+// SetNillableAllowanceReserved sets the "allowance_reserved" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableAllowanceReserved(v *bool) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetAllowanceReserved(*v)
+	}
 	return _u
 }
 
@@ -2076,6 +2236,24 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(batchimagejob.FieldUserID, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.BillingUserID(); ok {
+		_spec.SetField(batchimagejob.FieldBillingUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingUserID(); ok {
+		_spec.AddField(batchimagejob.FieldBillingUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.BillingUserIDCleared() {
+		_spec.ClearField(batchimagejob.FieldBillingUserID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.TeamID(); ok {
+		_spec.SetField(batchimagejob.FieldTeamID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTeamID(); ok {
+		_spec.AddField(batchimagejob.FieldTeamID, field.TypeInt64, value)
+	}
+	if _u.mutation.TeamIDCleared() {
+		_spec.ClearField(batchimagejob.FieldTeamID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.APIKeyID(); ok {
 		_spec.SetField(batchimagejob.FieldAPIKeyID, field.TypeInt64, value)
 	}
@@ -2093,6 +2271,9 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if _u.mutation.AccountIDCleared() {
 		_spec.ClearField(batchimagejob.FieldAccountID, field.TypeInt64)
+	}
+	if _u.mutation.GroupIDCleared() {
+		_spec.ClearField(batchimagejob.FieldGroupID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)
@@ -2183,6 +2364,9 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if _u.mutation.ActualCostCleared() {
 		_spec.ClearField(batchimagejob.FieldActualCost, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.AllowanceReserved(); ok {
+		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)

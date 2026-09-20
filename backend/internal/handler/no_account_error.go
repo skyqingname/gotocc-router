@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 )
 
@@ -41,6 +42,9 @@ var selectionModelRateLimitedPattern = regexp.MustCompile(`(?:model_rate_limited
 func classifySelectionFailureError(err error, fallback noAccountErrorClassification) noAccountErrorClassification {
 	if err == nil {
 		return fallback
+	}
+	if status, detail := infraerrors.ToHTTP(err); strings.HasPrefix(detail.Reason, "AUTO_ROUTE_") {
+		return noAccountErrorClassification{Status: status, ErrType: detail.Reason, Message: detail.Message}
 	}
 	// A 404 model_not_found fallback is authoritative and must not be downgraded
 	// to a rate-limit verdict. classifyNoAccountError only reaches it through

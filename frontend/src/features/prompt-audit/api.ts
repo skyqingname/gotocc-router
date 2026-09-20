@@ -1,6 +1,8 @@
 import { apiClient } from '@/api/client'
 import type {
   PromptAuditConfig,
+  PromptTextPreviewResult,
+  PromptAuditDraft,
   PromptAuditEvent,
   PromptAuditGroup,
   PromptAuditRuntime,
@@ -26,8 +28,11 @@ export async function updateConfig(payload: PromptAuditUpdateRequest): Promise<P
   return data
 }
 
-export async function probeEndpoint(endpoint: PromptAuditEndpointDraft): Promise<PromptProbeResult> {
+export async function probeEndpoint(endpoint: PromptAuditEndpointDraft, policy?: PromptAuditDraft): Promise<PromptProbeResult> {
   const { data } = await apiClient.post<PromptProbeResult>(`${basePath}/endpoints/probe`, {
+    audit_prompt: policy?.audit_prompt,
+    response_format: policy?.response_format,
+    confidence_threshold: policy?.confidence_threshold,
     endpoint: {
       id: endpoint.id,
       name: endpoint.name,
@@ -35,10 +40,18 @@ export async function probeEndpoint(endpoint: PromptAuditEndpointDraft): Promise
       base_url: endpoint.base_url,
       model: endpoint.model,
       token: endpoint.token || undefined,
+      clear_token: endpoint.clear_token,
       timeout_ms: endpoint.timeout_ms,
       input_limit: endpoint.input_limit,
       enabled: endpoint.enabled,
     },
+  })
+  return data
+}
+
+export async function testText(text: string, signal?: AbortSignal): Promise<PromptTextPreviewResult> {
+  const { data } = await apiClient.post<PromptTextPreviewResult>(`${basePath}/test`, { text }, {
+    timeout: 0, signal,
   })
   return data
 }
@@ -108,6 +121,7 @@ export const promptAuditAPI = {
   updateConfig,
   probeEndpoint,
   getRuntime,
+  testText,
   listEvents,
   getEvent,
   deleteEvent,

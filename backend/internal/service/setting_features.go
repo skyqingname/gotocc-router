@@ -1251,3 +1251,24 @@ func mergePlatformQuotaDefaults(dst, src *DefaultPlatformQuotaSetting) {
 		dst.MonthlyLimitUSD = src.MonthlyLimitUSD
 	}
 }
+
+// GetAffiliateRebateRates loads all three rates together. Missing keys use the
+// explicit defaults generated from affiliate-defaults.json; read errors propagate.
+func (s *SettingService) GetAffiliateRebateRates(ctx context.Context) ([]float64, error) {
+	keys := []string{SettingKeyAffiliateRebateRate, SettingKeyAffiliateRebateRateL2, SettingKeyAffiliateRebateRateL3}
+	rates := []float64{AffiliateRebateRateDefault, AffiliateRebateRateL2Default, AffiliateRebateRateL3Default}
+	values, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	for i, key := range keys {
+		if raw, exists := values[key]; exists {
+			rate, err := strconv.ParseFloat(raw, 64)
+			if err != nil || math.IsNaN(rate) || math.IsInf(rate, 0) || rate < 0 || rate > 100 {
+				return nil, fmt.Errorf("invalid affiliate rate: %s", key)
+			}
+			rates[i] = rate
+		}
+	}
+	return rates, nil
+}

@@ -118,7 +118,7 @@ func TestQuotaFollowReset_MigrationPreservesDeployedConfigurations(t *testing.T)
 		VALUES (1, 42, 3, '2026-09-18T00:00:00Z', '2026-09-11T00:00:00Z');
 	`)
 	require.NoError(t, err)
-	update, err := migrations.FS.ReadFile("265_openai_weekly_reset_observations.sql")
+	update, err := migrations.FS.ReadFile("270_openai_weekly_reset_observations.sql")
 	require.NoError(t, err)
 	for range 2 {
 		_, err = tx.Exec(string(update))

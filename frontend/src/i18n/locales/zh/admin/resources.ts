@@ -1,4 +1,10 @@
 export default {
+    smartRoutingPolicy: {
+      title: '智能路由优先级', defaultOrder: '默认分组顺序', modelRules: '模型独立顺序',
+      model: '模型或前缀', modelPlaceholder: 'gpt-5 或 gpt-*', selectGroup: '选择分组',
+      moveUp: '上移分组', moveDown: '下移分组', addRule: '添加模型规则', removeRule: '删除模型规则',
+      loadFailed: '加载路由优先级失败。', saveFailed: '保存失败，请检查模型表达式和重复分组。', saved: '路由优先级已保存。',
+    },
     scheduledTests: {
       title: '定时测试',
       addPlan: '添加计划',
@@ -567,6 +573,52 @@ export default {
       failedToLoadUsages: '加载使用记录失败'
     },
 
+    reusableInvitationCodes: {
+      ownerLabel: "返佣归属用户 ID",
+      ownerHint: "可在用户管理查看 ID；留空时仅用于注册。指定后该码与此用户的 AFF 共用返佣关系。",
+      noOwner: "未指定归属",
+      bindOwner: "绑定返佣归属",
+      backfillHint: "将补入使用此码注册且尚未绑定邀请人的历史用户。已有邀请关系不变，历史充值不补佣；调整归属也不会改写已有邀请关系。",
+      ownerBound: "归属已绑定：新增 {bound} 人，保留或跳过 {skipped} 人。",
+      title: '永久邀请码',
+      description: '管理可重复使用的注册邀请码',
+      create: '创建永久邀请码',
+      createTitle: '创建永久邀请码',
+      createSuccess: '永久邀请码创建成功',
+      createFailed: '创建永久邀请码失败',
+      loadFailed: '加载永久邀请码失败',
+      disable: '停用',
+      disableTitle: '停用永久邀请码',
+      disableConfirm: '确定停用这个永久邀请码吗？停用后新用户将无法继续使用它注册。',
+      disableSuccess: '永久邀请码已停用',
+      disableFailed: '停用永久邀请码失败',
+      uses: '使用记录',
+      usesTitle: '使用记录',
+      usesLoadFailed: '加载使用记录失败',
+      noUses: '暂无使用记录',
+      unlimited: '无限',
+      neverExpires: '永不过期',
+      maxUsesHint: '0 表示无限次数。',
+      expiresHint: '留空表示永不过期。',
+      columns: {
+        code: '邀请码',
+        status: '状态',
+        maxUses: '最大次数',
+        usedCount: '已使用',
+        expiresAt: '过期时间',
+        notes: '备注',
+        createdAt: '创建时间',
+        actions: '操作'
+      },
+      status: { active: '启用中', disabled: '已停用' },
+      useColumns: {
+        userId: '用户 ID',
+        email: '邮箱',
+        source: '注册来源',
+        usedAt: '使用时间'
+      }
+    },
+
     // Usage Records
     usage: {
       title: '使用记录',
@@ -605,7 +657,7 @@ export default {
       billingModeToken: '按量',
       billingModePerRequest: '按次',
       billingModeImage: '按次(图片)',
-      billingModeVideo: '按次(视频)',
+      billingModeVideo: '按秒（视频）',
       allBillingModes: '全部计费模式',
 	  upstreamModelAudit: '上游模型审计',
 	  allUpstreamModelAudit: '全部响应模型状态',
