@@ -50,12 +50,12 @@ const emit = defineEmits<{ (event: 'update:modelValue', value: Record<string, Vi
 const newName = ref('')
 const jsonDrafts = ref<Record<string, string>>({})
 const jsonErrors = ref<Record<string, boolean>>({})
-const paths = ['create_path', 'status_path', 'content_path', 'id_field', 'status_field', 'video_url_field'] as const
+const paths = ['create_status', 'create_path', 'status_path', 'content_path', 'id_field', 'status_field', 'video_url_field'] as const
 const jsonFields = ['defaults', 'request_fields', 'headers', 'statuses'] as const
 const en = {
   title: 'Video models and protocols', hint: 'Configure each channel model here; set its price below. Bind OpenAI-compatible API key accounts to the Video group for the upstream URL and credentials.',
   publicModel: 'Model name exposed to clients', add: 'Add model', custom: 'Custom JSON', enabled: 'Enabled', remove: 'Remove', upstreamModel: 'Upstream model', protocol: 'Protocol',
-  create_path: 'Create path', status_path: 'Status path', content_path: 'Content path', id_field: 'Task ID response field', status_field: 'Status response field', video_url_field: 'Video URL response field',
+  create_status: 'Status when create response omits it', create_path: 'Create path', status_path: 'Status path', content_path: 'Content path', id_field: 'Task ID response field', status_field: 'Status response field', video_url_field: 'Video URL response field',
   pathsHint: 'Paths start at the API origin; include /v1 when needed. Use {task_id} in task paths. Leave content path empty to read the video URL from the status response. Dotted fields address nested JSON.',
   parameters: 'Model parameters', addParameter: 'Add parameter', parameterName: 'Name, e.g. seconds', required: 'Required', values: 'Allowed values, separated by commas',
   defaults: 'Default parameters (JSON)', request_fields: 'Request field mapping (JSON)', headers: 'Provider headers (JSON; credentials belong to the account)', statuses: 'Provider status mapping (JSON)', invalidJson: 'Fix the JSON fields before saving.',
@@ -63,7 +63,7 @@ const en = {
 const zh: typeof en = {
   title: 'Video 模型与协议', hint: '逐模型配置调用方式，并在下方配置价格。Video 分组绑定 OpenAI 兼容 API Key 账号，使用账号中的上游地址和凭据。',
   publicModel: '提供给用户调用的模型名', add: '添加模型', custom: '自定义 JSON 协议', enabled: '启用', remove: '删除', upstreamModel: '上游模型名', protocol: '调用协议',
-  create_path: '创建路径', status_path: '查询路径', content_path: '视频内容路径', id_field: '任务 ID 字段', status_field: '任务状态字段', video_url_field: '视频 URL 字段',
+  create_status: '创建响应无状态时的明确状态', create_path: '创建路径', status_path: '查询路径', content_path: '视频内容路径', id_field: '任务 ID 字段', status_field: '任务状态字段', video_url_field: '视频 URL 字段',
   pathsHint: '路径从上游站点根地址开始，需要时包含 /v1。任务路径使用 {task_id}；内容路径留空时，从查询结果读取视频 URL。嵌套字段使用点号。',
   parameters: '模型参数', addParameter: '添加参数', parameterName: '参数名，例如 seconds', required: '必填', values: '允许值，用英文逗号分隔',
   defaults: '默认参数（JSON）', request_fields: '请求字段映射（JSON）', headers: '上游请求头（JSON；凭据在账号中配置）', statuses: '上游状态映射（JSON）', invalidJson: '请修正 JSON 格式后保存。',

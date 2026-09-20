@@ -266,11 +266,12 @@ func (s *OpenAIGatewayService) readOpenAIVideoJSONResponse(body io.Reader) ([]by
 }
 
 type OpenAIVideoPollResult struct {
-	ProviderStatus string
-	ErrorCode      string
-	ErrorMessage   string
-	Body           []byte
-	StatusCode     int
+	RawProviderStatus string
+	ProviderStatus    string
+	ErrorCode         string
+	ErrorMessage      string
+	Body              []byte
+	StatusCode        int
 }
 
 func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *OpenAIVideoTask, account *Account) (*OpenAIVideoPollResult, error) {
@@ -310,7 +311,9 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 		message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
 		return nil, fmt.Errorf("video status upstream returned %d: %s", response.StatusCode, message)
 	}
+	rawProviderStatus := ""
 	if task.ProviderConfig != nil {
+		rawProviderStatus = gjson.GetBytes(body, task.ProviderConfig.StatusField).String()
 		body, err = task.ProviderConfig.NormalizeResponse(body, *task.TaskID, false)
 		if err != nil {
 			return nil, err
@@ -322,11 +325,12 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 	}
 	errorCode, errorMessage := parseOpenAIVideoProviderError(body)
 	return &OpenAIVideoPollResult{
-		ProviderStatus: providerStatus,
-		ErrorCode:      errorCode,
-		ErrorMessage:   errorMessage,
-		Body:           body,
-		StatusCode:     response.StatusCode,
+		ProviderStatus:    providerStatus,
+		RawProviderStatus: rawProviderStatus,
+		ErrorCode:         errorCode,
+		ErrorMessage:      errorMessage,
+		Body:              body,
+		StatusCode:        response.StatusCode,
 	}, nil
 }
 

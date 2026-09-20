@@ -21,6 +21,7 @@ type Parameter struct {
 }
 
 type Config struct {
+	CreateStatus  string            `json:"create_status"`
 	Enabled       bool              `json:"enabled"`
 	Protocol      string            `json:"protocol"`
 	UpstreamModel string            `json:"upstream_model"`
@@ -88,6 +89,27 @@ func (c Config) Validate() error {
 		if p.Min != nil && p.Max != nil && *p.Min > *p.Max {
 			return fmt.Errorf("invalid video parameter range for %s", p.Name)
 		}
+	}
+	if len(c.Statuses) == 0 {
+		return fmt.Errorf("video status mapping is required")
+	}
+	if c.CreateStatus != "" && c.CreateStatus != "pending" && c.CreateStatus != "processing" && c.CreateStatus != "completed" {
+		return fmt.Errorf("video create_status must be pending, processing or completed")
+	}
+	if c.Protocol == "custom_json" && len(c.RequestFields) == 0 {
+		return fmt.Errorf("custom video request field mapping is required")
+	}
+	targets := []string{}
+	for source, target := range c.RequestFields {
+		if source == "" || target == "" {
+			return fmt.Errorf("video field mapping paths must not be empty")
+		}
+		for _, previous := range targets {
+			if target == previous || strings.HasPrefix(target, previous+".") || strings.HasPrefix(previous, target+".") {
+				return fmt.Errorf("video request target paths overlap")
+			}
+		}
+		targets = append(targets, target)
 	}
 	for _, status := range c.Statuses {
 		switch status {
@@ -186,11 +208,9 @@ func (c Config) NormalizeResponse(body []byte, taskID string, create bool) ([]by
 	}
 	rawStatus := gjson.GetBytes(body, c.StatusField).String()
 	status := c.Statuses[rawStatus]
-	if status == "" && c.Protocol == "openai" {
-		status = rawStatus
-	}
+
 	if status == "" && create && rawStatus == "" {
-		status = "pending"
+		status = c.CreateStatus
 	}
 	if status == "" {
 		return nil, fmt.Errorf("unmapped video provider status")

@@ -41,6 +41,11 @@ type Config struct {
 	Rules    []Rule `json:"rules"`
 }
 
+func (c Config) Clone() Config {
+	c.Rules = append([]Rule{}, c.Rules...)
+	return c
+}
+
 // ValidationError contains stable codes/field paths, never raw configuration.
 type ValidationError struct {
 	Field string

@@ -148,6 +148,11 @@ func (r *OpenAIVideoTaskRuntime) processTask(ctx context.Context, task *OpenAIVi
 		return r.recordPollError(ctx, task, "VIDEO_STATUS_POLL_FAILED", err)
 	}
 	normalized := normalizeOpenAIVideoProviderStatus(r.cfg.VideoTask, poll.ProviderStatus)
+	providerStatus := poll.ProviderStatus
+	if task.ProviderConfig != nil {
+		normalized = poll.ProviderStatus
+		providerStatus = poll.RawProviderStatus
+	}
 	if normalized == OpenAIVideoTaskStatusCompleted {
 		// Provider completion alone does not prove that the content endpoint can
 		// deliver a video. Keep the quote held until that endpoint is readable.
@@ -182,11 +187,11 @@ func (r *OpenAIVideoTaskRuntime) processTask(ctx context.Context, task *OpenAIVi
 			errorCode = "VIDEO_PROVIDER_CANCELLED"
 		}
 	}
-	if err := r.repo.RecordPollState(ctx, task.ID, derefOpenAIVideoString(task.LeaseToken), normalized, poll.ProviderStatus, errorCode, errorMessage, nextPollAt, finishedAt); err != nil {
+	if err := r.repo.RecordPollState(ctx, task.ID, derefOpenAIVideoString(task.LeaseToken), normalized, providerStatus, errorCode, errorMessage, nextPollAt, finishedAt); err != nil {
 		return err
 	}
 	task.Status = normalized
-	task.UpstreamStatus = optionalTrimmedStringPtr(poll.ProviderStatus)
+	task.UpstreamStatus = optionalTrimmedStringPtr(providerStatus)
 	task.NextPollAt = nextPollAt
 	task.FinishedAt = finishedAt
 	task.LastErrorCode = optionalTrimmedStringPtr(errorCode)

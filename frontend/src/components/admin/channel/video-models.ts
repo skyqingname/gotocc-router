@@ -13,6 +13,7 @@ export interface VideoModelConfig {
   enabled: boolean
   protocol: 'openai' | 'custom_json'
   upstream_model: string
+  create_status: string
   create_path: string
   status_path: string
   content_path: string

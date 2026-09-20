@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/sjson"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
@@ -123,11 +125,39 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 	if err != nil {
 		return nil, "", err
 	}
-	prepared, err := config.Prepare(parameters)
+	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, "", err
 	}
-	mediaType, params, err := mime.ParseMediaType(contentType)
+	if mediaType == "multipart/form-data" {
+		for _, parameter := range config.Parameters {
+			value := gjson.GetBytes(parameters, parameter.Name)
+			if value.Type != gjson.String {
+				continue
+			}
+			var typed any
+			switch parameter.Type {
+			case "integer":
+				typed, err = strconv.ParseInt(value.String(), 10, 64)
+			case "number":
+				typed, err = strconv.ParseFloat(value.String(), 64)
+			case "boolean":
+				typed, err = strconv.ParseBool(value.String())
+			case "array", "object":
+				err = json.Unmarshal([]byte(value.String()), &typed)
+			default:
+				continue
+			}
+			if err != nil {
+				return nil, "", fmt.Errorf("invalid video form parameter %s", parameter.Name)
+			}
+			parameters, err = sjson.SetBytes(parameters, parameter.Name, typed)
+			if err != nil {
+				return nil, "", err
+			}
+		}
+	}
+	prepared, err := config.Prepare(parameters)
 	if err != nil {
 		return nil, "", err
 	}

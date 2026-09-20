@@ -16,9 +16,9 @@ Video 是独立的分组平台，使用现有 OpenAI 兼容 API Key 账号作为
 - `openai`：JSON/multipart 视频请求保留原正文与文件，支持配置创建、查询和内容路径。
 - `custom_json`：客户端使用 JSON 及公开媒体 URL，配置 canonical 字段到上游 JSON 点路径的映射，例如 `prompt → input.prompt`、`seconds → parameters.duration`。不包含需要厂商签名 SDK 或可执行插件的协议。
 
-默认参数只填充未传入的值；可按模型声明参数类型、必填和枚举允许值。数值范围可通过同一配置中的 `min/max` 声明。计费仍读取 canonical `seconds` 和 `resolution`，应给它们配置明确值或默认值，再映射到供应商字段。模型映射由公开模型的 `upstream_model` 确定，不根据名称猜测协议。
+默认参数只填充未传入的值；可按模型声明参数类型、必填和枚举允许值。数值范围可通过同一配置中的 `min/max` 声明。公开名与上游模型名不同时，报价遵循渠道设置的请求模型/渠道映射模型/上游模型计费基准。计费仍读取 canonical `seconds` 和 `resolution`，应给它们配置明确值或默认值，再映射到供应商字段。模型映射由公开模型的 `upstream_model` 确定，不根据名称猜测协议。
 
-路径从账号 API 站点根地址开始，显式包含所需前缀；查询/内容路径中的 `{task_id}` 自动替换。字段路径指定任务 ID、状态和结果视频 URL。供应商状态映射为 `pending|processing|completed|failed|cancelled|expired`。
+路径从账号 API 站点根地址开始，显式包含所需前缀；查询/内容路径中的 `{task_id}` 自动替换。字段路径指定任务 ID、状态和结果视频 URL。创建响应省略状态时由明确配置的 `create_status` 指定状态，未配置则拒绝不完整响应；供应商状态映射为 `pending|processing|completed|failed|cancelled|expired`。
 
 若供应商没有 content 接口，留空 `content_path` 并设置 `video_url_field`。内容获取时重新查询任务获得当前结果 URL，再读取媒体；账号凭据不会传给媒体存储域名。只验证媒体可开始读取，不声称已检查整个文件。
 

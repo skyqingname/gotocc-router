@@ -49,7 +49,18 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 	if err != nil {
 		return nil, err
 	}
-	seconds, resolution, err := s.parseOpenAIVideoBillingRequest(ctx, input.APIKey, input.UpstreamModel, parameters)
+	billingModel := input.UpstreamModel
+	if input.ProviderConfig != nil {
+		switch input.ChannelFields.BillingModelSource {
+		case BillingModelSourceUpstream:
+			billingModel = input.UpstreamModel
+		case BillingModelSourceChannelMapped:
+			billingModel = input.ChannelFields.ChannelMappedModel
+		default:
+			billingModel = input.RequestedModel
+		}
+	}
+	seconds, resolution, err := s.parseOpenAIVideoBillingRequest(ctx, input.APIKey, billingModel, parameters)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +74,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		Model: input.RequestedModel, UpstreamModel: input.UpstreamModel,
 		VideoCount: 1, VideoResolution: resolution, VideoDurationSeconds: seconds,
 	}
-	cost := s.calculateConfiguredOpenAIVideoCost(ctx, input.UpstreamModel, input.APIKey, quoteResult, videoMultiplier)
+	cost := s.calculateConfiguredOpenAIVideoCost(ctx, billingModel, input.APIKey, quoteResult, videoMultiplier)
 	if cost == nil {
 		return nil, fmt.Errorf("%w: model %q, resolution %q", ErrOpenAIVideoResolutionInvalid, input.RequestedModel, resolution)
 	}
@@ -157,6 +168,9 @@ func (s *OpenAIGatewayService) BindOpenAIVideoTaskResponse(_ context.Context, ta
 		return nil, ErrOpenAIVideoTaskNotFound
 	}
 	taskID, upstreamStatus := parseOpenAIVideoTaskIdentity(body)
+	if task.ProviderConfig != nil {
+		upstreamStatus = gjson.GetBytes(body, "provider_status").String()
+	}
 	if taskID == "" {
 		return nil, ErrOpenAIVideoTaskIDMissing
 	}
