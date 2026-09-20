@@ -112,6 +112,9 @@ func QuotaPlatform(ctx context.Context, apiKey *APIKey) string {
 		return platform
 	}
 	platform := PlatformFromAPIKey(apiKey)
+	if platform == PlatformVideo {
+		return PlatformOpenAI
+	}
 	if platform == PlatformComposite {
 		return ""
 	}

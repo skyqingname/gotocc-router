@@ -213,7 +213,7 @@ const auditPromptValid = computed(() => {
   const value = draft.value?.audit_prompt ?? ''
   const length = Array.from(value).length
   const threshold = draft.value?.confidence_threshold
-  const policyValid = draft.value?.response_format !== 'confidence_json' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
+  const policyValid = draft.value?.response_format === 'qwen3guard' || (typeof threshold === 'number' && Number.isFinite(threshold) && threshold >= 0 && threshold <= 1)
   return value.trim().length > 0 && length <= MAX_AUDIT_PROMPT_RUNES && policyValid
 })
 

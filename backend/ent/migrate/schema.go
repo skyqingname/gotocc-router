@@ -941,6 +941,7 @@ var (
 		{Name: "peak_start", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_end", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "rate_schedule", Type: field.TypeJSON, Nullable: true},
 		{Name: "is_exclusive", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "duplicate_operation_id", Type: field.TypeString, Nullable: true, Size: 64},
@@ -1013,22 +1014,22 @@ var (
 			{
 				Name:    "group_status",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[12]},
+				Columns: []*schema.Column{GroupsColumns[13]},
 			},
 			{
 				Name:    "group_platform",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[14]},
+				Columns: []*schema.Column{GroupsColumns[15]},
 			},
 			{
 				Name:    "group_subscription_type",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[15]},
+				Columns: []*schema.Column{GroupsColumns[16]},
 			},
 			{
 				Name:    "group_is_exclusive",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[11]},
+				Columns: []*schema.Column{GroupsColumns[12]},
 			},
 			{
 				Name:    "group_deleted_at",
@@ -1038,12 +1039,12 @@ var (
 			{
 				Name:    "group_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[55]},
+				Columns: []*schema.Column{GroupsColumns[56]},
 			},
 			{
 				Name:    "idx_groups_duplicate_operation_id_active",
 				Unique:  true,
-				Columns: []*schema.Column{GroupsColumns[13]},
+				Columns: []*schema.Column{GroupsColumns[14]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "duplicate_operation_id IS NOT NULL AND deleted_at IS NULL",
 				},
@@ -1169,6 +1170,7 @@ var (
 	// OpenaiVideoTasksColumns holds the columns for the "openai_video_tasks" table.
 	OpenaiVideoTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "provider_config", Type: field.TypeJSON, Nullable: true},
 		{Name: "local_request_id", Type: field.TypeString, Size: 128},
 		{Name: "task_id", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "actor_user_id", Type: field.TypeInt64},
@@ -1223,12 +1225,12 @@ var (
 			{
 				Name:    "openaivideotask_local_request_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[1]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[2]},
 			},
 			{
 				Name:    "openaivideotask_task_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[2]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[3]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "task_id IS NOT NULL",
 				},
@@ -1236,12 +1238,12 @@ var (
 			{
 				Name:    "openaivideotask_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[6], OpenaiVideoTasksColumns[39]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[7], OpenaiVideoTasksColumns[40]},
 			},
 			{
 				Name:    "openaivideotask_billing_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[19], OpenaiVideoTasksColumns[40]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[20], OpenaiVideoTasksColumns[41]},
 			},
 		},
 	}

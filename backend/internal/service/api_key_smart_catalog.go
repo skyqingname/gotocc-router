@@ -393,6 +393,17 @@ func (s *AutoGroupResolver) catalogSourcesForGroup(ctx context.Context, group *G
 		return nil, ErrAutoRouteUnavailable.WithCause(err)
 	}
 	if lookup != nil && lookup.channel != nil {
+		if group.Platform == PlatformVideo {
+			models, err := channelVideoModels(lookup.channel.FeaturesConfig)
+			if err != nil {
+				return nil, ErrAutoRouteUnavailable.WithCause(err)
+			}
+			for model, config := range models {
+				if config.Enabled {
+					sources.addExact(model)
+				}
+			}
+		}
 		for _, platform := range matchingPlatforms(group.Platform) {
 			for model := range lookup.channel.ModelMapping[platform] {
 				if strings.ContainsAny(model, "*?") {
@@ -433,7 +444,7 @@ func autoRouteCatalogAccountUsable(group *Group, account *Account) bool {
 	if group.Platform == PlatformComposite {
 		return isConcreteRequestPlatform(account.Platform)
 	}
-	if account.Platform == group.Platform {
+	if account.Platform == group.Platform || (group.Platform == PlatformVideo && account.IsOpenAIApiKey()) {
 		return true
 	}
 	return (group.Platform == PlatformAnthropic || group.Platform == PlatformGemini) &&

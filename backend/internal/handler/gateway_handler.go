@@ -215,7 +215,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
-	pricingCtx, pricingAt := service.WithGatewayTokenRequestPricing(c.Request.Context())
+	pricingCtx, pricingAt := h.gatewayService.WithTokenRequestPricing(c.Request.Context())
 	c.Request = c.Request.WithContext(pricingCtx)
 
 	// 验证 model 必填
@@ -1181,6 +1181,18 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		return
 	}
 
+	if platform == service.PlatformVideo && groupID != nil {
+		models, err := h.gatewayService.VideoModelIDs(c.Request.Context(), *groupID)
+		if err != nil {
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Video model catalog unavailable")
+			return
+		}
+		if apiKey.Group.ModelAllowlistEnabled() {
+			models = apiKey.Group.ModelAllowlist.FilterForListing(models)
+		}
+		writeAllowlistedModelsList(c, service.PlatformOpenAI, models)
+		return
+	}
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {

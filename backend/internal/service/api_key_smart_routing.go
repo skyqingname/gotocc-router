@@ -238,6 +238,12 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 		return nil, nil
 	}
 	platform, model := group.Platform, input.Model
+	if platform == PlatformVideo {
+		if input.Endpoint != AutoRouteEndpointVideos {
+			return nil, nil
+		}
+		platform = PlatformOpenAI
+	}
 	var composite *CompositeRouteDecision
 	if platform == PlatformComposite {
 		decision, err := resolveAutoCompositeRoute(ctx, group.ID, input.Model, autoCompositeEndpoint(input.Endpoint), catalog)
@@ -274,6 +280,20 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 		if billingModel != "" && checkRestricted(lookup, group.ID, billingModel) {
 			return nil, nil
 		}
+	}
+	if group.Platform == PlatformVideo {
+		if lookup == nil || lookup.channel == nil {
+			return nil, nil
+		}
+		models, err := channelVideoModels(lookup.channel.FeaturesConfig)
+		if err != nil {
+			return nil, ErrAutoRouteUnavailable.WithCause(err)
+		}
+		config, exists := models[input.Model]
+		if !exists || !config.Enabled {
+			return nil, nil
+		}
+		mapping.Mapped, mapping.MappedModel = true, config.UpstreamModel
 	}
 	for i := range catalog.Accounts[group.ID] {
 		accountCopy := catalog.Accounts[group.ID][i]

@@ -19,17 +19,18 @@
         <label class="text-sm text-gray-700 dark:text-dark-200">
           {{ t('admin.promptAudit.auditPrompt.responseFormat') }}
           <select :value="draft.response_format" class="input mt-2 w-full" @change="updateFormat(($event.target as HTMLSelectElement).value as AuditResponseFormat)">
+            <option value="jev">TypeSafe Jev · Noul</option>
             <option value="qwen3guard">{{ t('admin.promptAudit.auditPrompt.qwenFormat') }}</option>
             <option value="confidence_json">{{ t('admin.promptAudit.auditPrompt.confidenceFormat') }}</option>
           </select>
         </label>
-        <label v-if="draft.response_format === 'confidence_json'" class="text-sm text-gray-700 dark:text-dark-200">
+        <label v-if="draft.response_format !== 'qwen3guard'" class="text-sm text-gray-700 dark:text-dark-200">
           {{ t('admin.promptAudit.auditPrompt.threshold') }}
           <input :value="draft.confidence_threshold" type="number" min="0" max="1" step="0.01" class="input mt-2 w-full" @input="updateThreshold(Number(($event.target as HTMLInputElement).value))" />
         </label>
       </div>
       <p class="mt-2 text-xs text-gray-500 dark:text-dark-400">
-        {{ t(draft.response_format === 'confidence_json' ? 'admin.promptAudit.auditPrompt.confidenceHint' : 'admin.promptAudit.auditPrompt.qwenHint') }}
+        {{ draft.response_format === 'jev' ? t('admin.promptAudit.jev.hint') : t(draft.response_format === 'confidence_json' ? 'admin.promptAudit.auditPrompt.confidenceHint' : 'admin.promptAudit.auditPrompt.qwenHint') }}
       </p>
 
       <div class="mt-4 flex items-center justify-between gap-3">
@@ -59,8 +60,8 @@
 
       <div class="mt-4 rounded-lg bg-gray-50 px-4 py-3 dark:bg-dark-900/50">
         <p class="text-xs font-medium text-gray-700 dark:text-dark-200">{{ t('admin.promptAudit.auditPrompt.deliveryTitle') }}</p>
-        <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t('admin.promptAudit.auditPrompt.deliveryHint') }}</p>
-        <code class="mt-2 block rounded bg-white px-3 py-2 text-xs text-gray-700 dark:bg-dark-800 dark:text-dark-200">&lt;user_input&gt; ... &lt;/user_input&gt;</code>
+        <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">{{ t(draft.response_format === 'jev' ? 'admin.promptAudit.jev.delivery' : 'admin.promptAudit.auditPrompt.deliveryHint') }}</p>
+        <code class="mt-2 block rounded bg-white px-3 py-2 text-xs text-gray-700 dark:bg-dark-800 dark:text-dark-200">{{ draft.response_format === 'jev' ? 'state.content → questions → answers.*.noul' : '&lt;user_input&gt; ... &lt;/user_input&gt;' }}</code>
       </div>
     </div>
   </section>
@@ -70,7 +71,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AuditResponseFormat, PromptAuditDraft } from '../types'
-import { cloneData, MAX_AUDIT_PROMPT_RUNES } from '../viewModel'
+import { cloneData, JEV_DEFAULTS, MAX_AUDIT_PROMPT_RUNES } from '../viewModel'
 
 const props = defineProps<{ draft: PromptAuditDraft }>()
 const emit = defineEmits<{ (event: 'update:draft', value: PromptAuditDraft): void }>()
@@ -84,11 +85,20 @@ function updatePrompt(value: string) {
 }
 
 function restoreDefault() {
-  updatePrompt(props.draft.response_format === 'confidence_json' ? props.draft.default_confidence_audit_prompt : props.draft.default_audit_prompt)
+  updatePrompt(props.draft.response_format === 'jev' ? JEV_DEFAULTS.audit_prompt : props.draft.response_format === 'confidence_json' ? props.draft.default_confidence_audit_prompt : props.draft.default_audit_prompt)
 }
 
 function updateFormat(response_format: AuditResponseFormat) {
-  emit('update:draft', { ...cloneData(props.draft), response_format })
+  const draft = cloneData(props.draft)
+  if (response_format === 'jev') {
+    draft.audit_prompt = JEV_DEFAULTS.audit_prompt
+    draft.endpoints = draft.endpoints.map(endpoint => endpoint.protocol === 'typesafe' ? endpoint : ({
+      ...endpoint, protocol: 'typesafe', base_url: JEV_DEFAULTS.base_url, model: JEV_DEFAULTS.model,
+      token: '', has_token: false, clear_token: true, token_status: 'missing',
+      timeout_ms: JEV_DEFAULTS.timeout_ms, input_limit: JEV_DEFAULTS.input_limit,
+    }))
+  }
+  emit('update:draft', { ...draft, response_format })
 }
 
 function updateThreshold(confidence_threshold: number) {

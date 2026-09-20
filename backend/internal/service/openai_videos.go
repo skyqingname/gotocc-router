@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"io"
 	"mime"
 	"net/http"
@@ -27,6 +28,8 @@ var openAIVideoAllowedHeaders = map[string]bool{
 
 // OpenAIVideoForwardInput describes the OpenAI-compatible video task surface.
 type OpenAIVideoForwardInput struct {
+	ProviderConfig     *videoprotocol.Config
+	TaskID             string
 	Method             string
 	Path               string
 	Body               []byte
@@ -57,6 +60,15 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 		}
 	}
 
+	publicResult := false
+	if input.ProviderConfig != nil {
+		var err error
+		targetURL, input.Body, publicResult, err = s.videoProviderTarget(ctx, account, input, token)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	method := strings.ToUpper(strings.TrimSpace(input.Method))
 	if method == "" {
 		method = http.MethodPost
@@ -82,6 +94,15 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 			}
 		}
 	}
+	if publicResult {
+		request.Header = http.Header{}
+		if c != nil {
+			request.Header.Set("Range", c.GetHeader("Range"))
+			request.Header.Set("Accept", c.GetHeader("Accept"))
+		}
+		s.applyOpenAIOutboundIdentity(ctx, account, request.Header, false)
+		return request, nil
+	}
 	request.Header.Del("Authorization")
 	request.Header.Del("X-Api-Key")
 	request.Header.Set("Authorization", "Bearer "+token)
@@ -94,9 +115,19 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	if method == http.MethodPost && request.Header.Get("Content-Type") == "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
+	if input.ProviderConfig != nil && !publicResult {
+		for name, value := range input.ProviderConfig.Headers {
+			request.Header.Set(name, value)
+		}
+	}
 	account.applyOpenAIHeaderOverrides(request.Header)
 	s.applyOpenAIOutboundIdentity(ctx, account, request.Header, false)
-	return prepareAccountOutboundRequest(request, account), nil
+	request = prepareAccountOutboundRequest(request, account)
+	if publicResult {
+		request.Header.Del("Authorization")
+		request.Header.Del("X-Api-Key")
+	}
+	return request, nil
 }
 
 func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context, account *Account, input OpenAIVideoForwardInput) (*OpenAIForwardResult, error) {
@@ -169,12 +200,23 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 		UpstreamEndpoint: input.Path, ResponseHeaders: response.Header.Clone(),
 		StatusCode: response.StatusCode, Duration: time.Since(startTime),
 	}
-	if input.DeferResponseWrite {
+	if input.DeferResponseWrite || (input.ProviderConfig != nil && !strings.HasSuffix(input.Path, "/content")) {
 		body, readErr := s.readOpenAIVideoJSONResponse(response.Body)
 		if readErr != nil {
 			return nil, readErr
 		}
+		if input.ProviderConfig != nil {
+			body, readErr = input.ProviderConfig.NormalizeResponse(body, input.TaskID, input.Method == http.MethodPost)
+			if readErr != nil {
+				return nil, readErr
+			}
+			result.ResponseHeaders.Set("Content-Type", "application/json")
+			result.ResponseHeaders.Del("Content-Length")
+		}
 		result.ResponseBody = body
+		if !input.DeferResponseWrite {
+			return result, s.WriteOpenAIVideoForwardResponse(c, result)
+		}
 		return result, nil
 	}
 	if c != nil && c.Writer != nil {
@@ -245,6 +287,7 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 	path := "/v1/videos/" + url.PathEscape(strings.TrimSpace(*task.TaskID))
 	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
 		Method: http.MethodGet, Path: path, Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+		ProviderConfig: task.ProviderConfig, TaskID: *task.TaskID,
 	}, token)
 	if err != nil {
 		return nil, err
@@ -266,6 +309,12 @@ func (s *OpenAIGatewayService) PollOpenAIVideoTask(ctx context.Context, task *Op
 	if response.StatusCode >= http.StatusBadRequest {
 		message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(body)))
 		return nil, fmt.Errorf("video status upstream returned %d: %s", response.StatusCode, message)
+	}
+	if task.ProviderConfig != nil {
+		body, err = task.ProviderConfig.NormalizeResponse(body, *task.TaskID, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	_, providerStatus := parseOpenAIVideoTaskIdentity(body)
 	if providerStatus == "" {
@@ -292,6 +341,7 @@ func (s *OpenAIGatewayService) verifyOpenAIVideoTaskContent(ctx context.Context,
 	request, err := s.buildOpenAIVideoUpstreamRequest(ctx, nil, account, OpenAIVideoForwardInput{
 		Method: http.MethodGet, Path: "/v1/videos/" + url.PathEscape(*task.TaskID) + "/content",
 		Model: task.RequestedModel, UpstreamModel: task.UpstreamModel,
+		ProviderConfig: task.ProviderConfig, TaskID: *task.TaskID,
 	}, token)
 	if err != nil {
 		return "", "", err

@@ -232,6 +232,9 @@ func promptEndpointIdentityContext(ctx context.Context, endpoint ActiveEndpoint)
 
 // scan reuses the endpoint snapshot when discovery and inference form one probe.
 func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+	if endpoint.Protocol == "typesafe" {
+		return s.scanJev(ctx, endpoint, auditPrompt, chunk, enabledScanners)
+	}
 	client, err := s.clientFor(endpoint)
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}

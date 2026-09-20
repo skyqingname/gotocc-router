@@ -304,7 +304,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
+import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
 import { formatScaled, resolveIntervalPrices } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
@@ -334,6 +336,7 @@ const props = defineProps<{
    * 表格所有价格均为不含高峰因子的口径,该窗口仅用于分时时段行的 tooltip 披露:
    * 与高峰重叠的部分实付还会再乘高峰倍率。
    */
+  rateSchedule?: RateScheduleConfig
   peakWindow?: string
   peakRateMultiplier?: number | null
 }>()
@@ -365,7 +368,16 @@ const sortedModels = computed(() => {
   })
 })
 
-const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const appStore = useAppStore()
+const rateNow = ref(new Date())
+let rateTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { rateTimer = setInterval(() => { rateNow.value = new Date() }, 1000) })
+onUnmounted(() => { if (rateTimer) clearInterval(rateTimer) })
+const baseRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const effectiveRate = computed(() => {
+  if (!props.rateSchedule?.enabled) return baseRate.value
+  return compileRateSchedule(props.rateSchedule, appStore.cachedPublicSettings?.server_timezone || '').resolve(rateNow.value, baseRate.value).effective_multiplier
+})
 const hasCustomRate = computed(
   () => props.userRateMultiplier != null && props.userRateMultiplier !== props.rateMultiplier
 )
@@ -441,7 +453,7 @@ function usesIndependentImageRate(m: PlazaModel): boolean {
 
 /** 按次/按图片行的生效倍率。 */
 function requestRate(m: PlazaModel): number {
-  return usesIndependentImageRate(m) ? (props.imageRateMultiplier ?? 1) : effectiveRate.value
+  return usesIndependentImageRate(m) ? (props.imageRateMultiplier ?? 1) : baseRate.value
 }
 
 /** 按次 / 按图片单价(乘该行生效倍率,不换算 1M)。 */

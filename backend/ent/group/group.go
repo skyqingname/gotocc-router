@@ -36,6 +36,8 @@ const (
 	FieldPeakEnd = "peak_end"
 	// FieldPeakRateMultiplier holds the string denoting the peak_rate_multiplier field in the database.
 	FieldPeakRateMultiplier = "peak_rate_multiplier"
+	// FieldRateSchedule holds the string denoting the rate_schedule field in the database.
+	FieldRateSchedule = "rate_schedule"
 	// FieldIsExclusive holds the string denoting the is_exclusive field in the database.
 	FieldIsExclusive = "is_exclusive"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -245,6 +247,7 @@ var Columns = []string{
 	FieldPeakStart,
 	FieldPeakEnd,
 	FieldPeakRateMultiplier,
+	FieldRateSchedule,
 	FieldIsExclusive,
 	FieldStatus,
 	FieldDuplicateOperationID,

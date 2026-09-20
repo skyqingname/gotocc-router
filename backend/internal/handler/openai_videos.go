@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"net/http"
 	"strings"
 	"time"
@@ -70,6 +71,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	requestContentType := c.GetHeader("Content-Type")
 	originalRequestModel := ""
 	var err error
+	var providerConfig *videoprotocol.Config
 	var persistedTask *service.OpenAIVideoTask
 	var persistedAccount *service.Account
 	requestModel := strings.TrimSpace(c.Query("model"))
@@ -163,6 +165,28 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 			}
 		}
 	}
+	if persistedTask != nil {
+		providerConfig = persistedTask.ProviderConfig
+	} else {
+		providerConfig, err = h.gatewayService.ResolveVideoModel(c.Request.Context(), apiKey, requestModel)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+			return
+		}
+		if providerConfig != nil {
+			body, requestContentType, err = service.PrepareVideoModelRequest(providerConfig, body, requestContentType)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
+			forwardModel = providerConfig.UpstreamModel
+			forwardBody, forwardContentType, err = service.ReplaceOpenAIVideoRequestModel(body, requestContentType, forwardModel)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+				return
+			}
+		}
+	}
 	setOpsEndpointContext(c, forwardModel, int16(service.RequestTypeSync))
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
@@ -193,10 +217,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	var selection *service.AccountSelectionResult
 	account := persistedAccount
 	if persistedTask == nil {
-		selection, _, err = h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(), apiKey.GroupID, "", sessionHash, forwardModel, nil,
-			service.OpenAIUpstreamTransportHTTPSSE, false,
-		)
+		selection, err = h.gatewayService.SelectVideoAccount(c.Request.Context(), apiKey.GroupID, sessionHash, forwardModel)
 		if err != nil || selection == nil || selection.Account == nil {
 			reqLog.Warn("openai_videos.account_select_failed", zap.Error(err))
 			classification := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, requestModel, forwardModel, service.PlatformOpenAI)
@@ -224,7 +245,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	var preparedTask *service.OpenAIVideoTask
 	if chargeRequest && h.gatewayService.OpenAIVideoTaskLifecycleEnabled() {
 		preparedTask, err = h.gatewayService.PrepareOpenAIVideoTask(c.Request.Context(), service.OpenAIVideoTaskCreateInput{
-			APIKey: apiKey, Subscription: subscription, Account: account,
+			APIKey: apiKey, Subscription: subscription, Account: account, ProviderConfig: providerConfig,
 			RequestedModel: requestModel, UpstreamModel: forwardModel, Body: body, ContentType: requestContentType,
 			ChannelFields:   channelMapping.ToUsageFields(requestModel, forwardModel),
 			InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: "/v1/videos",
@@ -249,6 +270,13 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	}
 	forwardStart := time.Now()
 	result, forwardErr := h.gatewayService.ForwardVideo(c.Request.Context(), c, account, service.OpenAIVideoForwardInput{
+		ProviderConfig: providerConfig,
+		TaskID: func() string {
+			if persistedTask != nil && persistedTask.TaskID != nil {
+				return *persistedTask.TaskID
+			}
+			return ""
+		}(),
 		Method:        c.Request.Method,
 		Path:          c.Request.URL.Path,
 		Body:          forwardBody,

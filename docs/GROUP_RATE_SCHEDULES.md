@@ -1,119 +1,30 @@
-# Group rate schedules — implementation draft
+# 分组时段倍率
 
-## Status and scope
+管理端分组创建与编辑界面在基础费率下配置多个每天重复的时段。普通余额分组和订阅分组都可使用。总开关和每行开关相互独立，关闭后保留规则。
 
-This change adds real Go and TypeScript implementations, a reusable Vue editor,
-and unit test source. It is **not a completed group-billing feature**. The editor
-is not mounted in GroupsView; the new contract is not accepted by existing group
-APIs, persisted in the database, hydrated into auth caches, or consumed by the
-production billing path. Existing peak-rate behavior is unchanged.
+最终文本倍率 = 用户专属倍率（未配置时取分组基础倍率）× 命中时段系数。例如基础 0.4、时段系数 1.5，最终为 0.6；未命中为 0.4。允许系数 0。图片按次和视频保持原有独立倍率，不重复叠乘文本时段系数。
 
-The pull request is for source review only. No Docker tests, lint, typecheck,
-application build, production probe, or official submit-pr matrix has run in the
-editing environment. Do not mark it ready or merge it as an operational feature.
+## 配置及接口
 
-## Implemented configuration contract
-
-The following is input to the new package/editor, **not an existing HTTP API**:
+现有分组 create/update/duplicate API 携带 `rate_schedule`：
 
 ```json
-{
-  "enabled": true,
-  "timezone": "Asia/Shanghai",
-  "rules": [
-    {"id": "night", "enabled": true, "start": "22:00", "end": "06:00", "multiplier": 0.5},
-    {"id": "peak", "enabled": true, "start": "18:00", "end": "22:00", "multiplier": 1.5}
-  ]
-}
+{"enabled":true,"timezone":"Asia/Shanghai","rules":[
+  {"id":"evening","enabled":true,"start":"18:00","end":"23:00","multiplier":1.5},
+  {"id":"night","enabled":true,"start":"23:00","end":"06:00","multiplier":0.8}
+]}
 ```
 
-Asia/Shanghai is an example, not a detected production timezone. An empty timezone
-inherits the explicitly supplied server timezone; missing/invalid timezones are
-errors. A machine-local timezone or browser-local timezone is never substituted.
-The runtime needs IANA timezone data (the browser needs the corresponding Intl
-support); deployment validation must verify availability of configured zones.
+- 时区使用 IANA 名称；空字符串明确继承公开设置中的服务端时区。
+- 开始包含、结束不包含；支持跨午夜，全天写 `00:00–24:00`。
+- 已启用时段不可重叠，规则顺序不代表优先级。最多 64 条。
+- update 省略字段保留原配置；停用或清空时显式发送对象及 `rules: []`。
+- 保存时使用 PR #10 的 Go 引擎校验；Vue 编辑器显示同义预览，实际账单由服务端计算。
 
-Rules recur daily with inclusive starts and exclusive ends. A start later than
-its end crosses midnight. 24:00 is allowed only as an end; 00:00–24:00 explicitly
-means all day. Equal times are rejected. Historical one-digit hours such as 1:30
-are accepted and normalized internally. Up to 64 rules are accepted. Identifiers
-must be unique ASCII letters/digits/underscore/hyphen, 1–64 characters long.
-Enabled rules may not overlap, including either half of an overnight window.
-Disabled rules are still validated, but do not participate in matching/overlaps.
-Disabling the schedule preserves its configuration and resolves to the base rate.
+请求开始及 WebSocket 每轮固定定价时刻、基础倍率和时段系数。利润准入与后续结算读取该请求快照，跨时段的长请求不在完成时重新定价。快照只存在于请求对象，不进入共享鉴权缓存。分组保存沿用鉴权缓存失效通知；缓存格式升级为 27。
 
-Multipliers are additional factors, following the existing single-window peak
-factor convention. The UI labels them as coefficients and previews the effective
-value. For a resolved base of 0.4, a window factor of 0.5 yields 0.2. No match
-means factor 1, not effective rate 1. An already resolved user override is passed
-as the base. Absolute-rate replacement is not implemented or assumed.
+迁移 275 为分组添加 JSONB 配置，将既有订阅单时段设置复制为 `legacy-peak`；历史字段保留供旧接口更新兼容。新对象和旧字段同时提交时以新对象为准。分组复制完整复制时段配置。用户 Key、可用渠道及模型广场携带并展示规则，模型广场文本价格显示当前时段倍率。
 
-Factors/bases must be finite and non-negative. Zero explicitly permits a free
-window. Overflow and positive-product underflow to zero are errors. These checks
-do not replace the eventual persistence layer's decimal precision/range checks.
-This package calculates multipliers, not monetary charges, and introduces no
-floating-point money settlement or new ledger.
+## 验收
 
-Repeated DST hours match the same wall-clock rules both times. A skipped hour
-has no real instants to match. The caller supplies the trusted request instant;
-there is no time.Now(), database access, scheduler mutation, or network call in
-the Go evaluator.
-
-## Request snapshot contract
-
-Compile validates a copied configuration once and returns an immutable schedule.
-Resolve returns a value snapshot containing the received instant in UTC, resolved
-timezone, normalized configuration SHA-256, matched rule ID, base, factor, and
-effective multiplier. Reordering equivalent rules does not change the hash.
-Editing the original configuration cannot mutate a compiled schedule or snapshot.
-The configuration hash identifies input; it is not a signature or validation proof.
-The frontend preview is never an authoritative billing input.
-
-## Integration still required before this becomes usable
-
-- Add the persistent Group contract, forward-only migration and legacy conversion;
-  regenerate Ent and Wire from semantic sources instead of editing generated files.
-  Assign the migration number against the latest main. Map the old subscription
-  window once with its actual server timezone; never stack old and new factors.
-- Add group create/update/duplicate/batch validation and DTO fields; mount the
-  editor under the base multiplier in create/edit forms. Saving a group and its
-  schedule must be atomic. Include explicit empty-vs-omitted update semantics.
-- Hydrate schedules through every group/auth/scheduler cache path and propagate
-  invalidations. Update public channels/model/plan price displays. Do not show a
-  preview as if the backend is already charging it.
-- Capture the trusted ingress instant and produce the verified snapshot after
-  security audit but before account selection/admission/billing side effects.
-  Reuse it for profit checks, user-rate precedence, retries and settlement.
-  Do not silently apply token schedules to independent image/video prices.
-- Exercise ordinary and subscription groups, migration/rollback limitations,
-  multi-instance cache invalidation, group copy, concurrency and end-to-end money
-  behavior in the repository Docker environment. Preserve HTTP/WS audit ordering.
-- Run the official submission process with fresh base/head before ready-for-review.
-  No validation success status or machine-readable submit-pr proof was fabricated
-  for this draft. No main, releases, tags, production settings, or upstream code
-  are changed by these standalone additions.
-
-## Test sources provided (execution pending)
-
-Go tests cover boundaries, gaps, adjacent windows, overnight and all-day windows,
-all 1,440 minutes of a day, zero/invalid/overflow/underflow factors, duplicate IDs,
-overlap, explicit/fallback timezones, repeated/skipped DST hours, normalization,
-immutable snapshots and concurrent reads. TypeScript tests cover corresponding
-preview behavior. Vue tests cover bilingual labels, effective-rate preview,
-immutable form updates, disabling without deleting rules, adding/removing rows,
-and invalid/overlapping-rule reporting.
-
-Use the existing documented checks **inside the repository's Docker validation
-container**, not the host:
-
-```sh
-# From backend:
-go test -tags=unit ./internal/pkg/rateschedule
-
-# From the repository root:
-pnpm --dir frontend run lint:check
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test:run
-```
-
-These focused checks do not replace the full official submit-pr matrix.
+在本地候选中保存两个不重叠时段，重新打开编辑确认持久化，再复制分组确认规则完整；检查普通/订阅、跨午夜、关闭保留、零系数及重叠错误。PR 原有测试源码予以保留；本轮不新增或运行测试矩阵。

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"strings"
 	"time"
 )
@@ -44,6 +45,7 @@ type OpenAIVideoTask struct {
 	ChannelID             *int64
 	AccountID             int64
 	SubscriptionID        *int64
+	ProviderConfig        *videoprotocol.Config
 	RequestedModel        string
 	UpstreamModel         string
 	RequestSeconds        int
@@ -90,6 +92,7 @@ type CreateOpenAIVideoTaskParams struct {
 	ChannelID             *int64
 	AccountID             int64
 	SubscriptionID        *int64
+	ProviderConfig        *videoprotocol.Config
 	RequestedModel        string
 	UpstreamModel         string
 	RequestSeconds        int

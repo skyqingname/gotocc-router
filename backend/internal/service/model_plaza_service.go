@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"sort"
 	"strings"
 )
@@ -62,6 +63,7 @@ type PlazaGroup struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
+	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 	// 图片按次实付倍率：ImageRateIndependent 为 true 时，图片计费模型的实付
 	// = 档位价 × ImageRateMultiplier，不乘分组/用户专属倍率（与计费口径一致）。
@@ -157,6 +159,7 @@ func (s *ModelPlazaService) listGroupsFromChannelPricing(ctx context.Context) ([
 			PeakStart:                 g.PeakStart,
 			PeakEnd:                   g.PeakEnd,
 			PeakRateMultiplier:        g.PeakRateMultiplier,
+			RateSchedule:              g.RateSchedule,
 			IsExclusive:               g.IsExclusive,
 			ImageRateIndependent:      g.ImageRateIndependent,
 			ImageRateMultiplier:       g.ImageRateMultiplier,
@@ -300,6 +303,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 			PeakStart:                 group.PeakStart,
 			PeakEnd:                   group.PeakEnd,
 			PeakRateMultiplier:        group.PeakRateMultiplier,
+			RateSchedule:              group.RateSchedule,
 			IsExclusive:               group.IsExclusive,
 			ImageRateIndependent:      group.ImageRateIndependent,
 			ImageRateMultiplier:       group.ImageRateMultiplier,

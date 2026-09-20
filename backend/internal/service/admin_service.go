@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"net/http"
 	"time"
 
@@ -261,6 +262,7 @@ type CreateGroupInput struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64
@@ -346,6 +348,7 @@ type UpdateGroupInput struct {
 	PeakStart          *string
 	PeakEnd            *string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64

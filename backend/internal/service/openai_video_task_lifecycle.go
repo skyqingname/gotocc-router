@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 )
 
 type OpenAIVideoTaskCreateInput struct {
+	ProviderConfig   *videoprotocol.Config
 	APIKey           *APIKey
 	Subscription     *UserSubscription
 	Account          *Account
@@ -99,6 +101,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		ChannelID:             channelID,
 		AccountID:             input.Account.ID,
 		SubscriptionID:        subscriptionID,
+		ProviderConfig:        input.ProviderConfig,
 		RequestedModel:        strings.TrimSpace(input.RequestedModel),
 		UpstreamModel:         strings.TrimSpace(input.UpstreamModel),
 		RequestSeconds:        seconds,

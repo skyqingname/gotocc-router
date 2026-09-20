@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"time"
 
 	"entgo.io/ent"
@@ -23,6 +24,7 @@ func (OpenAIVideoTask) Fields() []ent.Field {
 	decimal := map[string]string{dialect.Postgres: "decimal(20,10)"}
 	timestamptz := map[string]string{dialect.Postgres: "timestamptz"}
 	return []ent.Field{
+		field.JSON("provider_config", &videoprotocol.Config{}).Optional(),
 		field.String("local_request_id").MaxLen(128).Immutable(),
 		field.String("task_id").MaxLen(255).Optional().Nillable(),
 		field.Int64("actor_user_id"), field.Int64("billing_user_id"),

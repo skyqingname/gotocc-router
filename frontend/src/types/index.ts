@@ -1,3 +1,4 @@
+import type { RateScheduleConfig } from '@/utils/rate-schedule'
 /**
  * Core Type Definitions for Sub2API Frontend
  */
@@ -544,7 +545,7 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'composite'
+export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'video' | 'composite'
 export type ApiKeyRoutingMode = 'fixed' | 'auto'
 
 // The server owns the calculation of these capabilities. They are advisory for
@@ -623,6 +624,7 @@ export interface Group {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
+  rate_schedule: RateScheduleConfig
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
@@ -860,6 +862,7 @@ export interface CreateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
+  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -929,6 +932,7 @@ export interface UpdateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
+  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number

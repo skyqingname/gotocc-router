@@ -10,6 +10,18 @@ Classifying upstream `compaction`/`compaction_summary` output for timing does no
 add an ingress extraction rule, policy decision, or audit bypass. Encrypted
 compact output is not treated as a text-token delta; see [usage timing](USAGE_TIMING.md).
 
+## TypeSafe Jev and Video adapters
+
+Jev uses the same canonical extraction and chunking. Audited text is sent in
+`state.content`, while the configured policy and independent risk questions
+are sent in `questions`; each Noul answer maps to the existing audit decision.
+See [TypeSafe integration](TYPESAFE_PROMPT_AUDIT.md).
+
+Video platform requests enter the existing video audit hook before parameter
+mapping, account selection or quota/credit reservation. Provider defaults may
+not supply prompt/input/messages/model fields. Saved provider configurations
+are frozen with asynchronous tasks; polling never selects a new account.
+
 ## Boundary And Ordering
 
 Forwarding-account outbound identity presets are resolved after this boundary

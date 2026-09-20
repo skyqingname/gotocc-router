@@ -97,7 +97,7 @@ func RegisterGatewayRoutes(
 	}
 	videoCreationHandler := func(c *gin.Context) {
 		switch getGroupPlatform(c) {
-		case service.PlatformOpenAI:
+		case service.PlatformOpenAI, service.PlatformVideo:
 			h.OpenAIGateway.Videos(c)
 			return
 		case service.PlatformGrok:
@@ -114,7 +114,7 @@ func RegisterGatewayRoutes(
 	}
 	videoGenerationHandler := func(c *gin.Context) {
 		switch getGroupPlatform(c) {
-		case service.PlatformOpenAI:
+		case service.PlatformOpenAI, service.PlatformVideo:
 			h.OpenAIGateway.Videos(c)
 			return
 		case service.PlatformGrok, service.PlatformComposite:
@@ -156,28 +156,28 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoTaskHandler := func(c *gin.Context) {
-		if getGroupPlatform(c) == service.PlatformOpenAI {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
 			h.OpenAIGateway.VideoTask(c)
 			return
 		}
 		videoStatusHandler(c)
 	}
 	videoTaskContentHandler := func(c *gin.Context) {
-		if getGroupPlatform(c) == service.PlatformOpenAI {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
 			h.OpenAIGateway.VideoContent(c)
 			return
 		}
 		videoContentHandler(c)
 	}
 	videoGenerationStatusHandler := func(c *gin.Context) {
-		if getGroupPlatform(c) == service.PlatformOpenAI {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
 			h.OpenAIGateway.VideoTask(c)
 			return
 		}
 		videoStatusHandler(c)
 	}
 	videoGenerationContentHandler := func(c *gin.Context) {
-		if getGroupPlatform(c) == service.PlatformOpenAI {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
 			h.OpenAIGateway.VideoContent(c)
 			return
 		}

@@ -653,6 +653,11 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
+        <RateScheduleEditor
+          v-model="createForm.rate_schedule"
+          :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''"
+          :base-multiplier="createForm.rate_multiplier"
+        />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -1247,53 +1252,6 @@
               >
                 {{ item.label }}: {{ item.value }}
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
-        <div v-if="createForm.subscription_type === 'subscription'" class="border-t pt-4">
-          <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="createForm.peak_rate_enabled"
-                type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>{{ t("admin.groups.peakRate.enable") }}</span>
-            </label>
-          </div>
-          <div
-            v-if="createForm.peak_rate_enabled"
-            class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
-          >
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
-              <input
-                v-model="createForm.peak_start"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
-              <input
-                v-model="createForm.peak_end"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
-              <input
-                v-model.number="createForm.peak_rate_multiplier"
-                type="number"
-                step="0.001"
-                min="0"
-                class="input"
-                placeholder="1"
-                :title="t('admin.groups.peakRate.multiplierHint')"
-              />
             </div>
           </div>
         </div>
@@ -2356,6 +2314,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
+        <RateScheduleEditor v-model="editForm.rate_schedule" :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''" :base-multiplier="editForm.rate_multiplier" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -2982,53 +2941,6 @@
               >
                 {{ item.label }}: {{ item.value }}
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
-        <div v-if="editForm.subscription_type === 'subscription'" class="border-t pt-4">
-          <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-              <input
-                v-model="editForm.peak_rate_enabled"
-                type="checkbox"
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>{{ t("admin.groups.peakRate.enable") }}</span>
-            </label>
-          </div>
-          <div
-            v-if="editForm.peak_rate_enabled"
-            class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
-          >
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
-              <input
-                v-model="editForm.peak_start"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
-              <input
-                v-model="editForm.peak_end"
-                type="time"
-                class="input"
-              />
-            </div>
-            <div>
-              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
-              <input
-                v-model.number="editForm.peak_rate_multiplier"
-                type="number"
-                step="0.001"
-                min="0"
-                class="input"
-                placeholder="1"
-                :title="t('admin.groups.peakRate.multiplierHint')"
-              />
             </div>
           </div>
         </div>
@@ -4453,6 +4365,8 @@
 </template>
 
 <script setup lang="ts">
+import RateScheduleEditor from '@/components/groups/RateScheduleEditor.vue'
+import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
 import Toggle from '@/components/common/Toggle.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -4924,7 +4838,7 @@ const invalidRequestFallbackOptionsForEdit = computed(() => {
 });
 
 const canCopyAccountsFromGroup = (targetPlatform: GroupPlatform, sourcePlatform: GroupPlatform) =>
-  targetPlatform === "composite" || sourcePlatform === targetPlatform;
+  targetPlatform === "composite" || sourcePlatform === targetPlatform || (targetPlatform === "video" && sourcePlatform === "openai");
 
 const copyAccountsGroupLabel = (g: AdminGroup) => {
   const count = g.account_count || 0;
@@ -5163,6 +5077,7 @@ const createForm = reactive({
   audio_tts_price_per_million_chars: null as number | null,
   audio_stt_price_per_hour: null as number | null,
   // 高峰时段倍率配置
+  rate_schedule: { enabled: false, timezone: "", rules: [] } as RateScheduleConfig,
   peak_rate_enabled: false,
   peak_start: "",
   peak_end: "",
@@ -5531,6 +5446,7 @@ const editForm = reactive({
   audio_tts_price_per_million_chars: null as number | null,
   audio_stt_price_per_hour: null as number | null,
   // 高峰时段倍率配置
+  rate_schedule: { enabled: false, timezone: "", rules: [] } as RateScheduleConfig,
   peak_rate_enabled: false,
   peak_start: "",
   peak_end: "",
@@ -6122,6 +6038,7 @@ const closeCreateModal = () => {
   createForm.audio_realtime_price_per_min = null;
   createForm.audio_tts_price_per_million_chars = null;
   createForm.audio_stt_price_per_hour = null;
+  createForm.rate_schedule = { enabled: false, timezone: "", rules: [] };
   createForm.peak_rate_enabled = false;
   createForm.peak_start = "";
   createForm.peak_end = "";
@@ -6191,6 +6108,8 @@ const validateProfitControlForm = (form: ProfitControlFormState): boolean => {
 };
 
 const handleCreateGroup = async () => {
+  try { compileRateSchedule(createForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
+  catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
     return;
@@ -6425,6 +6344,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.audio_realtime_price_per_min = group.audio_realtime_price_per_min ?? null;
   editForm.audio_tts_price_per_million_chars = group.audio_tts_price_per_million_chars ?? null;
   editForm.audio_stt_price_per_hour = group.audio_stt_price_per_hour ?? null;
+  editForm.rate_schedule = JSON.parse(JSON.stringify(group.rate_schedule));
   editForm.peak_rate_enabled = group.peak_rate_enabled ?? false;
   editForm.peak_start = group.peak_start ?? "";
   editForm.peak_end = group.peak_end ?? "";
@@ -6553,6 +6473,7 @@ const closeEditModal = () => {
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
+  editForm.rate_schedule = { enabled: false, timezone: "", rules: [] };
   editForm.peak_rate_enabled = false;
   editForm.peak_start = "";
   editForm.peak_end = "";
@@ -6586,6 +6507,8 @@ const closeEditModal = () => {
 };
 
 const handleUpdateGroup = async () => {
+  try { compileRateSchedule(editForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
+  catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
   if (!editingGroup.value) return;
   if (!editForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));

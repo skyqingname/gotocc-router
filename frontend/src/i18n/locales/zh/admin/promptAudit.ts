@@ -1,5 +1,10 @@
 export default {
   promptAudit: {
+    jev: {
+      hint: '逐项判断选中的风险类别；任一类别概率达到阈值即拦截。切换至 Jev 后请填写 TypeSafe API Key，旧节点密钥不会带入。',
+      delivery: '待审文本仅放在 state.content；审核标准放在 questions。Jev 返回风险概率，界面原因显示命中的类别。',
+      protocol: '审核服务',
+    },
     title: '提示词审计',
     description: '通过 OpenAI 兼容审核节点异步复核或同步阻止请求，支持分类输出和评分 JSON；事件会按上限留存审计内容，供管理员复核。',
     configVersion: '配置版本 v{version}',

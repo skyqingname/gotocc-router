@@ -1,5 +1,10 @@
 export default {
   promptAudit: {
+    jev: {
+      hint: 'Evaluate selected categories independently; block if any probability reaches the threshold. Enter a TypeSafe API key after switching. Existing provider secrets are not reused.',
+      delivery: 'Text is sent only in state.content; policy is sent in questions. Jev returns probabilities; reasons show the matched categories.',
+      protocol: 'Audit service',
+    },
     title: 'Prompt Audit',
     description: 'Review requests asynchronously or block them synchronously through OpenAI-compatible audit nodes with classification or confidence JSON output. Bounded retained content is available for admin review.',
     configVersion: 'Config version v{version}',

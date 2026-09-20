@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 
 	"github.com/LuckyKuang/sub2api-plus/ent/schema/mixins"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -63,6 +64,7 @@ func (Group) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0).
 			Comment("高峰时段叠加倍率，仅在 peak_rate_enabled 且处于 [peak_start, peak_end) 时乘入文本倍率"),
+		field.JSON("rate_schedule", rateschedule.Config{}).Optional(),
 		field.Bool("is_exclusive").
 			Default(false),
 		field.String("status").

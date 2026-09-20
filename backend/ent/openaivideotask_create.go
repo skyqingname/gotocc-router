@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // OpenAIVideoTaskCreate is the builder for creating a OpenAIVideoTask entity.
@@ -20,6 +21,12 @@ type OpenAIVideoTaskCreate struct {
 	mutation *OpenAIVideoTaskMutation
 	hooks    []Hook
 	conflict []sql.ConflictOption
+}
+
+// SetProviderConfig sets the "provider_config" field.
+func (_c *OpenAIVideoTaskCreate) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskCreate {
+	_c.mutation.SetProviderConfig(v)
+	return _c
 }
 
 // SetLocalRequestID sets the "local_request_id" field.
@@ -601,6 +608,11 @@ func (_c *OpenAIVideoTaskCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *OpenAIVideoTaskCreate) check() error {
+	if v, ok := _c.mutation.ProviderConfig(); ok {
+		if err := v.Validate(); err != nil {
+			return &ValidationError{Name: "provider_config", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.provider_config": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.LocalRequestID(); !ok {
 		return &ValidationError{Name: "local_request_id", err: errors.New(`ent: missing required field "OpenAIVideoTask.local_request_id"`)}
 	}
@@ -786,6 +798,10 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 		_spec = sqlgraph.NewCreateSpec(openaivideotask.Table, sqlgraph.NewFieldSpec(openaivideotask.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.ProviderConfig(); ok {
+		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)
+		_node.ProviderConfig = value
+	}
 	if value, ok := _c.mutation.LocalRequestID(); ok {
 		_spec.SetField(openaivideotask.FieldLocalRequestID, field.TypeString, value)
 		_node.LocalRequestID = value
@@ -969,7 +985,7 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 // of the `INSERT` statement. For example:
 //
 //	client.OpenAIVideoTask.Create().
-//		SetLocalRequestID(v).
+//		SetProviderConfig(v).
 //		OnConflict(
 //			// Update the row with the new values
 //			// the was proposed for insertion.
@@ -978,7 +994,7 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.OpenAIVideoTaskUpsert) {
-//			SetLocalRequestID(v+v).
+//			SetProviderConfig(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *OpenAIVideoTaskCreate) OnConflict(opts ...sql.ConflictOption) *OpenAIVideoTaskUpsertOne {
@@ -1013,6 +1029,24 @@ type (
 		*sql.UpdateSet
 	}
 )
+
+// SetProviderConfig sets the "provider_config" field.
+func (u *OpenAIVideoTaskUpsert) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskUpsert {
+	u.Set(openaivideotask.FieldProviderConfig, v)
+	return u
+}
+
+// UpdateProviderConfig sets the "provider_config" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsert) UpdateProviderConfig() *OpenAIVideoTaskUpsert {
+	u.SetExcluded(openaivideotask.FieldProviderConfig)
+	return u
+}
+
+// ClearProviderConfig clears the value of the "provider_config" field.
+func (u *OpenAIVideoTaskUpsert) ClearProviderConfig() *OpenAIVideoTaskUpsert {
+	u.SetNull(openaivideotask.FieldProviderConfig)
+	return u
+}
 
 // SetTaskID sets the "task_id" field.
 func (u *OpenAIVideoTaskUpsert) SetTaskID(v string) *OpenAIVideoTaskUpsert {
@@ -1768,6 +1802,27 @@ func (u *OpenAIVideoTaskUpsertOne) Update(set func(*OpenAIVideoTaskUpsert)) *Ope
 		set(&OpenAIVideoTaskUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetProviderConfig sets the "provider_config" field.
+func (u *OpenAIVideoTaskUpsertOne) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetProviderConfig(v)
+	})
+}
+
+// UpdateProviderConfig sets the "provider_config" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertOne) UpdateProviderConfig() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateProviderConfig()
+	})
+}
+
+// ClearProviderConfig clears the value of the "provider_config" field.
+func (u *OpenAIVideoTaskUpsertOne) ClearProviderConfig() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.ClearProviderConfig()
+	})
 }
 
 // SetTaskID sets the "task_id" field.
@@ -2731,7 +2786,7 @@ func (_c *OpenAIVideoTaskCreateBulk) ExecX(ctx context.Context) {
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.OpenAIVideoTaskUpsert) {
-//			SetLocalRequestID(v+v).
+//			SetProviderConfig(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *OpenAIVideoTaskCreateBulk) OnConflict(opts ...sql.ConflictOption) *OpenAIVideoTaskUpsertBulk {
@@ -2808,6 +2863,27 @@ func (u *OpenAIVideoTaskUpsertBulk) Update(set func(*OpenAIVideoTaskUpsert)) *Op
 		set(&OpenAIVideoTaskUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetProviderConfig sets the "provider_config" field.
+func (u *OpenAIVideoTaskUpsertBulk) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetProviderConfig(v)
+	})
+}
+
+// UpdateProviderConfig sets the "provider_config" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertBulk) UpdateProviderConfig() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateProviderConfig()
+	})
+}
+
+// ClearProviderConfig clears the value of the "provider_config" field.
+func (u *OpenAIVideoTaskUpsertBulk) ClearProviderConfig() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.ClearProviderConfig()
+	})
 }
 
 // SetTaskID sets the "task_id" field.

@@ -11,13 +11,13 @@ func validateAuditResponsePolicy(format string, threshold float64) error {
 	switch format {
 	case "", "qwen3guard": // Legacy settings retain the original classifier.
 		return nil
-	case "confidence_json":
+	case "confidence_json", "jev":
 		if math.IsNaN(threshold) || math.IsInf(threshold, 0) || threshold < 0 || threshold > 1 {
 			return infraerrors.BadRequest("prompt_audit_invalid_confidence_threshold", "评分拦截阈值必须在 0 到 1 之间")
 		}
 		return nil
 	default:
-		return infraerrors.BadRequest("prompt_audit_invalid_response_format", "审核输出格式必须为 qwen3guard 或 confidence_json")
+		return infraerrors.BadRequest("prompt_audit_invalid_response_format", "审核输出格式必须为 jev、qwen3guard 或 confidence_json")
 	}
 }
 

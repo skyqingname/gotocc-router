@@ -198,6 +198,7 @@
                   :peak-start="row.group.peak_start"
                   :peak-end="row.group.peak_end"
                   :peak-rate-multiplier="row.group.peak_rate_multiplier"
+ :rate-schedule="row.group.rate_schedule"
                 />
                 <span v-else-if="!isAutoRouting(row)" class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
@@ -635,6 +636,7 @@
                 :peak-start="(option as unknown as GroupOption).peakStart"
                 :peak-end="(option as unknown as GroupOption).peakEnd"
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+ :rate-schedule="(option as unknown as GroupOption).rateSchedule"
               />
               <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
             </template>
@@ -649,6 +651,7 @@
                 :peak-start="(option as unknown as GroupOption).peakStart"
                 :peak-end="(option as unknown as GroupOption).peakEnd"
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+ :rate-schedule="(option as unknown as GroupOption).rateSchedule"
                 :description="(option as unknown as GroupOption).description"
                 :selected="selected"
               />
@@ -1264,6 +1267,7 @@
               :peak-start="option.peakStart"
               :peak-end="option.peakEnd"
               :peak-rate-multiplier="option.peakRateMultiplier"
+ :rate-schedule="option.rateSchedule"
               :description="option.description"
               :selected="
                 !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
@@ -1342,6 +1346,7 @@ interface GroupOption {
   peakStart: string
   peakEnd: string
   peakRateMultiplier: number
+  rateSchedule: Group["rate_schedule"]
   subscriptionType: SubscriptionType
   platform: GroupPlatform
 }
@@ -1635,6 +1640,7 @@ const groupOptions = computed(() =>
     peakStart: group.peak_start,
     peakEnd: group.peak_end,
     peakRateMultiplier: group.peak_rate_multiplier,
+    rateSchedule: group.rate_schedule,
     subscriptionType: group.subscription_type,
     platform: group.platform
   }))

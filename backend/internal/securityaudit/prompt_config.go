@@ -206,8 +206,8 @@ func DefaultStorageConfig() storageConfig {
 		Strategy:               "priority",
 		WorkerCount:            DefaultWorkerCount,
 		QueueCapacity:          DefaultQueueCapacity,
-		AuditPrompt:            DefaultAuditPrompt,
-		ResponseFormat:         DefaultAuditResponseFormat,
+		AuditPrompt:            DefaultJevAuditPrompt,
+		ResponseFormat:         "jev",
 		ConfidenceThreshold:    DefaultConfidenceThreshold,
 		Scanners:               append([]string(nil), AllScannerIDs...),
 		AllGroups:              true,
@@ -222,6 +222,9 @@ func ParseStorageConfig(raw string) (storageConfig, error) {
 	if strings.TrimSpace(raw) == "" {
 		return cfg, nil
 	}
+	// Existing settings without an explicit format retain their legacy protocol.
+	cfg.ResponseFormat = "qwen3guard"
+	cfg.AuditPrompt = DefaultAuditPrompt
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return storageConfig{}, fmt.Errorf("decode prompt audit config: %w", err)
 	}
@@ -271,6 +274,9 @@ func normalizeStorageConfig(cfg *storageConfig) {
 		ep.Model = strings.TrimSpace(ep.Model)
 		if ep.Model == "" {
 			ep.Model = DefaultGuardModel
+			if ep.Protocol == "typesafe" {
+				ep.Model = DefaultJevModel
+			}
 		}
 		if ep.TimeoutMS == 0 {
 			ep.TimeoutMS = DefaultTimeoutMS
@@ -316,8 +322,14 @@ func validateStorageConfig(cfg storageConfig) error {
 			return infraerrors.BadRequest("prompt_audit_duplicate_endpoint", "审计节点 ID 不能重复")
 		}
 		seen[ep.ID] = struct{}{}
-		if ep.Protocol != "openai_compatible" {
-			return infraerrors.BadRequest("prompt_audit_invalid_endpoint_protocol", "审计节点仅支持 OpenAI 兼容协议")
+		if ep.Protocol != "openai_compatible" && ep.Protocol != "typesafe" {
+			return infraerrors.BadRequest("prompt_audit_invalid_endpoint_protocol", "审计节点协议必须为 TypeSafe 或旧版 OpenAI 兼容协议")
+		}
+		if cfg.ResponseFormat == "jev" && ep.Enabled && ep.Protocol != "typesafe" {
+			return infraerrors.BadRequest("prompt_audit_jev_endpoint_required", "Jev 审核只能启用 TypeSafe 节点，请配置对应 API Key")
+		}
+		if ep.Protocol == "typesafe" && !strings.HasPrefix(ep.Model, "jev-") {
+			return infraerrors.BadRequest("prompt_audit_jev_model_required", "TypeSafe 节点需要明确配置 Jev 模型，例如 jev-latest")
 		}
 		if _, err := NormalizeBaseURL(ep.BaseURL); err != nil {
 			return err

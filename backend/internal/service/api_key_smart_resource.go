@@ -50,7 +50,7 @@ func (s *AutoGroupResolver) RestoreGroup(ctx context.Context, authenticated *API
 		if group.ID != groupID {
 			continue
 		}
-		if group.Platform != PlatformComposite && group.Platform != platform {
+		if group.Platform != PlatformComposite && group.Platform != platform && !(group.Platform == PlatformVideo && platform == PlatformOpenAI) {
 			return nil, ErrAutoRouteNoAccess
 		}
 		groupCopy, userCopy, keyCopy := group, *key.User, *key

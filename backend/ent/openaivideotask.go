@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // OpenAIVideoTask is the model entity for the OpenAIVideoTask schema.
@@ -17,6 +19,8 @@ type OpenAIVideoTask struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
+	// ProviderConfig holds the value of the "provider_config" field.
+	ProviderConfig *videoprotocol.Config `json:"provider_config,omitempty"`
 	// LocalRequestID holds the value of the "local_request_id" field.
 	LocalRequestID string `json:"local_request_id,omitempty"`
 	// TaskID holds the value of the "task_id" field.
@@ -113,6 +117,8 @@ func (*OpenAIVideoTask) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case openaivideotask.FieldProviderConfig:
+			values[i] = new([]byte)
 		case openaivideotask.FieldAllowanceReserved, openaivideotask.FieldUsageRecorded:
 			values[i] = new(sql.NullBool)
 		case openaivideotask.FieldTotalCost, openaivideotask.FieldActualCost, openaivideotask.FieldHoldAmount, openaivideotask.FieldGroupRateMultiplier, openaivideotask.FieldAccountRateMultiplier:
@@ -144,6 +150,14 @@ func (_m *OpenAIVideoTask) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int64(value.Int64)
+		case openaivideotask.FieldProviderConfig:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_config", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ProviderConfig); err != nil {
+					return fmt.Errorf("unmarshal field provider_config: %w", err)
+				}
+			}
 		case openaivideotask.FieldLocalRequestID:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field local_request_id", values[i])
@@ -462,6 +476,9 @@ func (_m *OpenAIVideoTask) String() string {
 	var builder strings.Builder
 	builder.WriteString("OpenAIVideoTask(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("provider_config=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderConfig))
+	builder.WriteString(", ")
 	builder.WriteString("local_request_id=")
 	builder.WriteString(_m.LocalRequestID)
 	builder.WriteString(", ")

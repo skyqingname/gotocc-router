@@ -999,6 +999,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        video: 'Video',
         composite: 'Composite',
       },
       saving: '保存中...',

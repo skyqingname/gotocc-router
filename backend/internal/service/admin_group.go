@@ -278,6 +278,8 @@ func compositeRouteFromInput(groupID int64, input CompositeRouteInput) (*Composi
 
 func defaultModelsListCandidateIDs(platform string) []string {
 	switch platform {
+	case PlatformVideo:
+		return []string{}
 	case PlatformOpenAI:
 		return openai.DefaultModelIDs()
 	case PlatformGemini:
@@ -333,7 +335,7 @@ func canCopyAccountsFromGroupPlatform(targetPlatform, sourcePlatform string) boo
 	if targetPlatform == PlatformComposite {
 		return sourcePlatform == PlatformComposite || isConcreteRequestPlatform(sourcePlatform)
 	}
-	return sourcePlatform == targetPlatform
+	return sourcePlatform == targetPlatform || (targetPlatform == PlatformVideo && sourcePlatform == PlatformOpenAI)
 }
 
 func groupSupportsOAuthOnlyFilter(platform string) bool {
@@ -525,6 +527,11 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
 
+	rateSchedule, err := normalizeGroupRateSchedule(input.RateSchedule, subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier)
+	if err != nil {
+		return nil, err
+	}
+
 	profitMinMargin := 0.0
 	if input.ProfitMinMargin != nil {
 		profitMinMargin = *input.ProfitMinMargin
@@ -633,6 +640,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		PeakStart:                       peakStart,
 		PeakEnd:                         peakEnd,
 		PeakRateMultiplier:              peakRateMultiplier,
+		RateSchedule:                    rateSchedule,
 		ProfitControlEnabled:            profitControlEnabled,
 		ProfitMinMargin:                 profitMinMargin,
 		ProfitSafetyBuffer:              profitSafetyBuffer,
@@ -988,6 +996,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err := ValidatePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
+	if input.RateSchedule != nil || input.PeakRateEnabled != nil || input.PeakStart != nil || input.PeakEnd != nil || input.PeakRateMultiplier != nil {
+		group.RateSchedule, err = normalizeGroupRateSchedule(input.RateSchedule, group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if input.ProfitControlEnabled != nil {
 		group.ProfitControlEnabled = *input.ProfitControlEnabled
 	}
