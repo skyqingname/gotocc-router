@@ -18,12 +18,12 @@ func (a *LegacyModerationAdapter) Check(ctx context.Context, req Request) (*Lega
 	if a == nil || a.service == nil {
 		return nil, nil
 	}
-	decision, err := a.service.CheckLocalAndImages(ctx, service.ContentModerationCheckInput{
+	decision, err := a.service.Check(ctx, service.ContentModerationCheckInput{
 		RequestID: req.RequestID, UserID: req.UserID, UserEmail: req.UserEmail,
 		APIKeyID: req.APIKeyID, APIKeyName: req.APIKeyName, GroupID: cloneInt64Ptr(req.GroupID),
 		GroupName: req.GroupName, Endpoint: req.Endpoint, Provider: req.Provider,
 		Model: req.Model, Protocol: req.Protocol, Body: req.Body, Stage: req.Stage,
-		PromptTextAuthority: true, SessionID: req.SessionID, AdminUser: req.AdminUser,
+		PromptTextAuthority: req.PromptTextAuthority, SessionID: req.SessionID, AdminUser: req.AdminUser,
 	})
 	if err != nil || decision == nil {
 		return nil, err
