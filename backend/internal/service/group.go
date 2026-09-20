@@ -21,6 +21,9 @@ type Group struct {
 	Description    string
 	Platform       string
 	RateMultiplier float64
+	// RateScheduleRuntime is hydrated on a request-owned copy after group
+	// resolution. It is never persisted in Ent or serialized into auth caches.
+	RateScheduleRuntime *GroupRateScheduleRuntime `json:"-"`
 	// 高峰时段倍率：peak_rate_enabled 为 true 且当前时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier。详见 PeakMultiplierAt。
 	PeakRateEnabled    bool
@@ -241,43 +244,30 @@ func (g *Group) GetRoutingAccountIDs(requestedModel string) []int64 {
 	if !g.ModelRoutingEnabled || len(g.ModelRouting) == 0 || requestedModel == "" {
 		return nil
 	}
-
-	// 1. 精确匹配优先
 	if accountIDs, ok := g.ModelRouting[requestedModel]; ok && len(accountIDs) > 0 {
 		return accountIDs
 	}
-
-	// 2. 通配符匹配（前缀匹配）
 	for pattern, accountIDs := range g.ModelRouting {
 		if matchModelPattern(pattern, requestedModel) && len(accountIDs) > 0 {
 			return accountIDs
 		}
 	}
-
 	return nil
 }
 
-// matchModelPattern 检查模型是否匹配模式
-// 支持 * 通配符，如 "claude-opus-*" 匹配 "claude-opus-4-20250514"
+// matchModelPattern 支持末尾通配符，如 "claude-opus-*"。
 func matchModelPattern(pattern, model string) bool {
 	if pattern == model {
 		return true
 	}
-
-	// 处理 * 通配符（仅支持末尾通配符）
 	if strings.HasSuffix(pattern, "*") {
 		prefix := strings.TrimSuffix(pattern, "*")
 		return strings.HasPrefix(model, prefix)
 	}
-
 	return false
 }
 
-// parseMinutes 把 "HH:MM" 解析为当日分钟数（0..1439），格式非法返回 (0,false)。
-// 手工解析而非 time.Parse：本函数位于每请求的计费热路径（PeakMultiplierAt），
-// 避免对静态配置字符串重复走 layout 解析与 time.Time 分配。
-// 接受集与 time.Parse("15:04", s) 完全一致（存量数据按旧解析写入，不得收窄）：
-// 小时 1–2 位数字（0..23，允许不补零如 "1:30"），分钟固定 2 位数字（00..59）。
+// parseMinutes accepts the historical H:MM and HH:MM forms without allocations.
 func parseMinutes(hhmm string) (int, bool) {
 	colon := strings.IndexByte(hhmm, ':')
 	if (colon != 1 && colon != 2) || len(hhmm)-colon-1 != 2 {
@@ -302,13 +292,13 @@ func parseMinutes(hhmm string) (int, bool) {
 	return h*60 + m, true
 }
 
-// PeakMultiplierAt 返回指定时刻 now 的高峰因子。
-//   - 未启用 / 未配置 / 配置非法（start>=end 或格式错误） / 非高峰时段 → 返回 1.0（安全降级）
-//   - 区间为左闭右开 [PeakStart, PeakEnd)，仅支持当日区间，不支持跨天（如 22:00-次日02:00）
-//   - 时刻基于全局系统时区（timezone.Location）判定
-//
-// 该方法是纯函数，不读取任何外部状态，便于单测。
+// PeakMultiplierAt is the shared token/profit factor entry point. An explicitly
+// configured multi-window schedule supersedes (never stacks with) the legacy
+// subscription-only peak window. Missing new configuration keeps old behavior.
 func (g *Group) PeakMultiplierAt(now time.Time) float64 {
+	if g != nil && g.RateScheduleRuntime != nil {
+		return g.RateScheduleRuntime.FactorAt(now)
+	}
 	if g == nil || !g.IsSubscriptionType() || !g.PeakRateEnabled || g.PeakStart == "" || g.PeakEnd == "" {
 		return 1.0
 	}
@@ -325,10 +315,7 @@ func (g *Group) PeakMultiplierAt(now time.Time) float64 {
 	return 1.0
 }
 
-// ValidatePeakRateConfig 是高峰倍率配置的唯一校验来源，供 handler 与 service 层共用。
-// enabled=true 时仅允许订阅类型分组；并要求 start/end 合法且 end>start（不支持跨天），multiplier>=0。
-// multiplier=0 是允许的，表示高峰 token 请求按 0 倍计费，可用于折扣/免费策略。
-// enabled=false 时放行（不关心类型）。subscriptionType 为空按 standard 处理。
+// ValidatePeakRateConfig validates the unchanged legacy subscription window.
 func ValidatePeakRateConfig(subscriptionType string, enabled bool, start, end string, multiplier float64) error {
 	if !enabled {
 		return nil
@@ -356,14 +343,7 @@ func ValidatePeakRateConfig(subscriptionType string, enabled bool, start, end st
 	return nil
 }
 
-// NormalizePeakRateConfig 归一化最终落库的高峰配置，CreateGroup 与 UpdateGroup 两条写路径共用（唯一收口）：
-//   - 非订阅类型分组不携带任何高峰配置，一律清空（enabled=false、窗口置空、倍率归 1.0）；
-//   - 订阅分组关闭高峰时保留已配置的合法窗口（便于临时停用后再启用），
-//     但清掉无法解析的脏字符串与负倍率，避免脏数据入库。
-//
-// 与 ValidatePeakRateConfig 的分工：enabled=true 时校验已保证各字段合法，本函数为无操作；
-// enabled=false 时校验放行，由本函数兜底清洗。调用顺序为先归一化、后校验，
-// 使"订阅转标准"这类更新能静默清空高峰配置而不是被校验拒绝。
+// NormalizePeakRateConfig preserves the existing legacy API's behavior.
 func NormalizePeakRateConfig(subscriptionType string, enabled bool, start, end string, multiplier float64) (bool, string, string, float64) {
 	if subscriptionType != SubscriptionTypeSubscription {
 		return false, "", "", 1.0
@@ -382,10 +362,8 @@ func NormalizePeakRateConfig(subscriptionType string, enabled bool, start, end s
 	return enabled, start, end, multiplier
 }
 
-// computePeakAwareMultipliers 把"基础 token 倍率 base"（已含系统/分组/用户级倍率，但不含高峰）
-// 拆分为最终 token 倍率与图片按次倍率：图片按次倍率基于 base 现算、不受高峰影响；token 倍率在 base 上叠加高峰因子。
-// gateway_service.recordUsageCore 与 openai_gateway_service.RecordUsage 共用此函数，
-// 锁死"高峰因子只乘入 token 倍率、图片按次倍率不受影响"这一叠加顺序——任何调换都会被 group_peak_rate_test 覆盖。
+// Image-per-call pricing is resolved before adding the text schedule factor.
+// Independent media pricing must not inherit text-window discounts or surcharges.
 func computePeakAwareMultipliers(apiKey *APIKey, base float64, now time.Time) (text, image float64) {
 	image = resolveImageRateMultiplier(apiKey, base)
 	peak := 1.0
@@ -396,15 +374,10 @@ func computePeakAwareMultipliers(apiKey *APIKey, base float64, now time.Time) (t
 	return
 }
 
-// validProfitControlRatio 判定 margin/buffer 是否为可落库的合法小数：[0,1) 且非 NaN/Inf。
 func validProfitControlRatio(v float64) bool {
 	return !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && v < 1
 }
 
-// NormalizeGroupPlatform 把创建分组时省略的 platform 归一化为默认平台。
-// handler 的入参预校验必须与 CreateGroup 落库时用同一个归一化结果，否则
-// 「省略 platform + 启用利润控制」会被 handler 以「平台不支持」400 掉，
-// 而该分组本会被建成受支持的 anthropic 分组。
 func NormalizeGroupPlatform(platform string) string {
 	if platform == "" {
 		return PlatformAnthropic
@@ -412,10 +385,6 @@ func NormalizeGroupPlatform(platform string) string {
 	return platform
 }
 
-// ValidateProfitControlConfig 是分组利润控制配置的唯一校验来源，handler 与 service 层共用。
-// enabled=true 时仅允许五个可计费平台分组；margin/buffer 各自 ∈ [0,1)，且 margin+buffer < 1
-// （相加 >=1 时阈值 <=0，所有可核价账号都会被排除，视为配置错误而不是静默全黑）。
-// enabled=false 时放行（不关心平台），由 Normalize 兜底清洗数值。
 func ValidateProfitControlConfig(platform string, enabled bool, minMargin, safetyBuffer float64) error {
 	if !enabled {
 		return nil
@@ -435,12 +404,6 @@ func ValidateProfitControlConfig(platform string, enabled bool, minMargin, safet
 	return nil
 }
 
-// NormalizeProfitControlConfig 归一化最终落库的利润控制配置，CreateGroup 与 UpdateGroup 共用（唯一收口）：
-//   - 非五个平台分组不携带利润控制，一律重置为默认（关、0、0）；
-//   - 支持平台关闭开关时保留合法数值（便于再次启用），清洗 NaN/Inf/越界脏值。
-//
-// 与 ValidateProfitControlConfig 的分工同高峰倍率：先归一化、后校验，
-// 使"openai 转其他平台"这类更新能静默清空利润配置而不是被校验拒绝。
 func NormalizeProfitControlConfig(platform string, enabled bool, minMargin, safetyBuffer float64) (bool, float64, float64) {
 	if !profitControlPlatformSupported(platform) {
 		return false, 0, 0
