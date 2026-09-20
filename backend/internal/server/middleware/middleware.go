@@ -2,7 +2,10 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/googleapi"
@@ -14,117 +17,112 @@ import (
 type ContextKey string
 
 const (
-	// ContextKeyUser 用户上下文键
 	ContextKeyUser ContextKey = "user"
-	// ContextKeyUserRole 当前用户角色（string）
 	ContextKeyUserRole ContextKey = "user_role"
-	// ContextKeyAPIKey API密钥上下文键
 	ContextKeyAPIKey ContextKey = "api_key"
-	// ContextKeySubscription 订阅上下文键
 	ContextKeySubscription ContextKey = "subscription"
-	// ContextKeyForcePlatform 强制平台（用于 /antigravity 路由）
 	ContextKeyForcePlatform ContextKey = "force_platform"
-	// ContextKeyOpsFallbackAPIKey 运维错误日志专用回退键。
-	// 鉴权早退（分组停用/删除、Key 停用/过期/额度、用户停用、IP 限制等）时，
-	// apiKey 已加载但尚未写入 ContextKeyAPIKey；该键让 Ops 错误日志仍能取到
-	// user/group/platform。仅供 Ops 错误日志读取，不代表请求已通过鉴权。
+	// Only for ingress diagnostics, never proof of successful authentication.
 	ContextKeyOpsFallbackAPIKey ContextKey = "ops_fallback_api_key"
 )
 
-// ForcePlatform 返回设置强制平台的中间件
-// 同时设置 request.Context（供 Service 使用）和 gin.Context（供 Handler 快速检查）
+type groupRateAcceptedAtKey struct{}
+
+// CaptureGroupRateRequestTime runs before authentication. Client headers cannot
+// provide or override this trusted time. Configuration is read only after auth.
+func CaptureGroupRateRequestTime() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := context.WithValue(c.Request.Context(), groupRateAcceptedAtKey{}, time.Now())
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
+}
+
 func ForcePlatform(platform string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 设置到 request.Context，使用 ctxkey.ForcePlatform 供 Service 层读取
 		ctx := context.WithValue(c.Request.Context(), ctxkey.ForcePlatform, platform)
 		c.Request = c.Request.WithContext(ctx)
-		// 同时设置到 gin.Context，供 Handler 快速检查
 		c.Set(string(ContextKeyForcePlatform), platform)
 		c.Next()
 	}
 }
 
-// HasForcePlatform 检查是否有强制平台（用于 Handler 跳过分组检查）
 func HasForcePlatform(c *gin.Context) bool {
 	_, exists := c.Get(string(ContextKeyForcePlatform))
 	return exists
 }
 
-// GetForcePlatformFromContext 从 gin.Context 获取强制平台
 func GetForcePlatformFromContext(c *gin.Context) (string, bool) {
 	value, exists := c.Get(string(ContextKeyForcePlatform))
-	if !exists {
-		return "", false
-	}
+	if !exists { return "", false }
 	platform, ok := value.(string)
 	return platform, ok
 }
 
-// ErrorResponse 标准错误响应结构
 type ErrorResponse struct {
-	Code    string `json:"code"`
+	Code string `json:"code"`
 	Message string `json:"message"`
 }
 
-// NewErrorResponse 创建错误响应
-func NewErrorResponse(code, message string) ErrorResponse {
-	return ErrorResponse{
-		Code:    code,
-		Message: message,
-	}
-}
+func NewErrorResponse(code, message string) ErrorResponse { return ErrorResponse{Code: code, Message: message} }
 
-// AbortWithError 中断请求并返回JSON错误
 func AbortWithError(c *gin.Context, statusCode int, code, message string) {
 	c.JSON(statusCode, NewErrorResponse(code, message))
 	c.Abort()
 }
 
-// abortWithOpenAIQuotaError writes the OpenAI-compatible insufficient quota response.
 func abortWithOpenAIQuotaError(c *gin.Context, statusCode int, message string) {
-	c.JSON(statusCode, gin.H{
-		"error": gin.H{
-			"message": message,
-			"type":    "insufficient_quota",
-			"param":   nil,
-			"code":    "insufficient_quota",
-		},
-	})
+	c.JSON(statusCode, gin.H{"error": gin.H{
+		"message": message, "type": "insufficient_quota", "param": nil, "code": "insufficient_quota",
+	}})
 	c.Abort()
 }
 
-// ──────────────────────────────────────────────────────────
-// RequireGroupAssignment — 未分组 Key 拦截中间件
-// ──────────────────────────────────────────────────────────
-
-// GatewayErrorWriter 定义网关错误响应格式（不同协议使用不同格式）
 type GatewayErrorWriter func(c *gin.Context, status int, message string)
 
-// AnthropicErrorWriter 按 Anthropic API 规范输出错误
 func AnthropicErrorWriter(c *gin.Context, status int, message string) {
-	c.JSON(status, gin.H{
-		"type":  "error",
-		"error": gin.H{"type": "permission_error", "message": message},
-	})
+	c.JSON(status, gin.H{"type": "error", "error": gin.H{"type": "permission_error", "message": message}})
 }
 
-// GoogleErrorWriter 按 Google API 规范输出错误
 func GoogleErrorWriter(c *gin.Context, status int, message string) {
-	c.JSON(status, gin.H{
-		"error": gin.H{
-			"code":    status,
-			"message": message,
-			"status":  googleapi.HTTPStatusToGoogleStatus(status),
-		},
-	})
+	c.JSON(status, gin.H{"error": gin.H{"code": status, "message": message, "status": googleapi.HTTPStatusToGoogleStatus(status)}})
 }
 
-// RequireGroupAssignment 检查 API Key 是否已分配到分组，
-// 如果未分组且系统设置不允许未分组 Key 调度则返回 403。
+// ApplyGroupRateSchedule is also available to deferred auto-route admission:
+// call it after the final billing group has been assigned, before scheduling.
+// This function performs no billing, quota, concurrency, or upstream write.
+func ApplyGroupRateSchedule(c *gin.Context, settings *service.SettingService) bool {
+	key, ok := GetAPIKeyFromContext(c)
+	if !ok || key == nil || key.Group == nil || settings == nil { return true }
+	if key.Group.RateScheduleRuntime != nil { return true }
+	acceptedAt, _ := c.Request.Context().Value(groupRateAcceptedAtKey{}).(time.Time)
+	if acceptedAt.IsZero() { acceptedAt = time.Now() }
+	live := strings.EqualFold(c.GetHeader("Upgrade"), "websocket")
+	resolved, err := settings.PrepareGroupRateSchedule(c.Request.Context(), key, acceptedAt, live)
+	if err != nil {
+		slog.Error("group_rate_schedule.load_failed", "request_id", c.GetString("request_id"),
+			"endpoint", c.FullPath(), "protocol", "http", "stage", "group_configuration",
+			"error_code", "group_rate_schedule_unavailable")
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": gin.H{
+			"type": "server_error", "code": "group_rate_schedule_unavailable", "message": "Group pricing configuration is temporarily unavailable",
+		}})
+		return false
+	}
+	if resolved != key {
+		c.Set(string(ContextKeyAPIKey), resolved)
+		current, _ := c.Request.Context().Value(ctxkey.Group).(*service.Group)
+		if current == nil || current.ID == resolved.Group.ID {
+			c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.Group, resolved.Group))
+		}
+	}
+	return true
+}
+
 func RequireGroupAssignment(settingService *service.SettingService, writeError GatewayErrorWriter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey, ok := GetAPIKeyFromContext(c)
 		if !ok || apiKey.GroupID != nil {
+			if ok && !ApplyGroupRateSchedule(c, settingService) { return }
 			c.Next()
 			return
 		}
@@ -137,7 +135,6 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 			c.Abort()
 			return
 		}
-		// 未分组 Key — 检查系统设置
 		if settingService.IsUngroupedKeySchedulingAllowed(c.Request.Context()) {
 			c.Next()
 			return
