@@ -449,7 +449,7 @@ export default {
         loadFailed: '加载邀请返利记录失败'
       },
       records: {
-        sources: { admin_recharge: '管理员充值', legacy: '历史返佣', payment: '在线充值' },
+        sources: { admin_recharge: '管理员充值', redeem_code: '兑换码充值', legacy: '历史返佣', payment: '在线充值' },
         rebateLevel: "返佣代次",
         rebateRate: "返佣比例",
         rebateBase: "返佣本金 (USD)",

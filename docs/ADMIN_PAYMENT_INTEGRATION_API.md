@@ -28,7 +28,9 @@
 ### 1) 一步完成创建并兑换
 `POST /api/v1/admin/redeem-codes/create-and-redeem`
 
-用途：原子完成“创建兑换码 + 兑换到指定用户”。
+用途：创建兑换码并兑换到指定用户。创建成功但兑换失败时，保留未使用的码供重试；消费兑换码、增加余额和普通余额码返佣在同一事务完成。
+
+正数 `balance` 兑换参与三代返佣，按本次实际入账 USD 和入账时的邀请关系计算。该入口与用户手动兑换一致，受返利总开关控制，不受“管理员充值参与返利”开关控制。关联平台在线支付订单的码仍由订单完成入口返佣，避免重复计算。成功后重复请求不会再次入账或返佣；修复上线前已使用的码不自动补发历史佣金。详见 [邀请返佣规则](AFFILIATE.md)。
 
 请求头：
 - `x-api-key`
@@ -148,7 +150,9 @@ Note: Admin JWT can also access admin routes, but Admin API Key is recommended f
 ### 1) Create and Redeem in one step
 `POST /api/v1/admin/redeem-codes/create-and-redeem`
 
-Use case: atomically create a redeem code and redeem it to a target user.
+Use case: create a redeem code and redeem it to a target user. If creation succeeds but redemption fails, the unused code remains available for retry. Consuming the code, crediting the balance, and accruing standalone balance-code commission share one transaction.
+
+Positive `balance` redemptions earn three-generation commission on the credited USD using the inviter chain at redemption. This endpoint follows the public redemption rules and the affiliate master switch, independently of the admin balance-adjustment rebate switch. Codes linked to platform payment orders retain order-level commission so they are not counted twice. Repeating a successful request does not credit balance or commission again. Codes already consumed before this fix are not backfilled automatically. See [affiliate rules](AFFILIATE.md).
 
 Headers:
 - `x-api-key`

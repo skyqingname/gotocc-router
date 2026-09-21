@@ -81,7 +81,7 @@ export interface AffiliateInviteRecord {
 }
 
 export interface AffiliateRebateRecord {
-  source_type: 'payment' | 'admin_recharge' | 'legacy'
+  source_type: 'payment' | 'admin_recharge' | 'redeem_code' | 'legacy'
   rebate_level: number | null
   rebate_rate_percent: number | null
   rebate_base_amount: number | null
