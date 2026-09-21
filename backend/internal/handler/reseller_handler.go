@@ -190,10 +190,6 @@ func (h *ResellerHandler) AdminSave(c *gin.Context) {
 // A snapshot is attached after authentication and before request-specific routing.
 // No price or ownership is read again during settlement.
 func (h *ResellerHandler) PricingContext(c *gin.Context) {
-	if h == nil {
-		c.Next()
-		return
-	} // Existing route-only integrations may omit this module.
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		c.Next()
