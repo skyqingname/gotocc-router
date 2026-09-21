@@ -135,13 +135,12 @@ func (r *openAIVideoTaskRepository) BindUpstreamTask(ctx context.Context, localR
 }
 
 func (r *openAIVideoTaskRepository) GetByTaskIDForAPIKey(ctx context.Context, taskID string, apiKeyID int64) (*service.OpenAIVideoTask, error) {
-	if strings.HasPrefix(taskID, "video-local:") {
-		row := r.db.QueryRowContext(ctx, `SELECT `+openAIVideoTaskColumns+` FROM openai_video_tasks WHERE local_request_id=$1 AND api_key_id=$2 AND provider_config->>'protocol'='yingce'`, strings.TrimSpace(taskID), apiKeyID)
-		return scanOpenAIVideoTask(row)
-	}
-
+	// New declarative tasks expose a local ID; existing OpenAI-compatible
+	// providers (including another gateway) may use that same prefix upstream.
 	row := r.db.QueryRowContext(ctx, `SELECT `+openAIVideoTaskColumns+`
-		FROM openai_video_tasks WHERE task_id=$1 AND api_key_id=$2`, strings.TrimSpace(taskID), apiKeyID)
+ FROM openai_video_tasks WHERE api_key_id=$2 AND
+ (task_id=$1 OR (local_request_id=$1 AND provider_config->>'protocol'='yingce'))
+ ORDER BY CASE WHEN local_request_id=$1 AND provider_config->>'protocol'='yingce' THEN 0 ELSE 1 END,id DESC LIMIT 1`, strings.TrimSpace(taskID), apiKeyID)
 	return scanOpenAIVideoTask(row)
 }
 
