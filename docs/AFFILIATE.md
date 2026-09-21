@@ -34,7 +34,7 @@
 | `PUT /api/v1/admin/reusable-invitation-codes/:id/owner` | `{ "owner_user_id": 123 }`；返回 `code`、`bound_count`、`skipped_count` |
 | 管理设置的 `affiliate_rebate_rate` / `_l2` / `_l3` | 一、二、三代百分比；独立存储并进入设置变更审计 |
 | 用户邀请详情 | 返回 `rebate_rates_percent` 和带 `level` 的最近三代用户，邮箱继续脱敏 |
-| 管理端返佣记录 | 代次、比例、本金快照；区分在线充值、管理员充值和历史无订单流水 |
+| 管理端返佣记录 | 代次、比例、本金快照；区分在线充值、管理员充值、兑换码充值和历史无订单流水 |
 
 ```text
 永久码注册 / AFF 注册 → 唯一 inviter_id + 实际邀请码快照

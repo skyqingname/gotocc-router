@@ -7,7 +7,8 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The owned candidate `v0.2.5+custom.002` starts from the complete Plus
+The owned candidate `v0.2.5+custom.003` preserves owned `v0.2.5+custom.002`
+and restores standalone balance-code affiliate rebates. It starts from the complete Plus
 `v0.2.5+custom.001` tree, commit `ddf18b386974067fa794cc1822238ba0cda37e22`.
 It preserves the GoToCC contracts from owned `v0.2.4+custom.008`, and integrates
 multi-window group rates, configurable Video channels/models and TypeSafe Jev
@@ -93,7 +94,8 @@ for the official tag import on that tree.
 | `v0.2.4+custom.006` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | published |
 | `v0.2.4+custom.007` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
 | `v0.2.4+custom.008` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
-| `v0.2.5+custom.002` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | local candidate; Plus v0.2.5+custom.001 |
+| `v0.2.5+custom.002` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | published (owned immutable release); Plus v0.2.5+custom.001 |
+| `v0.2.5+custom.003` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | local candidate; custom.002 plus PR #11 redeem-code rebate fix |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
@@ -107,9 +109,9 @@ use the complete `.004` release instead.
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.5+custom.002
-Application: 0.2.5+custom.002
-OCI naming: v0.2.5-custom.002 (no image published by the local archive workflow)
+Git/GitHub: v0.2.5+custom.003
+Application: 0.2.5+custom.003
+OCI naming: v0.2.5-custom.003 (no image published by the local archive workflow)
 ```
 
 ## Naming
