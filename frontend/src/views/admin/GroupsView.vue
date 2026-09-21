@@ -653,6 +653,7 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
+        <VideoModelsEditor v-if="createForm.platform === 'video'" v-model="createForm.video_models" @validity="createVideoModelsValid = $event" />
         <RateScheduleEditor
           v-if="createForm.platform !== 'video'"
           v-model="createForm.rate_schedule"
@@ -2315,6 +2316,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
+        <VideoModelsEditor v-if="editForm.platform === 'video'" :key="editingGroup?.id" v-model="editForm.video_models" @validity="editVideoModelsValid = $event" />
         <RateScheduleEditor v-if="editForm.platform !== 'video'" v-model="editForm.rate_schedule" :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''" :base-multiplier="editForm.rate_multiplier" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
@@ -4366,6 +4368,8 @@
 </template>
 
 <script setup lang="ts">
+import VideoModelsEditor from '@/components/admin/channel/VideoModelsEditor.vue'
+import type { VideoModelConfig } from '@/components/admin/channel/video-models'
 import RateScheduleEditor from '@/components/groups/RateScheduleEditor.vue'
 import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
 import Toggle from '@/components/common/Toggle.vue'
@@ -5070,6 +5074,7 @@ const createForm = reactive({
   video_price_480p: null as number | null,
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
+  video_models: {} as Record<string, VideoModelConfig>,
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
@@ -5439,6 +5444,7 @@ const editForm = reactive({
   video_price_480p: null as number | null,
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
+  video_models: {} as Record<string, VideoModelConfig>,
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
@@ -6029,6 +6035,7 @@ const closeCreateModal = () => {
   createForm.video_price_480p = null;
   createForm.video_price_720p = null;
   createForm.video_price_1080p = null;
+  createForm.video_models = {};
   createForm.video_model_prices = createVideoModelPricesForm();
   createForm.long_context_pricing_enabled = true;
   createForm.force_openai_fast = false;
@@ -6108,7 +6115,9 @@ const validateProfitControlForm = (form: ProfitControlFormState): boolean => {
   return true;
 };
 
+const createVideoModelsValid = ref(true); const editVideoModelsValid = ref(true);
 const handleCreateGroup = async () => {
+ if (createForm.platform === "video" && !createVideoModelsValid.value) {appStore.showError("请修正视频参数配置");return;}
   try { compileRateSchedule(createForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
   catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
   if (!createForm.name.trim()) {
@@ -6345,6 +6354,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.audio_realtime_price_per_min = group.audio_realtime_price_per_min ?? null;
   editForm.audio_tts_price_per_million_chars = group.audio_tts_price_per_million_chars ?? null;
   editForm.audio_stt_price_per_hour = group.audio_stt_price_per_hour ?? null;
+  editForm.video_models = JSON.parse(JSON.stringify(group.video_models || {}));
   editForm.rate_schedule = JSON.parse(JSON.stringify(group.rate_schedule));
   editForm.peak_rate_enabled = group.peak_rate_enabled ?? false;
   editForm.peak_start = group.peak_start ?? "";
@@ -6487,6 +6497,7 @@ const closeEditModal = () => {
   editForm.video_price_480p = null;
   editForm.video_price_720p = null;
   editForm.video_price_1080p = null;
+  editForm.video_models = {};
   editForm.video_model_prices = createVideoModelPricesForm();
   editForm.quota_reset_source_account_id = null;
   editForm.quota_reset_include_monthly = false;
@@ -6508,6 +6519,7 @@ const closeEditModal = () => {
 };
 
 const handleUpdateGroup = async () => {
+  if (editForm.platform === "video" && !editVideoModelsValid.value) {appStore.showError("请修正视频参数配置");return;}
   try { compileRateSchedule(editForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
   catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
   if (!editingGroup.value) return;

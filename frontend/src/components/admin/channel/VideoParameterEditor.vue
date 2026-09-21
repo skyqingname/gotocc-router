@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <div class="rounded-xl bg-cyan-50 p-4 dark:bg-cyan-950/20">
-      <p class="text-sm font-medium text-cyan-900 dark:text-cyan-100">{{ tr('当前渠道 · 当前模型', 'This channel · This model') }}</p>
+      <p class="text-sm font-medium text-cyan-900 dark:text-cyan-100">{{ tr('当前分组 · 当前模型', 'This group · This model') }}</p>
       <p class="mt-1 text-xs leading-5 text-cyan-800 dark:text-cyan-200">{{ tr('选择模型支持的参数，设置允许值和默认值。请求未传入时使用默认值；关闭参数后该模型不接受该参数。', 'Choose supported parameters, allowed values and defaults. Defaults apply only when a value is omitted. Disabled parameters are not accepted.') }}</p>
       <div class="mt-3 flex flex-wrap gap-2">
         <button v-for="preset in presets.parameters" :key="preset.name" type="button" class="rounded-full border border-cyan-200 bg-white px-3 py-1.5 text-xs text-cyan-800 disabled:opacity-40 dark:border-cyan-800 dark:bg-dark-800 dark:text-cyan-200" :disabled="value.parameters.some(p => p.name === preset.name)" @click="add(preset)">+ {{ tr(preset.label, preset.label_en) }}</button>

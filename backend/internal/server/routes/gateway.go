@@ -224,6 +224,7 @@ func RegisterGatewayRoutes(
 
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
+	gateway.Use(canonicalVideoGenerationAlias)
 	gateway.Use(bodyLimit)
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
@@ -316,6 +317,9 @@ func RegisterGatewayRoutes(
 		// OpenAI-compatible clients may create through /videos; xAI receives the
 		// canonical /videos/generations route inside the Grok media forwarder.
 		gateway.POST("/videos", videoCreationHandler)
+		gateway.POST("/video/generations", videoCreationHandler)
+		gateway.GET("/video/generations/:request_id", videoTaskHandler)
+		gateway.GET("/video/generations/:request_id/content", videoTaskContentHandler)
 		gateway.POST("/videos/generations", videoGenerationHandler)
 		gateway.POST("/videos/edits", videoEditHandler)
 		gateway.POST("/videos/extensions", videoExtensionHandler)
@@ -411,7 +415,7 @@ func RegisterGatewayRoutes(
 	// 根路径别名共用中间件链：白名单准入在 apiKeyAuth 之后、compositeTarget
 	// 之前，避免逐条路由手工维护链导致漏挂。
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
-		r.Handle(method, path, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic, handler)
+		r.Handle(method, path, canonicalVideoGenerationAlias, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic, handler)
 	}
 	rootRoute(http.MethodPost, "/responses", bodyLimit, responsesHandler)
 	rootRoute(http.MethodPost, "/responses/*subpath", bodyLimit, guardResponsesSubpath(responsesHandler))
@@ -425,7 +429,7 @@ func RegisterGatewayRoutes(
 	// Local subscription quota view, never an upstream ChatGPT proxy.
 	r.GET("/backend-api/wham/usage", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.CodexLocalGroupQuotaUsage)
 	codexDirect := r.Group("/backend-api/codex")
-	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic)
+	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic)
 	{
 		codexDirect.POST("/realtime/calls", h.OpenAIGateway.Live)
 		codexDirect.GET("/:call_id", h.OpenAIGateway.LiveSideband)
@@ -464,6 +468,9 @@ func RegisterGatewayRoutes(
 	rootRoute(http.MethodPost, "/images/edits/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodGet, "/images/tasks/:task_id", bodyLimit, h.AsyncImage.Get)
 	rootRoute(http.MethodPost, "/videos", bodyLimit, videoCreationHandler)
+	rootRoute(http.MethodPost, "/video/generations", bodyLimit, videoCreationHandler)
+	rootRoute(http.MethodGet, "/video/generations/:request_id", bodyLimit, videoTaskHandler)
+	rootRoute(http.MethodGet, "/video/generations/:request_id/content", bodyLimit, videoTaskContentHandler)
 	rootRoute(http.MethodPost, "/videos/generations", bodyLimit, videoGenerationHandler)
 	rootRoute(http.MethodPost, "/videos/edits", bodyLimit, videoEditHandler)
 	rootRoute(http.MethodPost, "/videos/extensions", bodyLimit, videoExtensionHandler)
@@ -742,4 +749,17 @@ func compositeRouteEndpointForPath(path string) string {
 	default:
 		return service.CompositeRouteEndpointAny
 	}
+}
+
+// NewAPI's singular video route is an alias of the same authenticated task API.
+func canonicalVideoGenerationAlias(c *gin.Context) {
+	for _, prefix := range []string{"/v1/video/generations", "/video/generations"} {
+		path := c.Request.URL.Path
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			c.Request.URL.Path = strings.TrimSuffix(prefix, "/video/generations") + "/videos" + strings.TrimPrefix(path, prefix)
+			c.Request.URL.RawPath = ""
+			break
+		}
+	}
+	c.Next()
 }

@@ -340,7 +340,7 @@
             </div>
 
             <!-- Codex Image Generation Bridge (OpenAI only) -->
-            <VideoModelsEditor v-if="section.platform === 'video'" :key="editingChannel?.id || 'new'" v-model="videoModels" @validity="videoModelsValid = $event" />
+            <p v-if="section.platform === 'video'" class="mb-4 text-sm text-gray-500">视频接口协议和参数在「分组管理 → 编辑分组」配置；此处设置渠道价格。</p>
             <div v-if="section.platform === 'openai'" class="border-t border-gray-200 pt-3 dark:border-dark-600">
               <div class="flex items-center justify-between gap-4">
                 <div>
@@ -650,8 +650,6 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Toggle from '@/components/common/Toggle.vue'
-import VideoModelsEditor from '@/components/admin/channel/VideoModelsEditor.vue'
-import type { VideoModelConfig } from '@/components/admin/channel/video-models'
 import PricingEntryCard from '@/components/admin/channel/PricingEntryCard.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useKeyedDebouncedSearch } from '@/composables/useKeyedDebouncedSearch'
@@ -753,8 +751,6 @@ const groupsLoading = ref(false)
 const allChannelsForConflict = ref<Channel[]>([])
 
 // Form data
-const videoModels = ref<Record<string, VideoModelConfig>>({})
-const videoModelsValid = ref(true)
 const form = reactive({
   name: '',
   description: '',
@@ -1148,7 +1144,6 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
       })
     }
   }
-  featuresConfig.video_models = videoModels.value
   const uniqueGroupIds = Array.from(new Set(group_ids))
 
   // Collect web_search_emulation (only anthropic platform supports it)
@@ -1356,8 +1351,6 @@ function handleSort(key: string, order: 'asc' | 'desc') {
 
 // ── Dialog ──
 function resetForm() {
-  videoModels.value = {}
-  videoModelsValid.value = true
   form.name = ''
   form.description = ''
   form.status = 'active'
@@ -1388,8 +1381,6 @@ async function openEditDialog(channel: Channel) {
   form.apply_pricing_to_account_stats = channel.apply_pricing_to_account_stats || false
   // Must load groups first so apiToForm can map groupID → platform
   await Promise.all([loadGroups(), loadAllChannelsForConflict()])
-  videoModels.value = JSON.parse(JSON.stringify(channel.features_config?.video_models || {}))
-  videoModelsValid.value = true
   form.platforms = apiToForm(channel)
 
   // Distribute channel-level rules into per-platform sections
@@ -1483,7 +1474,6 @@ function closeDialog() {
 }
 
 async function handleSubmit() {
-  if (!videoModelsValid.value) { appStore.showError('Video 参数 JSON 格式错误'); return }
   if (submitting.value) return
   if (!form.name.trim()) {
     appStore.showError(t('admin.channels.nameRequired', 'Please enter a channel name'))

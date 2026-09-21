@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -172,6 +173,7 @@ type Group struct {
 // AdminGroup 是管理员接口使用的 group DTO（包含敏感/内部字段）。
 // 注意：普通用户接口不得返回 model_routing/account_count/account_groups 等内部信息。
 type AdminGroup struct {
+	VideoModels videoprotocol.Models `json:"video_models"`
 	Group
 	QuotaResetSourceAccountID   *int64     `json:"quota_reset_source_account_id"`
 	QuotaResetSourceAccountName string     `json:"quota_reset_source_account_name"`

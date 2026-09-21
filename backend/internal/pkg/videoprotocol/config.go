@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	yp "github.com/LuckyKuang/sub2api-plus/internal/pkg/yingceprotocol"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -25,6 +26,13 @@ type Parameter struct {
 }
 
 type Config struct {
+	ProviderDefinition *yp.ManifestProvider      `json:"provider_definition,omitempty"`
+	ProviderID         string                    `json:"provider_id,omitempty"`
+	ProviderManifest   json.RawMessage           `json:"provider_manifest,omitempty"`
+	PollRequest        *yp.GenerationRequest     `json:"poll_request,omitempty"`
+	CreateRequest      *yp.GenerationRequest     `json:"-"`
+	ProviderOptions    map[string]map[string]any `json:"provider_options,omitempty"`
+
 	CreateStatus  string            `json:"create_status"`
 	Enabled       bool              `json:"enabled"`
 	Protocol      string            `json:"protocol"`
@@ -43,6 +51,24 @@ type Config struct {
 }
 
 func (c Config) Validate() error {
+	if c.Protocol == "yingce" {
+		if err := c.FreezeCatalog(); err != nil {
+			return err
+		}
+		if _, err := c.Adapter(); err != nil {
+			return err
+		}
+		legacy := c
+		legacy.Protocol = "openai"
+		legacy.CreatePath = "/v1/videos"
+		legacy.StatusPath = "/v1/videos/{task_id}"
+		legacy.ContentPath = "/v1/videos/{task_id}/content"
+		legacy.IDField = "id"
+		legacy.StatusField = "status"
+		legacy.Statuses = map[string]string{"pending": "pending"}
+		return legacy.Validate()
+	}
+
 	if c.Protocol != "openai" && c.Protocol != "custom_json" {
 		return fmt.Errorf("video protocol must be openai or custom_json")
 	}
@@ -238,6 +264,9 @@ func (c Config) MapRequest(body []byte) ([]byte, error) {
 }
 
 func (c Config) NormalizeResponse(body []byte, taskID string, create bool) ([]byte, error) {
+	if c.Protocol == "yingce" {
+		return c.normalizeYingceResponse(body, taskID, create)
+	}
 	id := gjson.GetBytes(body, c.IDField).String()
 	if id == "" {
 		id = taskID

@@ -48,6 +48,9 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	token string,
 ) (*http.Request, error) {
 	ctx = WithAccountOutboundIdentity(ctx, account)
+	if input.ProviderConfig != nil && input.ProviderConfig.Protocol == "yingce" {
+		return s.buildYingceVideoUpstreamRequest(ctx, c, account, input, token)
+	}
 	targetURL := openAIPlatformVideosURL
 	if account != nil {
 		baseURL := account.GetOpenAIBaseURL()

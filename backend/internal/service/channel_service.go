@@ -816,9 +816,6 @@ func formatMaxTokens(max *int) string {
 
 // Create 创建渠道
 func (s *ChannelService) Create(ctx context.Context, input *CreateChannelInput) (*Channel, error) {
-	if _, err := channelVideoModels(input.FeaturesConfig); err != nil {
-		return nil, err
-	}
 	exists, err := s.repo.ExistsByName(ctx, input.Name)
 	if err != nil {
 		return nil, fmt.Errorf("check channel exists: %w", err)
@@ -953,9 +950,6 @@ func (s *ChannelService) applyUpdateInput(ctx context.Context, channel *Channel,
 		channel.BillingModelSource = input.BillingModelSource
 	}
 	if input.FeaturesConfig != nil {
-		if _, err := channelVideoModels(input.FeaturesConfig); err != nil {
-			return err
-		}
 		channel.FeaturesConfig = input.FeaturesConfig
 	}
 	if input.ApplyPricingToAccountStats != nil {

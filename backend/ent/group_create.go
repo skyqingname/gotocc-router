@@ -21,6 +21,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // GroupCreate is the builder for creating a Group entity.
@@ -580,6 +581,12 @@ func (_c *GroupCreate) SetNillableVideoPrice1080p(v *float64) *GroupCreate {
 	if v != nil {
 		_c.SetVideoPrice1080p(*v)
 	}
+	return _c
+}
+
+// SetVideoModels sets the "video_models" field.
+func (_c *GroupCreate) SetVideoModels(v videoprotocol.Models) *GroupCreate {
+	_c.mutation.SetVideoModels(v)
 	return _c
 }
 
@@ -1230,6 +1237,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultVideoRateMultiplier
 		_c.mutation.SetVideoRateMultiplier(v)
 	}
+	if _, ok := _c.mutation.VideoModels(); !ok {
+		v := group.DefaultVideoModels
+		_c.mutation.SetVideoModels(v)
+	}
 	if _, ok := _c.mutation.LongContextPricingEnabled(); !ok {
 		v := group.DefaultLongContextPricingEnabled
 		_c.mutation.SetLongContextPricingEnabled(v)
@@ -1438,6 +1449,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.VideoRateMultiplier(); !ok {
 		return &ValidationError{Name: "video_rate_multiplier", err: errors.New(`ent: missing required field "Group.video_rate_multiplier"`)}
+	}
+	if _, ok := _c.mutation.VideoModels(); !ok {
+		return &ValidationError{Name: "video_models", err: errors.New(`ent: missing required field "Group.video_models"`)}
 	}
 	if v, ok := _c.mutation.SearchPricePer1k(); ok {
 		if err := group.SearchPricePer1kValidator(v); err != nil {
@@ -1729,6 +1743,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.VideoPrice1080p(); ok {
 		_spec.SetField(group.FieldVideoPrice1080p, field.TypeFloat64, value)
 		_node.VideoPrice1080p = &value
+	}
+	if value, ok := _c.mutation.VideoModels(); ok {
+		_spec.SetField(group.FieldVideoModels, field.TypeJSON, value)
+		_node.VideoModels = value
 	}
 	if value, ok := _c.mutation.VideoModelPrices(); ok {
 		_spec.SetField(group.FieldVideoModelPrices, field.TypeJSON, value)
@@ -2675,6 +2693,18 @@ func (u *GroupUpsert) AddVideoPrice1080p(v float64) *GroupUpsert {
 // ClearVideoPrice1080p clears the value of the "video_price_1080p" field.
 func (u *GroupUpsert) ClearVideoPrice1080p() *GroupUpsert {
 	u.SetNull(group.FieldVideoPrice1080p)
+	return u
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsert) SetVideoModels(v videoprotocol.Models) *GroupUpsert {
+	u.Set(group.FieldVideoModels, v)
+	return u
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateVideoModels() *GroupUpsert {
+	u.SetExcluded(group.FieldVideoModels)
 	return u
 }
 
@@ -4015,6 +4045,20 @@ func (u *GroupUpsertOne) UpdateVideoPrice1080p() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearVideoPrice1080p() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoPrice1080p()
+	})
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsertOne) SetVideoModels(v videoprotocol.Models) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVideoModels(v)
+	})
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateVideoModels() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVideoModels()
 	})
 }
 
@@ -5608,6 +5652,20 @@ func (u *GroupUpsertBulk) UpdateVideoPrice1080p() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearVideoPrice1080p() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoPrice1080p()
+	})
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsertBulk) SetVideoModels(v videoprotocol.Models) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVideoModels(v)
+	})
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateVideoModels() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVideoModels()
 	})
 }
 

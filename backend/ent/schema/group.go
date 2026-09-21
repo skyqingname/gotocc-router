@@ -1,6 +1,7 @@
 package schema
 
 import (
+ "github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"encoding/json"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 
@@ -176,6 +177,7 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.JSON("video_models", videoprotocol.Models{}).Default(videoprotocol.Models{}),
 		field.JSON("video_model_prices", map[string]map[string]float64{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

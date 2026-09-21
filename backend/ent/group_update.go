@@ -23,6 +23,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // GroupUpdate is the builder for updating Group entities.
@@ -782,6 +783,12 @@ func (_u *GroupUpdate) AddVideoPrice1080p(v float64) *GroupUpdate {
 // ClearVideoPrice1080p clears the value of the "video_price_1080p" field.
 func (_u *GroupUpdate) ClearVideoPrice1080p() *GroupUpdate {
 	_u.mutation.ClearVideoPrice1080p()
+	return _u
+}
+
+// SetVideoModels sets the "video_models" field.
+func (_u *GroupUpdate) SetVideoModels(v videoprotocol.Models) *GroupUpdate {
+	_u.mutation.SetVideoModels(v)
 	return _u
 }
 
@@ -1930,6 +1937,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.VideoPrice1080pCleared() {
 		_spec.ClearField(group.FieldVideoPrice1080p, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VideoModels(); ok {
+		_spec.SetField(group.FieldVideoModels, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.VideoModelPrices(); ok {
 		_spec.SetField(group.FieldVideoModelPrices, field.TypeJSON, value)
@@ -3169,6 +3179,12 @@ func (_u *GroupUpdateOne) ClearVideoPrice1080p() *GroupUpdateOne {
 	return _u
 }
 
+// SetVideoModels sets the "video_models" field.
+func (_u *GroupUpdateOne) SetVideoModels(v videoprotocol.Models) *GroupUpdateOne {
+	_u.mutation.SetVideoModels(v)
+	return _u
+}
+
 // SetVideoModelPrices sets the "video_model_prices" field.
 func (_u *GroupUpdateOne) SetVideoModelPrices(v map[string]map[string]float64) *GroupUpdateOne {
 	_u.mutation.SetVideoModelPrices(v)
@@ -4344,6 +4360,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.VideoPrice1080pCleared() {
 		_spec.ClearField(group.FieldVideoPrice1080p, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.VideoModels(); ok {
+		_spec.SetField(group.FieldVideoModels, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.VideoModelPrices(); ok {
 		_spec.SetField(group.FieldVideoModelPrices, field.TypeJSON, value)

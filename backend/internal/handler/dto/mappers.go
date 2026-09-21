@@ -166,6 +166,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		return nil
 	}
 	out := &AdminGroup{
+		VideoModels:                 g.VideoModels.Clone(),
 		Group:                       groupFromServiceBase(g),
 		QuotaResetSourceAccountID:   g.QuotaResetSourceAccountID,
 		QuotaResetSourceAccountName: g.QuotaResetSourceAccountName,

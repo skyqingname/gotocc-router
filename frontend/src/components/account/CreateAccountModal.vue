@@ -1414,6 +1414,7 @@
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
         </div>
 
+        <div v-if="form.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="videoSecretKey" type="password" autocomplete="new-password" class="input font-mono" placeholder="腾讯混元、火山即梦等签名协议填写；普通 API Key 协议留空" /><p class="input-hint">上方 API Key 填写 SecretId / Access Key，下方填写对应 Secret Key。</p></div>
         <!-- Gemini API Key tier selection -->
         <div v-if="form.platform === 'gemini'">
           <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
@@ -3892,6 +3893,7 @@ const submitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_account'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
+const videoSecretKey = ref('')
 const apiKeyValue = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
@@ -5056,6 +5058,7 @@ const resetForm = () => {
   openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
   adaptiveBaseUrls.value = { chat_completions: '', anthropic: '', responses: '' }
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
+  videoSecretKey.value = ''
   apiKeyValue.value = ''
   upstreamRequestIdHeader.value = ''
   editQuotaLimit.value = null
@@ -5547,7 +5550,8 @@ const handleSubmit = async () => {
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
     base_url: form.platform === 'video' ? apiKeyBaseUrl.value.trim() : apiKeyBaseUrl.value.trim() || defaultBaseUrl,
-    api_key: apiKeyValue.value.trim()
+    api_key: apiKeyValue.value.trim(),
+ ...(form.platform === 'video' && videoSecretKey.value.trim() ? {secret_key:videoSecretKey.value.trim()} : {})
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

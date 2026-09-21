@@ -282,13 +282,7 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 		}
 	}
 	if group.Platform == PlatformVideo {
-		if lookup == nil || lookup.channel == nil {
-			return nil, nil
-		}
-		models, err := channelVideoModels(lookup.channel.FeaturesConfig)
-		if err != nil {
-			return nil, ErrAutoRouteUnavailable.WithCause(err)
-		}
+		models := group.VideoModels
 		config, exists := models[input.Model]
 		if !exists || !config.Enabled {
 			return nil, nil

@@ -231,6 +231,7 @@
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
+        <div v-if="account.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="editVideoSecretKey" type="password" autocomplete="new-password" class="input font-mono" :placeholder="account?.credentials_status?.has_secret_key ? '已配置；留空保持不变' : '签名协议所需的 Secret Key'" /></div>
 
         <!-- Model Restriction Section (不适用于 Antigravity) -->
         <div v-if="account.platform !== 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
@@ -2876,6 +2877,7 @@ interface TempUnschedRuleForm {
 // State
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
+const editVideoSecretKey = ref('')
 const editApiKey = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）account_mode / api_protocol 编辑 ──
@@ -4060,6 +4062,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     customErrorCodesEnabled.value = false
     selectedErrorCodes.value = []
   }
+  editVideoSecretKey.value = ''
   editApiKey.value = ''
 }
 
@@ -4730,6 +4733,7 @@ const handleSubmit = async () => {
       // 两者都无才报错。
       const hasExistingApiKey =
         props.account.credentials_status?.has_api_key ?? Boolean(currentCredentials.api_key)
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       } else if (!hasExistingApiKey) {
@@ -4809,6 +4813,7 @@ const handleSubmit = async () => {
 
       newCredentials.base_url = editBaseUrl.value.trim()
 
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       }

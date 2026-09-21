@@ -431,3 +431,7 @@ by probes; stored credentials are reused only for the same endpoint and URL.
 Persistent node credentials require a fixed `totp.encryption_key` in the
 service configuration file (64 hexadecimal characters). An automatically
 generated process key cannot be used to save restart-stable node credentials.
+
+### Video 分组协议目录（2026-09-21）
+
+`/v1/video/generations` 与无 v1 别名在网关中归一到原 Videos 入口，继续使用同一原始 JSON/multipart 提取契约。39 个影策协议的转换发生在原始内容审核之后，账号选择、预占、发送仍在审核之后。不可提取内容保留既有记录并透传语义，不以协议名或供应商猜测生成新的审核拒绝。协议和账号身份在请求与异步任务中固定；轮询和结果下载不新增提示词提交。
