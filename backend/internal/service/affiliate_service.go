@@ -344,6 +344,20 @@ func (s *AffiliateService) AccrueInviteRebate(ctx context.Context, inviteeUserID
 }
 
 func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64, sourceOrderID *int64) (float64, error) {
+	sourceType := "admin_recharge"
+	if sourceOrderID != nil {
+		sourceType = "payment"
+	}
+	return s.accrueInviteRebate(ctx, inviteeUserID, baseRechargeAmount, sourceOrderID, sourceType)
+}
+
+// AccrueInviteRebateForRedeem runs inside the transaction that consumes a
+// standalone balance code. Payment-backed codes retain order fulfillment's rebate.
+func (s *AffiliateService) AccrueInviteRebateForRedeem(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error) {
+	return s.accrueInviteRebate(ctx, inviteeUserID, baseRechargeAmount, nil, "redeem_code")
+}
+
+func (s *AffiliateService) accrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64, sourceOrderID *int64, sourceType string) (float64, error) {
 	if s == nil || s.repo == nil {
 		return 0, nil
 	}
@@ -373,10 +387,6 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	}
 	freezeHours := s.settingService.GetAffiliateRebateFreezeHours(ctx)
 	total := 0.0
-	sourceType := "admin_recharge"
-	if sourceOrderID != nil {
-		sourceType = "payment"
-	}
 	for i, rate := range rates {
 		if i >= len(inviters) {
 			break
