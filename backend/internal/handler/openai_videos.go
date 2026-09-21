@@ -293,7 +293,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 			}
 			return ""
 		}(),
-		DeferResponseWrite: preparedTask != nil,
+		DeferResponseWrite: preparedTask != nil || (persistedTask != nil && persistedTask.ProviderConfig != nil && persistedTask.ProviderConfig.Protocol == "yingce" && !strings.HasSuffix(c.Request.URL.Path, "/content")),
 	})
 	if accountRelease != nil {
 		accountRelease()
@@ -321,8 +321,26 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream video response did not contain a trackable task id")
 			return
 		}
+		if providerConfig != nil && providerConfig.Protocol == "yingce" {
+			result.ResponseBody, err = service.SetVideoPublicTaskID(result.ResponseBody, preparedTask.LocalRequestID)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Failed to encode video response")
+				return
+			}
+		}
 		if err := h.gatewayService.WriteOpenAIVideoForwardResponse(c, result); err != nil {
 			reqLog.Warn("openai_videos.response_write_failed", zap.Error(err))
+		}
+		return
+	}
+	if persistedTask != nil && providerConfig != nil && providerConfig.Protocol == "yingce" && !strings.HasSuffix(c.Request.URL.Path, "/content") {
+		result.ResponseBody, err = service.SetVideoPublicTaskID(result.ResponseBody, persistedTask.LocalRequestID)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Failed to encode video response")
+			return
+		}
+		if err = h.gatewayService.WriteOpenAIVideoForwardResponse(c, result); err != nil {
+			reqLog.Warn("video.response_write_failed", zap.Error(err))
 		}
 		return
 	}

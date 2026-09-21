@@ -275,3 +275,8 @@ func (s *OpenAIGatewayService) videoProviderResultURL(ctx context.Context, accou
 	// the API origin and are never attached to the storage request.
 	return s.validateUpstreamBaseURL(target)
 }
+
+// Only the local ID is exposed for declarative providers whose task names may contain paths.
+func SetVideoPublicTaskID(body []byte, id string) ([]byte, error) {
+	return sjson.SetBytes(body, "id", id)
+}

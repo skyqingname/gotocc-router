@@ -22,6 +22,8 @@ python3 tools/import_yingce_video.py --source /absolute/path/to/pinned/open-ai-c
 
 该脚本同步声明式引擎、协议目录和编译资源。`video-protocol-url-defaults.json` 保存影策的版本前缀规则；`originPath` 使用站点根路径，否则遵循影策 Base URL/显式版本前缀的拼接语义。导入新来源后仍须适配宿主传输、参数、身份和账务契约并重新构建。
 
+影策协议的创建与查询返回本地 `video-local:…` ID，原供应商 ID 仅用于原账号上游查询。Veo 等层级资源任务名在上游路径中保留路径段，客户端不用把带斜杠的供应商 ID 拼到网关路由。
+
 公共入口统一为 `/v1/videos`、`/v1/videos/:id` 和 `/v1/videos/:id/content`，支持原复数 generations 别名及新增 `/v1/video/generations` 创建/查询/content 别名。别名在鉴权、审核及路由前归一到同一视频任务入口。
 
 客户端可使用 canonical `seconds/aspect_ratio/generate_audio`，也接收影策对应的 `duration/aspectRatio/generateAudio`。`images/videos/audios` 接收 URL 或带 role/order 的素材对象，兼容 `image_urls/video_urls/audio_urls`。multipart 文件转换为协议所需引用；要求公网 URL 的厂商需由客户端提供可访问 URL，不包含新增的对象存储托管服务。

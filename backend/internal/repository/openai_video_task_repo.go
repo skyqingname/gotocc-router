@@ -135,6 +135,11 @@ func (r *openAIVideoTaskRepository) BindUpstreamTask(ctx context.Context, localR
 }
 
 func (r *openAIVideoTaskRepository) GetByTaskIDForAPIKey(ctx context.Context, taskID string, apiKeyID int64) (*service.OpenAIVideoTask, error) {
+	if strings.HasPrefix(taskID, "video-local:") {
+		row := r.db.QueryRowContext(ctx, `SELECT `+openAIVideoTaskColumns+` FROM openai_video_tasks WHERE local_request_id=$1 AND api_key_id=$2 AND provider_config->>'protocol'='yingce'`, strings.TrimSpace(taskID), apiKeyID)
+		return scanOpenAIVideoTask(row)
+	}
+
 	row := r.db.QueryRowContext(ctx, `SELECT `+openAIVideoTaskColumns+`
 		FROM openai_video_tasks WHERE task_id=$1 AND api_key_id=$2`, strings.TrimSpace(taskID), apiKeyID)
 	return scanOpenAIVideoTask(row)

@@ -7,7 +7,10 @@ root=Path(__file__).resolve().parents[1]
 engine=root/'backend/internal/pkg/yingceprotocol';engine.mkdir(parents=True,exist_ok=True)
 for source in (a.source/'backend/internal/protocol').glob('*.go'):
  if source.name.endswith('_test.go'):continue
- (engine/source.name).write_text(source.read_text().replace('package protocol','package yingceprotocol',1))
+ text=source.read_text().replace('package protocol','package yingceprotocol',1)
+ if source.name=='manifest.go':
+  text=text.replace('path := strings.ReplaceAll(manifestString(evaluatedPath), "{{taskId}}", url.PathEscape(taskID))','escapedTaskID := strings.ReplaceAll(url.PathEscape(taskID), "%2F", "/")\n path := strings.ReplaceAll(manifestString(evaluatedPath), "{{taskId}}", escapedTaskID)')
+ (engine/source.name).write_text(text)
 shutil.copytree(a.source/'backend/internal/protocol/docs',engine/'docs',dirs_exist_ok=True)
 shutil.copyfile(a.source/'LICENSE',root/'LICENSE.yingce')
 entries=[]
