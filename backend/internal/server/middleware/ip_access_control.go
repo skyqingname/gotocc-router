@@ -183,6 +183,7 @@ func isOpenAIGatewayPath(path string) bool {
 		"/embeddings",
 		"/images",
 		"/videos",
+		"/video/generations",
 		"/alpha",
 		"/backend-api/codex",
 	} {
