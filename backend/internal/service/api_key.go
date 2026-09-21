@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
@@ -33,6 +34,7 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
+	ResellerPrices    map[int64]*reseller.Snapshot `json:"-"`
 	ID                int64
 	UserID            int64
 	TeamID            *int64

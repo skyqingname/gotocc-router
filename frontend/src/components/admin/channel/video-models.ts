@@ -2,11 +2,14 @@ import defaults from '../../../../../video-platform-defaults.json'
 
 export interface VideoParameter {
   name: string
+  label?: string
+  disabled?: boolean
   type: string
   required: boolean
   values: string[]
   min?: number
   max?: number
+  step?: number
 }
 
 export interface VideoModelConfig {

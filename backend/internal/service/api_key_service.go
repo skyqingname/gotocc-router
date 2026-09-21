@@ -1183,6 +1183,7 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 	availableGroups := make([]Group, 0)
 	for _, group := range allGroups {
 		if s.canUserBindGroupInternal(user, &group, subscribedGroupIDs) {
+			ApplyResellerGroupPricing(ctx, userID, &group)
 			availableGroups = append(availableGroups, group)
 		}
 	}

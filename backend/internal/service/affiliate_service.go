@@ -226,6 +226,7 @@ type AffiliateUserOverview struct {
 }
 
 type AffiliateService struct {
+	resellerRepo         ResellerRepository
 	repo                 AffiliateRepository
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
@@ -382,6 +383,15 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 			break
 		}
 		inviterID := inviters[i]
+		if s.resellerRepo != nil {
+			profile, e := s.resellerRepo.Profile(ctx, inviterID)
+			if e != nil {
+				return 0, e
+			}
+			if len(profile.RebateRates) > i && profile.RebateRates[i] != nil {
+				rate = *profile.RebateRates[i]
+			}
+		}
 		if _, err := s.repo.EnsureUserAffiliate(ctx, inviterID); err != nil {
 			return 0, err
 		}

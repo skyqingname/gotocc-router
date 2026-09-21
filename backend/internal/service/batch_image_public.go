@@ -267,6 +267,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	holdID := BatchImageHoldRequestID(batchID)
 	holdAmount := pricingSnapshot.HoldAmount
 	job, err := s.Repo.CreateBatchImageJob(ctx, CreateBatchImageJobParams{
+		ResellerSnapshot:        ResellerPriceForOptionalGroup(ctx, owner.EffectiveBillingUserID(), owner.GroupID),
 		GroupID:                 owner.GroupID,
 		BatchID:                 batchID,
 		UserID:                  owner.UserID,
@@ -1054,6 +1055,9 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		groupMultiplier = effectiveGroupMultiplier
 		if group.ImageRateIndependent {
 			groupMultiplier = group.ImageRateMultiplier
+		}
+		if quote := ResellerPriceFromContext(ctx, owner.EffectiveBillingUserID(), group.ID); quote != nil {
+			groupMultiplier = quote.ImageRate
 		}
 		if groupMultiplier < 0 {
 			groupMultiplier = 0

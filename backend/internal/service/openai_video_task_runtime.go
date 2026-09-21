@@ -239,6 +239,7 @@ func (s *OpenAIGatewayService) settleOpenAIVideoTask(ctx context.Context, task *
 		}
 		actualCost = QuantizeUsageBillingAmount(task.TotalCost * task.GroupRateMultiplier)
 		cmd := &UsageBillingCommand{
+			ResellerSnapshot:   task.ResellerSnapshot,
 			RequestID:          "openai-video:" + derefOpenAIVideoString(task.TaskID),
 			RequestPayloadHash: task.RequestPayloadHash,
 			APIKeyID:           task.APIKeyID, UserID: task.BillingUserID,

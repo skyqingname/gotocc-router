@@ -209,8 +209,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	// 高峰因子按请求级 PricingAt 现算（与利润门 D 同源同刻，跨峰谷请求不中途
 	// 变价）；未装配 PricingAt 的路径回退记录时刻，保持既有行为。不并入上面的
 	// Resolve，以免污染 user:group 倍率缓存。
-	baseMultiplier := multiplier
 	pricingAt := openAIUsagePricingAt(input)
+	if apiKey.Group != nil {
+		if snapshot, ok := apiKey.Group.requestRateAt(pricingAt); ok {
+			multiplier = snapshot.Base
+		}
+	}
+	baseMultiplier := multiplier
 	multiplier, imageMultiplier := computePeakAwareMultipliers(apiKey, baseMultiplier, pricingAt)
 	videoMultiplier := resolveVideoRateMultiplier(apiKey, baseMultiplier)
 
@@ -564,6 +569,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	usageLogPersisted, billingErr := func() (bool, error) {
 		persisted, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+			PricingAt:             pricingAt,
 			Cost:                  cost,
 			User:                  user,
 			APIKey:                apiKey,

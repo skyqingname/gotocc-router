@@ -62,6 +62,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -11555,6 +11556,7 @@ type BatchImageJobMutation struct {
 	op                  Op
 	typ                 string
 	id                  *int64
+	reseller_snapshot   **reseller.Snapshot
 	batch_id            *string
 	user_id             *int64
 	adduser_id          *int64
@@ -11716,6 +11718,55 @@ func (m *BatchImageJobMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) SetResellerSnapshot(r *reseller.Snapshot) {
+	m.reseller_snapshot = &r
+}
+
+// ResellerSnapshot returns the value of the "reseller_snapshot" field in the mutation.
+func (m *BatchImageJobMutation) ResellerSnapshot() (r *reseller.Snapshot, exists bool) {
+	v := m.reseller_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResellerSnapshot returns the old "reseller_snapshot" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldResellerSnapshot(ctx context.Context) (v *reseller.Snapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResellerSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResellerSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResellerSnapshot: %w", err)
+	}
+	return oldValue.ResellerSnapshot, nil
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) ClearResellerSnapshot() {
+	m.reseller_snapshot = nil
+	m.clearedFields[batchimagejob.FieldResellerSnapshot] = struct{}{}
+}
+
+// ResellerSnapshotCleared returns if the "reseller_snapshot" field was cleared in this mutation.
+func (m *BatchImageJobMutation) ResellerSnapshotCleared() bool {
+	_, ok := m.clearedFields[batchimagejob.FieldResellerSnapshot]
+	return ok
+}
+
+// ResetResellerSnapshot resets all changes to the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) ResetResellerSnapshot() {
+	m.reseller_snapshot = nil
+	delete(m.clearedFields, batchimagejob.FieldResellerSnapshot)
 }
 
 // SetBatchID sets the "batch_id" field.
@@ -13994,7 +14045,10 @@ func (m *BatchImageJobMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BatchImageJobMutation) Fields() []string {
-	fields := make([]string, 0, 44)
+	fields := make([]string, 0, 45)
+	if m.reseller_snapshot != nil {
+		fields = append(fields, batchimagejob.FieldResellerSnapshot)
+	}
 	if m.batch_id != nil {
 		fields = append(fields, batchimagejob.FieldBatchID)
 	}
@@ -14135,6 +14189,8 @@ func (m *BatchImageJobMutation) Fields() []string {
 // schema.
 func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		return m.ResellerSnapshot()
 	case batchimagejob.FieldBatchID:
 		return m.BatchID()
 	case batchimagejob.FieldUserID:
@@ -14232,6 +14288,8 @@ func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		return m.OldResellerSnapshot(ctx)
 	case batchimagejob.FieldBatchID:
 		return m.OldBatchID(ctx)
 	case batchimagejob.FieldUserID:
@@ -14329,6 +14387,13 @@ func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.
 // type.
 func (m *BatchImageJobMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		v, ok := value.(*reseller.Snapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResellerSnapshot(v)
+		return nil
 	case batchimagejob.FieldBatchID:
 		v, ok := value.(string)
 		if !ok {
@@ -14850,6 +14915,9 @@ func (m *BatchImageJobMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *BatchImageJobMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(batchimagejob.FieldResellerSnapshot) {
+		fields = append(fields, batchimagejob.FieldResellerSnapshot)
+	}
 	if m.FieldCleared(batchimagejob.FieldBillingUserID) {
 		fields = append(fields, batchimagejob.FieldBillingUserID)
 	}
@@ -14945,6 +15013,9 @@ func (m *BatchImageJobMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *BatchImageJobMutation) ClearField(name string) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		m.ClearResellerSnapshot()
+		return nil
 	case batchimagejob.FieldBillingUserID:
 		m.ClearBillingUserID()
 		return nil
@@ -15034,6 +15105,9 @@ func (m *BatchImageJobMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *BatchImageJobMutation) ResetField(name string) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		m.ResetResellerSnapshot()
+		return nil
 	case batchimagejob.FieldBatchID:
 		m.ResetBatchID()
 		return nil
@@ -31543,6 +31617,7 @@ type OpenAIVideoTaskMutation struct {
 	op                         Op
 	typ                        string
 	id                         *int64
+	reseller_snapshot          **reseller.Snapshot
 	provider_config            **videoprotocol.Config
 	local_request_id           *string
 	task_id                    *string
@@ -31706,6 +31781,55 @@ func (m *OpenAIVideoTaskMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) SetResellerSnapshot(r *reseller.Snapshot) {
+	m.reseller_snapshot = &r
+}
+
+// ResellerSnapshot returns the value of the "reseller_snapshot" field in the mutation.
+func (m *OpenAIVideoTaskMutation) ResellerSnapshot() (r *reseller.Snapshot, exists bool) {
+	v := m.reseller_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResellerSnapshot returns the old "reseller_snapshot" field's value of the OpenAIVideoTask entity.
+// If the OpenAIVideoTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OpenAIVideoTaskMutation) OldResellerSnapshot(ctx context.Context) (v *reseller.Snapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResellerSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResellerSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResellerSnapshot: %w", err)
+	}
+	return oldValue.ResellerSnapshot, nil
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) ClearResellerSnapshot() {
+	m.reseller_snapshot = nil
+	m.clearedFields[openaivideotask.FieldResellerSnapshot] = struct{}{}
+}
+
+// ResellerSnapshotCleared returns if the "reseller_snapshot" field was cleared in this mutation.
+func (m *OpenAIVideoTaskMutation) ResellerSnapshotCleared() bool {
+	_, ok := m.clearedFields[openaivideotask.FieldResellerSnapshot]
+	return ok
+}
+
+// ResetResellerSnapshot resets all changes to the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) ResetResellerSnapshot() {
+	m.reseller_snapshot = nil
+	delete(m.clearedFields, openaivideotask.FieldResellerSnapshot)
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -33933,7 +34057,10 @@ func (m *OpenAIVideoTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OpenAIVideoTaskMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
+	if m.reseller_snapshot != nil {
+		fields = append(fields, openaivideotask.FieldResellerSnapshot)
+	}
 	if m.provider_config != nil {
 		fields = append(fields, openaivideotask.FieldProviderConfig)
 	}
@@ -34077,6 +34204,8 @@ func (m *OpenAIVideoTaskMutation) Fields() []string {
 // schema.
 func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		return m.ResellerSnapshot()
 	case openaivideotask.FieldProviderConfig:
 		return m.ProviderConfig()
 	case openaivideotask.FieldLocalRequestID:
@@ -34176,6 +34305,8 @@ func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		return m.OldResellerSnapshot(ctx)
 	case openaivideotask.FieldProviderConfig:
 		return m.OldProviderConfig(ctx)
 	case openaivideotask.FieldLocalRequestID:
@@ -34275,6 +34406,13 @@ func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (en
 // type.
 func (m *OpenAIVideoTaskMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		v, ok := value.(*reseller.Snapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResellerSnapshot(v)
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		v, ok := value.(*videoprotocol.Config)
 		if !ok {
@@ -34815,6 +34953,9 @@ func (m *OpenAIVideoTaskMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *OpenAIVideoTaskMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(openaivideotask.FieldResellerSnapshot) {
+		fields = append(fields, openaivideotask.FieldResellerSnapshot)
+	}
 	if m.FieldCleared(openaivideotask.FieldProviderConfig) {
 		fields = append(fields, openaivideotask.FieldProviderConfig)
 	}
@@ -34886,6 +35027,9 @@ func (m *OpenAIVideoTaskMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *OpenAIVideoTaskMutation) ClearField(name string) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		m.ClearResellerSnapshot()
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		m.ClearProviderConfig()
 		return nil
@@ -34951,6 +35095,9 @@ func (m *OpenAIVideoTaskMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *OpenAIVideoTaskMutation) ResetField(name string) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		m.ResetResellerSnapshot()
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		m.ResetProviderConfig()
 		return nil

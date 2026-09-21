@@ -5,6 +5,7 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
@@ -288,6 +289,11 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'redeem.title',
       descriptionKey: 'redeem.description'
     }
+  },
+  {
+    path: '/reseller', name: 'Reseller', component: () => import('@/views/user/ResellerView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Reseller Center', titleKey: 'nav.reseller' },
+    beforeEnter: async () => await useResellerAccess().load(true) ? true : '/keys'
   },
   {
     path: '/affiliate',

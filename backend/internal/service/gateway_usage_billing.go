@@ -73,6 +73,7 @@ type usageLogBestEffortWriter interface {
 
 // postUsageBillingParams 统一扣费所需的参数
 type postUsageBillingParams struct {
+	PricingAt             time.Time
 	Cost                  *CostBreakdown
 	User                  *User
 	APIKey                *APIKey
@@ -286,6 +287,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 
 	cmd := &UsageBillingCommand{
+		ResellerSnapshot:   p.APIKey.ResellerPriceAt(p.PricingAt),
 		RequestID:          requestID,
 		APIKeyID:           p.APIKey.ID,
 		UserID:             p.User.ID,
@@ -900,6 +902,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	requestID := usageLog.RequestID
 	usageLogPersisted, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		PricingAt:             pricingAt,
 		Cost:                  cost,
 		User:                  user,
 		APIKey:                apiKey,

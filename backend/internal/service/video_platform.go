@@ -198,7 +198,7 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 		part.Close()
 	}
 	for field := range config.Defaults {
-		if present[field] {
+		if present[field] || !gjson.GetBytes(prepared, field).Exists() {
 			continue
 		}
 		if err := writer.WriteField(field, gjson.GetBytes(prepared, field).String()); err != nil {

@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -19,6 +20,8 @@ type OpenAIVideoTask struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
+	// ResellerSnapshot holds the value of the "reseller_snapshot" field.
+	ResellerSnapshot *reseller.Snapshot `json:"reseller_snapshot,omitempty"`
 	// ProviderConfig holds the value of the "provider_config" field.
 	ProviderConfig *videoprotocol.Config `json:"provider_config,omitempty"`
 	// LocalRequestID holds the value of the "local_request_id" field.
@@ -117,7 +120,7 @@ func (*OpenAIVideoTask) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case openaivideotask.FieldProviderConfig:
+		case openaivideotask.FieldResellerSnapshot, openaivideotask.FieldProviderConfig:
 			values[i] = new([]byte)
 		case openaivideotask.FieldAllowanceReserved, openaivideotask.FieldUsageRecorded:
 			values[i] = new(sql.NullBool)
@@ -150,6 +153,14 @@ func (_m *OpenAIVideoTask) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int64(value.Int64)
+		case openaivideotask.FieldResellerSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field reseller_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ResellerSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field reseller_snapshot: %w", err)
+				}
+			}
 		case openaivideotask.FieldProviderConfig:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field provider_config", values[i])
@@ -476,6 +487,9 @@ func (_m *OpenAIVideoTask) String() string {
 	var builder strings.Builder
 	builder.WriteString("OpenAIVideoTask(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("reseller_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResellerSnapshot))
+	builder.WriteString(", ")
 	builder.WriteString("provider_config=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProviderConfig))
 	builder.WriteString(", ")

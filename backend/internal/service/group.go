@@ -445,7 +445,10 @@ func computePeakAwareMultipliers(apiKey *APIKey, base float64, now time.Time) (t
 			base = snapshot.Base
 		}
 	}
-	image = resolveImageRateMultiplier(apiKey, base)
+	image = resolveBaseImageRateMultiplier(apiKey, base)
+	if quote := apiKey.ResellerPriceAt(now); quote != nil {
+		image = quote.ImageRate
+	}
 	peak := 1.0
 	if apiKey != nil && apiKey.Group != nil {
 		peak = apiKey.Group.PeakMultiplierAt(now)

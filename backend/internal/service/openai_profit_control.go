@@ -261,6 +261,9 @@ func (s *OpenAIGatewayService) resolveOpenAIProfitControlGate(ctx context.Contex
 	}
 	if snapshot, ok := billingGroup.requestRateAt(pricingAt); ok {
 		downstream = snapshot.Base
+		if snapshot.Reseller != nil {
+			downstream /= snapshot.Reseller.Multiplier
+		}
 	}
 	downstream *= billingGroup.PeakMultiplierAt(pricingAt)
 

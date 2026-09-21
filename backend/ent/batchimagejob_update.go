@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/batchimagejob"
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 )
 
 // BatchImageJobUpdate is the builder for updating BatchImageJob entities.
@@ -25,6 +26,18 @@ type BatchImageJobUpdate struct {
 // Where appends a list predicates to the BatchImageJobUpdate builder.
 func (_u *BatchImageJobUpdate) Where(ps ...predicate.BatchImageJob) *BatchImageJobUpdate {
 	_u.mutation.Where(ps...)
+	return _u
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_u *BatchImageJobUpdate) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobUpdate {
+	_u.mutation.SetResellerSnapshot(v)
+	return _u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (_u *BatchImageJobUpdate) ClearResellerSnapshot() *BatchImageJobUpdate {
+	_u.mutation.ClearResellerSnapshot()
 	return _u
 }
 
@@ -981,6 +994,12 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 			}
 		}
 	}
+	if value, ok := _u.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldResellerSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.ResellerSnapshotCleared() {
+		_spec.ClearField(batchimagejob.FieldResellerSnapshot, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(batchimagejob.FieldUserID, field.TypeInt64, value)
 	}
@@ -1245,6 +1264,18 @@ type BatchImageJobUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *BatchImageJobMutation
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_u *BatchImageJobUpdateOne) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobUpdateOne {
+	_u.mutation.SetResellerSnapshot(v)
+	return _u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (_u *BatchImageJobUpdateOne) ClearResellerSnapshot() *BatchImageJobUpdateOne {
+	_u.mutation.ClearResellerSnapshot()
+	return _u
 }
 
 // SetUserID sets the "user_id" field.
@@ -2229,6 +2260,12 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldResellerSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.ResellerSnapshotCleared() {
+		_spec.ClearField(batchimagejob.FieldResellerSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(batchimagejob.FieldUserID, field.TypeInt64, value)

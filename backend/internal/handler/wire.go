@@ -162,6 +162,7 @@ func ProvideGatewayHandler(
 }
 
 func ProvideOpenAIGatewayHandler(
+	resellerService *service.ResellerService,
 	autoGroupResolver *service.AutoGroupResolver,
 	gatewayService *service.OpenAIGatewayService,
 	pluginManager *service.PluginManager,
@@ -182,6 +183,7 @@ func ProvideOpenAIGatewayHandler(
 	h := NewOpenAIGatewayHandler(gatewayService, concurrencyService, billingCacheService, apiKeyService,
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.securityAuditCoordinator = coordinator
+	h.resellerService = resellerService
 	h.grokMediaEligibilityProber = grokQuotaService
 	h.autoGroupResolver = autoGroupResolver
 	h.SetIPAccessControlService(ipAccessControl)
@@ -233,6 +235,7 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
+	resellerHandler *ResellerHandler,
 	authHandler *AuthHandler,
 	userHandler *UserHandler,
 	apiKeyHandler *APIKeyHandler,
@@ -261,6 +264,7 @@ func ProvideHandlers(
 	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
 	return &Handlers{
+		Reseller:         resellerHandler,
 		Auth:             authHandler,
 		User:             userHandler,
 		APIKey:           apiKeyHandler,
@@ -289,6 +293,7 @@ func ProvideHandlers(
 
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
+	NewResellerHandler,
 	// Top-level handlers
 	ProvideAuthHandler,
 	NewUserHandler,

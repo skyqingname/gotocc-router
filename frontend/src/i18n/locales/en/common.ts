@@ -163,6 +163,7 @@ export default {
 
   // Navigation
   nav: {
+    reseller: 'Reseller Center',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',

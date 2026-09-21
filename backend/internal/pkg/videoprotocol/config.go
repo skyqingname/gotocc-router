@@ -4,6 +4,7 @@ package videoprotocol
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 
@@ -13,11 +14,14 @@ import (
 
 type Parameter struct {
 	Name     string   `json:"name"`
+	Label    string   `json:"label,omitempty"`
+	Disabled bool     `json:"disabled,omitempty"`
 	Type     string   `json:"type"`
 	Required bool     `json:"required"`
 	Values   []string `json:"values"`
 	Min      *float64 `json:"min,omitempty"`
 	Max      *float64 `json:"max,omitempty"`
+	Step     *float64 `json:"step,omitempty"`
 }
 
 type Config struct {
@@ -86,6 +90,9 @@ func (c Config) Validate() error {
 		default:
 			return fmt.Errorf("invalid video parameter type for %s", p.Name)
 		}
+		if p.Step != nil && *p.Step <= 0 {
+			return fmt.Errorf("video parameter step must be positive for %s", p.Name)
+		}
 		if p.Min != nil && p.Max != nil && *p.Min > *p.Max {
 			return fmt.Errorf("invalid video parameter range for %s", p.Name)
 		}
@@ -118,7 +125,13 @@ func (c Config) Validate() error {
 			return fmt.Errorf("invalid normalized video status")
 		}
 	}
-	return nil
+	defaultsConfig := c
+	defaultsConfig.Parameters = append([]Parameter(nil), c.Parameters...)
+	for i := range defaultsConfig.Parameters {
+		defaultsConfig.Parameters[i].Required = false
+	}
+	_, err := defaultsConfig.Prepare([]byte(`{}`))
+	return err
 }
 
 // Prepare operates on canonical fields before billing. Defaults never override
@@ -126,6 +139,16 @@ func (c Config) Validate() error {
 func (c Config) Prepare(body []byte) ([]byte, error) {
 	result := append([]byte(nil), body...)
 	for name, value := range c.Defaults {
+		disabled := false
+		for _, p := range c.Parameters {
+			if p.Name == name && p.Disabled {
+				disabled = true
+				break
+			}
+		}
+		if disabled {
+			continue
+		}
 		if !gjson.GetBytes(result, name).Exists() {
 			var err error
 			result, err = sjson.SetBytes(result, name, value)
@@ -136,6 +159,12 @@ func (c Config) Prepare(body []byte) ([]byte, error) {
 	}
 	for _, p := range c.Parameters {
 		value := gjson.GetBytes(result, p.Name)
+		if p.Disabled {
+			if value.Exists() {
+				return nil, fmt.Errorf("video parameter %s is disabled for this channel model", p.Name)
+			}
+			continue
+		}
 		if !value.Exists() || value.Type == gjson.Null {
 			if p.Required {
 				return nil, fmt.Errorf("video parameter %s is required", p.Name)
@@ -170,6 +199,16 @@ func (c Config) Prepare(body []byte) ([]byte, error) {
 			}
 			if !found {
 				return nil, fmt.Errorf("video parameter %s is not an allowed value", p.Name)
+			}
+		}
+		if value.Type == gjson.Number && p.Step != nil {
+			origin := 0.0
+			if p.Min != nil {
+				origin = *p.Min
+			}
+			steps := (value.Float() - origin) / *p.Step
+			if math.Abs(steps-math.Round(steps)) > 1e-8 {
+				return nil, fmt.Errorf("video parameter %s does not match its step", p.Name)
 			}
 		}
 		if value.Type == gjson.Number && ((p.Min != nil && value.Float() < *p.Min) || (p.Max != nil && value.Float() > *p.Max)) {

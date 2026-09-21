@@ -32,6 +32,7 @@ import (
 
 // OpenAIGatewayHandler handles OpenAI API gateway requests
 type OpenAIGatewayHandler struct {
+	resellerService            *service.ResellerService
 	autoGroupResolver          *service.AutoGroupResolver
 	gatewayService             *service.OpenAIGatewayService
 	billingCacheService        *service.BillingCacheService
@@ -2891,7 +2892,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// 每个 turn 按当前时刻重装利润门并复核当前账号，越线同样要求
 				// 重连重选（连接绑定单一上游账号，无法中途换号）。本 turn 的
 				// 准入与计费共用同一 pricingAt。
-				turnCtx, turnAt := h.gatewayService.WithOpenAITurnPricingContext(ctx, apiKey.GroupID)
+				resellerTurnCtx := ctx
+				if h.resellerService != nil {
+					prices, priceErr := h.resellerService.Repo.Pricing(ctx, apiKey.User.ID)
+					if priceErr != nil {
+						return service.NewOpenAIWSClientCloseError(coderws.StatusTryAgainLater, "customer pricing unavailable, please reconnect", priceErr)
+					}
+					resellerTurnCtx = service.WithResellerPrices(ctx, apiKey.User.ID, prices)
+				}
+				turnCtx, turnAt := h.gatewayService.WithOpenAITurnPricingContext(resellerTurnCtx, apiKey.GroupID)
 				if _, vetoed, reason := h.gatewayService.ProfitControlVetoLatest(turnCtx, latestAccount); vetoed {
 					reqLog.Info("openai.websocket_turn_profit_vetoed",
 						zap.Int("turn", turn),

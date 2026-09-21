@@ -74,6 +74,10 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 		result.UsageLogPersisted = true
 	}
 
+	if err := recordResellerEarning(ctx, tx, cmd.ResellerSnapshot, cmd.RequestID, cmd.APIKeyID, cmd.Model, cmd.BalanceCost+cmd.SubscriptionCost); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -287,6 +291,12 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 	if err != nil {
 		return err
 	}
+	if operation == "capture" {
+		if err = recordResellerEarning(ctx, tx, cmd.ResellerSnapshot, requestID, cmd.APIKeyID, cmd.Model, cmd.ActualAmount); err != nil {
+			return err
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return err
 	}
@@ -388,6 +398,12 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 			return nil, err
 		}
 		result.UsageLogPersisted = true
+	}
+
+	if operation == batchImageAllowanceCapture {
+		if err := recordResellerEarning(ctx, tx, cmd.ResellerSnapshot, cmd.RequestID, cmd.APIKeyID, cmd.Model, cmd.ActualAmount); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

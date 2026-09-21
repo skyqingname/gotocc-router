@@ -531,6 +531,7 @@ var (
 	// BatchImageJobsColumns holds the columns for the "batch_image_jobs" table.
 	BatchImageJobsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "reseller_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "batch_id", Type: field.TypeString, Size: 64},
 		{Name: "user_id", Type: field.TypeInt64},
 		{Name: "billing_user_id", Type: field.TypeInt64, Nullable: true},
@@ -585,37 +586,37 @@ var (
 			{
 				Name:    "batchimagejob_batch_id",
 				Unique:  true,
-				Columns: []*schema.Column{BatchImageJobsColumns[1]},
+				Columns: []*schema.Column{BatchImageJobsColumns[2]},
 			},
 			{
 				Name:    "batchimagejob_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[2], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[3], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_billing_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[3], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[4], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_team_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[4], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[5], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_status",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[11]},
+				Columns: []*schema.Column{BatchImageJobsColumns[12]},
 			},
 			{
 				Name:    "batchimagejob_provider_status",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[8], BatchImageJobsColumns[11]},
+				Columns: []*schema.Column{BatchImageJobsColumns[9], BatchImageJobsColumns[12]},
 			},
 			{
 				Name:    "batchimagejob_idempotency_key",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[27]},
+				Columns: []*schema.Column{BatchImageJobsColumns[28]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "idempotency_key IS NOT NULL AND idempotency_key <> ''",
 				},
@@ -623,7 +624,7 @@ var (
 			{
 				Name:    "batchimagejob_manifest_hash",
 				Unique:  true,
-				Columns: []*schema.Column{BatchImageJobsColumns[29]},
+				Columns: []*schema.Column{BatchImageJobsColumns[30]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "manifest_hash IS NOT NULL AND manifest_hash <> ''",
 				},
@@ -631,17 +632,17 @@ var (
 			{
 				Name:    "batchimagejob_output_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[32]},
+				Columns: []*schema.Column{BatchImageJobsColumns[33]},
 			},
 			{
 				Name:    "batchimagejob_downloaded_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[35]},
+				Columns: []*schema.Column{BatchImageJobsColumns[36]},
 			},
 			{
 				Name:    "batchimagejob_user_deleted_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[36]},
+				Columns: []*schema.Column{BatchImageJobsColumns[37]},
 			},
 		},
 	}
@@ -1170,6 +1171,7 @@ var (
 	// OpenaiVideoTasksColumns holds the columns for the "openai_video_tasks" table.
 	OpenaiVideoTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "reseller_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "provider_config", Type: field.TypeJSON, Nullable: true},
 		{Name: "local_request_id", Type: field.TypeString, Size: 128},
 		{Name: "task_id", Type: field.TypeString, Nullable: true, Size: 255},
@@ -1225,12 +1227,12 @@ var (
 			{
 				Name:    "openaivideotask_local_request_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[2]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[3]},
 			},
 			{
 				Name:    "openaivideotask_task_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[3]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[4]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "task_id IS NOT NULL",
 				},
@@ -1238,12 +1240,12 @@ var (
 			{
 				Name:    "openaivideotask_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[7], OpenaiVideoTasksColumns[40]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[8], OpenaiVideoTasksColumns[41]},
 			},
 			{
 				Name:    "openaivideotask_billing_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[20], OpenaiVideoTasksColumns[41]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[21], OpenaiVideoTasksColumns[42]},
 			},
 		},
 	}

@@ -29,13 +29,14 @@ const openAIVideoTaskColumns = `
 	upstream_endpoint, model_mapping_chain, user_agent, ip_address, retry_count,
 	next_poll_at, lease_until, lease_token, last_error_code, last_error_message,
 	usage_recorded, created_at, updated_at, submitted_at, finished_at,
-	settled_at, usage_recorded_at, provider_config`
+	settled_at, usage_recorded_at, provider_config, reseller_snapshot`
 
 type openAIVideoTaskScanner interface{ Scan(dest ...any) error }
 
 func scanOpenAIVideoTask(row openAIVideoTaskScanner) (*service.OpenAIVideoTask, error) {
 	task := &service.OpenAIVideoTask{}
 	var providerConfig []byte
+	var resellerJSON []byte
 	err := row.Scan(
 		&task.ID, &task.LocalRequestID, &task.TaskID, &task.ActorUserID,
 		&task.BillingUserID, &task.TeamID, &task.APIKeyID, &task.GroupID,
@@ -49,10 +50,13 @@ func scanOpenAIVideoTask(row openAIVideoTaskScanner) (*service.OpenAIVideoTask, 
 		&task.IPAddress, &task.RetryCount, &task.NextPollAt, &task.LeaseUntil,
 		&task.LeaseToken, &task.LastErrorCode, &task.LastErrorMessage,
 		&task.UsageRecorded, &task.CreatedAt, &task.UpdatedAt, &task.SubmittedAt,
-		&task.FinishedAt, &task.SettledAt, &task.UsageRecordedAt, &providerConfig,
+		&task.FinishedAt, &task.SettledAt, &task.UsageRecordedAt, &providerConfig, &resellerJSON,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrOpenAIVideoTaskNotFound
+	}
+	if err == nil && len(resellerJSON) > 0 {
+		err = json.Unmarshal(resellerJSON, &task.ResellerSnapshot)
 	}
 	if err == nil && len(providerConfig) > 0 {
 		err = json.Unmarshal(providerConfig, &task.ProviderConfig)
@@ -63,6 +67,10 @@ func scanOpenAIVideoTask(row openAIVideoTaskScanner) (*service.OpenAIVideoTask, 
 func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.CreateOpenAIVideoTaskParams) (*service.OpenAIVideoTask, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("openai video task repository db is nil")
+	}
+	resellerJSON, err := json.Marshal(p.ResellerSnapshot)
+	if err != nil {
+		return nil, err
 	}
 	providerConfig, err := json.Marshal(p.ProviderConfig)
 	if err != nil {
@@ -75,10 +83,10 @@ func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.Create
 			upstream_model, request_seconds, resolution, billing_mode, billing_type, total_cost,
 			hold_amount, group_rate_multiplier, account_rate_multiplier,
 			request_payload_hash, inbound_endpoint, upstream_endpoint,
-			model_mapping_chain, user_agent, ip_address, next_poll_at, provider_config
+			model_mapping_chain, user_agent, ip_address, next_poll_at, provider_config, reseller_snapshot
 		) VALUES (
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-			$19,$20,$21,$22,$23,$24,$25,$26,$27
+			$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
 		)
 		RETURNING `+openAIVideoTaskColumns,
 		strings.TrimSpace(p.LocalRequestID), p.ActorUserID, p.BillingUserID,
@@ -89,7 +97,7 @@ func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.Create
 		p.HoldAmount, p.GroupRateMultiplier, p.AccountRateMultiplier,
 		strings.TrimSpace(p.RequestPayloadHash), strings.TrimSpace(p.InboundEndpoint),
 		strings.TrimSpace(p.UpstreamEndpoint), p.ModelMappingChain, p.UserAgent,
-		p.IPAddress, p.NextPollAt, providerConfig,
+		p.IPAddress, p.NextPollAt, providerConfig, resellerJSON,
 	)
 	return scanOpenAIVideoTask(row)
 }

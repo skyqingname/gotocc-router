@@ -517,109 +517,109 @@ func init() {
 	batchimagejobFields := schema.BatchImageJob{}.Fields()
 	_ = batchimagejobFields
 	// batchimagejobDescBatchID is the schema descriptor for batch_id field.
-	batchimagejobDescBatchID := batchimagejobFields[0].Descriptor()
+	batchimagejobDescBatchID := batchimagejobFields[1].Descriptor()
 	// batchimagejob.BatchIDValidator is a validator for the "batch_id" field. It is called by the builders before save.
 	batchimagejob.BatchIDValidator = batchimagejobDescBatchID.Validators[0].(func(string) error)
 	// batchimagejobDescProvider is the schema descriptor for provider field.
-	batchimagejobDescProvider := batchimagejobFields[7].Descriptor()
+	batchimagejobDescProvider := batchimagejobFields[8].Descriptor()
 	// batchimagejob.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
 	batchimagejob.ProviderValidator = batchimagejobDescProvider.Validators[0].(func(string) error)
 	// batchimagejobDescModel is the schema descriptor for model field.
-	batchimagejobDescModel := batchimagejobFields[8].Descriptor()
+	batchimagejobDescModel := batchimagejobFields[9].Descriptor()
 	// batchimagejob.ModelValidator is a validator for the "model" field. It is called by the builders before save.
 	batchimagejob.ModelValidator = batchimagejobDescModel.Validators[0].(func(string) error)
 	// batchimagejobDescTaskName is the schema descriptor for task_name field.
-	batchimagejobDescTaskName := batchimagejobFields[9].Descriptor()
+	batchimagejobDescTaskName := batchimagejobFields[10].Descriptor()
 	// batchimagejob.DefaultTaskName holds the default value on creation for the task_name field.
 	batchimagejob.DefaultTaskName = batchimagejobDescTaskName.Default.(string)
 	// batchimagejob.TaskNameValidator is a validator for the "task_name" field. It is called by the builders before save.
 	batchimagejob.TaskNameValidator = batchimagejobDescTaskName.Validators[0].(func(string) error)
 	// batchimagejobDescStatus is the schema descriptor for status field.
-	batchimagejobDescStatus := batchimagejobFields[10].Descriptor()
+	batchimagejobDescStatus := batchimagejobFields[11].Descriptor()
 	// batchimagejob.DefaultStatus holds the default value on creation for the status field.
 	batchimagejob.DefaultStatus = batchimagejobDescStatus.Default.(string)
 	// batchimagejob.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	batchimagejob.StatusValidator = batchimagejobDescStatus.Validators[0].(func(string) error)
 	// batchimagejobDescProviderJobName is the schema descriptor for provider_job_name field.
-	batchimagejobDescProviderJobName := batchimagejobFields[11].Descriptor()
+	batchimagejobDescProviderJobName := batchimagejobFields[12].Descriptor()
 	// batchimagejob.ProviderJobNameValidator is a validator for the "provider_job_name" field. It is called by the builders before save.
 	batchimagejob.ProviderJobNameValidator = batchimagejobDescProviderJobName.Validators[0].(func(string) error)
 	// batchimagejobDescProviderInputRef is the schema descriptor for provider_input_ref field.
-	batchimagejobDescProviderInputRef := batchimagejobFields[12].Descriptor()
+	batchimagejobDescProviderInputRef := batchimagejobFields[13].Descriptor()
 	// batchimagejob.ProviderInputRefValidator is a validator for the "provider_input_ref" field. It is called by the builders before save.
 	batchimagejob.ProviderInputRefValidator = batchimagejobDescProviderInputRef.Validators[0].(func(string) error)
 	// batchimagejobDescProviderOutputRef is the schema descriptor for provider_output_ref field.
-	batchimagejobDescProviderOutputRef := batchimagejobFields[13].Descriptor()
+	batchimagejobDescProviderOutputRef := batchimagejobFields[14].Descriptor()
 	// batchimagejob.ProviderOutputRefValidator is a validator for the "provider_output_ref" field. It is called by the builders before save.
 	batchimagejob.ProviderOutputRefValidator = batchimagejobDescProviderOutputRef.Validators[0].(func(string) error)
 	// batchimagejobDescGcsInputURI is the schema descriptor for gcs_input_uri field.
-	batchimagejobDescGcsInputURI := batchimagejobFields[14].Descriptor()
+	batchimagejobDescGcsInputURI := batchimagejobFields[15].Descriptor()
 	// batchimagejob.GcsInputURIValidator is a validator for the "gcs_input_uri" field. It is called by the builders before save.
 	batchimagejob.GcsInputURIValidator = batchimagejobDescGcsInputURI.Validators[0].(func(string) error)
 	// batchimagejobDescGcsOutputURI is the schema descriptor for gcs_output_uri field.
-	batchimagejobDescGcsOutputURI := batchimagejobFields[15].Descriptor()
+	batchimagejobDescGcsOutputURI := batchimagejobFields[16].Descriptor()
 	// batchimagejob.GcsOutputURIValidator is a validator for the "gcs_output_uri" field. It is called by the builders before save.
 	batchimagejob.GcsOutputURIValidator = batchimagejobDescGcsOutputURI.Validators[0].(func(string) error)
 	// batchimagejobDescSuccessCount is the schema descriptor for success_count field.
-	batchimagejobDescSuccessCount := batchimagejobFields[17].Descriptor()
+	batchimagejobDescSuccessCount := batchimagejobFields[18].Descriptor()
 	// batchimagejob.DefaultSuccessCount holds the default value on creation for the success_count field.
 	batchimagejob.DefaultSuccessCount = batchimagejobDescSuccessCount.Default.(int)
 	// batchimagejobDescFailCount is the schema descriptor for fail_count field.
-	batchimagejobDescFailCount := batchimagejobFields[18].Descriptor()
+	batchimagejobDescFailCount := batchimagejobFields[19].Descriptor()
 	// batchimagejob.DefaultFailCount holds the default value on creation for the fail_count field.
 	batchimagejob.DefaultFailCount = batchimagejobDescFailCount.Default.(int)
 	// batchimagejobDescCancelledCount is the schema descriptor for cancelled_count field.
-	batchimagejobDescCancelledCount := batchimagejobFields[19].Descriptor()
+	batchimagejobDescCancelledCount := batchimagejobFields[20].Descriptor()
 	// batchimagejob.DefaultCancelledCount holds the default value on creation for the cancelled_count field.
 	batchimagejob.DefaultCancelledCount = batchimagejobDescCancelledCount.Default.(int)
 	// batchimagejobDescEstimatedCost is the schema descriptor for estimated_cost field.
-	batchimagejobDescEstimatedCost := batchimagejobFields[20].Descriptor()
+	batchimagejobDescEstimatedCost := batchimagejobFields[21].Descriptor()
 	// batchimagejob.DefaultEstimatedCost holds the default value on creation for the estimated_cost field.
 	batchimagejob.DefaultEstimatedCost = batchimagejobDescEstimatedCost.Default.(float64)
 	// batchimagejobDescAllowanceReserved is the schema descriptor for allowance_reserved field.
-	batchimagejobDescAllowanceReserved := batchimagejobFields[23].Descriptor()
+	batchimagejobDescAllowanceReserved := batchimagejobFields[24].Descriptor()
 	// batchimagejob.DefaultAllowanceReserved holds the default value on creation for the allowance_reserved field.
 	batchimagejob.DefaultAllowanceReserved = batchimagejobDescAllowanceReserved.Default.(bool)
 	// batchimagejobDescCurrency is the schema descriptor for currency field.
-	batchimagejobDescCurrency := batchimagejobFields[24].Descriptor()
+	batchimagejobDescCurrency := batchimagejobFields[25].Descriptor()
 	// batchimagejob.DefaultCurrency holds the default value on creation for the currency field.
 	batchimagejob.DefaultCurrency = batchimagejobDescCurrency.Default.(string)
 	// batchimagejob.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
 	batchimagejob.CurrencyValidator = batchimagejobDescCurrency.Validators[0].(func(string) error)
 	// batchimagejobDescHoldID is the schema descriptor for hold_id field.
-	batchimagejobDescHoldID := batchimagejobFields[25].Descriptor()
+	batchimagejobDescHoldID := batchimagejobFields[26].Descriptor()
 	// batchimagejob.HoldIDValidator is a validator for the "hold_id" field. It is called by the builders before save.
 	batchimagejob.HoldIDValidator = batchimagejobDescHoldID.Validators[0].(func(string) error)
 	// batchimagejobDescIdempotencyKey is the schema descriptor for idempotency_key field.
-	batchimagejobDescIdempotencyKey := batchimagejobFields[26].Descriptor()
+	batchimagejobDescIdempotencyKey := batchimagejobFields[27].Descriptor()
 	// batchimagejob.IdempotencyKeyValidator is a validator for the "idempotency_key" field. It is called by the builders before save.
 	batchimagejob.IdempotencyKeyValidator = batchimagejobDescIdempotencyKey.Validators[0].(func(string) error)
 	// batchimagejobDescRequestHash is the schema descriptor for request_hash field.
-	batchimagejobDescRequestHash := batchimagejobFields[27].Descriptor()
+	batchimagejobDescRequestHash := batchimagejobFields[28].Descriptor()
 	// batchimagejob.RequestHashValidator is a validator for the "request_hash" field. It is called by the builders before save.
 	batchimagejob.RequestHashValidator = batchimagejobDescRequestHash.Validators[0].(func(string) error)
 	// batchimagejobDescManifestHash is the schema descriptor for manifest_hash field.
-	batchimagejobDescManifestHash := batchimagejobFields[28].Descriptor()
+	batchimagejobDescManifestHash := batchimagejobFields[29].Descriptor()
 	// batchimagejob.ManifestHashValidator is a validator for the "manifest_hash" field. It is called by the builders before save.
 	batchimagejob.ManifestHashValidator = batchimagejobDescManifestHash.Validators[0].(func(string) error)
 	// batchimagejobDescRetryCount is the schema descriptor for retry_count field.
-	batchimagejobDescRetryCount := batchimagejobFields[29].Descriptor()
+	batchimagejobDescRetryCount := batchimagejobFields[30].Descriptor()
 	// batchimagejob.DefaultRetryCount holds the default value on creation for the retry_count field.
 	batchimagejob.DefaultRetryCount = batchimagejobDescRetryCount.Default.(int)
 	// batchimagejobDescVersion is the schema descriptor for version field.
-	batchimagejobDescVersion := batchimagejobFields[30].Descriptor()
+	batchimagejobDescVersion := batchimagejobFields[31].Descriptor()
 	// batchimagejob.DefaultVersion holds the default value on creation for the version field.
 	batchimagejob.DefaultVersion = batchimagejobDescVersion.Default.(int)
 	// batchimagejobDescLastErrorCode is the schema descriptor for last_error_code field.
-	batchimagejobDescLastErrorCode := batchimagejobFields[36].Descriptor()
+	batchimagejobDescLastErrorCode := batchimagejobFields[37].Descriptor()
 	// batchimagejob.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
 	batchimagejob.LastErrorCodeValidator = batchimagejobDescLastErrorCode.Validators[0].(func(string) error)
 	// batchimagejobDescCreatedAt is the schema descriptor for created_at field.
-	batchimagejobDescCreatedAt := batchimagejobFields[38].Descriptor()
+	batchimagejobDescCreatedAt := batchimagejobFields[39].Descriptor()
 	// batchimagejob.DefaultCreatedAt holds the default value on creation for the created_at field.
 	batchimagejob.DefaultCreatedAt = batchimagejobDescCreatedAt.Default.(func() time.Time)
 	// batchimagejobDescUpdatedAt is the schema descriptor for updated_at field.
-	batchimagejobDescUpdatedAt := batchimagejobFields[39].Descriptor()
+	batchimagejobDescUpdatedAt := batchimagejobFields[40].Descriptor()
 	// batchimagejob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	batchimagejob.DefaultUpdatedAt = batchimagejobDescUpdatedAt.Default.(func() time.Time)
 	// batchimagejob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1394,107 +1394,107 @@ func init() {
 	openaivideotaskFields := schema.OpenAIVideoTask{}.Fields()
 	_ = openaivideotaskFields
 	// openaivideotaskDescLocalRequestID is the schema descriptor for local_request_id field.
-	openaivideotaskDescLocalRequestID := openaivideotaskFields[1].Descriptor()
+	openaivideotaskDescLocalRequestID := openaivideotaskFields[2].Descriptor()
 	// openaivideotask.LocalRequestIDValidator is a validator for the "local_request_id" field. It is called by the builders before save.
 	openaivideotask.LocalRequestIDValidator = openaivideotaskDescLocalRequestID.Validators[0].(func(string) error)
 	// openaivideotaskDescTaskID is the schema descriptor for task_id field.
-	openaivideotaskDescTaskID := openaivideotaskFields[2].Descriptor()
+	openaivideotaskDescTaskID := openaivideotaskFields[3].Descriptor()
 	// openaivideotask.TaskIDValidator is a validator for the "task_id" field. It is called by the builders before save.
 	openaivideotask.TaskIDValidator = openaivideotaskDescTaskID.Validators[0].(func(string) error)
 	// openaivideotaskDescRequestedModel is the schema descriptor for requested_model field.
-	openaivideotaskDescRequestedModel := openaivideotaskFields[11].Descriptor()
+	openaivideotaskDescRequestedModel := openaivideotaskFields[12].Descriptor()
 	// openaivideotask.RequestedModelValidator is a validator for the "requested_model" field. It is called by the builders before save.
 	openaivideotask.RequestedModelValidator = openaivideotaskDescRequestedModel.Validators[0].(func(string) error)
 	// openaivideotaskDescUpstreamModel is the schema descriptor for upstream_model field.
-	openaivideotaskDescUpstreamModel := openaivideotaskFields[12].Descriptor()
+	openaivideotaskDescUpstreamModel := openaivideotaskFields[13].Descriptor()
 	// openaivideotask.UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
 	openaivideotask.UpstreamModelValidator = openaivideotaskDescUpstreamModel.Validators[0].(func(string) error)
 	// openaivideotaskDescResolution is the schema descriptor for resolution field.
-	openaivideotaskDescResolution := openaivideotaskFields[14].Descriptor()
+	openaivideotaskDescResolution := openaivideotaskFields[15].Descriptor()
 	// openaivideotask.ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
 	openaivideotask.ResolutionValidator = openaivideotaskDescResolution.Validators[0].(func(string) error)
 	// openaivideotaskDescBillingMode is the schema descriptor for billing_mode field.
-	openaivideotaskDescBillingMode := openaivideotaskFields[15].Descriptor()
+	openaivideotaskDescBillingMode := openaivideotaskFields[16].Descriptor()
 	// openaivideotask.BillingModeValidator is a validator for the "billing_mode" field. It is called by the builders before save.
 	openaivideotask.BillingModeValidator = openaivideotaskDescBillingMode.Validators[0].(func(string) error)
 	// openaivideotaskDescStatus is the schema descriptor for status field.
-	openaivideotaskDescStatus := openaivideotaskFields[16].Descriptor()
+	openaivideotaskDescStatus := openaivideotaskFields[17].Descriptor()
 	// openaivideotask.DefaultStatus holds the default value on creation for the status field.
 	openaivideotask.DefaultStatus = openaivideotaskDescStatus.Default.(string)
 	// openaivideotask.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	openaivideotask.StatusValidator = openaivideotaskDescStatus.Validators[0].(func(string) error)
 	// openaivideotaskDescUpstreamStatus is the schema descriptor for upstream_status field.
-	openaivideotaskDescUpstreamStatus := openaivideotaskFields[17].Descriptor()
+	openaivideotaskDescUpstreamStatus := openaivideotaskFields[18].Descriptor()
 	// openaivideotask.UpstreamStatusValidator is a validator for the "upstream_status" field. It is called by the builders before save.
 	openaivideotask.UpstreamStatusValidator = openaivideotaskDescUpstreamStatus.Validators[0].(func(string) error)
 	// openaivideotaskDescBillingStatus is the schema descriptor for billing_status field.
-	openaivideotaskDescBillingStatus := openaivideotaskFields[19].Descriptor()
+	openaivideotaskDescBillingStatus := openaivideotaskFields[20].Descriptor()
 	// openaivideotask.DefaultBillingStatus holds the default value on creation for the billing_status field.
 	openaivideotask.DefaultBillingStatus = openaivideotaskDescBillingStatus.Default.(string)
 	// openaivideotask.BillingStatusValidator is a validator for the "billing_status" field. It is called by the builders before save.
 	openaivideotask.BillingStatusValidator = openaivideotaskDescBillingStatus.Validators[0].(func(string) error)
 	// openaivideotaskDescTotalCost is the schema descriptor for total_cost field.
-	openaivideotaskDescTotalCost := openaivideotaskFields[20].Descriptor()
+	openaivideotaskDescTotalCost := openaivideotaskFields[21].Descriptor()
 	// openaivideotask.DefaultTotalCost holds the default value on creation for the total_cost field.
 	openaivideotask.DefaultTotalCost = openaivideotaskDescTotalCost.Default.(float64)
 	// openaivideotaskDescHoldAmount is the schema descriptor for hold_amount field.
-	openaivideotaskDescHoldAmount := openaivideotaskFields[22].Descriptor()
+	openaivideotaskDescHoldAmount := openaivideotaskFields[23].Descriptor()
 	// openaivideotask.DefaultHoldAmount holds the default value on creation for the hold_amount field.
 	openaivideotask.DefaultHoldAmount = openaivideotaskDescHoldAmount.Default.(float64)
 	// openaivideotaskDescGroupRateMultiplier is the schema descriptor for group_rate_multiplier field.
-	openaivideotaskDescGroupRateMultiplier := openaivideotaskFields[23].Descriptor()
+	openaivideotaskDescGroupRateMultiplier := openaivideotaskFields[24].Descriptor()
 	// openaivideotask.DefaultGroupRateMultiplier holds the default value on creation for the group_rate_multiplier field.
 	openaivideotask.DefaultGroupRateMultiplier = openaivideotaskDescGroupRateMultiplier.Default.(float64)
 	// openaivideotaskDescAccountRateMultiplier is the schema descriptor for account_rate_multiplier field.
-	openaivideotaskDescAccountRateMultiplier := openaivideotaskFields[24].Descriptor()
+	openaivideotaskDescAccountRateMultiplier := openaivideotaskFields[25].Descriptor()
 	// openaivideotask.DefaultAccountRateMultiplier holds the default value on creation for the account_rate_multiplier field.
 	openaivideotask.DefaultAccountRateMultiplier = openaivideotaskDescAccountRateMultiplier.Default.(float64)
 	// openaivideotaskDescAllowanceReserved is the schema descriptor for allowance_reserved field.
-	openaivideotaskDescAllowanceReserved := openaivideotaskFields[25].Descriptor()
+	openaivideotaskDescAllowanceReserved := openaivideotaskFields[26].Descriptor()
 	// openaivideotask.DefaultAllowanceReserved holds the default value on creation for the allowance_reserved field.
 	openaivideotask.DefaultAllowanceReserved = openaivideotaskDescAllowanceReserved.Default.(bool)
 	// openaivideotaskDescRequestPayloadHash is the schema descriptor for request_payload_hash field.
-	openaivideotaskDescRequestPayloadHash := openaivideotaskFields[26].Descriptor()
+	openaivideotaskDescRequestPayloadHash := openaivideotaskFields[27].Descriptor()
 	// openaivideotask.RequestPayloadHashValidator is a validator for the "request_payload_hash" field. It is called by the builders before save.
 	openaivideotask.RequestPayloadHashValidator = openaivideotaskDescRequestPayloadHash.Validators[0].(func(string) error)
 	// openaivideotaskDescInboundEndpoint is the schema descriptor for inbound_endpoint field.
-	openaivideotaskDescInboundEndpoint := openaivideotaskFields[27].Descriptor()
+	openaivideotaskDescInboundEndpoint := openaivideotaskFields[28].Descriptor()
 	// openaivideotask.InboundEndpointValidator is a validator for the "inbound_endpoint" field. It is called by the builders before save.
 	openaivideotask.InboundEndpointValidator = openaivideotaskDescInboundEndpoint.Validators[0].(func(string) error)
 	// openaivideotaskDescUpstreamEndpoint is the schema descriptor for upstream_endpoint field.
-	openaivideotaskDescUpstreamEndpoint := openaivideotaskFields[28].Descriptor()
+	openaivideotaskDescUpstreamEndpoint := openaivideotaskFields[29].Descriptor()
 	// openaivideotask.UpstreamEndpointValidator is a validator for the "upstream_endpoint" field. It is called by the builders before save.
 	openaivideotask.UpstreamEndpointValidator = openaivideotaskDescUpstreamEndpoint.Validators[0].(func(string) error)
 	// openaivideotaskDescModelMappingChain is the schema descriptor for model_mapping_chain field.
-	openaivideotaskDescModelMappingChain := openaivideotaskFields[29].Descriptor()
+	openaivideotaskDescModelMappingChain := openaivideotaskFields[30].Descriptor()
 	// openaivideotask.ModelMappingChainValidator is a validator for the "model_mapping_chain" field. It is called by the builders before save.
 	openaivideotask.ModelMappingChainValidator = openaivideotaskDescModelMappingChain.Validators[0].(func(string) error)
 	// openaivideotaskDescIPAddress is the schema descriptor for ip_address field.
-	openaivideotaskDescIPAddress := openaivideotaskFields[31].Descriptor()
+	openaivideotaskDescIPAddress := openaivideotaskFields[32].Descriptor()
 	// openaivideotask.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
 	openaivideotask.IPAddressValidator = openaivideotaskDescIPAddress.Validators[0].(func(string) error)
 	// openaivideotaskDescRetryCount is the schema descriptor for retry_count field.
-	openaivideotaskDescRetryCount := openaivideotaskFields[32].Descriptor()
+	openaivideotaskDescRetryCount := openaivideotaskFields[33].Descriptor()
 	// openaivideotask.DefaultRetryCount holds the default value on creation for the retry_count field.
 	openaivideotask.DefaultRetryCount = openaivideotaskDescRetryCount.Default.(int)
 	// openaivideotaskDescLeaseToken is the schema descriptor for lease_token field.
-	openaivideotaskDescLeaseToken := openaivideotaskFields[35].Descriptor()
+	openaivideotaskDescLeaseToken := openaivideotaskFields[36].Descriptor()
 	// openaivideotask.LeaseTokenValidator is a validator for the "lease_token" field. It is called by the builders before save.
 	openaivideotask.LeaseTokenValidator = openaivideotaskDescLeaseToken.Validators[0].(func(string) error)
 	// openaivideotaskDescLastErrorCode is the schema descriptor for last_error_code field.
-	openaivideotaskDescLastErrorCode := openaivideotaskFields[36].Descriptor()
+	openaivideotaskDescLastErrorCode := openaivideotaskFields[37].Descriptor()
 	// openaivideotask.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
 	openaivideotask.LastErrorCodeValidator = openaivideotaskDescLastErrorCode.Validators[0].(func(string) error)
 	// openaivideotaskDescUsageRecorded is the schema descriptor for usage_recorded field.
-	openaivideotaskDescUsageRecorded := openaivideotaskFields[38].Descriptor()
+	openaivideotaskDescUsageRecorded := openaivideotaskFields[39].Descriptor()
 	// openaivideotask.DefaultUsageRecorded holds the default value on creation for the usage_recorded field.
 	openaivideotask.DefaultUsageRecorded = openaivideotaskDescUsageRecorded.Default.(bool)
 	// openaivideotaskDescCreatedAt is the schema descriptor for created_at field.
-	openaivideotaskDescCreatedAt := openaivideotaskFields[39].Descriptor()
+	openaivideotaskDescCreatedAt := openaivideotaskFields[40].Descriptor()
 	// openaivideotask.DefaultCreatedAt holds the default value on creation for the created_at field.
 	openaivideotask.DefaultCreatedAt = openaivideotaskDescCreatedAt.Default.(func() time.Time)
 	// openaivideotaskDescUpdatedAt is the schema descriptor for updated_at field.
-	openaivideotaskDescUpdatedAt := openaivideotaskFields[40].Descriptor()
+	openaivideotaskDescUpdatedAt := openaivideotaskFields[41].Descriptor()
 	// openaivideotask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	openaivideotask.DefaultUpdatedAt = openaivideotaskDescUpdatedAt.Default.(func() time.Time)
 	// openaivideotask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

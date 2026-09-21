@@ -543,6 +543,9 @@ watch(validationToastMessage, (value, previousValue) => {
 })
 
 function syncAffiliateReferralCode(): string {
+  const resellerCode = typeof route.query.reseller === 'string' ? route.query.reseller.trim() : ''
+  if (resellerCode) { formData.invitation_code = resellerCode; formData.aff_code = resolveAffiliateReferralCode(resellerCode); return resellerCode }
+
   const code = resolveAffiliateReferralCode(route.query.aff, route.query.aff_code)
   if (code) {
     formData.aff_code = code
@@ -604,7 +607,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [route.query.aff, route.query.aff_code],
+  () => [route.query.reseller, route.query.aff, route.query.aff_code],
   () => {
     syncAffiliateReferralCode()
   }

@@ -274,6 +274,16 @@ func UsageRecordedAt(v time.Time) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldUsageRecordedAt, v))
 }
 
+// ResellerSnapshotIsNil applies the IsNil predicate on the "reseller_snapshot" field.
+func ResellerSnapshotIsNil() predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldIsNull(FieldResellerSnapshot))
+}
+
+// ResellerSnapshotNotNil applies the NotNil predicate on the "reseller_snapshot" field.
+func ResellerSnapshotNotNil() predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldNotNull(FieldResellerSnapshot))
+}
+
 // ProviderConfigIsNil applies the IsNil predicate on the "provider_config" field.
 func ProviderConfigIsNil() predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldIsNull(FieldProviderConfig))

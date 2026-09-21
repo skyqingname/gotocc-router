@@ -148,6 +148,7 @@ func (s *ModelPlazaService) listGroupsFromChannelPricing(ctx context.Context) ([
 	order := make([]int64, 0, len(groups))
 	for i := range groups {
 		g := &groups[i]
+		ApplyCurrentResellerGroupPricing(ctx, g)
 		byGroup[g.ID] = &PlazaGroup{
 			ID:                        g.ID,
 			Name:                      g.Name,
@@ -271,6 +272,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 	out := make([]PlazaGroup, 0, len(groups))
 	for i := range groups {
 		group := &groups[i]
+		ApplyCurrentResellerGroupPricing(ctx, group)
 		if group.ActiveAccountCount <= 0 {
 			continue
 		}

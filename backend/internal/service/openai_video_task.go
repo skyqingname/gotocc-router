@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"strings"
 	"time"
@@ -34,6 +35,7 @@ var (
 )
 
 type OpenAIVideoTask struct {
+	ResellerSnapshot      *reseller.Snapshot `json:"-"`
 	ID                    int64
 	LocalRequestID        string
 	TaskID                *string
@@ -83,6 +85,7 @@ type OpenAIVideoTask struct {
 }
 
 type CreateOpenAIVideoTaskParams struct {
+	ResellerSnapshot      *reseller.Snapshot `json:"-"`
 	LocalRequestID        string
 	ActorUserID           int64
 	BillingUserID         int64
@@ -127,6 +130,8 @@ type OpenAIVideoTaskRepository interface {
 }
 
 type OpenAIVideoBalanceHoldCommand struct {
+	Model              string
+	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	TaskID             int64
 	LocalRequestID     string
 	APIKeyID           int64

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"math"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerpri
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
+	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	RequestID          string
 	APIKeyID           int64
 	RequestFingerprint string
@@ -187,6 +189,8 @@ type UsageBillingApplyResult struct {
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.
 type BatchImageBalanceHoldCommand struct {
+	Model              string
+	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	RequestID          string
 	APIKeyID           int64
 	RequestFingerprint string

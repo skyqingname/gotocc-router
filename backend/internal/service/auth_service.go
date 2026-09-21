@@ -71,6 +71,7 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
+	resellerService        *ResellerService
 	entClient              *dbent.Client
 	userRepo               UserRepository
 	redeemRepo             RedeemCodeRepository
@@ -108,6 +109,7 @@ type signupGrantPlan struct {
 }
 
 type registrationInvitation struct {
+	reseller  *ResellerProfile
 	affiliate *AffiliateSummary
 	redeem    *RedeemCode
 	reusable  *ReusableInvitationCode
@@ -174,6 +176,13 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 
 func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
 	invitationCode = strings.TrimSpace(invitationCode)
+	if IsResellerInvitation(invitationCode) {
+		profile, err := s.resellerService.Repo.Invitation(ctx, invitationCode)
+		if err != nil {
+			return nil, err
+		}
+		return &registrationInvitation{reseller: profile}, nil
+	}
 	if invitationCode == "" {
 		if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
 			return nil, missingErr
@@ -217,6 +226,16 @@ func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitat
 func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation *registrationInvitation, user *User, authSource string, failOpenOneTime bool) error {
 	if invitation == nil || user == nil {
 		return nil
+	}
+	if invitation.reseller != nil {
+		bound, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.reseller.UserID, invitation.reseller.InvitationCode)
+		if err != nil {
+			return err
+		}
+		if !bound {
+			return ErrInvitationCodeInvalid
+		}
+		return s.resellerService.BindRegistration(ctx, user.ID, invitation.reseller.UserID)
 	}
 	if invitation.affiliate != nil {
 		_, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.affiliate.UserID, invitation.affiliate.AffCode)
@@ -262,7 +281,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
-	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+	if strings.TrimSpace(invitationCode) == "" && (IsResellerInvitation(affiliateCode) || !s.settingService.IsInvitationCodeEnabled(ctx)) {
 		invitationCode = affiliateCode
 	}
 	registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
@@ -376,7 +395,7 @@ func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, 
 	if invitation.redeem != nil {
 		return s.createUserAndClaimInvitation(ctx, user, invitation.redeem)
 	}
-	if invitation.reusable == nil && invitation.affiliate == nil {
+	if invitation.reusable == nil && invitation.affiliate == nil && invitation.reseller == nil {
 		return ErrInvitationCodeInvalid
 	}
 	if s.entClient == nil {
@@ -826,7 +845,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, ErrRegDisabled
 			}
 
-			if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+			if strings.TrimSpace(invitationCode) == "" && (IsResellerInvitation(affiliateCode) || !s.settingService.IsInvitationCodeEnabled(ctx)) {
 				invitationCode = affiliateCode
 			}
 			registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrOAuthInvitationRequired)
