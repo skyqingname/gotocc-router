@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
+	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 )
@@ -395,7 +396,8 @@ func (s *RedeemService) redeemForPaymentFulfillment(ctx context.Context, userID 
 
 // RedeemForAdminFulfillment is restricted to trusted admin fulfillment.
 // Admin retries must not be blocked by, or contribute to, a user's public
-// redeem failure counter. Redemption itself never accrues affiliate commission.
+// redeem failure counter. Standalone balance codes accrue the same commission
+// as public redemption; the admin balance-adjustment switch does not apply.
 func (s *RedeemService) RedeemForAdminFulfillment(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
 	return s.redeem(ctx, userID, code, bypassRedeemRateLimit)
 }
@@ -466,6 +468,21 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	// 将事务放入 context，使 repository 方法能够使用同一事务
 	txCtx := dbent.NewTxContext(ctx, tx)
 
+	standaloneBalance := false
+	if redeemCode.Type == RedeemTypeBalance && redeemCode.Value > 0 {
+		// Take the same relationship lock as admin recharge before changing
+		// balance rows, so reassignment and redemption use one consistent chain.
+		if err := s.affiliateService.LockInviterBindings(txCtx); err != nil {
+			return nil, fmt.Errorf("lock redeem attribution: %w", err)
+		}
+		paymentBacked, err := tx.Client().PaymentOrder.Query().
+			Where(paymentorder.RechargeCodeEQ(redeemCode.Code)).Exist(txCtx)
+		if err != nil {
+			return nil, fmt.Errorf("resolve redeem payment source: %w", err)
+		}
+		standaloneBalance = !paymentBacked
+	}
+
 	if redeemCode.Type == RedeemTypeBalance {
 		if err := s.affiliateService.CapturePaymentInvitersForRedeem(txCtx, redeemCode.Code, userID); err != nil {
 			return nil, fmt.Errorf("capture payment attribution: %w", err)
@@ -493,6 +510,11 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 			}
 		} else if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
+		}
+		if standaloneBalance {
+			if _, err := s.affiliateService.AccrueInviteRebateForRedeem(txCtx, userID, amount); err != nil {
+				return nil, fmt.Errorf("accrue redeem affiliate rebate: %w", err)
+			}
 		}
 
 	case RedeemTypeConcurrency:

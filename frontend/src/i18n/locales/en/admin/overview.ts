@@ -449,7 +449,7 @@ export default {
         loadFailed: 'Failed to load affiliate records'
       },
       records: {
-        sources: { admin_recharge: 'Admin deposit', legacy: 'Legacy commission', payment: 'Online recharge' },
+        sources: { admin_recharge: 'Admin deposit', redeem_code: 'Redeem code recharge', legacy: 'Legacy commission', payment: 'Online recharge' },
         rebateLevel: "Generation",
         rebateRate: "Commission rate",
         rebateBase: "Commission principal (USD)",
