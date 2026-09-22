@@ -267,7 +267,9 @@ egress location. Plus can rewrite that pair at the outbound build stage:
   bound proxy's `egress_timezone` annotation (admin-maintained in the proxy
   management UI, so the visible time follows the actual egress location and
   automatically tracks proxy rebinding / failover), then the global
-  `openai_codex_environment_timezone` setting, then off. Misconfigured values
+  `openai_codex_environment_timezone` setting, then off. A never-saved global
+  key resolves to `America/Los_Angeles`; an explicitly saved empty value
+  disables that global rewrite. Misconfigured values
   degrade to the next source and never block traffic. Only Codex-protocol
   OpenAI accounts participate.
 - The pair is always written together and never contradicts itself: both tags
