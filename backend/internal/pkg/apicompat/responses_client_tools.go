@@ -739,10 +739,19 @@ func (r *ResponsesClientToolStreamRestorer) clientToolEventPayload(payload []byt
 	if _, namespaceTool := r.adapter.NamespaceTools[raw.Name]; namespaceTool {
 		return true
 	}
-	if r.calls[raw.ItemID] != nil || r.calls[raw.CallID] != nil || r.byOutput[raw.OutputIndex] != nil {
+	if raw.ItemID != "" && r.calls[raw.ItemID] != nil {
 		return true
 	}
-	return false
+	if raw.CallID != "" && r.calls[raw.CallID] != nil {
+		return true
+	}
+	// output_index is an int, so an omitted field decodes as 0. A foreign
+	// event that names its own call must not be captured just because a
+	// client tool happens to occupy that zero index.
+	if raw.ItemID != "" || raw.CallID != "" {
+		return false
+	}
+	return r.byOutput[raw.OutputIndex] != nil
 }
 
 func clientToolLifecycleEvent(typ string) bool {
@@ -827,18 +836,39 @@ func (r *ResponsesClientToolStreamRestorer) recordItem(event ResponsesStreamEven
 }
 
 func (r *ResponsesClientToolStreamRestorer) callFor(event ResponsesStreamEvent) *responsesClientToolStreamCall {
-	if call := r.calls[event.ItemID]; call != nil {
-		return call
+	if event.ItemID != "" {
+		if call := r.calls[event.ItemID]; call != nil {
+			return call
+		}
+	}
+	if event.CallID != "" {
+		if call := r.calls[event.CallID]; call != nil {
+			return call
+		}
+	}
+	// An explicit id that does not belong to a tracked client tool identifies
+	// some other call. Falling through to output_index would steal it: the
+	// field is omitempty, so a missing index is indistinguishable from 0.
+	if event.ItemID != "" || event.CallID != "" {
+		return nil
 	}
 	if call := r.byOutput[event.OutputIndex]; call != nil {
 		return call
 	}
-	for _, call := range r.calls {
-		if (event.CallID != "" && call.callID == event.CallID) || (event.ItemID == "" && event.Name != "" && call.name == event.Name) {
-			return call
-		}
+	if event.Name == "" {
+		return nil
 	}
-	return nil
+	var matched *responsesClientToolStreamCall
+	for _, call := range r.calls {
+		if call.name != event.Name {
+			continue
+		}
+		if matched != nil && matched != call {
+			return nil
+		}
+		matched = call
+	}
+	return matched
 }
 
 func (r *ResponsesClientToolStreamRestorer) restoreNamespaceEvent(event ResponsesStreamEvent) ResponsesStreamEvent {

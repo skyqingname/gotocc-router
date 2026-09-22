@@ -675,6 +675,28 @@ func TestResponsesClientToolStreamRestorer_RestoresNamespaceLifecycle(t *testing
 	require.Equal(t, "open", gjson.GetBytes(done[0], "name").String())
 }
 
+func TestResponsesClientToolStreamRestorer_DoesNotStealParallelToolArguments(t *testing.T) {
+	restorer := NewResponsesClientToolStreamRestorer(ResponsesClientToolMapping{CustomTools: map[string]bool{"exec": true}})
+	restorer.Restore(ResponsesStreamEvent{Type: "response.output_item.added", SequenceNumber: 1, OutputIndex: 0, Item: &ResponsesOutput{Type: "function_call", ID: "i_a", CallID: "call_a", Name: "exec", Status: "in_progress"}})
+	restorer.Restore(ResponsesStreamEvent{Type: "response.output_item.added", SequenceNumber: 2, OutputIndex: 1, Item: &ResponsesOutput{Type: "function_call", ID: "i_b", CallID: "call_b", Name: "exec", Status: "in_progress"}})
+
+	// Compatible upstreams often omit output_index. The zero value must not
+	// attach this delta to the custom tool that happens to occupy index 0.
+	require.Empty(t, restorer.Restore(ResponsesStreamEvent{Type: "response.function_call_arguments.delta", SequenceNumber: 3, CallID: "call_b", Name: "exec", Delta: `{"input":"from-b"}`}))
+	done := restorer.Restore(ResponsesStreamEvent{Type: "response.function_call_arguments.done", SequenceNumber: 4, CallID: "call_b", Name: "exec"})
+	require.Len(t, done, 2)
+	require.Equal(t, "call_b", done[1].CallID)
+	require.Equal(t, "from-b", done[1].Input)
+
+	foreign, changed, err := restorer.RestoreEvent([]byte(`{"type":"response.function_call_arguments.delta","sequence_number":5,"call_id":"call_other","name":"shell","delta":"{\"cmd\":\"ls\"}","upstream_extension":{"keep":true}}`))
+	require.NoError(t, err)
+	require.False(t, changed)
+	require.Len(t, foreign, 1)
+	require.Contains(t, string(foreign[0]), `"call_id":"call_other"`)
+	require.Contains(t, string(foreign[0]), `"upstream_extension":{"keep":true}`)
+	require.NotContains(t, string(foreign[0]), `"call_a"`)
+}
+
 func TestResponsesClientToolStreamRestorer_RawEventsPreserveUnknownFieldsAndOutputFallback(t *testing.T) {
 	restorer := NewResponsesClientToolStreamRestorer(ResponsesClientToolMapping{CustomTools: map[string]bool{"exec": true}})
 	passthrough, changed, err := restorer.RestoreEvent([]byte(`{"type":"response.created","sequence_number":4,"response":{"id":"r"},"upstream_extension":{"keep":true}}`))
