@@ -163,9 +163,12 @@ export default {
 
   // Navigation
   nav: {
+    reseller: '站长中心',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
+    team: '我的团队',
+    teams: '团队管理',
     batchImage: '批量生图',
     asyncImage: '异步生图',
     usage: '使用记录',
@@ -188,6 +191,7 @@ export default {
     redeemCodes: '兑换码',
     ops: '运维监控',
     promoCodes: '优惠码',
+    reusableInvitationCodes: '永久邀请码',
     settings: '系统设置',
     myAccount: '我的账户',
     lightMode: '浅色模式',

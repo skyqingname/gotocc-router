@@ -101,6 +101,10 @@ type paymentFulfillmentAffiliateRepoStub struct {
 	accrueCalls    []paymentFulfillmentAffiliateAccrueCall
 }
 
+func (*paymentFulfillmentAffiliateRepoStub) IsReusableInvitationCodeOwner(context.Context, int64) (bool, error) {
+	panic("unexpected IsReusableInvitationCodeOwner call")
+}
+
 func (r *paymentFulfillmentAffiliateRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*AffiliateSummary, error) {
 	switch {
 	case r.inviteeSummary != nil && r.inviteeSummary.UserID == userID:
@@ -118,11 +122,11 @@ func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateByCode(context.Context
 	panic("unexpected GetAffiliateByCode call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64) (bool, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64, ...string) (bool, error) {
 	panic("unexpected BindInviter call")
 }
 
-func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
+func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64, snapshot ...AffiliateRebateSnapshot) (bool, error) {
 	var sourceCopy *int64
 	if sourceOrderID != nil {
 		v := *sourceOrderID
@@ -1289,3 +1293,35 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 
 var _ AffiliateRepository = (*paymentFulfillmentAffiliateRepoStub)(nil)
 var _ SettingRepository = (*paymentFulfillmentSettingRepoStub)(nil)
+
+func (*paymentFulfillmentAffiliateRepoStub) GetInviter(context.Context, int64) (*AffiliateInviterState, error) {
+	panic("unexpected GetInviter call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) ResolveInviterCode(context.Context, string, string) (*AffiliateInviterUser, error) {
+	panic("unexpected ResolveInviterCode call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) ChangeInviter(context.Context, int64, *AffiliateInviterChange) error {
+	panic("unexpected ChangeInviter call")
+}
+func (*paymentFulfillmentAffiliateRepoStub) LockInviterBindings(context.Context) error { return nil }
+func (r *paymentFulfillmentAffiliateRepoStub) GetInviterChain(ctx context.Context, userID int64, generations int) ([]int64, error) {
+	ids := []int64{}
+	for len(ids) < generations {
+		current, err := r.EnsureUserAffiliate(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if current.InviterID == nil {
+			break
+		}
+		userID = *current.InviterID
+		ids = append(ids, userID)
+	}
+	return ids, nil
+}
+func (*paymentFulfillmentAffiliateRepoStub) CapturePaymentInvitersForRedeem(context.Context, string, int64, int) error {
+	return nil
+}
+func (r *paymentFulfillmentAffiliateRepoStub) GetPaymentInviters(ctx context.Context, _ int64) ([]int64, error) {
+	return r.GetInviterChain(ctx, r.inviteeSummary.UserID, AffiliateRebateGenerations)
+}

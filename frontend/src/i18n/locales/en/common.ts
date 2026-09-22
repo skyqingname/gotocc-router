@@ -163,9 +163,12 @@ export default {
 
   // Navigation
   nav: {
+    reseller: 'Reseller Center',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
+    team: 'My Team',
+    teams: 'Teams',
     batchImage: 'Batch Images',
     asyncImage: 'Async Images',
     usage: 'Usage',
@@ -188,6 +191,7 @@ export default {
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
+    reusableInvitationCodes: 'Permanent Invites',
     settings: 'Settings',
     myAccount: 'My Account',
     lightMode: 'Light Mode',

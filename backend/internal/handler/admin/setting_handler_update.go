@@ -174,6 +174,8 @@ type UpdateSettingsRequest struct {
 	DefaultConcurrency                        int                               `json:"default_concurrency"`
 	DefaultBalance                            float64                           `json:"default_balance"`
 	AffiliateRebateRate                       *float64                          `json:"affiliate_rebate_rate"`
+	AffiliateRebateRateL2                     *float64                          `json:"affiliate_rebate_rate_l2"`
+	AffiliateRebateRateL3                     *float64                          `json:"affiliate_rebate_rate_l3"`
 	AffiliateRebateFreezeHours                *int                              `json:"affiliate_rebate_freeze_hours"`
 	AffiliateRebateDurationDays               *int                              `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap              *float64                          `json:"affiliate_rebate_per_invitee_cap"`
@@ -593,6 +595,26 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if affiliateRebateRate > service.AffiliateRebateRateMax {
 		affiliateRebateRate = service.AffiliateRebateRateMax
+	}
+	affiliateRebateRateL2 := previousSettings.AffiliateRebateRateL2
+	if req.AffiliateRebateRateL2 != nil {
+		affiliateRebateRateL2 = *req.AffiliateRebateRateL2
+	}
+	if affiliateRebateRateL2 < service.AffiliateRebateRateMin {
+		affiliateRebateRateL2 = service.AffiliateRebateRateMin
+	}
+	if affiliateRebateRateL2 > service.AffiliateRebateRateMax {
+		affiliateRebateRateL2 = service.AffiliateRebateRateMax
+	}
+	affiliateRebateRateL3 := previousSettings.AffiliateRebateRateL3
+	if req.AffiliateRebateRateL3 != nil {
+		affiliateRebateRateL3 = *req.AffiliateRebateRateL3
+	}
+	if affiliateRebateRateL3 < service.AffiliateRebateRateMin {
+		affiliateRebateRateL3 = service.AffiliateRebateRateMin
+	}
+	if affiliateRebateRateL3 > service.AffiliateRebateRateMax {
+		affiliateRebateRateL3 = service.AffiliateRebateRateMax
 	}
 	affiliateRebateFreezeHours := previousSettings.AffiliateRebateFreezeHours
 	if req.AffiliateRebateFreezeHours != nil {
@@ -1725,6 +1747,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
 		AffiliateRebateRate:                    affiliateRebateRate,
+		AffiliateRebateRateL2:                  affiliateRebateRateL2,
+		AffiliateRebateRateL3:                  affiliateRebateRateL3,
 		AffiliateRebateFreezeHours:             affiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:           affiliateRebatePerInviteeCap,
@@ -2406,6 +2430,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultConcurrency:                                     updatedSettings.DefaultConcurrency,
 		DefaultBalance:                                         updatedSettings.DefaultBalance,
 		AffiliateRebateRate:                                    updatedSettings.AffiliateRebateRate,
+		AffiliateRebateRateL2:                                  updatedSettings.AffiliateRebateRateL2,
+		AffiliateRebateRateL3:                                  updatedSettings.AffiliateRebateRateL3,
 		AffiliateRebateFreezeHours:                             updatedSettings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:                            updatedSettings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           updatedSettings.AffiliateRebatePerInviteeCap,

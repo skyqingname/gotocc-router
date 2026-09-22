@@ -836,6 +836,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		wsPrevResponseRecoveryTried := false
 		wsInvalidEncryptedContentRecoveryTried := false
 		recoverPrevResponseNotFound := func(attempt int) bool {
+			if IsAutoRoutingRequest(ctx) {
+				return false
+			}
 			if wsPrevResponseRecoveryTried {
 				return false
 			}
@@ -868,6 +871,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return true
 		}
 		recoverInvalidEncryptedContent := func(attempt int) bool {
+			if IsAutoRoutingRequest(ctx) {
+				return false
+			}
 			if wsInvalidEncryptedContentRecoveryTried {
 				return false
 			}

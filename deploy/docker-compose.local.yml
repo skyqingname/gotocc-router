@@ -24,7 +24,7 @@ services:
   # Sub2API Plus Application
   # ===========================================================================
   sub2api:
-    image: ghcr.io/luckykuang/sub2api-plus:latest
+    image: ghcr.io/skyqingname/sub2api-plus:latest
     container_name: sub2api
     restart: unless-stopped
     security_opt:

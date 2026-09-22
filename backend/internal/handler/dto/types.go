@@ -3,6 +3,8 @@ package dto
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -54,21 +56,25 @@ type AdminUser struct {
 }
 
 type APIKey struct {
-	ID          int64      `json:"id"`
-	UserID      int64      `json:"user_id"`
-	Key         string     `json:"key"`
-	Name        string     `json:"name"`
-	GroupID     *int64     `json:"group_id"`
-	Status      string     `json:"status"`
-	IPWhitelist []string   `json:"ip_whitelist"`
-	IPBlacklist []string   `json:"ip_blacklist"`
-	LastUsedAt  *time.Time `json:"last_used_at"`
-	LastUsedIP  *string    `json:"last_used_ip"`
-	Quota       float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed   float64    `json:"quota_used"` // Used quota amount in USD
-	ExpiresAt   *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                int64      `json:"id"`
+	UserID            int64      `json:"user_id"`
+	TeamID            *int64     `json:"team_id,omitempty"`
+	Scope             string     `json:"scope"`
+	TeamOwnerDisabled bool       `json:"team_owner_disabled"`
+	Key               string     `json:"key"`
+	Name              string     `json:"name"`
+	GroupID           *int64     `json:"group_id"`
+	RoutingMode       string     `json:"routing_mode"`
+	Status            string     `json:"status"`
+	IPWhitelist       []string   `json:"ip_whitelist"`
+	IPBlacklist       []string   `json:"ip_blacklist"`
+	LastUsedAt        *time.Time `json:"last_used_at"`
+	LastUsedIP        *string    `json:"last_used_ip"`
+	Quota             float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
+	QuotaUsed         float64    `json:"quota_used"` // Used quota amount in USD
+	ExpiresAt         *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 	// CurrentConcurrency is the real-time active request count for this API key.
 	CurrentConcurrency int `json:"current_concurrency"`
 
@@ -116,16 +122,17 @@ type Group struct {
 	VideoRateIndependent         bool    `json:"video_rate_independent"`
 	VideoRateMultiplier          float64 `json:"video_rate_multiplier"`
 	// 高峰时段倍率配置
-	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
-	PeakStart          string   `json:"peak_start"`
-	PeakEnd            string   `json:"peak_end"`
-	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
-	ImagePrice1K       *float64 `json:"image_price_1k"`
-	ImagePrice2K       *float64 `json:"image_price_2k"`
-	ImagePrice4K       *float64 `json:"image_price_4k"`
-	VideoPrice480P     *float64 `json:"video_price_480p"`
-	VideoPrice720P     *float64 `json:"video_price_720p"`
-	VideoPrice1080P    *float64 `json:"video_price_1080p"`
+	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
+	PeakStart          string              `json:"peak_start"`
+	PeakEnd            string              `json:"peak_end"`
+	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
+	RateSchedule       rateschedule.Config `json:"rate_schedule"`
+	ImagePrice1K       *float64            `json:"image_price_1k"`
+	ImagePrice2K       *float64            `json:"image_price_2k"`
+	ImagePrice4K       *float64            `json:"image_price_4k"`
+	VideoPrice480P     *float64            `json:"video_price_480p"`
+	VideoPrice720P     *float64            `json:"video_price_720p"`
+	VideoPrice1080P    *float64            `json:"video_price_1080p"`
 	// VideoModelPrices 可选按模型族×分辨率覆盖视频每秒单价 (USD/s)。
 	VideoModelPrices map[string]map[string]float64 `json:"video_model_prices,omitempty"`
 	// Codex alpha/search 网页搜索单次价格（USD/次）；null 表示使用默认价 0.01
@@ -166,6 +173,7 @@ type Group struct {
 // AdminGroup 是管理员接口使用的 group DTO（包含敏感/内部字段）。
 // 注意：普通用户接口不得返回 model_routing/account_count/account_groups 等内部信息。
 type AdminGroup struct {
+	VideoModels videoprotocol.Models `json:"video_models"`
 	Group
 	QuotaResetSourceAccountID   *int64     `json:"quota_reset_source_account_id"`
 	QuotaResetSourceAccountName string     `json:"quota_reset_source_account_name"`
@@ -560,6 +568,25 @@ func (f *NullableTimeField) UnmarshalJSON(data []byte) error {
 type NullableInt64Field struct {
 	Set   bool
 	Value *int64
+}
+
+type NullableStringField struct {
+	Set   bool
+	Value *string
+}
+
+func (f *NullableStringField) UnmarshalJSON(data []byte) error {
+	f.Set = true
+	if bytes.Equal(data, []byte("null")) {
+		f.Value = nil
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	f.Value = &value
+	return nil
 }
 
 func (f *NullableInt64Field) UnmarshalJSON(data []byte) error {

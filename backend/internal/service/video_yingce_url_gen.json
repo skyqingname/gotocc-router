@@ -1,0 +1,12 @@
+{
+  "default_prefix": "/v1",
+  "prefixes": [
+    "/api/plan/v3",
+    "/api/v3",
+    "/api/v1",
+    "/v1beta",
+    "/v1",
+    "/v2",
+    "/v3"
+  ]
+}

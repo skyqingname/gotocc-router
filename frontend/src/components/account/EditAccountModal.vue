@@ -36,7 +36,9 @@
             type="text"
             class="input"
             :placeholder="
-              account.platform === 'openai'
+              account.platform === 'video'
+                ? t('admin.accounts.videoBaseUrlPlaceholder')
+                : account.platform === 'openai'
                 ? 'https://api.openai.com'
                 : account.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
@@ -229,6 +231,7 @@
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
+        <div v-if="account.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="editVideoSecretKey" type="password" autocomplete="new-password" class="input font-mono" :placeholder="account?.credentials_status?.has_secret_key ? '已配置；留空保持不变' : '签名协议所需的 Secret Key'" /></div>
 
         <!-- Model Restriction Section (不适用于 Antigravity) -->
         <div v-if="account.platform !== 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
@@ -2861,6 +2864,7 @@ const handleOllamaCloudUsageUpdated = (state: OllamaCloudUsageState) => {
 // Platform-specific hint for Base URL
 const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
+  if (props.account.platform === 'video') return t('admin.accounts.videoBaseUrlHint')
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (props.account.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (props.account.platform === 'grok') return ''
@@ -2886,6 +2890,7 @@ interface TempUnschedRuleForm {
 // State
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
+const editVideoSecretKey = ref('')
 const editApiKey = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）account_mode / api_protocol 编辑 ──
@@ -3527,6 +3532,7 @@ const tempUnschedPresets = computed(() => [
 
 // Computed: default base URL based on platform
 const defaultBaseUrl = computed(() => {
+  if (props.account?.platform === 'video') return ''
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
@@ -4081,6 +4087,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     customErrorCodesEnabled.value = false
     selectedErrorCodes.value = []
   }
+  editVideoSecretKey.value = ''
   editApiKey.value = ''
 }
 
@@ -4680,6 +4687,10 @@ const handleSubmit = async () => {
 		}
 	}
 
+  if (props.account?.platform === 'video' && !editBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.videoBaseUrlRequired'))
+    return
+  }
   const updatePayload: Record<string, unknown> = { ...form }
   try {
     // 后端期望 proxy_id: 0 表示清除代理，而不是 null
@@ -4747,6 +4758,7 @@ const handleSubmit = async () => {
       // 两者都无才报错。
       const hasExistingApiKey =
         props.account.credentials_status?.has_api_key ?? Boolean(currentCredentials.api_key)
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       } else if (!hasExistingApiKey) {
@@ -4826,6 +4838,7 @@ const handleSubmit = async () => {
 
       newCredentials.base_url = editBaseUrl.value.trim()
 
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       }

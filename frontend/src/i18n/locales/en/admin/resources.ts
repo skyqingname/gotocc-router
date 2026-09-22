@@ -1,4 +1,10 @@
 export default {
+    smartRoutingPolicy: {
+      title: 'Smart Routing Priority', defaultOrder: 'Default Group Order', modelRules: 'Model Overrides',
+      model: 'Model or Prefix', modelPlaceholder: 'gpt-5 or gpt-*', selectGroup: 'Select group',
+      moveUp: 'Move group up', moveDown: 'Move group down', addRule: 'Add Model Rule', removeRule: 'Remove model rule',
+      loadFailed: 'Failed to load routing priorities.', saveFailed: 'Save failed. Check model patterns and duplicate groups.', saved: 'Routing priorities saved.',
+    },
     scheduledTests: {
       title: 'Scheduled Tests',
       addPlan: 'Add Plan',
@@ -570,6 +576,52 @@ export default {
       failedToLoadUsages: 'Failed to load usage records'
     },
 
+    reusableInvitationCodes: {
+      ownerLabel: "Commission owner user ID",
+      ownerHint: "Find the ID in user management. Leave empty for registration only. An assigned code shares the owner’s AFF referral relationship.",
+      noOwner: "No owner assigned",
+      bindOwner: "Assign commission owner",
+      backfillHint: "Links historical signups without an inviter. Existing relationships remain unchanged and past payments earn no additional commission. Changing the code owner does not replace existing inviter relationships.",
+      ownerBound: "Owner assigned: {bound} linked, {skipped} unchanged or skipped.",
+      title: 'Permanent Invitation Codes',
+      description: 'Manage reusable registration invitation codes',
+      create: 'Create permanent invite',
+      createTitle: 'Create permanent invitation code',
+      createSuccess: 'Permanent invitation code created',
+      createFailed: 'Failed to create permanent invitation code',
+      loadFailed: 'Failed to load permanent invitation codes',
+      disable: 'Disable',
+      disableTitle: 'Disable permanent invitation code',
+      disableConfirm: 'Disable this permanent invitation code? New users will no longer be able to register with it.',
+      disableSuccess: 'Permanent invitation code disabled',
+      disableFailed: 'Failed to disable permanent invitation code',
+      uses: 'Usage records',
+      usesTitle: 'Usage records',
+      usesLoadFailed: 'Failed to load usage records',
+      noUses: 'No usage records yet',
+      unlimited: 'Unlimited',
+      neverExpires: 'Never expires',
+      maxUsesHint: '0 means unlimited uses.',
+      expiresHint: 'Leave blank to never expire.',
+      columns: {
+        code: 'Invitation Code',
+        status: 'Status',
+        maxUses: 'Max Uses',
+        usedCount: 'Used',
+        expiresAt: 'Expires At',
+        notes: 'Notes',
+        createdAt: 'Created At',
+        actions: 'Actions'
+      },
+      status: { active: 'Active', disabled: 'Disabled' },
+      useColumns: {
+        userId: 'User ID',
+        email: 'Email',
+        source: 'Signup Source',
+        usedAt: 'Used At'
+      }
+    },
+
     // Usage Records
     usage: {
       title: 'Usage Records',
@@ -608,7 +660,7 @@ export default {
       billingModeToken: 'Token',
       billingModePerRequest: 'Per Request',
       billingModeImage: 'Image',
-      billingModeVideo: 'Video',
+      billingModeVideo: 'Per Second (Video)',
       allBillingModes: 'All Billing Modes',
 	  upstreamModelAudit: 'Upstream model audit',
 	  allUpstreamModelAudit: 'All response model states',

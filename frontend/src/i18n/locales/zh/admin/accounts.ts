@@ -1,5 +1,10 @@
 export default {
     accounts: {
+      videoAccountHint: '填写视频供应商地址和 API Key，绑定 Video 分组。各模型的协议、参数和价格在渠道管理中配置。',
+      videoBaseUrlHint: '使用视频供应商的 API 站点地址；具体请求路径由渠道中的模型协议配置。',
+      videoBaseUrlRequired: '请填写视频供应商地址',
+      videoBaseUrlPlaceholder: '视频供应商的 API 地址',
+
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',
       createAccount: '添加账号',

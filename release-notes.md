@@ -1,30 +1,37 @@
-Sub2API Plus v0.2.7+custom.001
+# GoToCC 0.2.7+custom.002
 
-## Highlights
+上游基线：Plus `v0.2.7+custom.001`，commit `7b2d38cc501b0e73302c2609ee79f39f75d3c5e8`；官方 Sub2API `v0.2.7`，commit `aea725f2ea644d5592d0bbb1d63b607efa7e200a`。在该完整基线上保留 GoToCC `0.2.5+custom.003` 定制，并整合 PR #12 的并行工具调用修复及审核补正。
 
-First Plus release on official `v0.2.7`. It keeps Plus identity, ingress audit, session/quota accounting, and retired billing probes, while importing the official Seedance native video task API, generic plugin host services, redeem history pagination, DeepSeek reasoning and tool-output fixes, Antigravity Gemini thinking-variant and SSE keepalive handling, CN coding-plan quota pause, and the group usage rollup that no longer full-scans `usage_logs`. Plus adds egress metadata validation and outbound identity gap fixes on top of the v0.2.5 baseline.
+## 并行工具调用修复
 
-## Changed
+- Responses 工具参数事件优先按 item/call ID 定位调用，不再让缺省的 `output_index=0` 抢先命中上一调用。
+- 显式但未知的调用 ID 不回落到另一调用；仅名称可用时，只在该名称对应唯一逻辑调用时匹配。
+- 同一逻辑调用同时登记 item ID 与 call ID 时，按调用对象去重，避免把两个别名误判为两个同名调用。
+- 修复范围为客户端工具事件恢复与路由，不修改账户选择、认证、审计或计费规则；不宣称解决所有上游工具执行失败。
 
-- Official v0.2.7 Seedance Ark native video task API with dedicated routes and service.
-- Generic plugin host services with a read-only status bridge channel; plugin `status_json` test results surface to the config UI.
-- User redemption history is paginated with stable ordering and per-user isolation.
-- DeepSeek chat fallback passes thinking-mode `reasoning_content`; Responses tool output images are lifted and parallel tool outputs stay contiguous.
-- Antigravity Gemini native requests resolve bare model names to `-low`/`-medium`/`-high` thinking variants, suppress SSE comment heartbeats for go-genai/python-genai clients, and strip Claude attribution metadata from system prompts.
-- CN coding-plan accounts pause on quota-exhausted `403`; group usage rollups stop full-scanning `usage_logs`.
-- OpenAI gateway persists response affinity after client cancel, normalizes developer roles for strict Chat upstreams, and keeps manifest key validation without duplicate parsing.
-- OAuth tokens keep refreshing for paused accounts.
-- Plus egress metadata (timezone/country) is validated and preserved across account, proxy, and global setting levels; outbound identity validation gaps are closed.
+## 上游更新
 
-## Compatibility and migration
+- Seedance Ark 原生视频任务 API、通用插件宿主服务与只读状态桥接。
+- 用户兑换历史分页及稳定排序；保留 GoToCC 兑换入账与返佣同事务、支付订单不重复返佣规则。
+- DeepSeek thinking-mode `reasoning_content`、Responses 工具输出图片及并行工具输出顺序修复。
+- Antigravity Gemini thinking 变体解析、特定 SDK 的 SSE 心跳兼容及 Claude attribution 元数据处理。
+- CN coding-plan 配额耗尽暂停、暂停账户 OAuth 刷新与分组用量汇总优化。
+- 客户端断开后仍保存响应亲和关系，同时保留 GoToCC 智能 Key 亲和绑定。
+- Plus 出口时区/国家元数据校验及出口身份一致性修复。
 
-No new SQL migrations ship in this import. Back up the database before upgrade. Rollback image is `v0.2.5+custom.001`.
+## 保留的 GoToCC 功能
 
-## Known issues
+- 永久邀请码、团队归因、一键接入、智能 Key、Model Plaza、GotoCC 品牌及异步图片永久对象。
+- 多时段倍率、兑换码三代返佣、邀请关系换绑、受邀站长中心和消费差价记录。
+- Video 分组协议与参数、独立 Video 账号、稳定本地任务 ID、历史任务查询、终态结算及失败释放。
+- 原始提示词审核、下游断开归因、自有 Release 更新源；TokenFlux 旧广场不恢复。
 
-None.
+## 升级与回滚
 
-## Upstream baseline
+相对 GoToCC `0.2.5+custom.003`，本次不新增或改写 SQL migration，不新增 GoToCC 配置项或历史资金回填。历史迁移集合保留到 278；运行时定价资源和更新通道配置随同二进制交付。
 
-Official release: v0.2.7
-Official commit: aea725f2ea644d5592d0bbb1d63b607efa7e200a
+从更早版本升级仍须执行尚未应用的历史迁移。272–278 涉及 OpenCode 平台约束、清理全 NULL 的历史配额行、代理时区/国家元数据、多时段配置、视频协议快照、站长账务与分组 video_models；可能产生短时 DDL 锁、扫描、JSON 回填及 WAL 增量，沿现有网页更新流程备份并预留空间。
+
+上一自有发行 `v0.2.5+custom.003` 及本地包保留用于比较和回退评估；不能使用上游 Plus 包代替自有回滚包。回退会失去本次并行工具调用修复。发生 forward migration 或新业务写入后，先确认旧程序的数据兼容性，不将只换旧二进制或覆盖旧 dump 描述为恢复方案。
+
+发行包含 Linux/amd64 压缩包、更新器要求的 checksums.txt、定价 JSON 与定价清单。用户验收本地同一包后再发布，由用户在自有版本面板更新并按提示重启；GitHub 发布不代表生产已部署。未逐厂商发起付费图片或视频探针，未覆盖全部线上自然业务组合。

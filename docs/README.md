@@ -12,15 +12,21 @@ below for detailed configuration and maintenance instructions.
 - [Kimi / Moonshot](providers/KIMI.md)
 - [MiniMax coding-plan quota origins](providers/MINIMAX.md)
 
+- [Video platform and channel model parameters](VIDEO_PLATFORM.md)
+
 ## Protocols and Tasks
 
 - [OpenAI Responses and WebSocket ingress](protocols/OPENAI_RESPONSES.md)
 - [Codex client profile restrictions](protocols/CODEX_CLIENT_PROFILES.md)
 - [Asynchronous image tasks](ASYNC_IMAGE_TASKS.md)
 
+- [Group recurring rate schedules](GROUP_RATE_SCHEDULES.md)
+- [TypeSafe Jev prompt audit](TYPESAFE_PROMPT_AUDIT.md)
+
 ## Deployment and Operations
 
 - [Outbound client identity and account inheritance](OUTBOUND_IDENTITY.md)
+- [GotoCC production migration boundary](GOTOCC_PLUS_MIGRATION.md)
 - [Deployment guide](../deploy/README.md)
 - [Docker](../deploy/DOCKER.md)
 - [Apple container](../deploy/APPLE_CONTAINER.md)
@@ -41,6 +47,7 @@ below for detailed configuration and maintenance instructions.
 
 ## Additional References
 
+- [Invitation relationships and three-generation commission](AFFILIATE.md)
 - [Payment integration](PAYMENT.md)
 - [Payment integration — Chinese](PAYMENT_CN.md)
 - [Admin payment integration API](ADMIN_PAYMENT_INTEGRATION_API.md)

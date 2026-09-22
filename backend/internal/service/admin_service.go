@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"net/http"
 	"time"
 
@@ -65,6 +67,7 @@ type AdminService interface {
 
 	// API Key management (admin)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
+	AdminUpdateAPIKeyRouting(ctx context.Context, keyID int64, input APIKeyRoutingUpdate) (*AdminUpdateAPIKeyGroupIDResult, error)
 	AdminResetAPIKeyRateLimitUsage(ctx context.Context, keyID int64) (*APIKey, error)
 
 	// ReplaceUserGroup 替换用户的专属分组：授予新分组权限、迁移 Key、移除旧分组权限
@@ -173,6 +176,7 @@ type CreateUserInput struct {
 }
 
 type UpdateUserInput struct {
+	InviterChange *AffiliateInviterChange
 	Email         string
 	Password      string
 	Username      *string
@@ -259,6 +263,7 @@ type CreateGroupInput struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64
@@ -267,6 +272,7 @@ type CreateGroupInput struct {
 	VideoPrice1080P    *float64
 	// VideoModelPrices 可选按模型族×分辨率覆盖视频每秒单价。
 	VideoModelPrices map[string]map[string]float64
+	VideoModels      videoprotocol.Models
 	// Codex alpha/search 网页搜索单次价格（USD/次，仅 openai 平台使用）；nil/负数按默认价 0.01 处理
 	WebSearchPricePerCall *float64
 	// 搜索工具单价 per 1k
@@ -344,6 +350,7 @@ type UpdateGroupInput struct {
 	PeakStart          *string
 	PeakEnd            *string
 	PeakRateMultiplier *float64
+	RateSchedule       *rateschedule.Config
 	ImagePrice1K       *float64
 	ImagePrice2K       *float64
 	ImagePrice4K       *float64
@@ -352,6 +359,7 @@ type UpdateGroupInput struct {
 	VideoPrice1080P    *float64
 	// VideoModelPrices 可选按模型族×分辨率覆盖；nil 表示不修改，空 map 表示清除。
 	VideoModelPrices map[string]map[string]float64
+	VideoModels      videoprotocol.Models
 	// Codex alpha/search 网页搜索单次价格（USD/次）；nil 表示不修改，负数表示清除回默认价 0.01
 	WebSearchPricePerCall *float64
 	// 搜索工具单价；nil 不修改，负数清除
@@ -724,6 +732,8 @@ type ChannelCacheInvalidator interface {
 }
 
 type adminRechargeAffiliateAccruer interface {
+	ChangeInviter(context.Context, int64, *AffiliateInviterChange) error
+	LockInviterBindings(context.Context) error
 	AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error)
 }
 

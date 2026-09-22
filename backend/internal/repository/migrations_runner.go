@@ -158,6 +158,13 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
 
+	// GotoCC production and Plus published byte-identical migrations under
+	// different filenames. Resolve that closed lineage before Atlas alignment or
+	// any new SQL executes, so a mismatch cannot leave a partially upgraded DB.
+	if err := prepareLegacyMigrationLineage(ctx, lockConn, fsys); err != nil {
+		return err
+	}
+
 	// 自动对齐 Atlas 基线（如果检测到 legacy schema_migrations 且缺失 atlas_schema_revisions）。
 	if err := ensureAtlasBaselineAligned(ctx, lockConn, fsys); err != nil {
 		return err

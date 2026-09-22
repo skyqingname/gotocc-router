@@ -39,6 +39,7 @@ var gatewayCompatibilityMetricsLogCounter atomic.Uint64
 
 // GatewayHandler handles API gateway requests
 type GatewayHandler struct {
+	autoGroupResolver         *service.AutoGroupResolver
 	gatewayService            *service.GatewayService
 	openAIGatewayService      *service.OpenAIGatewayService
 	geminiCompatService       *service.GeminiMessagesCompatService
@@ -214,7 +215,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	setOpsRequestContext(c, reqModel, reqStream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(reqStream, false)))
-	pricingCtx, pricingAt := service.WithGatewayTokenRequestPricing(c.Request.Context())
+	pricingCtx, pricingAt := h.gatewayService.WithTokenRequestPricing(c.Request.Context())
 	c.Request = c.Request.WithContext(pricingCtx)
 
 	// 验证 model 必填
@@ -230,6 +231,17 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, reqModel, body); decision != nil && !decision.AllowNextStage {
 		h.anthropicSecurityAuditError(c, decision)
 		return
+	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
+	if apiKey.IsAutoRouting() {
+		parsedReq, err = service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformAnthropic)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
 	}
 
 	// 安全审核通过后才解析渠道级模型映射，避免路由阶段先于审核门。
@@ -997,7 +1009,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						zap.Any("fallback_group_id", fallbackGroupID),
 						zap.Bool("fallback_used", fallbackUsed),
 					)
-					if !fallbackUsed && fallbackGroupID != nil && *fallbackGroupID > 0 {
+					if !apiKey.IsAutoRouting() && !fallbackUsed && fallbackGroupID != nil && *fallbackGroupID > 0 {
 						fallbackGroup, err := h.gatewayService.ResolveGroupByID(c.Request.Context(), *fallbackGroupID)
 						if err != nil {
 							reqLog.Warn("gateway.resolve_fallback_group_failed", zap.Int64("fallback_group_id", *fallbackGroupID), zap.Error(err))
@@ -1169,6 +1181,18 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		return
 	}
 
+	if platform == service.PlatformVideo && groupID != nil {
+		models, err := h.gatewayService.VideoModelIDs(c.Request.Context(), *groupID)
+		if err != nil {
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Video model catalog unavailable")
+			return
+		}
+		if apiKey.Group.ModelAllowlistEnabled() {
+			models = apiKey.Group.ModelAllowlist.FilterForListing(models)
+		}
+		writeAllowlistedModelsList(c, service.PlatformOpenAI, models)
+		return
+	}
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
@@ -1989,6 +2013,10 @@ func (h *GatewayHandler) ensureForwardErrorResponse(c *gin.Context, streamStarte
 	if c == nil || c.Writer == nil {
 		return false
 	}
+	if c.GetBool(service.OpsClientDisconnectedKey) {
+		return false
+	}
+
 	if service.IsResponseCommitted(c) {
 		return false
 	}
@@ -2155,6 +2183,21 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 
 	setOpsRequestContext(c, parsedReq.Model, parsedReq.Stream)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeFromLegacy(parsedReq.Stream, false)))
+	if apiKey.IsAutoRouting() {
+		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, parsedReq.Model, body); decision != nil && !decision.AllowNextStage {
+			h.anthropicSecurityAuditError(c, decision)
+			return
+		}
+		model := parsedReq.Model
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &model) {
+			return
+		}
+		parsedReq, err = service.ParseGatewayRequest(service.NewRequestBodyRef(body), domain.PlatformAnthropic)
+		if err != nil {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply model route")
+			return
+		}
+	}
 
 	// 获取订阅信息（可能为nil）
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
@@ -2461,7 +2504,7 @@ func applyBillingQuotaHeaders(c *gin.Context, err error, retryAfter int) {
 }
 
 func billingErrorDetails(err error) (status int, code, message string, retryAfter int) {
-	if errors.Is(err, service.ErrBillingServiceUnavailable) {
+	if errors.Is(err, service.ErrBillingServiceUnavailable) || errors.Is(err, service.ErrTeamBillingUnavailable) {
 		msg := pkgerrors.Message(err)
 		if msg == "" {
 			msg = "Billing service temporarily unavailable. Please retry later."
@@ -2494,7 +2537,10 @@ func billingErrorDetails(err error) (status int, code, message string, retryAfte
 		errors.Is(err, service.ErrWeeklyLimitExceeded) ||
 		errors.Is(err, service.ErrMonthlyLimitExceeded) ||
 		errors.Is(err, service.ErrFiveHourLimitExceeded) ||
-		errors.Is(err, service.ErrGroupSubscriptionLimitExceeded) {
+		errors.Is(err, service.ErrGroupSubscriptionLimitExceeded) ||
+		errors.Is(err, service.ErrTeamMemberDailyExceeded) ||
+		errors.Is(err, service.ErrTeamMemberWeeklyExceeded) ||
+		errors.Is(err, service.ErrTeamMemberMonthlyExceeded) {
 		// 与 RPM 超限一致映射 429 + Retry-After，让 SDK 自动退避（而非 403 直接失败）。
 		// 错误码用 rate_limit_exceeded 与 OpenAI 兼容客户端一致；细分类型由 ErrCode + window_resets_at metadata 区分。
 		msg := pkgerrors.Message(err)

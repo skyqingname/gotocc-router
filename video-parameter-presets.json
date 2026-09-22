@@ -1,0 +1,15 @@
+{
+  "parameters": [
+    {"name":"seconds","label":"时长（秒）","label_en":"Duration (seconds)","type":"integer"},
+    {"name":"resolution","label":"分辨率","label_en":"Resolution","type":"string"},
+    {"name":"aspect_ratio","label":"画面比例","label_en":"Aspect ratio","type":"string"},
+    {"name":"generate_audio","label":"同步音频","label_en":"Generate audio","type":"boolean"},
+    {"name":"watermark","label":"水印","label_en":"Watermark","type":"boolean"},
+    {"name":"seed","label":"随机种子","label_en":"Seed","type":"integer"},
+    {"name":"fps","label":"帧率","label_en":"Frame rate","type":"number"},
+    {"name":"input_reference","label":"参考素材 URL","label_en":"Reference URL","type":"string"},
+    {"name":"reference_images","label":"参考图列表","label_en":"Reference images","type":"array"},
+    {"name":"reference_videos","label":"参考视频列表","label_en":"Reference videos","type":"array"},
+    {"name":"reference_audios","label":"参考音频列表","label_en":"Reference audio","type":"array"}
+  ]
+}

@@ -3,6 +3,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"testing"
 )
 
@@ -81,5 +83,49 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 				t.Errorf("BalanceCost = %v, want %v", cmd.BalanceCost, tt.wantBalance)
 			}
 		})
+	}
+}
+
+func TestBuildUsageBillingCommand_PreservesTeamActorAndBillingOwner(t *testing.T) {
+	teamID := int64(7)
+	owner := &User{ID: 101}
+	actor := &User{ID: 202}
+	p := &postUsageBillingParams{
+		Cost:    &CostBreakdown{TotalCost: 1, ActualCost: 1},
+		User:    owner,
+		APIKey:  &APIKey{ID: 303, UserID: actor.ID, TeamID: &teamID, User: owner, ActorUser: actor},
+		Account: &Account{ID: 404},
+	}
+
+	cmd := buildUsageBillingCommand("req-team-attribution", nil, p)
+	if cmd == nil {
+		t.Fatal("buildUsageBillingCommand returned nil")
+	}
+	if cmd.UserID != owner.ID {
+		t.Fatalf("UserID = %d, want billing owner %d", cmd.UserID, owner.ID)
+	}
+	if cmd.ActorUserID != actor.ID {
+		t.Fatalf("ActorUserID = %d, want actor %d", cmd.ActorUserID, actor.ID)
+	}
+	if cmd.TeamID == nil || *cmd.TeamID != teamID {
+		t.Fatalf("TeamID = %v, want %d", cmd.TeamID, teamID)
+	}
+}
+
+func TestApplyUsageBilling_TeamKeyFailsClosedWithoutAtomicRepository(t *testing.T) {
+	teamID := int64(7)
+	p := &postUsageBillingParams{
+		Cost:    &CostBreakdown{TotalCost: 1, ActualCost: 1},
+		User:    &User{ID: 101},
+		APIKey:  &APIKey{ID: 303, UserID: 202, TeamID: &teamID, ActorUser: &User{ID: 202}},
+		Account: &Account{ID: 404},
+	}
+
+	applied, err := applyUsageBilling(context.Background(), "req-team-no-repo", nil, p, &billingDeps{}, nil)
+	if applied {
+		t.Fatal("team billing must not report applied without the atomic repository")
+	}
+	if !errors.Is(err, ErrTeamBillingUnavailable) {
+		t.Fatalf("error = %v, want %v", err, ErrTeamBillingUnavailable)
 	}
 }

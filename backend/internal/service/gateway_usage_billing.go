@@ -73,6 +73,7 @@ type usageLogBestEffortWriter interface {
 
 // postUsageBillingParams 统一扣费所需的参数
 type postUsageBillingParams struct {
+	PricingAt             time.Time
 	Cost                  *CostBreakdown
 	User                  *User
 	APIKey                *APIKey
@@ -112,6 +113,9 @@ func QuotaPlatform(ctx context.Context, apiKey *APIKey) string {
 		return platform
 	}
 	platform := PlatformFromAPIKey(apiKey)
+	if platform == PlatformVideo {
+		return PlatformOpenAI
+	}
 	if platform == PlatformComposite {
 		return ""
 	}
@@ -283,13 +287,19 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 
 	cmd := &UsageBillingCommand{
+		ResellerSnapshot:   p.APIKey.ResellerPriceAt(p.PricingAt),
 		RequestID:          requestID,
 		APIKeyID:           p.APIKey.ID,
 		UserID:             p.User.ID,
+		ActorUserID:        usageActorUserID(p.APIKey, p.User),
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
 		UsageLog:           usageLog,
+	}
+	if p.APIKey.TeamID != nil {
+		teamID := *p.APIKey.TeamID
+		cmd.TeamID = &teamID
 	}
 	if usageLog != nil {
 		cmd.Model = usageLog.Model
@@ -341,7 +351,14 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	cmd := buildUsageBillingCommand(requestID, usageLog, p)
-	if cmd == nil || cmd.RequestID == "" || repo == nil {
+	if cmd == nil || cmd.RequestID == "" {
+		postUsageBilling(ctx, p, deps)
+		return true, nil
+	}
+	if repo == nil {
+		if cmd.TeamID != nil {
+			return false, ErrTeamBillingUnavailable
+		}
 		postUsageBilling(ctx, p, deps)
 		return false, nil
 	}
@@ -885,6 +902,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	requestID := usageLog.RequestID
 	usageLogPersisted, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		PricingAt:             pricingAt,
 		Cost:                  cost,
 		User:                  user,
 		APIKey:                apiKey,
@@ -1175,7 +1193,9 @@ func (s *GatewayService) buildRecordUsageLog(
 		)
 	}
 	usageLog := &UsageLog{
-		UserID:                   user.ID,
+		UserID:                   usageActorUserID(apiKey, user),
+		BillingUserID:            user.ID,
+		TeamID:                   apiKey.TeamID,
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,
 		RequestID:                requestID,

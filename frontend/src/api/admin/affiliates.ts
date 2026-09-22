@@ -7,6 +7,40 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 
+export type AffiliateInviterCodeType = 'permanent' | 'aff'
+
+export interface AffiliateInviterUser {
+  id: number
+  email: string
+  username: string
+}
+
+export interface AffiliateInviterState {
+  user_id: number
+  inviter: AffiliateInviterUser | null
+  code_type: AffiliateInviterCodeType | ''
+  code: string
+  version: number
+  effective_at: string | null
+}
+
+export interface AffiliateInviterChange {
+  code_type: AffiliateInviterCodeType
+  code: string
+  resolved_user_id: number
+  expected_version: number
+}
+
+export async function getInviter(userId: number): Promise<AffiliateInviterState> {
+  const { data } = await apiClient.get<AffiliateInviterState>(`/admin/affiliates/users/${userId}/inviter`)
+  return data
+}
+
+export async function resolveInviterCode(codeType: AffiliateInviterCodeType, code: string): Promise<AffiliateInviterUser> {
+  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code_type: codeType, code })
+  return data
+}
+
 export interface AffiliateAdminEntry {
   user_id: number
   email: string
@@ -47,6 +81,10 @@ export interface AffiliateInviteRecord {
 }
 
 export interface AffiliateRebateRecord {
+  source_type: 'payment' | 'admin_recharge' | 'redeem_code' | 'legacy'
+  rebate_level: number | null
+  rebate_rate_percent: number | null
+  rebate_base_amount: number | null
   order_id: number
   out_trade_no: string
   inviter_id: number
@@ -216,6 +254,8 @@ export async function getUserOverview(
 }
 
 export const affiliatesAPI = {
+  getInviter,
+  resolveInviterCode,
   listUsers,
   lookupUsers,
   updateUserSettings,

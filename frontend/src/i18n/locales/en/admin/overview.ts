@@ -449,6 +449,11 @@ export default {
         loadFailed: 'Failed to load affiliate records'
       },
       records: {
+        sources: { admin_recharge: 'Admin deposit', redeem_code: 'Redeem code recharge', legacy: 'Legacy commission', payment: 'Online recharge' },
+        rebateLevel: "Generation",
+        rebateRate: "Commission rate",
+        rebateBase: "Commission principal (USD)",
+        generation: "Generation {level}",
         search: 'Search',
         searchPlaceholder: 'Email, username, user ID, or order number',
         startAt: 'Start date',
@@ -486,6 +491,28 @@ export default {
 
     // Users
     users: {
+      inviter: {
+        title: "Invitation code and rebate attribution",
+        current: "Current referrer",
+        unbound: "No referrer assigned",
+        loading: "Loading referrer…",
+        retry: "Reload",
+        codeType: "Invitation code type",
+        permanent: "Permanent invitation code",
+        aff: "AFF invitation code",
+        permanentPlaceholder: "Enter a permanent invitation code",
+        affPlaceholder: "Enter the referrer’s AFF code",
+        permanentHint: "Uses the owner assigned to this permanent code without consuming a registration use.",
+        affHint: "Uses the referrer who owns this AFF code.",
+        resolve: "Find referrer",
+        resolving: "Looking up…",
+        next: "Referrer after update",
+        matched: "Referrer for this code",
+        resolveFirst: "The code has changed. Find and check the referrer before updating.",
+        self: "A user cannot be their own referrer. Enter another referrer’s code.",
+        notFound: "No code of this type was found. Check the code and its type.",
+        effect: "Takes effect when you click Update below. Past commissions stay unchanged. Future three-generation rebates for this customer and their descendants follow the new relationship.",
+      },
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',
@@ -623,7 +650,9 @@ export default {
       noApiKeys: 'This user has no API keys',
       group: 'Group',
       none: 'None',
+      routingAuto: 'Smart routing',
       groupChangedSuccess: 'Group updated successfully',
+      routingChangedSuccess: 'Routing mode updated successfully',
       groupChangedWithGrant: 'Group updated. User auto-granted access to "{group}"',
       groupChangeFailed: 'Failed to update group',
       noUsersYet: 'No users yet',
@@ -1038,6 +1067,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        video: 'Video',
         composite: 'Composite',
       },
       deleteConfirm:

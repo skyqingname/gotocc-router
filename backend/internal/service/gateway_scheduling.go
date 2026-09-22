@@ -920,6 +920,12 @@ func (s *GatewayService) routingAccountIDsForRequest(ctx context.Context, groupI
 }
 
 func (s *GatewayService) resolveGatewayGroup(ctx context.Context, groupID *int64) (*Group, *int64, error) {
+	if IsAutoRoutingRequest(ctx) {
+		locked, ok := AutoRouteGroupID(ctx)
+		if !ok || groupID == nil || *groupID != locked {
+			return nil, nil, ErrAutoRouteContext
+		}
+	}
 	if groupID == nil {
 		return nil, nil, nil
 	}
@@ -941,7 +947,7 @@ func (s *GatewayService) resolveGatewayGroup(ctx context.Context, groupID *int64
 			return group, &currentID, nil
 		}
 
-		if group.FallbackGroupID == nil {
+		if group.FallbackGroupID == nil || IsAutoRoutingRequest(ctx) {
 			return nil, nil, ErrClaudeCodeOnly
 		}
 		currentID = *group.FallbackGroupID
@@ -2608,6 +2614,13 @@ func summarizeSelectionFailureStats(stats selectionFailureStats) string {
 // isModelSupportedByAccountWithContext 根据账户平台检查模型支持（带 context）
 // 对于 Antigravity 平台，会先获取映射后的最终模型名（包括 thinking 后缀）再检查支持
 func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Context, account *Account, requestedModel string) bool {
+	return gatewayAccountSupportsModel(ctx, account, requestedModel)
+}
+
+func gatewayAccountSupportsModel(ctx context.Context, account *Account, requestedModel string) bool {
+	if account == nil {
+		return false
+	}
 	if source, ok := CompositeRouteSourceFromContext(ctx); ok && source == CompositeRouteSourceAccount {
 		if publicModel, modelOK := RequestedPublicModelFromContext(ctx); modelOK && !explicitModelMappingClaims(*account, publicModel) {
 			return false
@@ -2632,11 +2645,15 @@ func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Contex
 		}
 		return true
 	}
-	return s.isModelSupportedByAccount(account, requestedModel)
+	return gatewayAccountSupportsModelWithoutContext(account, requestedModel)
 }
 
 // isModelSupportedByAccount 根据账户平台检查模型支持（无 context，用于非 Antigravity 平台）
 func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedModel string) bool {
+	return gatewayAccountSupportsModelWithoutContext(account, requestedModel)
+}
+
+func gatewayAccountSupportsModelWithoutContext(account *Account, requestedModel string) bool {
 	if account.Platform == PlatformAntigravity {
 		if strings.TrimSpace(requestedModel) == "" {
 			return true

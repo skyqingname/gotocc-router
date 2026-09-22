@@ -340,6 +340,7 @@
             </div>
 
             <!-- Codex Image Generation Bridge (OpenAI only) -->
+            <p v-if="section.platform === 'video'" class="mb-4 text-sm text-gray-500">视频接口协议和参数在「分组管理 → 编辑分组」配置；此处设置渠道价格。</p>
             <div v-if="section.platform === 'openai'" class="border-t border-gray-200 pt-3 dark:border-dark-600">
               <div class="flex items-center justify-between gap-4">
                 <div>
@@ -763,7 +764,7 @@ const form = reactive({
 let abortController: AbortController | null = null
 
 // ── Platform config ──
-const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go']
+const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go', 'video']
 // Composite pricing/mapping may target every concrete schedulable provider.
 const compositePlatforms: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go']
 
