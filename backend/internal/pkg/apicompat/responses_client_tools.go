@@ -863,7 +863,7 @@ func (r *ResponsesClientToolStreamRestorer) callFor(event ResponsesStreamEvent) 
 		if call.name != event.Name {
 			continue
 		}
-		if matched != nil {
+		if matched != nil && matched != call {
 			return nil
 		}
 		matched = call
