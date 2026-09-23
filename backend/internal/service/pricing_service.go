@@ -953,7 +953,7 @@ func (s *PricingService) mergeOverrideOnlyModels(data map[string]*LiteLLMModelPr
 	return data
 }
 
-// buildPricingData 解析目录正文并依次叠加 fallback、override 两层，返回合并结果与
+// buildPricingData 解析目录正文并依次叠加随版默认价、override 两层，返回合并结果与
 // 叠加层文件指纹。指纹在合并读取之前采样：并发改文件只会让存下的指纹落后于实际
 // 合并的数据、不会领先，下一轮定时比对因此会再次重建。
 func (s *PricingService) buildPricingData(body []byte) (map[string]*LiteLLMModelPricing, string, error) {
@@ -1020,6 +1020,13 @@ func (s *PricingService) mergeFallbackPricingData(data map[string]*LiteLLMModelP
 	}
 	merged := 0
 	for modelName, pricing := range fallbackData {
+		// These two newly published OpenAI cards are maintained in the bundled
+		// official defaults. A cached remote catalog can still contain older
+		// prices, so the bundled cards take precedence for default pricing.
+		if modelName == "gpt-6-sol" || modelName == "gpt-6-luna" {
+			data[modelName] = pricing
+			continue
+		}
 		if _, ok := data[modelName]; ok {
 			continue
 		}

@@ -61,8 +61,8 @@ standalone `.sig` files are ignored.
 
 Pricing data changes must be reviewed and published as immutable Release
 assets. Do not point runtime configuration at a mutable branch. The release
-workflow publishes `model-pricing.json` and `model-pricing-manifest.json` after
-GoReleaser completes.
+workflow publishes `model-pricing.json` and `model-pricing-manifest.json` from
+the same locally accepted package as the application archive.
 
 To refresh this bundled fallback before a release, update it from the upstream
 source, review the diff, and let the release workflow calculate its digest:
@@ -86,6 +86,14 @@ are $10/$50/$1/$12.50. Above 272K input tokens, input and cache rates double
 and output uses 1.5x for the full request. Fast rates are 2x Standard;
 Batch/Flex catalog rates are half Standard. Existing endpoint support and
 service-tier selection determine which rate applies.
+
+GPT-6 Sol and Luna defaults were verified against the
+[official pricing page](https://developers.openai.com/api/docs/pricing) on
+2026-09-23. Per million tokens, Standard input/cache read/cache write/output
+are $2/$0.20/$2.50/$10 for Sol and $0.10/$0.01/$0.125/$0.50 for Luna.
+Long-context, Fast, Batch, and Flex rates follow the same published tiers.
+The bundled defaults replace stale remote catalog entries for these two models;
+explicit group and channel prices keep their configured values.
 
 The file contains JSON data with model pricing information including:
 - Model names and identifiers

@@ -7,7 +7,7 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The owned candidate `v0.2.7+custom.002` starts from the complete Plus
+The owned version `v0.2.7+custom.003` follows `v0.2.7+custom.002` on the complete Plus
 `v0.2.7+custom.001` tree, commit `7b2d38cc501b0e73302c2609ee79f39f75d3c5e8`.
 It preserves the GoToCC contracts from owned `v0.2.5+custom.003` and incorporates
 the PR #12 parallel client-tool argument fix with call-alias deduplication.
@@ -98,7 +98,8 @@ official tag import.
 | `v0.2.4+custom.008` | `v0.2.4` | `5de5e2bed035d43591a2e10e51f420ef6a84eb98` | planned |
 | `v0.2.5+custom.002` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | published (owned immutable release); Plus v0.2.5+custom.001 |
 | `v0.2.5+custom.003` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | published (owned immutable release); PR #11 redeem-code rebate fix |
-| `v0.2.7+custom.002` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | local candidate; Plus v0.2.7+custom.001 and PR #12 |
+| `v0.2.7+custom.002` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | published (owned release); Plus v0.2.7+custom.001 and PR #12 |
+| `v0.2.7+custom.003` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | official GPT-6 Sol and Luna default pricing |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status
@@ -112,9 +113,9 @@ use the complete `.004` release instead.
 ## Current Version
 
 ```text
-Git/GitHub: v0.2.7+custom.002
-Application: 0.2.7+custom.002
-OCI naming: v0.2.7-custom.002 (no image published by the local archive workflow)
+Git/GitHub: v0.2.7+custom.003
+Application: 0.2.7+custom.003
+OCI naming: v0.2.7-custom.003 (no image published by the local archive workflow)
 ```
 
 ## Naming
