@@ -99,7 +99,7 @@ official tag import.
 | `v0.2.5+custom.002` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | published (owned immutable release); Plus v0.2.5+custom.001 |
 | `v0.2.5+custom.003` | `v0.2.5` | `86f93c28ee34cc74b629dafb748bd5ac5ca8c5ea` | published (owned immutable release); PR #11 redeem-code rebate fix |
 | `v0.2.7+custom.002` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | published (owned release); Plus v0.2.7+custom.001 and PR #12 |
-| `v0.2.7+custom.003` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | official GPT-6 Sol and Luna default pricing |
+| `v0.2.7+custom.003` | `v0.2.7` | `aea725f2ea644d5592d0bbb1d63b607efa7e200a` | official GPT-6 Sol/Luna and Claude Opus 5.5 default pricing |
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
 documented version `0.1.166+custom.006`. Remote Release and OCI artifact status

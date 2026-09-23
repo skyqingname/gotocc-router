@@ -1020,10 +1020,10 @@ func (s *PricingService) mergeFallbackPricingData(data map[string]*LiteLLMModelP
 	}
 	merged := 0
 	for modelName, pricing := range fallbackData {
-		// These two newly published OpenAI cards are maintained in the bundled
-		// official defaults. A cached remote catalog can still contain older
-		// prices, so the bundled cards take precedence for default pricing.
-		if modelName == "gpt-6-sol" || modelName == "gpt-6-luna" {
+		// Newly published official cards are maintained in the bundled defaults.
+		// A cached remote catalog can still contain older prices, so the bundled
+		// cards take precedence for default pricing.
+		if modelName == "gpt-6-sol" || modelName == "gpt-6-luna" || modelName == "claude-opus-5-5" {
 			data[modelName] = pricing
 			continue
 		}
@@ -1504,6 +1504,7 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 	// 因子串关系误匹配 "claude-opus-4-7"（opus-4.7 系列）。
 	// 注意：原 map 实现存在 Go map 迭代随机性导致的同类 bug，此处改为有序切片修复。
 	families := []modelFamily{
+		{name: "opus-5.5", match: []string{"claude-opus-5-5", "claude-opus-5.5"}, pricing: []string{"claude-opus-5-5"}},
 		// Opus 5 与 Opus 4.8 同价（$5/$25 per MTok）。定价数据缺失 claude-opus-5 时
 		// 必须回退到 4.8，否则会掉进 "opus-4" 系列按 $15/$75 计费（3 倍超收）。
 		{name: "opus-5", match: []string{"claude-opus-5"}, pricing: []string{"claude-opus-5", "claude-opus-4-8"}},

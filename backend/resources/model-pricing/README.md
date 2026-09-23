@@ -95,6 +95,13 @@ Long-context, Fast, Batch, and Flex rates follow the same published tiers.
 The bundled defaults replace stale remote catalog entries for these two models;
 explicit group and channel prices keep their configured values.
 
+Claude Opus 5.5 prices were verified against the
+[official model page](https://platform.claude.com/docs/en/models/opus-5-5/overview)
+on 2026-09-23. Per million tokens, input/output/cache read/5-minute cache
+write/1-hour cache write are $4/$20/$0.20/$5/$8. Fast mode doubles each rate;
+Batch halves them. The full 1M context window uses these same rates. Its
+bundled default also replaces a stale remote catalog entry.
+
 The file contains JSON data with model pricing information including:
 - Model names and identifiers
 - Input/output token costs
