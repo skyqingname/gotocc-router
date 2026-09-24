@@ -443,8 +443,6 @@ export default {
 
     agents: {
       description: '审核用户提交的代理中心申请，通过后该用户才会产生并看到邀请返利',
-      appliedAt: '申请时间',
-      approvedAt: '审核时间',
       columns: {
         user: '用户',
         registeredAt: '注册时间',

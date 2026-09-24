@@ -443,8 +443,6 @@ export default {
 
     agents: {
       description: 'Review agent-center applications. Only approved users earn and see invite rebates.',
-      appliedAt: 'Applied At',
-      approvedAt: 'Reviewed At',
       columns: {
         user: 'User',
         registeredAt: 'Registered At',
