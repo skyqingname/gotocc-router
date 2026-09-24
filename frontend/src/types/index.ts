@@ -156,6 +156,15 @@ export interface AffiliateInvitee {
   total_rebate: number
 }
 
+/** LC-024 agent enrollment state. An empty status means the user never applied. */
+export interface AgentProfile {
+  user_id: number
+  status: '' | 'pending' | 'approved' | 'rejected'
+  source?: 'applied' | 'grandfathered' | ''
+  applied_at?: string | null
+  reviewed_at?: string | null
+}
+
 export interface UserAffiliateDetail {
   show_rebate_details: boolean
   user_id: number

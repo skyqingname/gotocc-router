@@ -822,6 +822,23 @@ export default {
         joinedAt: '注册时间'
       }
     },
+
+    agent: {
+      title: '代理中心',
+      applyTitle: '申请成为代理',
+      applyDescription: '提交申请后由管理员审核。审核通过即可获得邀请返利，未通过的层级不产生返佣。',
+      applyButton: '申请成为代理',
+      applying: '提交中...',
+      applied: '申请已提交',
+      applyFailed: '提交申请失败',
+      pendingTitle: '申请审核中',
+      pendingDescription: '你的代理申请已提交，管理员审核通过后即可查看并提取邀请返利。',
+      appliedAt: '申请时间：{time}',
+      rejectedTitle: '申请未通过',
+      rejectedDescription: '你可以再次提交申请。',
+      reapplyButton: '重新申请',
+      loadFailed: '加载代理状态失败'
+    },
     tips: {
       title: '使用说明',
       line1: '将邀请码或邀请链接分享给新用户。',

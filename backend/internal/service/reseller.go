@@ -11,12 +11,10 @@ import (
 )
 
 type ResellerProfile struct {
-	UserID            int64      `json:"user_id"`
-	Enabled           bool       `json:"enabled"`
-	InvitationCode    string     `json:"invitation_code"`
-	DefaultMultiplier float64    `json:"default_multiplier"`
-	RebateRates       []*float64 `json:"rebate_rates"`
-	GlobalRebateRates []float64  `json:"global_rebate_rates,omitempty"`
+	UserID            int64   `json:"user_id"`
+	Enabled           bool    `json:"enabled"`
+	InvitationCode    string  `json:"invitation_code"`
+	DefaultMultiplier float64 `json:"default_multiplier"`
 }
 type ResellerPrice struct {
 	CustomerID *int64   `json:"customer_id"`
@@ -55,7 +53,7 @@ type ResellerSummary struct {
 }
 type ResellerRepository interface {
 	Profile(context.Context, int64) (*ResellerProfile, error)
-	SaveProfile(context.Context, int64, bool, []*float64) (*ResellerProfile, error)
+	SaveProfile(context.Context, int64, bool) (*ResellerProfile, error)
 	Invitation(context.Context, string) (*ResellerProfile, error)
 	BindCustomer(context.Context, int64, int64) error
 	CustomerOwned(context.Context, int64, int64) (bool, error)
@@ -87,27 +85,14 @@ func (s *ResellerService) RequireEnabled(ctx context.Context, userID int64) (*Re
 	return p, nil
 }
 func (s *ResellerService) AdminProfile(ctx context.Context, userID int64) (*ResellerProfile, error) {
-	p, e := s.Repo.Profile(ctx, userID)
-	if e != nil {
-		return nil, e
-	}
-	rates, e := s.settings.GetAffiliateRebateRates(ctx)
-	if e != nil {
-		return nil, e
-	}
-	p.GlobalRebateRates = append([]float64(nil), rates[:]...)
-	return p, nil
+	return s.Repo.Profile(ctx, userID)
 }
-func (s *ResellerService) SaveProfile(ctx context.Context, userID int64, enabled bool, rates []*float64) (*ResellerProfile, error) {
-	if len(rates) != AffiliateRebateGenerations {
-		return nil, infraerrors.BadRequest("INVALID_RESELLER_REBATES", "请分别配置一、二、三代比例")
-	}
-	for _, v := range rates {
-		if v != nil && (math.IsNaN(*v) || math.IsInf(*v, 0) || *v < 0 || *v > 100) {
-			return nil, infraerrors.BadRequest("INVALID_RESELLER_REBATES", "返佣比例应在 0 到 100 之间")
-		}
-	}
-	return s.Repo.SaveProfile(ctx, userID, enabled, rates)
+
+// SaveProfile only toggles availability. LC-024 removed the per-reseller rebate
+// schedule: resellers earn invite rebates under the same global rates as anyone
+// else, and only while they hold an approved agent identity.
+func (s *ResellerService) SaveProfile(ctx context.Context, userID int64, enabled bool) (*ResellerProfile, error) {
+	return s.Repo.SaveProfile(ctx, userID, enabled)
 }
 func (s *ResellerService) Groups(ctx context.Context, userID int64) ([]Group, error) {
 	groups, err := s.keys.GetAvailableGroups(ctx, userID)

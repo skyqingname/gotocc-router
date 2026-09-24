@@ -175,6 +175,7 @@ export default {
     redeem: '兑换',
     affiliate: '邀请返利',
     affiliateManagement: '邀请返利',
+    agentApplications: '代理审核',
     affiliateInviteRecords: '邀请记录',
     affiliateRebateRecords: '返利记录',
     affiliateTransferRecords: '提取记录',

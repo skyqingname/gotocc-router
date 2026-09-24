@@ -8,6 +8,37 @@
       </div>
 
       <template v-else-if="detail">
+        <!-- LC-024：未成为代理时只展示申请入口，返利界面整体不出现 -->
+        <div v-if="!isAgent" class="card p-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ agentTitle }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ agentDescription }}</p>
+              <p v-if="agentAppliedAt" class="mt-2 text-xs text-gray-400 dark:text-dark-500">
+                {{ t('affiliate.agent.appliedAt', { time: agentAppliedAt }) }}
+              </p>
+            </div>
+            <button
+              v-if="canApplyForAgent"
+              class="btn btn-primary w-full sm:w-auto sm:shrink-0"
+              :disabled="applyingAgent"
+              @click="applyForAgent"
+            >
+              <Icon v-if="applyingAgent" name="refresh" size="sm" class="animate-spin" />
+              <Icon v-else name="userPlus" size="sm" />
+              <span>{{ applyingAgent ? t('affiliate.agent.applying') : agentActionLabel }}</span>
+            </button>
+            <span
+              v-else
+              class="inline-flex shrink-0 items-center rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            >
+              {{ agentBadge }}
+            </span>
+          </div>
+        </div>
+
         <div v-if="detail.show_rebate_details" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
@@ -83,7 +114,7 @@
           </div>
         </div>
 
-        <div class="card p-6">
+        <div v-if="isAgent" class="card p-6">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.transfer.title') }}</h3>
@@ -147,7 +178,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
-import type { UserAffiliateDetail } from '@/types'
+import type { AgentProfile, UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
@@ -162,6 +193,50 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+
+// LC-024 enrollment state. The rebate surface is gated on an approved identity;
+// invite code and share link stay available so recruiting never depends on it.
+const agentProfile = ref<AgentProfile | null>(null)
+const applyingAgent = ref(false)
+const agentStatus = computed(() => agentProfile.value?.status ?? '')
+const isAgent = computed(() => agentStatus.value === 'approved')
+const canApplyForAgent = computed(() => agentStatus.value !== 'pending')
+const agentAppliedAt = computed(() =>
+  agentProfile.value?.applied_at ? formatDateTime(agentProfile.value.applied_at) : '',
+)
+const agentTitle = computed(() => {
+  if (agentStatus.value === 'pending') return t('affiliate.agent.pendingTitle')
+  if (agentStatus.value === 'rejected') return t('affiliate.agent.rejectedTitle')
+  return t('affiliate.agent.applyTitle')
+})
+const agentDescription = computed(() => {
+  if (agentStatus.value === 'pending') return t('affiliate.agent.pendingDescription')
+  if (agentStatus.value === 'rejected') return t('affiliate.agent.rejectedDescription')
+  return t('affiliate.agent.applyDescription')
+})
+const agentActionLabel = computed(() =>
+  agentStatus.value === 'rejected' ? t('affiliate.agent.reapplyButton') : t('affiliate.agent.applyButton'),
+)
+const agentBadge = computed(() =>
+  agentStatus.value === 'pending' ? t('affiliate.agent.pendingTitle') : t('affiliate.agent.rejectedTitle'),
+)
+
+async function submitAgentApplication(): Promise<void> {
+  if (applyingAgent.value || !canApplyForAgent.value) return
+  applyingAgent.value = true
+  try {
+    agentProfile.value = await userAPI.applyForAgent()
+    appStore.showSuccess(t('affiliate.agent.applied'))
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('affiliate.agent.applyFailed')))
+  } finally {
+    applyingAgent.value = false
+  }
+}
+
+function applyForAgent(): void {
+  void submitAgentApplication()
+}
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
@@ -182,7 +257,12 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
     loading.value = true
   }
   try {
-    detail.value = await userAPI.getAffiliateDetail()
+    const [affiliate, agent] = await Promise.all([
+      userAPI.getAffiliateDetail(),
+      userAPI.getAgentProfile().catch(() => null),
+    ])
+    detail.value = affiliate
+    agentProfile.value = agent
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.loadFailed')))
   } finally {

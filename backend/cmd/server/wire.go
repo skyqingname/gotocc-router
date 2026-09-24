@@ -28,7 +28,11 @@ type Application struct {
 	Server        *http.Server
 	PromptAudit   *securityaudit.PromptService
 	PluginManager *service.PluginManager
-	Cleanup       func()
+	// Agents initializes the LC-024 enrollment cutoff on first boot. The
+	// boundary has to come from wall-clock time at upgrade, not build time, so
+	// it cannot live in a migration.
+	Agents  *service.AgentService
+	Cleanup func()
 }
 
 func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
@@ -58,7 +62,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		provideCleanup,
 
 		// Application struct
-		wire.Struct(new(Application), "Server", "PromptAudit", "PluginManager", "Cleanup"),
+		wire.Struct(new(Application), "Server", "PromptAudit", "PluginManager", "Agents", "Cleanup"),
 	)
 	return nil, nil
 }

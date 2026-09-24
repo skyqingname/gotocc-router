@@ -44,6 +44,9 @@ func RegisterUserRoutes(
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
+			// LC-024 代理中心：自助申请，无需请求体；通过后不提供退出入口
+			user.GET("/agent", h.Agent.Overview)
+			user.POST("/agent/apply", h.Agent.Apply)
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)
 			user.DELETE("/account-bindings/:provider", h.User.UnbindIdentity)

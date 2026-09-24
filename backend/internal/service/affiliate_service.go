@@ -226,7 +226,7 @@ type AffiliateUserOverview struct {
 }
 
 type AffiliateService struct {
-	resellerRepo         ResellerRepository
+	agents               AgentEligibility
 	repo                 AffiliateRepository
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
@@ -387,20 +387,26 @@ func (s *AffiliateService) accrueInviteRebate(ctx context.Context, inviteeUserID
 		return 0, err
 	}
 	freezeHours := s.settingService.GetAffiliateRebateFreezeHours(ctx)
+
+	// LC-024: each generation is judged on its own. A beneficiary without an
+	// approved agent identity simply receives nothing at this level; the rest of
+	// the chain is unaffected and nothing is redistributed to another level.
+	var eligible map[int64]bool
+	if s.agents != nil && len(inviters) > 0 {
+		eligible, err = s.agents.EligibleAmong(ctx, inviters)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	total := 0.0
 	for i, rate := range rates {
 		if i >= len(inviters) {
 			break
 		}
 		inviterID := inviters[i]
-		if s.resellerRepo != nil {
-			profile, e := s.resellerRepo.Profile(ctx, inviterID)
-			if e != nil {
-				return 0, e
-			}
-			if len(profile.RebateRates) > i && profile.RebateRates[i] != nil {
-				rate = *profile.RebateRates[i]
-			}
+		if s.agents != nil && !eligible[inviterID] {
+			continue
 		}
 		if _, err := s.repo.EnsureUserAffiliate(ctx, inviterID); err != nil {
 			return 0, err

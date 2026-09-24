@@ -1,3 +1,4 @@
 {
-  "rebate_rates_percent": [20, 10, 5]
+  "rebate_rates_percent": [20, 10, 5],
+  "agent_enrollment_cutoff_sentinel": "1970-01-01T00:00:00Z"
 }

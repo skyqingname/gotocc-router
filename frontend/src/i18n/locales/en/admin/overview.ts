@@ -441,6 +441,32 @@ export default {
       }
     },
 
+    agents: {
+      description: 'Review agent-center applications. Only approved users earn and see invite rebates.',
+      appliedAt: 'Applied At',
+      approvedAt: 'Reviewed At',
+      columns: {
+        user: 'User',
+        registeredAt: 'Registered At',
+        appliedAt: 'Applied At',
+        status: 'Status',
+        source: 'Source',
+        actions: 'Actions'
+      },
+      searchPlaceholder: 'Email, username, user ID',
+      statusAll: 'All statuses',
+      status: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
+      source: { applied: 'Self-applied', grandfathered: 'Pre-existing' },
+      approve: 'Approve',
+      reject: 'Reject',
+      approveConfirm: 'Approving lets this user earn invite rebates, and no exit is provided afterwards. Approve?',
+      rejectConfirm: 'Rejecting lets this user apply again. Reject?',
+      approved: 'Agent application approved',
+      rejected: 'Agent application rejected',
+      empty: 'No agent applications',
+      loadFailed: 'Failed to load agent applications',
+      reviewFailed: 'Review failed'
+    },
     affiliates: {
       invitesDescription: 'View site-wide inviter and invitee relationships',
       rebatesDescription: 'View recharge orders that generated affiliate rebates',

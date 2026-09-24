@@ -5,3 +5,6 @@ const AffiliateRebateGenerations = 3
 const AffiliateRebateRateDefault = 20.0
 const AffiliateRebateRateL2Default = 10.0
 const AffiliateRebateRateL3Default = 5.0
+
+// AgentEnrollmentCutoffSentinel marks an enrollment cutoff that is not yet effective.
+const AgentEnrollmentCutoffSentinel = "1970-01-01T00:00:00Z"

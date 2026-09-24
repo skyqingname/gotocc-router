@@ -818,6 +818,23 @@ export default {
         joinedAt: 'Joined At'
       }
     },
+
+    agent: {
+      title: 'Agent Center',
+      applyTitle: 'Apply to Become an Agent',
+      applyDescription: 'An administrator reviews your application. Once approved you earn invite rebates; generations without an approved agent earn nothing.',
+      applyButton: 'Apply to Become an Agent',
+      applying: 'Submitting...',
+      applied: 'Application submitted',
+      applyFailed: 'Failed to submit application',
+      pendingTitle: 'Application Under Review',
+      pendingDescription: 'Your application has been submitted. Invite rebates become visible once an administrator approves it.',
+      appliedAt: 'Applied at {time}',
+      rejectedTitle: 'Application Not Approved',
+      rejectedDescription: 'You may submit the application again.',
+      reapplyButton: 'Apply Again',
+      loadFailed: 'Failed to load agent status'
+    },
     tips: {
       title: 'How It Works',
       line1: 'Share your affiliate code or invite link with new users.',

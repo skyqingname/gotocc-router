@@ -441,6 +441,32 @@ export default {
       }
     },
 
+    agents: {
+      description: '审核用户提交的代理中心申请，通过后该用户才会产生并看到邀请返利',
+      appliedAt: '申请时间',
+      approvedAt: '审核时间',
+      columns: {
+        user: '用户',
+        registeredAt: '注册时间',
+        appliedAt: '申请时间',
+        status: '状态',
+        source: '来源',
+        actions: '操作'
+      },
+      searchPlaceholder: '邮箱、用户名、用户 ID',
+      statusAll: '全部状态',
+      status: { pending: '待审核', approved: '已通过', rejected: '已驳回' },
+      source: { applied: '自助申请', grandfathered: '存量自动通过' },
+      approve: '通过',
+      reject: '驳回',
+      approveConfirm: '通过后该用户即可获得邀请返利，且不提供退出入口。确认通过？',
+      rejectConfirm: '驳回后该用户可以重新提交申请。确认驳回？',
+      approved: '已通过该用户的代理申请',
+      rejected: '已驳回该用户的代理申请',
+      empty: '暂无代理申请',
+      loadFailed: '加载代理申请失败',
+      reviewFailed: '审核操作失败'
+    },
     affiliates: {
       invitesDescription: '查看全站邀请关系和被邀请用户累计返利',
       rebatesDescription: '查看每一笔产生返利的充值订单',

@@ -172,14 +172,13 @@ func (h *ResellerHandler) AdminSave(c *gin.Context) {
 		return
 	}
 	var in struct {
-		Enabled     bool       `json:"enabled"`
-		RebateRates []*float64 `json:"rebate_rates"`
+		Enabled bool `json:"enabled"`
 	}
 	if c.ShouldBindJSON(&in) != nil {
 		response.BadRequest(c, "Invalid reseller settings")
 		return
 	}
-	p, e := h.service.SaveProfile(c.Request.Context(), id, in.Enabled, in.RebateRates)
+	p, e := h.service.SaveProfile(c.Request.Context(), id, in.Enabled)
 	if e != nil {
 		response.ErrorFrom(c, e)
 		return

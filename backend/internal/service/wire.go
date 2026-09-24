@@ -878,9 +878,9 @@ func ProvideAPIKeyService(
 	return svc
 }
 
-func ProvideAffiliateService(repo AffiliateRepository, settings *SettingService, authCache APIKeyAuthCacheInvalidator, billingCache *BillingCacheService, resellerRepo ResellerRepository) *AffiliateService {
+func ProvideAffiliateService(repo AffiliateRepository, settings *SettingService, authCache APIKeyAuthCacheInvalidator, billingCache *BillingCacheService, agents AgentEligibility) *AffiliateService {
 	s := NewAffiliateService(repo, settings, authCache, billingCache)
-	s.resellerRepo = resellerRepo
+	s.agents = agents
 	return s
 }
 
@@ -1010,6 +1010,8 @@ var ProviderSet = wire.NewSet(
 	NewModelPlazaService,
 	ProvideContentModerationService,
 	ProvideAffiliateService,
+	NewAgentService,
+	ProvideAgentEligibility,
 	NewResellerService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,

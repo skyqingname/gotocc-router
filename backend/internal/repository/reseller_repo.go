@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -28,15 +27,11 @@ func (r *resellerRepository) executor(ctx context.Context) sqlExecutor {
 }
 func resellerProfile(ctx context.Context, q sqlExecutor, userID int64) (*service.ResellerProfile, error) {
 	p := &service.ResellerProfile{}
-	var raw []byte
-	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8,COALESCE(p.rebate_rates,'[null,null,null]'::jsonb) FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier, &raw)
+	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8 FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrUserNotFound
 	}
 	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(raw, &p.RebateRates); err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -44,13 +39,13 @@ func resellerProfile(ctx context.Context, q sqlExecutor, userID int64) (*service
 func (r *resellerRepository) Profile(ctx context.Context, id int64) (*service.ResellerProfile, error) {
 	return resellerProfile(ctx, r.executor(ctx), id)
 }
-func (r *resellerRepository) SaveProfile(ctx context.Context, id int64, enabled bool, rates []*float64) (*service.ResellerProfile, error) {
-	raw, err := json.Marshal(rates)
-	if err != nil {
-		return nil, err
-	}
+
+// rebate_rates is intentionally neither read nor written since LC-024. The
+// column is left in place: dropping it would not change behaviour and would make
+// the change destructive.
+func (r *resellerRepository) SaveProfile(ctx context.Context, id int64, enabled bool) (*service.ResellerProfile, error) {
 	code := "RS-" + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
-	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier,rebate_rates) SELECT id,$2,$3,$4,$5::jsonb FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,rebate_rates=EXCLUDED.rebate_rates,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier, string(raw))
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier) SELECT id,$2,$3,$4 FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier)
 	if err != nil {
 		return nil, err
 	}
