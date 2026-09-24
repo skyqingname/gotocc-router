@@ -464,8 +464,14 @@ export default {
       approved: '已通过该用户的代理申请',
       rejected: '已驳回该用户的代理申请',
       empty: '暂无代理申请',
-      loadFailed: '加载代理申请失败',
-      reviewFailed: '审核操作失败'
+      errors: {
+        loadFailed: '加载代理申请失败',
+        reviewFailed: '审核操作失败',
+        AGENT_NOT_PENDING: '该申请已被处理，请刷新后重试',
+        AGENT_ALREADY_APPROVED: '该用户已是代理',
+        AGENT_ALREADY_PENDING: '该申请正在审核中',
+        AGENT_NOT_FOUND: '代理申请不存在'
+      }
     },
     affiliates: {
       invitesDescription: '查看全站邀请关系和被邀请用户累计返利',

@@ -464,8 +464,14 @@ export default {
       approved: 'Agent application approved',
       rejected: 'Agent application rejected',
       empty: 'No agent applications',
-      loadFailed: 'Failed to load agent applications',
-      reviewFailed: 'Review failed'
+      errors: {
+        loadFailed: 'Failed to load agent applications',
+        reviewFailed: 'Review failed',
+        AGENT_NOT_PENDING: 'This application was already decided. Refresh and try again.',
+        AGENT_ALREADY_APPROVED: 'This user is already an agent',
+        AGENT_ALREADY_PENDING: 'This application is already under review',
+        AGENT_NOT_FOUND: 'Agent application not found'
+      }
     },
     affiliates: {
       invitesDescription: 'View site-wide inviter and invitee relationships',

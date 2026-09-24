@@ -80,10 +80,11 @@
         </DataTable>
 
         <Pagination
-          :current-page="pagination.page"
+          v-if="pagination.total > 0"
+          :page="pagination.page"
           :total="pagination.total"
           :page-size="pagination.page_size"
-          @page-change="handlePageChange"
+          @update:page="handlePageChange"
         />
       </template>
     </TablePageLayout>
@@ -156,7 +157,7 @@ async function loadApplications(): Promise<void> {
     applications.value = res.items || []
     pagination.total = res.total || 0
   } catch (error) {
-    appStore.showError(extractI18nErrorMessage(error, t, 'admin.agents', t('admin.agents.loadFailed')))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.agents.errors', t('admin.agents.errors.loadFailed')))
   } finally {
     loading.value = false
   }
@@ -192,7 +193,7 @@ async function confirmReview(): Promise<void> {
     pendingReview.value = null
     await loadApplications()
   } catch (error) {
-    appStore.showError(extractI18nErrorMessage(error, t, 'admin.agents', t('admin.agents.reviewFailed')))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.agents.errors', t('admin.agents.errors.reviewFailed')))
   } finally {
     reviewing.value = null
   }
