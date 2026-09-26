@@ -8,6 +8,7 @@ import (
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
+	"github.com/lib/pq"
 )
 
 // agentRepository stores LC-024 agent enrollment state. Membership is decided by
@@ -41,7 +42,7 @@ func (r *agentRepository) EligibleAmong(ctx context.Context, userIDs []int64) (m
 		return eligible, nil
 	}
 	rows, err := r.executor(ctx).QueryContext(ctx,
-		`SELECT user_id FROM agent_profiles WHERE status = 'approved' AND user_id = ANY($1)`, userIDs)
+		`SELECT user_id FROM agent_profiles WHERE status = 'approved' AND user_id = ANY($1)`, pq.Array(userIDs))
 	if err != nil {
 		return nil, err
 	}

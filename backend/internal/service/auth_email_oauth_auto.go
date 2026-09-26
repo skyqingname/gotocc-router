@@ -156,7 +156,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return nil, ErrRegDisabled
 	}
-	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+	if strings.TrimSpace(invitationCode) == "" {
 		invitationCode = affiliateCode
 	}
 	invitation, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
@@ -211,7 +211,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 			return nil, ErrInvitationCodeInvalid
 		}
 	}
-	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+	s.ensureSignupInvitation(ctx, user.ID)
 	return user, nil
 }
 
