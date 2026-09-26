@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	ErrAffiliateDisabled        = infraerrors.Forbidden("AFFILIATE_DISABLED", "代理中心未开放")
 	ErrAffiliateProfileNotFound = infraerrors.NotFound("AFFILIATE_PROFILE_NOT_FOUND", "affiliate profile not found")
 	ErrAffiliateCodeInvalid     = infraerrors.BadRequest("AFFILIATE_CODE_INVALID", "invalid affiliate code")
 	ErrAffiliateCodeTaken       = infraerrors.Conflict("AFFILIATE_CODE_TAKEN", "affiliate code already in use")
@@ -261,7 +262,7 @@ func (s *AffiliateService) EnsureUserAffiliate(ctx context.Context, userID int64
 }
 
 func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID int64) (*AffiliateDetail, error) {
-	showRebateDetails, err := s.repo.IsReusableInvitationCodeOwner(ctx, userID)
+	eligible, err := s.agents.EligibleAmong(ctx, []int64{userID})
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +286,7 @@ func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID int64)
 		return nil, err
 	}
 	return &AffiliateDetail{
-		ShowRebateDetails:          showRebateDetails,
+		ShowRebateDetails:          eligible[userID],
 		UserID:                     summary.UserID,
 		AffCode:                    summary.AffCode,
 		InviterID:                  summary.InviterID,
@@ -392,7 +393,7 @@ func (s *AffiliateService) accrueInviteRebate(ctx context.Context, inviteeUserID
 	// approved agent identity simply receives nothing at this level; the rest of
 	// the chain is unaffected and nothing is redistributed to another level.
 	var eligible map[int64]bool
-	if s.agents != nil && len(inviters) > 0 {
+	if len(inviters) > 0 {
 		eligible, err = s.agents.EligibleAmong(ctx, inviters)
 		if err != nil {
 			return 0, err
@@ -405,7 +406,7 @@ func (s *AffiliateService) accrueInviteRebate(ctx context.Context, inviteeUserID
 			break
 		}
 		inviterID := inviters[i]
-		if s.agents != nil && !eligible[inviterID] {
+		if !eligible[inviterID] {
 			continue
 		}
 		if _, err := s.repo.EnsureUserAffiliate(ctx, inviterID); err != nil {

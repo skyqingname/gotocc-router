@@ -109,10 +109,9 @@ type signupGrantPlan struct {
 }
 
 type registrationInvitation struct {
-	reseller  *ResellerProfile
-	affiliate *AffiliateSummary
-	redeem    *RedeemCode
-	reusable  *ReusableInvitationCode
+	reseller *ResellerProfile
+	redeem   *RedeemCode
+	reusable *ReusableInvitationCode
 }
 
 // NewAuthService 创建认证服务实例
@@ -175,7 +174,7 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 }
 
 func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
-	invitationCode = strings.TrimSpace(invitationCode)
+	invitationCode = strings.ToUpper(strings.TrimSpace(invitationCode))
 	if IsResellerInvitation(invitationCode) {
 		profile, err := s.resellerService.Repo.Invitation(ctx, invitationCode)
 		if err != nil {
@@ -207,19 +206,6 @@ func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitat
 			return nil, err
 		}
 	}
-	// AFF attribution does not grant admission when registration requires a code.
-	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-		return nil, ErrInvitationCodeInvalid
-	}
-	if s.affiliateService != nil {
-		affiliate, err := s.affiliateService.repo.GetAffiliateByCode(ctx, strings.ToUpper(invitationCode))
-		if err == nil {
-			return &registrationInvitation{affiliate: affiliate}, nil
-		}
-		if !errors.Is(err, ErrAffiliateProfileNotFound) {
-			return nil, err
-		}
-	}
 	return nil, ErrInvitationCodeInvalid
 }
 
@@ -236,10 +222,6 @@ func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation 
 			return ErrInvitationCodeInvalid
 		}
 		return s.resellerService.BindRegistration(ctx, user.ID, invitation.reseller.UserID)
-	}
-	if invitation.affiliate != nil {
-		_, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.affiliate.UserID, invitation.affiliate.AffCode)
-		return err
 	}
 	if invitation.redeem != nil {
 		if s.redeemRepo == nil {
@@ -281,7 +263,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
-	if strings.TrimSpace(invitationCode) == "" && (IsResellerInvitation(affiliateCode) || !s.settingService.IsInvitationCodeEnabled(ctx)) {
+	if strings.TrimSpace(invitationCode) == "" {
 		invitationCode = affiliateCode
 	}
 	registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
@@ -362,7 +344,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+	s.ensureSignupInvitation(ctx, user.ID)
 
 	// 一次性邀请码和可复用邀请码都已在用户创建事务内原子消费，
 	// 此处不得再次标记或采用 fail-open 语义。
@@ -395,7 +377,7 @@ func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, 
 	if invitation.redeem != nil {
 		return s.createUserAndClaimInvitation(ctx, user, invitation.redeem)
 	}
-	if invitation.reusable == nil && invitation.affiliate == nil && invitation.reseller == nil {
+	if invitation.reusable == nil && invitation.reseller == nil {
 		return ErrInvitationCodeInvalid
 	}
 	if s.entClient == nil {
@@ -845,7 +827,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, ErrRegDisabled
 			}
 
-			if strings.TrimSpace(invitationCode) == "" && (IsResellerInvitation(affiliateCode) || !s.settingService.IsInvitationCodeEnabled(ctx)) {
+			if strings.TrimSpace(invitationCode) == "" {
 				invitationCode = affiliateCode
 			}
 			registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrOAuthInvitationRequired)
@@ -920,7 +902,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+					s.ensureSignupInvitation(ctx, user.ID)
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -949,7 +931,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 							return nil, nil, ErrInvitationCodeInvalid
 						}
 					}
-					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+					s.ensureSignupInvitation(ctx, user.ID)
 				}
 			}
 		} else {
@@ -1091,39 +1073,16 @@ func authSourceSignupSettings(defaults *AuthSourceDefaultSettings, signupSource 
 	}
 }
 
-// bindSignupAffiliate records the optional secondary referral after the primary
-// registration code. An existing primary relationship always wins.
-func (s *AuthService) bindSignupAffiliate(ctx context.Context, userID int64, affiliateCode string) {
+// ensureSignupInvitation initializes the user default invitation. Registration and
+// referral binding already happen together through the unified invitation resolver.
+func (s *AuthService) ensureSignupInvitation(ctx context.Context, userID int64) {
 	if s.affiliateService == nil || userID <= 0 {
 		return
 	}
-	summary, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
+	_, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
 	if err != nil {
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", userID, err)
 		return
-	}
-	code := strings.TrimSpace(affiliateCode)
-	if code == "" || summary.InviterID != nil {
-		return
-	}
-	// Permanent codes also work through the existing aff_code referral field.
-	// Use is atomic and idempotent for this signup, so a code provided in both
-	// fields is neither consumed nor counted twice.
-	if s.reusableInvitationRepo != nil {
-		reusable, err := s.reusableInvitationRepo.GetByCode(ctx, code)
-		if err == nil {
-			if err := s.reusableInvitationRepo.Use(ctx, reusable.ID, userID, "", ""); err != nil {
-				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind reusable inviter for user %d: %v", userID, err)
-			}
-			return
-		}
-		if !errors.Is(err, ErrReusableInvitationCodeNotFound) {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to resolve inviter for user %d: %v", userID, err)
-			return
-		}
-	}
-	if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
-		logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
 	}
 
 }

@@ -442,35 +442,28 @@ export default {
     },
 
     agents: {
-      description: 'Review agent-center applications. Only approved users earn and see invite rebates.',
-      columns: {
-        user: 'User',
-        registeredAt: 'Registered At',
-        appliedAt: 'Applied At',
-        status: 'Status',
-        source: 'Source',
-        actions: 'Actions'
+      "description": "View self-enrolled and existing agents. No manual review is required.",
+      "columns": {
+            "user": "User",
+            "registeredAt": "Registered",
+            "appliedAt": "Applied",
+            "status": "Status",
+            "source": "Source",
+            "activatedAt": "Activated"
       },
-      searchPlaceholder: 'Email, username, user ID',
-      statusAll: 'All statuses',
-      status: { pending: 'Pending', approved: 'Approved', rejected: 'Rejected' },
-      source: { applied: 'Self-applied', grandfathered: 'Pre-existing' },
-      approve: 'Approve',
-      reject: 'Reject',
-      approveConfirm: 'Approving lets this user earn invite rebates, and no exit is provided afterwards. Approve?',
-      rejectConfirm: 'Rejecting lets this user apply again. Reject?',
-      approved: 'Agent application approved',
-      rejected: 'Agent application rejected',
-      empty: 'No agent applications',
-      errors: {
-        loadFailed: 'Failed to load agent applications',
-        reviewFailed: 'Review failed',
-        AGENT_NOT_PENDING: 'This application was already decided. Refresh and try again.',
-        AGENT_ALREADY_APPROVED: 'This user is already an agent',
-        AGENT_ALREADY_PENDING: 'This application is already under review',
-        AGENT_NOT_FOUND: 'Agent application not found'
+      "searchPlaceholder": "Email, username, user ID",
+      "status": {
+            "approved": "Active"
+      },
+      "source": {
+            "applied": "Self-enrolled",
+            "grandfathered": "Existing member"
+      },
+      "empty": "No agents yet",
+      "errors": {
+            "loadFailed": "Failed to load agents"
       }
-    },
+},
     affiliates: {
       invitesDescription: 'View site-wide inviter and invitee relationships',
       rebatesDescription: 'View recharge orders that generated affiliate rebates',
@@ -522,18 +515,14 @@ export default {
     // Users
     users: {
       inviter: {
+        codeLabel: "Invitation code",
+        codePlaceholder: "Enter the referrer’s invitation code",
+        codeHint: "One code identifies registration and referral ownership. Reassignment does not consume a registration use.",
         title: "Invitation code and rebate attribution",
         current: "Current referrer",
         unbound: "No referrer assigned",
         loading: "Loading referrer…",
         retry: "Reload",
-        codeType: "Invitation code type",
-        permanent: "Permanent invitation code",
-        aff: "AFF invitation code",
-        permanentPlaceholder: "Enter a permanent invitation code",
-        affPlaceholder: "Enter the referrer’s AFF code",
-        permanentHint: "Uses the owner assigned to this permanent code without consuming a registration use.",
-        affHint: "Uses the referrer who owns this AFF code.",
         resolve: "Find referrer",
         resolving: "Looking up…",
         next: "Referrer after update",

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
@@ -10,7 +8,7 @@ import (
 )
 
 // LC-024 agent center: a self-service application the user submits, and an admin
-// review queue. Nothing is collected from the applicant beyond the submission.
+// read-only membership list. Applying takes effect immediately.
 type AgentHandler struct{ service *service.AgentService }
 
 func NewAgentHandler(s *service.AgentService) *AgentHandler { return &AgentHandler{service: s} }
@@ -55,45 +53,11 @@ func (h *AgentHandler) Apply(c *gin.Context) {
 }
 
 func (h *AgentHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, total, err := h.service.List(c.Request.Context(), c.Query("status"), c.Query("search"), page, size)
+	page, size := response.ParsePagination(c)
+	items, total, err := h.service.List(c.Request.Context(), c.Query("search"), page, size)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Paginated(c, items, total, page, size)
-}
-
-// Review records the admin verdict. approve=false rejects, which the applicant
-// may undo by re-applying; a rejection is not permanent.
-func (h *AgentHandler) Review(c *gin.Context) {
-	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || userID <= 0 {
-		response.BadRequest(c, "Invalid user")
-		return
-	}
-	adminID, ok := h.subject(c)
-	if !ok {
-		return
-	}
-	var in struct {
-		Approve bool `json:"approve"`
-	}
-	if c.ShouldBindJSON(&in) != nil {
-		response.BadRequest(c, "Invalid review payload")
-		return
-	}
-	if err := h.service.Review(c.Request.Context(), userID, adminID, in.Approve); err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, gin.H{"user_id": userID, "status": agentStatusLabel(in.Approve)})
-}
-
-func agentStatusLabel(approve bool) string {
-	if approve {
-		return service.AgentStatusApproved
-	}
-	return service.AgentStatusRejected
 }

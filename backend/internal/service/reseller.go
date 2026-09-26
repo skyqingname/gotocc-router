@@ -49,7 +49,6 @@ type ResellerSummary struct {
 	CustomerCount int64   `json:"customer_count"`
 	Charged       float64 `json:"charged"`
 	Profit        float64 `json:"profit"`
-	Rebate        float64 `json:"rebate"`
 }
 type ResellerRepository interface {
 	Profile(context.Context, int64) (*ResellerProfile, error)

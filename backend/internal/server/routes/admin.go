@@ -134,7 +134,7 @@ func RegisterAdminRoutes(
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
 
-		// LC-024 代理中心（申请审核）
+		// LC-024 代理中心（只读名单）
 		registerAgentRoutes(admin, h)
 
 		// 邀请返利（专属用户管理）
@@ -906,12 +906,11 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 	}
 }
 
-// registerAgentRoutes 注册 LC-024 代理中心管理端路由（申请审核队列）
+// registerAgentRoutes 注册 LC-024 代理中心管理端路由（只读代理名单）
 func registerAgentRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	agents := admin.Group("/agents")
 	{
 		agents.GET("", h.Agent.List)
-		agents.POST("/:id/review", h.Agent.Review)
 	}
 }
 

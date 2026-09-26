@@ -25,7 +25,7 @@ export interface AffiliateInviterState {
 }
 
 export interface AffiliateInviterChange {
-  code_type: AffiliateInviterCodeType
+  code_type?: AffiliateInviterCodeType
   code: string
   resolved_user_id: number
   expected_version: number
@@ -36,8 +36,8 @@ export async function getInviter(userId: number): Promise<AffiliateInviterState>
   return data
 }
 
-export async function resolveInviterCode(codeType: AffiliateInviterCodeType, code: string): Promise<AffiliateInviterUser> {
-  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code_type: codeType, code })
+export async function resolveInviterCode(code: string): Promise<AffiliateInviterUser> {
+  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code })
   return data
 }
 

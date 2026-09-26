@@ -17,11 +17,11 @@ import (
 )
 
 const (
-	affiliateCodeLength      = 12
-	affiliateCodeMaxAttempts = 12
+	affiliateCodeLength      = service.InvitationCodeLength
+	affiliateCodeMaxAttempts = service.InvitationCodeGenerationAttempts
 )
 
-var affiliateCodeCharset = []byte("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+var affiliateCodeCharset = []byte(service.InvitationCodeCharset)
 
 const affiliateUserOverviewSQL = `
 SELECT ua.user_id,
@@ -73,8 +73,13 @@ func (r *affiliateRepository) EnsureUserAffiliate(ctx context.Context, userID in
 	if userID <= 0 {
 		return nil, service.ErrUserNotFound
 	}
-	client := clientFromContext(ctx, r.client)
-	return ensureUserAffiliateWithClient(ctx, client, userID)
+	var summary *service.AffiliateSummary
+	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		var err error
+		summary, err = ensureUserAffiliateWithClient(txCtx, client, userID)
+		return err
+	})
+	return summary, err
 }
 
 func (r *affiliateRepository) GetAffiliateByCode(ctx context.Context, code string) (*service.AffiliateSummary, error) {
@@ -779,7 +784,7 @@ func (r *affiliateRepository) withTx(ctx context.Context, fn func(txCtx context.
 	return nil
 }
 
-func ensureUserAffiliateWithClient(ctx context.Context, client affiliateQueryExecer, userID int64) (*service.AffiliateSummary, error) {
+func ensureUserAffiliateWithClient(ctx context.Context, client *dbent.Client, userID int64) (*service.AffiliateSummary, error) {
 	summary, err := queryAffiliateByUserID(ctx, client, userID)
 	if err == nil {
 		return summary, nil
@@ -788,22 +793,41 @@ func ensureUserAffiliateWithClient(ctx context.Context, client affiliateQueryExe
 		return nil, err
 	}
 
+	// All invitation writers share this lock, including administrator-created codes.
+	if err := lockAffiliateBindings(ctx, client); err != nil {
+		return nil, err
+	}
 	for i := 0; i < affiliateCodeMaxAttempts; i++ {
-		code, codeErr := generateAffiliateCode()
-		if codeErr != nil {
-			return nil, codeErr
+		code, err := generateAffiliateCode()
+		if err != nil {
+			return nil, err
 		}
-		_, insertErr := client.ExecContext(ctx, `
-INSERT INTO user_affiliates (user_id, aff_code, created_at, updated_at)
-VALUES ($1, $2, NOW(), NOW())
-ON CONFLICT (user_id) DO NOTHING`, userID, code)
-		if insertErr == nil {
+		res, err := client.ExecContext(ctx, `
+WITH created AS (
+ INSERT INTO user_affiliates (user_id, aff_code, created_at, updated_at)
+ SELECT $1, $2, NOW(), NOW()
+ WHERE NOT EXISTS (SELECT 1 FROM reusable_invitation_codes WHERE UPPER(code) = $2)
+ ON CONFLICT DO NOTHING
+ RETURNING user_id, aff_code
+)
+INSERT INTO reusable_invitation_codes (code, owner_user_id, status, max_uses, used_count, notes)
+SELECT aff_code, user_id, 'active', 0, 0, '' FROM created`, userID, code)
+		if err != nil {
+			return nil, err
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if count > 0 {
 			break
 		}
-		if isAffiliateUniqueViolation(insertErr) {
-			continue
+		// Another request may already have created this user's default code.
+		if summary, err := queryAffiliateByUserID(ctx, client, userID); err == nil {
+			return summary, nil
+		} else if !errors.Is(err, service.ErrAffiliateProfileNotFound) {
+			return nil, err
 		}
-		return nil, insertErr
 	}
 
 	return queryAffiliateByUserID(ctx, client, userID)
@@ -1053,7 +1077,9 @@ WHERE user_id = $2`, code, userID)
 		if affected == 0 {
 			return service.ErrUserNotFound
 		}
-		return nil
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO reusable_invitation_codes (code, owner_user_id, status, max_uses, used_count, notes)
+VALUES ($1, $2, 'active', 0, 0, '') ON CONFLICT (code) DO NOTHING`, code, userID)
+		return err
 	})
 }
 
@@ -1076,11 +1102,12 @@ func (r *affiliateRepository) ResetUserAffCode(ctx context.Context, userID int64
 				return codeErr
 			}
 			res, err := txClient.ExecContext(txCtx, `
-UPDATE user_affiliates
-SET aff_code = $1,
-    aff_code_custom = false,
-    updated_at = NOW()
-WHERE user_id = $2`, candidate, userID)
+WITH code AS (
+ INSERT INTO reusable_invitation_codes (code, owner_user_id, status, max_uses, used_count, notes)
+ VALUES ($1, $2, 'active', 0, 0, '') ON CONFLICT (code) DO NOTHING RETURNING code
+)
+UPDATE user_affiliates SET aff_code = code.code, aff_code_custom = false, updated_at = NOW()
+FROM code WHERE user_id = $2`, candidate, userID)
 			if err != nil {
 				if isAffiliateUniqueViolation(err) {
 					continue
@@ -1089,7 +1116,7 @@ WHERE user_id = $2`, candidate, userID)
 			}
 			affected, _ := res.RowsAffected()
 			if affected == 0 {
-				return service.ErrUserNotFound
+				continue
 			}
 			newCode = candidate
 			return nil

@@ -159,7 +159,7 @@ export interface AffiliateInvitee {
 /** LC-024 agent enrollment state. An empty status means the user never applied. */
 export interface AgentProfile {
   user_id: number
-  status: '' | 'pending' | 'approved' | 'rejected'
+  status: '' | 'approved'
   source?: 'applied' | 'grandfathered' | ''
   applied_at?: string | null
   reviewed_at?: string | null

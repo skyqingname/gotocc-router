@@ -7,11 +7,11 @@ Release procedures are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The owned version `v0.2.7+custom.003` follows `v0.2.7+custom.002` on the complete Plus
+The owned candidate `v0.2.7+custom.005` follows the local `v0.2.7+custom.004` candidate on the complete Plus
 `v0.2.7+custom.001` tree, commit `7b2d38cc501b0e73302c2609ee79f39f75d3c5e8`.
 It preserves the GoToCC contracts from owned `v0.2.5+custom.003` and incorporates
 the PR #12 parallel client-tool argument fix with call-alias deduplication.
-Publication follows local final-package acceptance.
+This candidate unifies invitation-code registration and attribution, replaces manual agent review with immediate opt-in, and separates reseller margins from commissions. Publication follows local final-package acceptance.
 
 The current integration tree incorporates the official `v0.2.7` tag at commit
 `aea725f2ea644d5592d0bbb1d63b607efa7e200a`, layered onto the Plus history.

@@ -7,6 +7,10 @@
         ></div>
       </div>
 
+      <div v-else-if="loadError" class="card p-6">
+        <p role="alert" class="text-sm text-red-600">{{ loadError }}</p>
+        <button class="btn btn-secondary mt-4" @click="loadAffiliateDetail()">{{ t('common.retry') }}</button>
+      </div>
       <template v-else-if="detail">
         <!-- LC-024：未成为代理时只展示申请入口，返利界面整体不出现 -->
         <div v-if="!isAgent" class="card p-6">
@@ -30,16 +34,11 @@
               <Icon v-else name="userPlus" size="sm" />
               <span>{{ applyingAgent ? t('affiliate.agent.applying') : agentActionLabel }}</span>
             </button>
-            <span
-              v-else
-              class="inline-flex shrink-0 items-center rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-            >
-              {{ agentBadge }}
-            </span>
+
           </div>
         </div>
 
-        <div v-if="detail.show_rebate_details" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div v-if="isAgent" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
               <Icon name="dollar" size="sm" class="text-primary-500" />
@@ -107,9 +106,9 @@
             <p class="text-sm font-medium text-primary-800 dark:text-primary-200">{{ t('affiliate.tips.title') }}</p>
             <ul class="mt-2 space-y-1 text-sm text-primary-700 dark:text-primary-300">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
-              <li v-if="detail.show_rebate_details">2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
-              <li>{{ detail.show_rebate_details ? '3.' : '2.' }} {{ t('affiliate.tips.line3') }}</li>
-              <li v-if="detail.aff_frozen_quota > 0">{{ detail.show_rebate_details ? '4.' : '3.' }} {{ t('affiliate.tips.line4') }}</li>
+              <li v-if="isAgent">2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
+              <li>{{ isAgent ? '3.' : '2.' }} {{ t('affiliate.tips.line3') }}</li>
+              <li v-if="detail.aff_frozen_quota > 0">{{ isAgent ? '4.' : '3.' }} {{ t('affiliate.tips.line4') }}</li>
             </ul>
           </div>
         </div>
@@ -135,7 +134,7 @@
           </p>
         </div>
 
-        <div v-if="detail.show_rebate_details" class="card p-6">
+        <div v-if="isAgent" class="card p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.invitees.title') }}</h3>
           <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400">
             {{ t('affiliate.invitees.empty') }}
@@ -193,39 +192,25 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+const loadError = ref('')
 
 // LC-024 enrollment state. The rebate surface is gated on an approved identity;
 // invite code and share link stay available so recruiting never depends on it.
 const agentProfile = ref<AgentProfile | null>(null)
 const applyingAgent = ref(false)
-const agentStatus = computed(() => agentProfile.value?.status ?? '')
-const isAgent = computed(() => agentStatus.value === 'approved')
-const canApplyForAgent = computed(() => agentStatus.value !== 'pending')
-const agentAppliedAt = computed(() =>
-  agentProfile.value?.applied_at ? formatDateTime(agentProfile.value.applied_at) : '',
-)
-const agentTitle = computed(() => {
-  if (agentStatus.value === 'pending') return t('affiliate.agent.pendingTitle')
-  if (agentStatus.value === 'rejected') return t('affiliate.agent.rejectedTitle')
-  return t('affiliate.agent.applyTitle')
-})
-const agentDescription = computed(() => {
-  if (agentStatus.value === 'pending') return t('affiliate.agent.pendingDescription')
-  if (agentStatus.value === 'rejected') return t('affiliate.agent.rejectedDescription')
-  return t('affiliate.agent.applyDescription')
-})
-const agentActionLabel = computed(() =>
-  agentStatus.value === 'rejected' ? t('affiliate.agent.reapplyButton') : t('affiliate.agent.applyButton'),
-)
-const agentBadge = computed(() =>
-  agentStatus.value === 'pending' ? t('affiliate.agent.pendingTitle') : t('affiliate.agent.rejectedTitle'),
-)
+const isAgent = computed(() => agentProfile.value?.status === 'approved')
+const canApplyForAgent = computed(() => !isAgent.value)
+const agentAppliedAt = computed(() => agentProfile.value?.applied_at ? formatDateTime(agentProfile.value.applied_at) : '')
+const agentTitle = computed(() => t('affiliate.agent.applyTitle'))
+const agentDescription = computed(() => t('affiliate.agent.applyDescription'))
+const agentActionLabel = computed(() => t('affiliate.agent.applyButton'))
 
 async function submitAgentApplication(): Promise<void> {
   if (applyingAgent.value || !canApplyForAgent.value) return
   applyingAgent.value = true
   try {
     agentProfile.value = await userAPI.applyForAgent()
+    await loadAffiliateDetail(true)
     appStore.showSuccess(t('affiliate.agent.applied'))
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.agent.applyFailed')))
@@ -240,8 +225,8 @@ function applyForAgent(): void {
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
-  if (typeof window === 'undefined') return `/register?aff=${encodeURIComponent(detail.value.aff_code)}`
-  return `${window.location.origin}/register?aff=${encodeURIComponent(detail.value.aff_code)}`
+  if (typeof window === 'undefined') return `/register?invitation_code=${encodeURIComponent(detail.value.aff_code)}`
+  return `${window.location.origin}/register?invitation_code=${encodeURIComponent(detail.value.aff_code)}`
 })
 
 const formattedRebateRates = computed(() =>
@@ -256,15 +241,16 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
   if (!silent) {
     loading.value = true
   }
+  loadError.value = ''
   try {
     const [affiliate, agent] = await Promise.all([
       userAPI.getAffiliateDetail(),
-      userAPI.getAgentProfile().catch(() => null),
+      userAPI.getAgentProfile(),
     ])
     detail.value = affiliate
     agentProfile.value = agent
   } catch (error) {
-    appStore.showError(extractApiErrorMessage(error, t('affiliate.loadFailed')))
+    loadError.value = extractApiErrorMessage(error, t('affiliate.loadFailed'))
   } finally {
     if (!silent) {
       loading.value = false

@@ -783,7 +783,7 @@ export default {
   },
 
   affiliate: {
-    title: '邀请返利',
+    title: '代理中心',
     description: '邀请新用户注册，并将返利额度转入账户余额',
     yourCode: '我的邀请码',
     inviteLink: '邀请链接',
@@ -824,20 +824,15 @@ export default {
     },
 
     agent: {
-      title: '代理中心',
-      applyTitle: '申请成为代理',
-      applyDescription: '提交申请后由管理员审核。审核通过即可获得邀请返利，未通过的层级不产生返佣。',
-      applyButton: '申请成为代理',
-      applying: '提交中...',
-      applied: '申请已提交',
-      applyFailed: '提交申请失败',
-      pendingTitle: '申请审核中',
-      pendingDescription: '你的代理申请已提交，管理员审核通过后即可查看并提取邀请返利。',
-      appliedAt: '申请时间：{time}',
-      rejectedTitle: '申请未通过',
-      rejectedDescription: '你可以再次提交申请。',
-      reapplyButton: '重新申请',
-      loadFailed: '加载代理状态失败'
+      title: "代理中心",
+      applyTitle: "申请成为代理",
+      applyDescription: "点击申请即刻成为代理，无需等待审核。从开通时起，你邀请的用户充值可按规则产生返佣，开通前不补发。代理身份开通后不可退出。",
+      applyButton: "申请成为代理",
+      applying: "开通中...",
+      applied: "已成为代理",
+      applyFailed: "开通失败，请重试",
+      appliedAt: "开通时间：{time}",
+      loadFailed: "加载代理状态失败",
     },
     tips: {
       title: '使用说明',

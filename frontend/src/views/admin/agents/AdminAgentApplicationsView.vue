@@ -13,12 +13,6 @@
               @input="debounceLoad"
             />
           </div>
-          <select v-model="filters.status" class="input w-full sm:w-44" @change="reloadFromFirstPage">
-            <option value="">{{ t('admin.agents.statusAll') }}</option>
-            <option value="pending">{{ t('admin.agents.status.pending') }}</option>
-            <option value="approved">{{ t('admin.agents.status.approved') }}</option>
-            <option value="rejected">{{ t('admin.agents.status.rejected') }}</option>
-          </select>
           <button
             class="btn btn-secondary px-2 md:px-3"
             :disabled="loading"
@@ -58,25 +52,7 @@
           <template #cell-applied_at="{ row }">
             {{ formatDateTime(row.applied_at) || '—' }}
           </template>
-          <template #cell-actions="{ row }">
-            <div v-if="row.status === 'pending'" class="flex items-center gap-2">
-              <button
-                class="btn btn-primary btn-sm"
-                :disabled="reviewing !== null"
-                @click="askReview(row, true)"
-              >
-                {{ t('admin.agents.approve') }}
-              </button>
-              <button
-                class="btn btn-secondary btn-sm"
-                :disabled="reviewing !== null"
-                @click="askReview(row, false)"
-              >
-                {{ t('admin.agents.reject') }}
-              </button>
-            </div>
-            <span v-else class="text-xs text-gray-400">{{ formatDateTime(row.reviewed_at) || '—' }}</span>
-          </template>
+          <template #cell-reviewed_at="{ row }">{{ formatDateTime(row.reviewed_at) || '—' }}</template>
         </DataTable>
 
         <Pagination
@@ -89,28 +65,17 @@
       </template>
     </TablePageLayout>
 
-    <ConfirmDialog
-      :show="pendingReview !== null"
-      :title="pendingReview?.approve ? t('admin.agents.approve') : t('admin.agents.reject')"
-      :message="pendingReview?.approve ? t('admin.agents.approveConfirm') : t('admin.agents.rejectConfirm')"
-      :confirm-text="pendingReview?.approve ? t('admin.agents.approve') : t('admin.agents.reject')"
-      :danger="pendingReview?.approve === false"
-      :loading="reviewing !== null"
-      @confirm="confirmReview"
-      @cancel="pendingReview = null"
-    />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, reactive, ref } from 'vue'
+import { computed, defineComponent, h, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import type { Column } from '@/components/common/types'
 import { useAppStore } from '@/stores/app'
@@ -124,9 +89,7 @@ const appStore = useAppStore()
 
 const loading = ref(false)
 const applications = ref<AgentApplication[]>([])
-const reviewing = ref<number | null>(null)
-const pendingReview = ref<{ user: AgentApplication; approve: boolean } | null>(null)
-const filters = reactive({ search: '', status: 'pending' as AgentStatus | '' })
+const filters = reactive({ search: '' })
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -136,13 +99,11 @@ const columns = computed<Column[]>(() => [
   { key: 'source', label: t('admin.agents.columns.source') },
   { key: 'created_at', label: t('admin.agents.columns.registeredAt') },
   { key: 'applied_at', label: t('admin.agents.columns.appliedAt') },
-  { key: 'actions', label: t('admin.agents.columns.actions') },
+  { key: 'reviewed_at', label: t('admin.agents.columns.activatedAt') },
 ])
 
-function statusClass(status: AgentStatus): string {
-  if (status === 'approved') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-  if (status === 'rejected') return 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-  return 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+function statusClass(_status: AgentStatus): string {
+ return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
 }
 
 async function loadApplications(): Promise<void> {
@@ -152,7 +113,6 @@ async function loadApplications(): Promise<void> {
       page: pagination.page,
       page_size: pagination.page_size,
       search: filters.search.trim(),
-      status: filters.status,
     })
     applications.value = res.items || []
     pagination.total = res.total || 0
@@ -176,27 +136,6 @@ function reloadFromFirstPage(): void {
 function handlePageChange(page: number): void {
   pagination.page = page
   void loadApplications()
-}
-
-function askReview(user: AgentApplication, approve: boolean): void {
-  if (reviewing.value !== null) return
-  pendingReview.value = { user, approve }
-}
-
-async function confirmReview(): Promise<void> {
-  const target = pendingReview.value
-  if (!target || reviewing.value !== null) return
-  reviewing.value = target.user.user_id
-  try {
-    await agentsAPI.reviewApplication(target.user.user_id, target.approve)
-    appStore.showSuccess(t(target.approve ? 'admin.agents.approved' : 'admin.agents.rejected'))
-    pendingReview.value = null
-    await loadApplications()
-  } catch (error) {
-    appStore.showError(extractI18nErrorMessage(error, t, 'admin.agents.errors', t('admin.agents.errors.reviewFailed')))
-  } finally {
-    reviewing.value = null
-  }
 }
 
 function openUser(userId: number): void {
@@ -236,4 +175,5 @@ const UserCell = defineComponent({
 onMounted(() => {
   void loadApplications()
 })
+onBeforeUnmount(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 </script>

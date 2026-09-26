@@ -47,8 +47,11 @@ below for detailed configuration and maintenance instructions.
 
 ## Additional References
 
-- [Invitation relationships and three-generation commission](AFFILIATE.md)
+- [Unified invitations, agent activation and three-generation commission](AFFILIATE.md)
 - [Payment integration](PAYMENT.md)
 - [Payment integration — Chinese](PAYMENT_CN.md)
 - [Admin payment integration API](ADMIN_PAYMENT_INTEGRATION_API.md)
 - [Composite groups](COMPOSITE_GROUPS.md)
+
+- [Customer invitation reassignment](CUSTOMER_REASSIGNMENT_DESIGN.md)
+- [Reseller consumption margins](RESELLER_CENTER.md)

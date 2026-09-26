@@ -33,20 +33,6 @@ func (r *agentRepository) executor(ctx context.Context) sqlExecutor {
 	return clientFromContext(ctx, r.client)
 }
 
-// Status returns "" when the user has no agent record at all.
-func (r *agentRepository) Status(ctx context.Context, userID int64) (string, error) {
-	var status string
-	err := scanSingleRow(ctx, r.executor(ctx),
-		`SELECT status FROM agent_profiles WHERE user_id = $1`, []any{userID}, &status)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	return status, nil
-}
-
 // EligibleAmong reports which of the given users may receive a rebate right now.
 // Only 'approved' counts: grandfathered users carry an approved status.
 func (r *agentRepository) EligibleAmong(ctx context.Context, userIDs []int64) (map[int64]bool, error) {
@@ -94,57 +80,26 @@ func (r *agentRepository) Overview(ctx context.Context, userID int64) (*service.
 	return p, nil
 }
 
-// Apply inserts a pending application. A rejected user re-applying returns to
-// pending and clears the previous review verdict. Approved rows are never reset,
-// which is what makes an approved agent permanent.
+// Apply directly activates a membership. An existing approval is permanent and
+// retains its original source and effective time on duplicate submissions.
 func (r *agentRepository) Apply(ctx context.Context, userID int64) (bool, error) {
 	res, err := r.executor(ctx).ExecContext(ctx, `
-INSERT INTO agent_profiles (user_id, status, source, applied_at)
-SELECT id, 'pending', 'applied', NOW() FROM users WHERE id = $1 AND deleted_at IS NULL
-ON CONFLICT (user_id) DO UPDATE
- SET status = 'pending', applied_at = NOW(), reviewed_at = NULL, reviewed_by = NULL, updated_at = NOW()
- WHERE agent_profiles.status = 'rejected'`, userID)
+INSERT INTO agent_profiles (user_id, status, source, applied_at, reviewed_at)
+SELECT id, 'approved', 'applied', NOW(), NOW() FROM users WHERE id = $1 AND deleted_at IS NULL
+ON CONFLICT (user_id) DO NOTHING`, userID)
 	if err != nil {
 		return false, err
 	}
 	return rowsAffected(res)
 }
 
-// Review moves one pending application to its terminal state. Rows that are not
-// pending are left untouched, so two admins cannot overwrite each other.
-func (r *agentRepository) Review(ctx context.Context, userID, adminID int64, approve bool) (bool, error) {
-	status := "rejected"
-	if approve {
-		status = "approved"
-	}
-	res, err := r.executor(ctx).ExecContext(ctx, `
-UPDATE agent_profiles
- SET status = $2, reviewed_at = NOW(), reviewed_by = $3, updated_at = NOW()
- WHERE user_id = $1 AND status = 'pending'`, userID, status, adminID)
-	if err != nil {
-		return false, err
-	}
-	return rowsAffected(res)
-}
-
-// List returns applications for the admin queue, newest first.
-func (r *agentRepository) List(ctx context.Context, status, search string, page, size int) ([]service.AgentApplication, int64, error) {
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 || size > 200 {
-		size = 20
-	}
+// List returns enrolled agents for the read-only admin directory, newest first.
+func (r *agentRepository) List(ctx context.Context, search string, page, size int) ([]service.AgentApplication, int64, error) {
 	args := []any{}
 	where := ""
-	if status != "" {
-		args = append(args, status)
-		where += " AND a.status = $1"
-	}
-	pattern := "%" + strings.TrimSpace(search) + "%"
-	if search != "" {
-		args = append(args, pattern)
-		where += " AND (u.email ILIKE $2 OR u.username ILIKE $2)"
+	if search = strings.TrimSpace(search); search != "" {
+		args = append(args, "%"+search+"%")
+		where = " AND (u.email ILIKE $1 OR u.username ILIKE $1 OR u.id::text ILIKE $1)"
 	}
 	q := r.executor(ctx)
 	var total int64

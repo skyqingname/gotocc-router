@@ -183,7 +183,7 @@ func (r *resellerRepository) SetPrices(ctx context.Context, ownerID int64, custo
 }
 func (r *resellerRepository) Summary(ctx context.Context, ownerID int64) (*service.ResellerSummary, error) {
 	p := &service.ResellerSummary{}
-	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN users u ON u.id=c.user_id WHERE a.inviter_id=$1 AND u.deleted_at IS NULL),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8,COALESCE((SELECT SUM(amount) FROM user_affiliate_ledger WHERE user_id=$1 AND action='accrue'),0)::float8 FROM reseller_earnings WHERE owner_user_id=$1`, []any{ownerID}, &p.CustomerCount, &p.Charged, &p.Profit, &p.Rebate)
+	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN users u ON u.id=c.user_id WHERE a.inviter_id=$1 AND u.deleted_at IS NULL),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8 FROM reseller_earnings WHERE owner_user_id=$1`, []any{ownerID}, &p.CustomerCount, &p.Charged, &p.Profit)
 	return p, err
 }
 func (r *resellerRepository) Earnings(ctx context.Context, ownerID int64, page, size int) ([]service.ResellerEarning, int64, error) {

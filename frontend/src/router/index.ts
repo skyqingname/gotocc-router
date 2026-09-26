@@ -834,7 +834,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Agent Applications',
+      title: 'Agents',
       titleKey: 'nav.agentApplications',
       descriptionKey: 'admin.agents.description'
     }

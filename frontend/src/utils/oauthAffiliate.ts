@@ -129,5 +129,5 @@ export function clearAllAffiliateReferralCodes(): void {
 
 export function oauthAffiliatePayload(value?: unknown): { aff_code?: string; invitation_code?: string } {
   const code = normalizeOAuthAffiliateCode(value)
-  return code ? { aff_code: code, ...(code.toUpperCase().startsWith('RS-') ? { invitation_code: code } : {}) } : {}
+  return code ? { invitation_code: code, aff_code: code } : {}
 }

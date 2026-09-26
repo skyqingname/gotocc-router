@@ -45,10 +45,16 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
+	agentRepository := repository.NewAgentRepository(client, db)
+	settingRepository := repository.NewSettingRepository(client)
+	groupRepository := repository.NewGroupRepository(client, db)
+	proxyRepository := repository.NewProxyRepository(client, db)
+	settingService := service.ProvideSettingService(settingRepository, groupRepository, proxyRepository, configConfig)
+	agentService := service.NewAgentService(agentRepository, settingService)
+	agentHandler := handler.NewAgentHandler(agentService)
 	resellerRepository := repository.NewResellerRepository(client, db)
 	apiKeyRepository := repository.NewAPIKeyRepository(client, db)
 	userRepository := repository.NewUserRepository(client, db)
-	groupRepository := repository.NewGroupRepository(client, db)
 	userSubscriptionRepository := repository.NewUserSubscriptionRepository(client)
 	userGroupRateRepository := repository.NewUserGroupRateRepository(db)
 	redisClient := repository.ProvideRedis(configConfig)
@@ -64,9 +70,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	concurrencyService := service.ProvideConcurrencyService(concurrencyCache, accountRepository, configConfig)
 	teamRepository := repository.NewTeamRepository(db)
 	apiKeyService := service.ProvideAPIKeyService(apiKeyRepository, userRepository, groupRepository, userSubscriptionRepository, userGroupRateRepository, apiKeyCache, configConfig, billingCacheService, concurrencyService, teamRepository)
-	settingRepository := repository.NewSettingRepository(client)
-	proxyRepository := repository.NewProxyRepository(client, db)
-	settingService := service.ProvideSettingService(settingRepository, groupRepository, proxyRepository, configConfig)
 	resellerService := service.NewResellerService(resellerRepository, apiKeyService, settingService)
 	resellerHandler := handler.NewResellerHandler(resellerService)
 	redeemCodeRepository := repository.NewRedeemCodeRepository(client)
@@ -86,8 +89,10 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	promoService := service.NewPromoService(promoCodeRepository, userRepository, billingCacheService, client, apiKeyAuthCacheInvalidator)
 	subscriptionService := service.NewSubscriptionService(groupRepository, userSubscriptionRepository, billingCacheService, client, configConfig)
 	affiliateRepository := repository.NewAffiliateRepository(client, db)
-	agentRepository := repository.NewAgentRepository(client, db)
-	agentEligibility := service.ProvideAgentEligibility(agentRepository)
+	agentEligibility, err := service.ProvideAgentEligibility(agentRepository)
+	if err != nil {
+		return nil, err
+	}
 	affiliateService := service.ProvideAffiliateService(affiliateRepository, settingService, apiKeyAuthCacheInvalidator, billingCacheService, agentEligibility)
 	authService := service.ProvideAuthService(client, userRepository, redeemCodeRepository, refreshTokenCache, configConfig, settingService, emailService, turnstileService, tencentCaptchaService, aliyunCaptchaService, reusableInvitationCodeRepository, emailQueueService, promoService, subscriptionService, affiliateService, serviceUserPlatformQuotaRepository, resellerService)
 	userService := service.NewUserService(userRepository, settingRepository, apiKeyAuthCacheInvalidator, billingCache)
@@ -350,7 +355,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	openAIQuotaAutoResetService := service.ProvideOpenAIQuotaAutoResetService(accountRepository, openAIQuotaService, rateLimitService, idempotencyCoordinator, auditLogService, settingService, leaderLockCache)
-	handlers := handler.ProvideHandlers(resellerHandler, authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, marketplaceStatsHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, handlerTeamHandler, idempotencyCoordinator, idempotencyCleanupService, openAIQuotaAutoResetService)
+	handlers := handler.ProvideHandlers(agentHandler, resellerHandler, authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, channelMonitorV2Handler, marketplaceStatsHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, handlerTeamHandler, idempotencyCoordinator, idempotencyCleanupService, openAIQuotaAutoResetService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	optionalJWTAuthMiddleware := middleware.NewOptionalJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService, auditLogService)
@@ -363,7 +368,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	}
 	engine := server.ProvideRouter(configConfig, handlers, jwtAuthMiddleware, optionalJWTAuthMiddleware, adminAuthMiddleware, apiKeyAuthMiddleware, auditLogMiddleware, stepUpAuthMiddleware, apiKeyService, subscriptionService, opsService, settingService, ipAccessControlMiddleware, compositeRouteResolver, redisClient)
 	httpServer := server.ProvideHTTPServer(configConfig, engine)
-	agentService := service.NewAgentService(agentRepository)
 	opsMetricsCollector := service.ProvideOpsMetricsCollector(opsRepository, settingRepository, accountRepository, concurrencyService, db, redisClient, configConfig)
 	opsAggregationService := service.ProvideOpsAggregationService(opsRepository, settingRepository, db, redisClient, configConfig)
 	opsAlertEvaluatorService := service.ProvideOpsAlertEvaluatorService(opsService, opsRepository, emailService, redisClient, configConfig, proxyRepository)
@@ -391,7 +395,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		Server:        httpServer,
 		PromptAudit:   promptService,
 		PluginManager: pluginManager,
-		Agents:        agentService,
 		Cleanup:       v,
 	}
 	return application, nil
@@ -403,11 +406,7 @@ type Application struct {
 	Server        *http.Server
 	PromptAudit   *securityaudit.PromptService
 	PluginManager *service.PluginManager
-	// Agents initializes the LC-024 enrollment cutoff on first boot. The
-	// boundary has to come from wall-clock time at upgrade, not build time, so
-	// it cannot live in a migration.
-	Agents  *service.AgentService
-	Cleanup func()
+	Cleanup       func()
 }
 
 func providePrivacyClientFactory() service.PrivacyClientFactory {

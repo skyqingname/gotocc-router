@@ -20,7 +20,6 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/handler"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
-	"github.com/LuckyKuang/sub2api-plus/internal/service"
 	"github.com/LuckyKuang/sub2api-plus/internal/setup"
 	"github.com/LuckyKuang/sub2api-plus/internal/web"
 
@@ -132,27 +131,6 @@ func runSetupServer() {
 	}
 }
 
-// initAgentEnrollmentCutoff fixes the LC-024 enrollment boundary on the first
-// boot after the upgrade. Migration 279 cannot do this: the cutoff has to be the
-// moment the new build actually starts serving, not build or migration time.
-// The write is conditional and idempotent, so every later boot is a no-op and
-// concurrent instances cannot move the boundary.
-func initAgentEnrollmentCutoff(agents *service.AgentService) {
-	if agents == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	applied, err := agents.EnsureCutoff(ctx, service.AgentEnrollmentCutoffSentinel)
-	if err != nil {
-		log.Printf("Failed to initialize agent enrollment cutoff: %v", err)
-		return
-	}
-	if applied {
-		log.Println("Agent enrollment cutoff initialized; existing users are grandfathered agents")
-	}
-}
-
 func runMainServer() {
 	cfg, err := config.LoadForBootstrap()
 	if err != nil {
@@ -176,7 +154,6 @@ func runMainServer() {
 	}
 	defer app.Cleanup()
 
-	initAgentEnrollmentCutoff(app.Agents)
 	if app.PluginManager != nil {
 		if err := app.PluginManager.Start(context.Background()); err != nil {
 			log.Printf("Plugin manager started in degraded state: %v", err)

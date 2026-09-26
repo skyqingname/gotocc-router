@@ -6,9 +6,7 @@ export interface ResellerGroup { id: number; name: string; platform: string; bas
 export interface ResellerPrices { prices: ResellerPrice[]; groups: ResellerGroup[]; default_multiplier: number }
 export interface ResellerEarning { id: number; customer_id: number; username: string; group_id: number; group_name: string; model: string; charged: number; cost: number; profit: number; multiplier: number; created_at: string }
 export interface ResellerPage<T> { items: T[]; total: number; page: number; page_size: number }
-// rebate is the invite-commission total this reseller received as a beneficiary.
-// It is unrelated to reseller pricing and survives the removal of per-reseller rates.
-export interface ResellerOverview { profile: ResellerProfile; summary: { customer_count: number; charged: number; profit: number; rebate: number } }
+export interface ResellerOverview { profile: ResellerProfile; summary: { customer_count: number; charged: number; profit: number } }
 export const resellerAPI = {
   access: async () => (await apiClient.get<{enabled: boolean}>('/reseller/access')).data,
   overview: async () => (await apiClient.get<ResellerOverview>('/reseller')).data,

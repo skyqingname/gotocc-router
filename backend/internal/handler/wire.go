@@ -235,6 +235,7 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
+	agentHandler *AgentHandler,
 	resellerHandler *ResellerHandler,
 	authHandler *AuthHandler,
 	userHandler *UserHandler,
@@ -264,6 +265,7 @@ func ProvideHandlers(
 	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
 	return &Handlers{
+		Agent:            agentHandler,
 		Reseller:         resellerHandler,
 		Auth:             authHandler,
 		User:             userHandler,
