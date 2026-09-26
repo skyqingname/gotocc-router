@@ -65,11 +65,13 @@ func ProvideAuthService(
 	turnstileService *TurnstileService,
 	tencentCaptchaService *TencentCaptchaService,
 	aliyunCaptchaService *AliyunCaptchaService,
+	reusableInvitationRepo ReusableInvitationCodeRepository,
 	emailQueueService *EmailQueueService,
 	promoService *PromoService,
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	resellerService *ResellerService,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -88,6 +90,8 @@ func ProvideAuthService(
 	)
 	svc.SetTencentCaptchaService(tencentCaptchaService)
 	svc.SetAliyunCaptchaService(aliyunCaptchaService)
+	svc.resellerService = resellerService
+	svc.SetReusableInvitationCodeRepository(reusableInvitationRepo)
 	return svc
 }
 
@@ -257,6 +261,19 @@ func ProvideAccountUsageService(
 	service.agentIdentityWS = openAIGatewayService
 	service.openAIIdentityResolver = openAIGatewayService
 	return service
+}
+
+func ProvidePluginManager(
+	repo PluginRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+	hostInfo PluginHostInfo,
+	kvStore PluginKVStore,
+	openAIGatewayService *OpenAIGatewayService,
+) *PluginManager {
+	manager := NewPluginManager(repo, encryptor, cfg, hostInfo, kvStore)
+	manager.SetAccountDirectory(openAIGatewayService)
+	return manager
 }
 
 func ProvideAccountTestService(
@@ -724,9 +741,10 @@ func ProvideIPAccessControlService(
 // 对象存储是异步图片任务的启用前提：仅当开关打开且凭证齐全时功能才可用，否则整体禁用
 // （handler 返回 404，不创建任务、不写 Redis），从而避免大 base64 结果撑爆 Redis。
 // 启用状态由 settings 服务在运行时解析，因此后台改开关后无需重启即可生效。
-func ProvideImageTaskService(store ImageTaskStore, history ImageTaskHistoryRepository, settings *ImageStorageSettingService) *ImageTaskService {
+func ProvideImageTaskService(store ImageTaskStore, history ImageTaskHistoryRepository, objects ImageObjectRepository, settings *ImageStorageSettingService) *ImageTaskService {
 	svc := NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 	svc.SetHistoryRepository(history)
+	svc.SetImageObjectRepository(objects)
 	return svc
 }
 
@@ -851,11 +869,19 @@ func ProvideAPIKeyService(
 	cfg *config.Config,
 	billingCacheService *BillingCacheService,
 	concurrencyService *ConcurrencyService,
+	teamRepo TeamRepository,
 ) *APIKeyService {
 	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg)
 	svc.SetRateLimitCacheInvalidator(billingCacheService)
 	svc.SetConcurrencyService(concurrencyService)
+	svc.SetTeamRepository(teamRepo)
 	return svc
+}
+
+func ProvideAffiliateService(repo AffiliateRepository, settings *SettingService, authCache APIKeyAuthCacheInvalidator, billingCache *BillingCacheService, agents AgentEligibility) *AffiliateService {
+	s := NewAffiliateService(repo, settings, authCache, billingCache)
+	s.agents = agents
+	return s
 }
 
 // ProviderSet is the Wire provider set for all services
@@ -865,11 +891,14 @@ var ProviderSet = wire.NewSet(
 	NewPasskeyService,
 	NewUserService,
 	NewClientDisconnectRiskService,
+	NewTeamService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	ProvideAuthCacheInvalidationWorker,
 	NewGroupService,
 	NewCompositeRouteResolver,
+	NewAutoGroupResolver,
+	NewAutoGroupRoutingPolicyService,
 	NewAccountService,
 	NewProxyService,
 	NewRedeemService,
@@ -890,6 +919,7 @@ var ProviderSet = wire.NewSet(
 	NewBatchImageDownloadService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
+	ProvideOpenAIVideoTaskRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
 	NewOAuthService,
 	ProvideOpenAIOAuthService,
@@ -966,7 +996,7 @@ var ProviderSet = wire.NewSet(
 	NewTotpService,
 	NewErrorPassthroughService,
 	NewTLSFingerprintProfileService,
-	NewPluginManager,
+	ProvidePluginManager,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,
@@ -978,8 +1008,11 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(ChannelCacheInvalidator), new(*ChannelService)),
 	NewModelPricingResolver,
 	NewModelPlazaService,
-	NewContentModerationService,
-	NewAffiliateService,
+	ProvideContentModerationService,
+	ProvideAffiliateService,
+	NewAgentService,
+	ProvideAgentEligibility,
+	NewResellerService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,

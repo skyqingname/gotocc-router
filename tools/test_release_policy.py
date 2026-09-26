@@ -412,6 +412,45 @@ class MigrationBaselineTests(unittest.TestCase):
                 statuses={TAG: "planned"},
             )
 
+    def test_reviewed_imported_migration_requires_exact_path_and_content(self) -> None:
+        for relative in check_new_migrations.REVIEWED_IMPORTED_MIGRATIONS:
+            with self.subTest(relative=relative):
+                expected = ROOT / relative
+                self.assertTrue(check_new_migrations.is_reviewed_imported_migration(expected))
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            alternate_root = Path(temp_dir)
+            relative = "backend/migrations/221_add_teams.sql"
+            changed = alternate_root / relative
+            changed.parent.mkdir(parents=True)
+            changed.write_bytes((ROOT / relative).read_bytes() + b"\n-- changed\n")
+            original_root = check_new_migrations.ROOT
+            try:
+                check_new_migrations.ROOT = alternate_root
+                self.assertFalse(
+                    check_new_migrations.is_reviewed_imported_migration(changed)
+                )
+            finally:
+                check_new_migrations.ROOT = original_root
+
+    def test_reviewed_import_is_excluded_from_new_prefix_duplicates(self) -> None:
+        reviewed = [
+            ROOT / relative
+            for relative in check_new_migrations.REVIEWED_IMPORTED_MIGRATIONS
+        ]
+        ordinary = ROOT / "backend/migrations/220_group_model_pricing.sql"
+
+        self.assertFalse(
+            check_new_migrations.has_duplicate_unreviewed_prefixes(
+                [ordinary, *reviewed]
+            )
+        )
+        self.assertTrue(
+            check_new_migrations.has_duplicate_unreviewed_prefixes(
+                [ordinary, ordinary]
+            )
+        )
+
 
 class WorkflowProvenanceTests(unittest.TestCase):
     @staticmethod
@@ -492,7 +531,7 @@ class PublishedReleaseCheckTests(unittest.TestCase):
         argv = [
             "check_published_release.py",
             "--repository",
-            "LuckyKuang/sub2api-plus",
+            check_published_release.release_cli.EXPECTED_REPOSITORY,
             "--tag",
             TAG,
         ]
@@ -520,13 +559,17 @@ class PublishedReleaseCheckTests(unittest.TestCase):
             self.assertEqual(check_published_release.main(), 0)
 
         validate.assert_called_once_with(TAG)
-        remote_tag.assert_called_once_with("LuckyKuang/sub2api-plus", TAG)
+        remote_tag.assert_called_once_with(
+            check_published_release.release_cli.EXPECTED_REPOSITORY, TAG
+        )
         workflow.assert_called_once_with(
-            "LuckyKuang/sub2api-plus",
+            check_published_release.release_cli.EXPECTED_REPOSITORY,
             TAG,
             OFFICIAL_COMMIT,
         )
-        release.assert_called_once_with("LuckyKuang/sub2api-plus", TAG)
+        release.assert_called_once_with(
+            check_published_release.release_cli.EXPECTED_REPOSITORY, TAG
+        )
         github_gate.assert_not_called()
 
 class WorkflowPolicyTests(unittest.TestCase):
@@ -794,20 +837,20 @@ class ReleaseDocumentTests(unittest.TestCase):
         current_value_fixtures = {
             "deploy/README.md": (
                 f"Git/GitHub: {old}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/DOCKER.md": (
                 f"Immutable release, for example `{old_oci}`",
                 f"Git/GitHub: {old}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/APPLE_CONTAINER.md": (
                 f"Git/GitHub: {old}",
                 f"Application: {old_application}",
-                f"Apple/OCI image: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"Apple/OCI image: {release_docs.RELEASE_IMAGE}:{old_oci}",
                 f"--build-arg VERSION={old_application} \\",
-                f"--tag ghcr.io/luckykuang/sub2api-plus:{old_oci} \\",
-                f"APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"--tag {release_docs.RELEASE_IMAGE}:{old_oci} \\",
+                f"APPLE_CONTAINER_SUB2API_IMAGE={release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
             "deploy/.env.example": (
                 f"this source revision is tagged sub2api-plus:{old_oci}; use that value",
@@ -815,7 +858,7 @@ class ReleaseDocumentTests(unittest.TestCase):
             "UPSTREAM.md": (
                 f"Git/GitHub: {old}",
                 f"Application: {old_application}",
-                f"GHCR: ghcr.io/luckykuang/sub2api-plus:{old_oci}",
+                f"GHCR: {release_docs.RELEASE_IMAGE}:{old_oci}",
             ),
         }
         lines.extend(current_value_fixtures.get(rule.path, ()))

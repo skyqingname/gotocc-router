@@ -10,7 +10,7 @@ import (
 )
 
 func TestMiniMaxPlatformMigration(t *testing.T) {
-	content, err := FS.ReadFile("261_add_minimax_platform.sql")
+	content, err := FS.ReadFile("265_add_minimax_platform.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

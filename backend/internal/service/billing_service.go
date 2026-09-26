@@ -242,6 +242,15 @@ func defaultMaxReasoningEffortMultiplier(model string) *float64 {
 }
 
 func maxReasoningEffortBillingMultiplier(model, effort string, pricing *ModelPricing) float64 {
+	effort = strings.ToLower(strings.TrimSpace(effort))
+	if effort != "none" {
+		effort = NormalizeMaxReasoningEffort(effort)
+	}
+	if pricing != nil {
+		if multiplier, configured := pricing.ReasoningEffortMultipliers[effort]; configured {
+			return multiplier
+		}
+	}
 	if NormalizeMaxReasoningEffort(effort) != "max" {
 		return 1
 	}
@@ -1367,6 +1376,7 @@ func (s *BillingService) GetModelPricingWithChannel(model string, channelPricing
 	applyChannelTokenPriceOverrides(pricing, channelPricing)
 	pricing.FastMultiplier = channelPricing.FastMultiplier
 	pricing.FlexMultiplier = channelPricing.FlexMultiplier
+	pricing.ReasoningEffortMultipliers = channelPricing.ReasoningEffortMultipliers
 	if channelPricing.MaxReasoningEffortMultiplier != nil {
 		pricing.MaxReasoningEffortMultiplier = channelPricing.MaxReasoningEffortMultiplier
 	}
@@ -1900,7 +1910,7 @@ func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing
 // 档的模型（如 gpt-5.5-pro、gpt-5.4-mini/nano）返回 0。
 func openAIModelFastPricingRatio(normalized string) float64 {
 	switch normalized {
-	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra":
+	case "gpt-5.4", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "gpt-6-sol", "gpt-6-luna":
 		return 2.0
 	case "gpt-5.5":
 		return 2.5

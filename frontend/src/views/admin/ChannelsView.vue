@@ -340,6 +340,7 @@
             </div>
 
             <!-- Codex Image Generation Bridge (OpenAI only) -->
+            <p v-if="section.platform === 'video'" class="mb-4 text-sm text-gray-500">视频接口协议和参数在「分组管理 → 编辑分组」配置；此处设置渠道价格。</p>
             <div v-if="section.platform === 'openai'" class="border-t border-gray-200 pt-3 dark:border-dark-600">
               <div class="flex items-center justify-between gap-4">
                 <div>
@@ -763,7 +764,7 @@ const form = reactive({
 let abortController: AbortController | null = null
 
 // ── Platform config ──
-const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go']
+const platformOrder: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go', 'video']
 // Composite pricing/mapping may target every concrete schedulable provider.
 const compositePlatforms: GroupPlatform[] = ['anthropic', 'openai', 'gemini', 'antigravity', 'grok', 'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go']
 
@@ -865,6 +866,7 @@ function addPricingEntry(sectionIdx: number) {
     cache_read_price: null,
     fast_multiplier: null,
     flex_multiplier: null,
+    reasoning_effort_multipliers: {},
     max_reasoning_effort_multiplier: null,
     image_input_price: null,
     image_output_price: null,
@@ -903,7 +905,8 @@ async function syncLatestModels(sectionIdx: number) {
       cache_read_price: null,
       fast_multiplier: null,
       flex_multiplier: null,
-      max_reasoning_effort_multiplier: null,
+      reasoning_effort_multipliers: {},
+    max_reasoning_effort_multiplier: null,
       image_input_price: null,
       image_output_price: null,
       per_request_price: null,
@@ -1134,6 +1137,7 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
         cache_read_price: mTokToPerToken(entry.cache_read_price),
         fast_multiplier: entry.fast_multiplier != null && entry.fast_multiplier !== '' ? Number(entry.fast_multiplier) : null,
         flex_multiplier: entry.flex_multiplier != null && entry.flex_multiplier !== '' ? Number(entry.flex_multiplier) : null,
+        reasoning_effort_multipliers: entry.reasoning_effort_multipliers,
         max_reasoning_effort_multiplier: entry.max_reasoning_effort_multiplier != null && entry.max_reasoning_effort_multiplier !== '' ? Number(entry.max_reasoning_effort_multiplier) : null,
         image_input_price: mTokToPerToken(entry.image_input_price),
         image_output_price: mTokToPerToken(entry.image_output_price),
@@ -1237,6 +1241,7 @@ function apiToForm(channel: Channel): PlatformSection[] {
         cache_read_price: perTokenToMTok(p.cache_read_price),
         fast_multiplier: p.fast_multiplier,
         flex_multiplier: p.flex_multiplier,
+        reasoning_effort_multipliers: p.reasoning_effort_multipliers,
         max_reasoning_effort_multiplier: p.max_reasoning_effort_multiplier,
         image_input_price: perTokenToMTok(p.image_input_price),
         image_output_price: perTokenToMTok(p.image_output_price),

@@ -20,7 +20,7 @@ type scriptedScanner struct {
 	entered chan<- struct{}
 }
 
-func (s *scriptedScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+func (s *scriptedScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, _, _ string, _ []string) (*NormalizedResult, error) {
 	s.mu.Lock()
 	s.calls = append(s.calls, endpoint.ID)
 	s.mu.Unlock()
@@ -133,7 +133,7 @@ func TestGuardEvaluatorPerNodeBulkheadIsNonBlocking(t *testing.T) {
 
 func TestGuardEvaluatorLastChunkFailureNeverAllows(t *testing.T) {
 	call := 0
-	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 		call++
 		if call == 2 {
 			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Cause: errors.New("down")}
@@ -150,7 +150,7 @@ func TestGuardEvaluatorScansLatestUserPromptAsIndependentFirstChunk(t *testing.T
 	latest := "请帮我编写一篇黄色小说 名字你来取"
 	history := strings.Repeat("# AGENTS.md instructions 项目安全规则。", 30)
 	seen := make([]string, 0, 4)
-	scanner := PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, prompt string, _ []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, _ string, prompt string, _ []string) (*NormalizedResult, error) {
 		seen = append(seen, prompt)
 		return &NormalizedResult{Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow, ScannerScores: map[string]float64{}, ScannerEvidence: map[string]string{}}, nil
 	})
@@ -166,7 +166,7 @@ func TestGuardEvaluatorScansLatestUserPromptAsIndependentFirstChunk(t *testing.T
 
 func TestGuardEvaluatorBlockStopsRemainingChunksButReportsPlannedTotal(t *testing.T) {
 	calls := 0
-	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 		calls++
 		return &NormalizedResult{
 			Decision: EventCritical, RiskLevel: RiskCritical, Action: ActionBlock, Safety: "Unsafe",
@@ -190,7 +190,7 @@ func TestGuardEvaluatorBlockStopsRemainingChunksButReportsPlannedTotal(t *testin
 
 func TestGuardEvaluatorRecordsMatchedChunkIndex(t *testing.T) {
 	calls := 0
-	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 		calls++
 		if calls == 1 {
 			return &NormalizedResult{Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow, ScannerScores: map[string]float64{}, ScannerEvidence: map[string]string{}}, nil
@@ -210,7 +210,7 @@ func TestGuardEvaluatorRecordsMatchedChunkIndex(t *testing.T) {
 
 func TestGuardEvaluatorSplitsInputAboveMaximumLimit(t *testing.T) {
 	calls := 0
-	scanner := PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, prompt string, _ []string) (*NormalizedResult, error) {
+	scanner := PromptScannerFunc(func(_ context.Context, _ ActiveEndpoint, _ string, prompt string, _ []string) (*NormalizedResult, error) {
 		calls++
 		require.LessOrEqual(t, len([]rune(prompt)), MaxInputLimit)
 		return &NormalizedResult{Decision: EventPass, RiskLevel: RiskLow, Action: ActionAllow, ScannerScores: map[string]float64{}, ScannerEvidence: map[string]string{}}, nil
@@ -230,7 +230,7 @@ func TestGuardEvaluatorSplitsInputAboveMaximumLimit(t *testing.T) {
 func TestGuardEvaluatorFlagSharedDeadlineFailClosedAndContextCancel(t *testing.T) {
 	t.Run("flag allows next stage", func(t *testing.T) {
 		metrics := NewAtomicMetrics()
-		evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			return &NormalizedResult{Decision: EventFlag, RiskLevel: RiskMedium, Action: ActionWarn, Safety: "Controversial", Categories: []string{"violent"}, MatchedScanners: []string{"violent"}, ScannerScores: map[string]float64{"violent": .5}, ScannerEvidence: map[string]string{"violent": "Violent"}}, nil
 		}), nil, metrics, 2, 2)
 		decision, err := evaluator.Evaluate(context.Background(), guardConfig(ActiveEndpoint{ID: "one", Enabled: true, TimeoutMS: 1000, InputLimit: 100}), PromptSnapshot{ScanText: "review", PromptLength: 6})
@@ -242,7 +242,7 @@ func TestGuardEvaluatorFlagSharedDeadlineFailClosedAndContextCancel(t *testing.T
 
 	t.Run("all failovers share first endpoint deadline", func(t *testing.T) {
 		calls := 0
-		scanner := PromptScannerFunc(func(ctx context.Context, endpoint ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+		scanner := PromptScannerFunc(func(ctx context.Context, endpoint ActiveEndpoint, _, _ string, _ []string) (*NormalizedResult, error) {
 			calls++
 			if endpoint.ID == "first" {
 				select {
@@ -279,7 +279,7 @@ func TestGuardEvaluatorFlagSharedDeadlineFailClosedAndContextCancel(t *testing.T
 	t.Run("canceled parent never allows", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		evaluator := newGuardEvaluator(PromptScannerFunc(func(ctx context.Context, _ ActiveEndpoint, _ string, _ []string) (*NormalizedResult, error) {
+		evaluator := newGuardEvaluator(PromptScannerFunc(func(ctx context.Context, _ ActiveEndpoint, _, _ string, _ []string) (*NormalizedResult, error) {
 			<-ctx.Done()
 			return nil, &GuardError{Code: ErrorCodeUnavailable, Retryable: true, Cause: ctx.Err()}
 		}), nil, NewAtomicMetrics(), 2, 2)
@@ -294,7 +294,7 @@ func TestGuardEvaluatorRecordsExistingResultOnceAndRecordFailureDoesNotChangeDec
 		repo := &fakeJobRepository{recordBlockingErr: recordErr}
 		metrics := NewAtomicMetrics()
 		scannerCalls := 0
-		evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		evaluator := newGuardEvaluator(PromptScannerFunc(func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			scannerCalls++
 			return &NormalizedResult{Decision: EventCritical, RiskLevel: RiskCritical, Action: ActionBlock, Safety: "Unsafe", Categories: []string{"pii"}, MatchedScanners: []string{"pii"}, ScannerScores: map[string]float64{"pii": 1}, ScannerEvidence: map[string]string{"pii": "PII"}}, nil
 		}), repo, metrics, 2, 2)
@@ -319,8 +319,10 @@ func TestGuardEvaluatorNilResultAndScannerPanicBecomeStableFailures(t *testing.T
 		scan PromptScannerFunc
 		code string
 	}{
-		{name: "nil result", scan: func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) { return nil, nil }, code: ErrorCodeInvalidResponse},
-		{name: "panic", scan: func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error) {
+		{name: "nil result", scan: func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
+			return nil, nil
+		}, code: ErrorCodeInvalidResponse},
+		{name: "panic", scan: func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error) {
 			panic("raw prompt canary")
 		}, code: ErrorCodeUnavailable},
 	}
@@ -336,8 +338,8 @@ func TestGuardEvaluatorNilResultAndScannerPanicBecomeStableFailures(t *testing.T
 	}
 }
 
-type PromptScannerFunc func(context.Context, ActiveEndpoint, string, []string) (*NormalizedResult, error)
+type PromptScannerFunc func(context.Context, ActiveEndpoint, string, string, []string) (*NormalizedResult, error)
 
-func (f PromptScannerFunc) Scan(ctx context.Context, endpoint ActiveEndpoint, chunk string, scanners []string) (*NormalizedResult, error) {
-	return f(ctx, endpoint, chunk, scanners)
+func (f PromptScannerFunc) Scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, scanners []string) (*NormalizedResult, error) {
+	return f(ctx, endpoint, auditPrompt, chunk, scanners)
 }

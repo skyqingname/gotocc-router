@@ -44,6 +44,7 @@ func TestImageTaskServiceStreamDownloadZipContainsAllTaskImages(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	storage := &imageTaskDownloadStorage{}
 	svc := NewImageTaskServiceWithUploader(store, NewImageResultUploader(storage, "images/", false, 0, nil), time.Hour, time.Minute)
+	svc.SetImageObjectRepository(&imageObjectMemoryRepository{})
 	owner := ImageTaskOwner{UserID: 11, APIKeyID: 22}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
@@ -82,6 +83,7 @@ func TestImageTaskServiceStreamDownloadZipUsesStoredKeyAfterConfigChange(t *test
 	store := &imageTaskMemoryStore{}
 	storage := &imageTaskDownloadStorage{savedURL: "https://cdn.example.test/download?id=opaque"}
 	svc := NewImageTaskServiceWithUploader(store, NewImageResultUploader(storage, "images-old/", true, 0, nil), time.Hour, time.Minute)
+	svc.SetImageObjectRepository(&imageObjectMemoryRepository{})
 	owner := ImageTaskOwner{UserID: 11, APIKeyID: 22}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)
@@ -109,6 +111,7 @@ func TestImageTaskServiceStreamDownloadZipFallsBackToDurableHistory(t *testing.T
 	storage := &imageTaskDownloadStorage{}
 	svc := NewImageTaskServiceWithUploader(store, NewImageResultUploader(storage, "images/", false, 0, nil), time.Hour, time.Minute)
 	svc.SetHistoryRepository(history)
+	svc.SetImageObjectRepository(&imageObjectMemoryRepository{})
 	owner := ImageTaskOwner{UserID: 11, APIKeyID: 22}
 	created, err := svc.CreateWithMetadata(context.Background(), owner, ImageTaskMetadata{RequestedImages: 2})
 	require.NoError(t, err)
@@ -137,6 +140,7 @@ func TestImageTaskServiceCompletesAndDownloadsAfterSubmissionsAreDisabled(t *tes
 	svc := NewImageTaskServiceWithResolver(store, func() (*ImageResultUploader, bool) {
 		return uploader, enabled
 	}, time.Hour, time.Minute)
+	svc.SetImageObjectRepository(&imageObjectMemoryRepository{})
 	owner := ImageTaskOwner{UserID: 11, APIKeyID: 22}
 
 	require.True(t, svc.Enabled())
@@ -166,6 +170,7 @@ func TestImageTaskServiceCompletesAndDownloadsAfterSubmissionsAreDisabled(t *tes
 func TestImageTaskServiceStreamDownloadZipRejectsTasksWithoutImages(t *testing.T) {
 	store := &imageTaskMemoryStore{}
 	svc := NewImageTaskServiceWithUploader(store, NewImageResultUploader(&imageTaskDownloadStorage{}, "images/", false, 0, nil), time.Hour, time.Minute)
+	svc.SetImageObjectRepository(&imageObjectMemoryRepository{})
 	owner := ImageTaskOwner{UserID: 1, APIKeyID: 2}
 	created, err := svc.Create(context.Background(), owner)
 	require.NoError(t, err)

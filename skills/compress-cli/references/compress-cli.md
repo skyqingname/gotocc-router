@@ -87,21 +87,16 @@ change updates this reference, the validator, its tests, and the linked source:
   regressions with synchronized owning documentation and tests. Identity rules
   and checks must not be weakened to accommodate upstream behavior.
 
-Also preserve the rule that cross-cutting OpenSpec plans stay local and
-untracked while durable behavior is committed to its owning documentation and
-tests. Preserve secret handling, generated-code, migration, pnpm,
-default-branch, container-only validation, protected PR, immutable tag,
-publication authorization, and upstream-merge rules. Every validation command,
-including focused iteration checks, must run in Apple Containers on macOS,
-Docker inside WSL2 Debian or Ubuntu on Windows, or Docker on Linux; host-side
-validation is forbidden, including focused release metadata and deterministic
-finalization checks. `Submit PR` references this same environment for both
-profiles. After every validation attempt, remove project
-validation containers, temporary resources, and historical writable snapshots.
-Retain only project validation images and dependency caches whose deterministic
-identities match the current pinned toolchain and dependency-lock inputs, and
-remove stale project validation generations without pruning unrelated projects
-or global runtime resources.
+Also preserve local untracked OpenSpec plans, secret handling, generated-code,
+migration, pnpm, default-branch, immutable-tag and upstream-merge semantics.
+
+The owner replaced the old full-matrix and protected-promotion release policy
+on 2026-09-05. The active flow is local final-package build and runtime, owner
+manual acceptance, publication of that same package, then online update by the
+owner. No rebuilding, repeated matrix, mandatory preparation/finalization PR,
+or GitHub build is required after acceptance. Keep the local environment and
+reusable caches; cleanup needs an explicit scoped list. Host-side documentation
+and script syntax checks are allowed. See `docs/RELEASING.md`.
 
 ## Validation
 
@@ -116,5 +111,5 @@ rewrite the document and does not claim that automated checks replace semantic
 review of the diff.
 
 When a legitimate policy change alters a protected anchor, update the rule,
-validator, tests, this reference, and the linked source in the same change. Do
+validator, this reference, and the linked source; retire obsolete assertions in the same change. Do
 not relax the validator first merely to make a changed document pass.

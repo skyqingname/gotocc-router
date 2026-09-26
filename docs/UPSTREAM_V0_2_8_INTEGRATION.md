@@ -6,7 +6,8 @@ already incorporated the official `v0.2.7` tag documented in
 [v0.2.7 integration](UPSTREAM_V0_2_7_INTEGRATION.md). Importing the tag does
 not publish a Plus release or change the embedded application version.
 
-Migrations 269 and 270 ship in this import: `codex_rollout_budget_units` on
+In the owned GoToCC lineage, migrations 281 and 282 carry the unchanged SQL
+payloads of upstream 269 and 270. Existing owned 269/270 are retained: `codex_rollout_budget_units` on
 `usage_logs` and the idempotent `operation_id` on `user_affiliate_ledger`.
 Back up the database before upgrade.
 
@@ -55,13 +56,12 @@ Back up the database before upgrade.
 | Egress metadata | Plus proxy egress timezone/country annotations and the global egress country setting remain authoritative for the Codex visible environment. |
 | Billing probes | Retired upstream billing probes remain removed. |
 
-## Validation boundary
+## GoToCC adaptation and validation boundary
 
-All local generation and validation runs with the pinned repository toolchain
-in Apple Containers on macOS, Docker inside WSL2 Debian/Ubuntu on Windows, or
-Docker on Linux. Host-side validation is forbidden. Relevant backend suites,
-frontend lint/typechecking and Vitest, and the existing v0.2.7 upgrade
-regression remain required for this integration. PR submission additionally
-requires the official full local matrix through the repository submission CLI.
-Local test success is not evidence of a published release or a production
-upgrade.
+The owned candidate starts from this complete Plus tree and preserves active LC contracts, including immediate agent opt-in and unified invitations. Commission visibility depends only on approved membership. The old permanent-code ownership gate has been retired.
+
+Usage SQL retains both Codex budget units and Actor/Billing Owner/Team attribution. Rebate records retain upstream nullable order/deleted-user fields and local source/level/rate snapshots. Images preserve the original requested model with compatible Gemini validation. Ent and Wire are regenerated from these sources.
+
+Local final-package construction and scoped diagnostics use the maintained root workflow and reusable Docker build environment. No new test cases or full validation matrix is required by the owned workflow. The package is run locally for human acceptance; build success and local checks do not prove publication or production deployment. The full operation record belongs to the operations workspace docs/history.
+
+适配补充：283_channel_reasoning_effort_multipliers.sql 补齐上游新查询所需的两个推理倍率 JSONB 列，初始为空对象，不更改现有倍率。显式新倍率按对应推理级别使用；旧渠道 Max 值继续保留且不重复相乘。普通渠道和账号成本统计使用同一解析规则。

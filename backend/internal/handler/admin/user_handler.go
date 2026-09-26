@@ -74,17 +74,18 @@ type CreateUserRequest struct {
 // UpdateUserRequest represents admin update user request
 // 使用指针类型来区分"未提供"和"设置为0"
 type UpdateUserRequest struct {
-	Email                string   `json:"email" binding:"omitempty,email"`
-	Password             string   `json:"password" binding:"omitempty,min=6"`
-	Username             *string  `json:"username"`
-	Notes                *string  `json:"notes"`
-	Role                 string   `json:"role" binding:"omitempty,oneof=admin user"`
-	Balance              *float64 `json:"balance"`
-	Concurrency          *int     `json:"concurrency"`
-	RPMLimit             *int     `json:"rpm_limit"`
-	Status               string   `json:"status" binding:"omitempty,oneof=active disabled"`
-	AllowedGroups        *[]int64 `json:"allowed_groups"`
-	RestrictPublicGroups *bool    `json:"restrict_public_groups"`
+	InviterChange        *service.AffiliateInviterChange `json:"inviter_change"`
+	Email                string                          `json:"email" binding:"omitempty,email"`
+	Password             string                          `json:"password" binding:"omitempty,min=6"`
+	Username             *string                         `json:"username"`
+	Notes                *string                         `json:"notes"`
+	Role                 string                          `json:"role" binding:"omitempty,oneof=admin user"`
+	Balance              *float64                        `json:"balance"`
+	Concurrency          *int                            `json:"concurrency"`
+	RPMLimit             *int                            `json:"rpm_limit"`
+	Status               string                          `json:"status" binding:"omitempty,oneof=active disabled"`
+	AllowedGroups        *[]int64                        `json:"allowed_groups"`
+	RestrictPublicGroups *bool                           `json:"restrict_public_groups"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64 `json:"group_rates"`
@@ -343,8 +344,16 @@ func (h *UserHandler) Update(c *gin.Context) {
 		}
 	}
 
+	if req.InviterChange != nil {
+		req.InviterChange.AuthMethod = c.GetString("auth_method")
+		if req.InviterChange.AuthMethod == service.AuditAuthMethodJWT {
+			id := getAdminIDFromContext(c)
+			req.InviterChange.ActorUserID = &id
+		}
+	}
 	// 使用指针类型直接传递，nil 表示未提供该字段
 	user, err := h.adminService.UpdateUser(c.Request.Context(), userID, &service.UpdateUserInput{
+		InviterChange:        req.InviterChange,
 		Email:                req.Email,
 		Password:             req.Password,
 		Username:             req.Username,

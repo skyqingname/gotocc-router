@@ -14,9 +14,16 @@ export default {
     login: 'Login',
     getStarted: 'Get Started',
     goToDashboard: 'Go to Dashboard',
+    exploreMarketplace: 'Browse Models',
+    viewAll: 'View all',
+    nav: {
+      models: 'Models'
+    },
     // User-focused value proposition
+    heroBadge: 'Native APIs, smart routing, usage-based billing',
+    heroTitle: 'Native AI APIs, direct and reliable',
     heroSubtitle: 'One Key, All AI Models',
-    heroDescription: 'No need to manage multiple subscriptions. Access Claude, GPT, Gemini and more with a single API key',
+    heroDescription: 'Operated at fair cost with transparent, community-minded pricing.',
     tags: {
       subscriptionToApi: 'Subscription to API',
       stickySession: 'Session Persistence',
@@ -50,12 +57,18 @@ export default {
       subtitle: 'Three simple steps to stress-free AI access'
     },
     features: {
-      unifiedGateway: 'One-Click Access',
-      unifiedGatewayDesc: 'Get a single API key to call all connected AI models. No separate applications needed.',
-      multiAccount: 'Always Reliable',
-      multiAccountDesc: 'Smart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.',
-      balanceQuota: 'Pay What You Use',
-      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.'
+      unifiedGateway: 'Unified model access',
+      unifiedGatewayDesc: 'Use one API key for Claude, GPT, Gemini, Grok, and every model available on the platform.',
+      multiAccount: 'Automatic account routing',
+      multiAccountDesc: 'Smart account rotation and automatic failover keep Claude Code and Codex workflows running.',
+      balanceQuota: 'Pay as you go',
+      balanceQuotaDesc: 'Recharge what you need, inspect every usage record, and avoid idle monthly subscriptions.',
+      dataPolicies: 'Native protocol support',
+      dataPoliciesDesc: 'Anthropic, OpenAI Compatible, and Responses protocols work by changing only the endpoint and key.',
+      browseAll: 'Browse all',
+      learnMore: 'Learn more',
+      viewUsage: 'View usage',
+      usageChart: 'Usage trend'
     },
     // Comparison section
     comparison: {
@@ -99,18 +112,48 @@ export default {
       supported: 'Supported',
       soon: 'Soon',
       claude: 'Claude',
+      gpt: 'GPT',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
-      more: 'More'
+      more: 'More',
+      empty: 'No models to display yet',
+      unavailable: 'Model data is temporarily unavailable',
+      groups: 'groups',
+      modelCount: 'Models',
+      officialPriceDiscount: 'About {discount}/10 of official price'
+    },
+    stats: {
+      todayTokens: 'Today Total Tokens',
+      totalTokens: 'Historical Total Tokens',
+      totalUsers: 'Registered Users',
+      supportedModels: 'Supported Models',
+      providerTypes: 'model types',
+      modelsStat: 'models',
+      unavailable: 'Stats are temporarily unavailable'
+    },
+    steps: {
+      signup: {
+        title: 'Create an account',
+        description: 'Manage recharge, billing, and usage records from one dashboard after registration.'
+      },
+      browse: {
+        title: 'Choose models',
+        description: 'Compare available models, service groups, and pricing against official rates.'
+      },
+      apiKey: {
+        title: 'Get your API key',
+        description: 'Create a key and update the endpoint in Claude Code, Codex, or any compatible client.'
+      }
     },
     // CTA section
     cta: {
-      title: 'Ready to Get Started?',
-      description: 'Sign up now and get free trial credits to experience seamless AI access',
-      button: 'Sign Up Free'
+      title: 'Start using it now',
+      description: 'Create one API key and connect your everyday AI tools to a single reliable endpoint.',
+      button: 'Sign up and try it'
     },
     footer: {
-      allRightsReserved: 'All rights reserved.'
+      allRightsReserved: 'All rights reserved.',
+      quickLinks: 'Quick links'
     }
   },
 

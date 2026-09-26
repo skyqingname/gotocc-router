@@ -45,10 +45,12 @@ func (r *apiKeyRepository) activeQuery() *dbent.APIKeyQuery {
 func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) error {
 	builder := r.client.APIKey.Create().
 		SetUserID(key.UserID).
+		SetNillableTeamID(key.TeamID).
 		SetKey(key.Key).
 		SetName(key.Name).
 		SetStatus(key.Status).
 		SetNillableGroupID(key.GroupID).
+		SetRoutingMode(key.EffectiveRoutingMode()).
 		SetNillableLastUsedAt(key.LastUsedAt).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
@@ -133,7 +135,11 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		Select(
 			apikey.FieldID,
 			apikey.FieldUserID,
+			apikey.FieldTeamID,
+			apikey.FieldTeamOwnerDisabled,
+			apikey.FieldCreatedAt,
 			apikey.FieldGroupID,
+			apikey.FieldRoutingMode,
 			apikey.FieldName,
 			apikey.FieldStatus,
 			apikey.FieldIPWhitelist,
@@ -195,6 +201,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldVideoPrice720p,
 				group.FieldVideoPrice1080p,
 				group.FieldVideoModelPrices,
+				group.FieldVideoModels,
 				group.FieldWebSearchPricePerCall,
 				group.FieldSearchPricePer1k,
 				group.FieldAudioRealtimePricePerMin,
@@ -225,6 +232,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldPeakStart,
 				group.FieldPeakEnd,
 				group.FieldPeakRateMultiplier,
+				group.FieldRateSchedule,
 				// 分组利润控制：认证快照是调度门 enable 判定的直接来源，
 				// 漏选会让门静默失效；新增快照分组字段时必须同步本投影，
 				// 集成测试对账兜底。
@@ -306,6 +314,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fiel
 		} else {
 			builder.ClearGroupID()
 		}
+	}
+	if fields.RoutingMode {
+		builder.SetRoutingMode(key.EffectiveRoutingMode())
 	}
 
 	// Expiration time
@@ -447,10 +458,19 @@ func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service
 	}
 	if filters.GroupID != nil {
 		if *filters.GroupID == 0 {
-			q = q.Where(apikey.GroupIDIsNil())
+			q = q.Where(apikey.GroupIDIsNil(), apikey.RoutingModeEQ(service.APIKeyRoutingFixed))
 		} else {
 			q = q.Where(apikey.GroupIDEQ(*filters.GroupID))
 		}
+	}
+	if filters.RoutingMode != "" {
+		q = q.Where(apikey.RoutingModeEQ(filters.RoutingMode))
+	}
+	switch filters.Scope {
+	case "personal":
+		q = q.Where(apikey.TeamIDIsNil())
+	case "team":
+		q = q.Where(apikey.TeamIDNotNil())
 	}
 
 	return q
@@ -874,32 +894,36 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		return nil
 	}
 	out := &service.APIKey{
-		ID:            m.ID,
-		UserID:        m.UserID,
-		Key:           m.Key,
-		Name:          m.Name,
-		Status:        m.Status,
-		IPWhitelist:   m.IPWhitelist,
-		IPBlacklist:   m.IPBlacklist,
-		LastUsedAt:    m.LastUsedAt,
-		CreatedAt:     m.CreatedAt,
-		UpdatedAt:     m.UpdatedAt,
-		GroupID:       m.GroupID,
-		Quota:         m.Quota,
-		QuotaUsed:     m.QuotaUsed,
-		ExpiresAt:     m.ExpiresAt,
-		RateLimit5h:   m.RateLimit5h,
-		RateLimit1d:   m.RateLimit1d,
-		RateLimit7d:   m.RateLimit7d,
-		Usage5h:       m.Usage5h,
-		Usage1d:       m.Usage1d,
-		Usage7d:       m.Usage7d,
-		Window5hStart: m.Window5hStart,
-		Window1dStart: m.Window1dStart,
-		Window7dStart: m.Window7dStart,
+		ID:                m.ID,
+		UserID:            m.UserID,
+		TeamID:            m.TeamID,
+		TeamOwnerDisabled: m.TeamOwnerDisabled,
+		Key:               m.Key,
+		Name:              m.Name,
+		Status:            m.Status,
+		IPWhitelist:       m.IPWhitelist,
+		IPBlacklist:       m.IPBlacklist,
+		LastUsedAt:        m.LastUsedAt,
+		CreatedAt:         m.CreatedAt,
+		UpdatedAt:         m.UpdatedAt,
+		GroupID:           m.GroupID,
+		RoutingMode:       m.RoutingMode,
+		Quota:             m.Quota,
+		QuotaUsed:         m.QuotaUsed,
+		ExpiresAt:         m.ExpiresAt,
+		RateLimit5h:       m.RateLimit5h,
+		RateLimit1d:       m.RateLimit1d,
+		RateLimit7d:       m.RateLimit7d,
+		Usage5h:           m.Usage5h,
+		Usage1d:           m.Usage1d,
+		Usage7d:           m.Usage7d,
+		Window5hStart:     m.Window5hStart,
+		Window1dStart:     m.Window1dStart,
+		Window7dStart:     m.Window7dStart,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
+		out.ActorUser = out.User
 		if allowed := m.Edges.User.Edges.AllowedGroups; len(allowed) > 0 {
 			out.User.AllowedGroups = make([]int64, 0, len(allowed))
 			for _, g := range allowed {
@@ -1000,6 +1024,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		VideoPrice720P:                  g.VideoPrice720p,
 		VideoPrice1080P:                 g.VideoPrice1080p,
 		VideoModelPrices:                service.NormalizeVideoModelPrices(g.VideoModelPrices),
+		VideoModels:                     g.VideoModels.Clone(),
 		WebSearchPricePerCall:           g.WebSearchPricePerCall,
 		SearchPricePer1k:                g.SearchPricePer1k,
 		AudioRealtimePricePerMin:        g.AudioRealtimePricePerMin,
@@ -1034,6 +1059,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		PeakStart:                       g.PeakStart,
 		PeakEnd:                         g.PeakEnd,
 		PeakRateMultiplier:              g.PeakRateMultiplier,
+		RateSchedule:                    g.RateSchedule.Clone(),
 		ProfitControlEnabled:            g.ProfitControlEnabled,
 		ProfitMinMargin:                 g.ProfitMinMargin,
 		ProfitSafetyBuffer:              g.ProfitSafetyBuffer,

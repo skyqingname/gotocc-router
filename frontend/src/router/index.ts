@@ -5,6 +5,7 @@
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
@@ -187,6 +188,16 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'modelPlaza.title'
     }
   },
+  {
+    path: '/models',
+    name: 'LegacyModelsRedirect',
+    redirect: '/model-plaza',
+    meta: {
+      requiresAuth: false,
+      title: 'Model Plaza',
+      titleKey: 'modelPlaza.title'
+    }
+  },
 
   // ==================== User Routes ====================
   {
@@ -215,6 +226,18 @@ const routes: RouteRecordRaw[] = [
       title: 'API Keys',
       titleKey: 'keys.title',
       descriptionKey: 'keys.description'
+    }
+  },
+  {
+    path: '/team',
+    name: 'Team',
+    component: () => import('@/views/user/TeamView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Team',
+      titleKey: 'team.title',
+      descriptionKey: 'team.description'
     }
   },
   {
@@ -266,6 +289,11 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'redeem.title',
       descriptionKey: 'redeem.description'
     }
+  },
+  {
+    path: '/reseller', name: 'Reseller', component: () => import('@/views/user/ResellerView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Reseller Center', titleKey: 'nav.reseller' },
+    beforeEnter: async () => await useResellerAccess().load(true) ? true : '/keys'
   },
   {
     path: '/affiliate',
@@ -587,6 +615,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/teams',
+    name: 'AdminTeams',
+    component: () => import('@/views/admin/TeamsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Team Management',
+      titleKey: 'team.adminTitle',
+      descriptionKey: 'team.adminDescription'
+    }
+  },
+  {
     path: '/admin/groups',
     name: 'AdminGroups',
     component: () => import('@/views/admin/GroupsView.vue'),
@@ -722,6 +762,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/reusable-invitation-codes',
+    name: 'AdminReusableInvitationCodes',
+    component: () => import('@/views/admin/ReusableInvitationCodesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Permanent Invitation Code Management',
+      titleKey: 'admin.reusableInvitationCodes.title',
+      descriptionKey: 'admin.reusableInvitationCodes.description'
+    }
+  },
+  {
     path: '/admin/settings',
     name: 'AdminSettings',
     component: () => import('@/views/admin/SettingsView.vue'),
@@ -774,6 +826,18 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/affiliates',
     redirect: '/admin/affiliates/invites'
+  },
+  {
+    path: '/admin/agents',
+    name: 'AdminAgentApplications',
+    component: () => import('@/views/admin/agents/AdminAgentApplicationsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Agents',
+      titleKey: 'nav.agentApplications',
+      descriptionKey: 'admin.agents.description'
+    }
   },
   {
     path: '/admin/affiliates/invites',

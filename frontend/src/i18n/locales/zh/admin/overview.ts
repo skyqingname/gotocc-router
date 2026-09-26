@@ -441,6 +441,29 @@ export default {
       }
     },
 
+    agents: {
+      "description": "查看已主动开通和存量自动开通的代理，无需人工审核。",
+      "columns": {
+            "user": "用户",
+            "registeredAt": "注册时间",
+            "appliedAt": "申请时间",
+            "status": "状态",
+            "source": "来源",
+            "activatedAt": "生效时间"
+      },
+      "searchPlaceholder": "邮箱、用户名、用户 ID",
+      "status": {
+            "approved": "已开通"
+      },
+      "source": {
+            "applied": "主动开通",
+            "grandfathered": "存量保留"
+      },
+      "empty": "暂无代理",
+      "errors": {
+            "loadFailed": "加载代理名单失败"
+      }
+},
     affiliates: {
       invitesDescription: '查看全站邀请关系和被邀请用户累计返利',
       rebatesDescription: '查看每一笔产生返利的充值订单',
@@ -449,6 +472,11 @@ export default {
         loadFailed: '加载邀请返利记录失败'
       },
       records: {
+        sources: { admin_recharge: '管理员充值', redeem_code: '兑换码充值', legacy: '历史返佣', payment: '在线充值' },
+        rebateLevel: "返佣代次",
+        rebateRate: "返佣比例",
+        rebateBase: "返佣本金 (USD)",
+        generation: "第 {level} 代",
         search: '搜索',
         searchPlaceholder: '邮箱、用户名、用户 ID、订单号',
         startAt: '开始日期',
@@ -486,6 +514,24 @@ export default {
 
     // Users Management
     users: {
+      inviter: {
+        codeLabel: "邀请码",
+        codePlaceholder: "输入推广人的邀请码",
+        codeHint: "同一个邀请码用于注册和返佣归属；换绑不消耗注册次数。",
+        title: "邀请码与返佣归属",
+        current: "当前推广人",
+        unbound: "尚未绑定推广人",
+        loading: "正在读取返佣归属…",
+        retry: "重新读取",
+        resolve: "解析归属",
+        resolving: "解析中…",
+        next: "更新后归属",
+        matched: "邀请码对应的推广人",
+        resolveFirst: "邀请码已修改，请先解析并核对推广人。",
+        self: "不能将用户归属给自己，请填写其他推广人的邀请码。",
+        notFound: "未找到该类型的邀请码，请核对邀请码及类型。",
+        effect: "点击底部“更新”后生效。历史佣金保留，客户及其下级今后的三代返佣沿新关系计算。",
+      },
       title: '用户管理',
       description: '管理用户账户和权限',
       createUser: '创建用户',
@@ -601,7 +647,9 @@ export default {
       noApiKeys: '此用户暂无 API 密钥',
       group: '分组',
       none: '无',
+      routingAuto: '智能路由',
       groupChangedSuccess: '分组修改成功',
+      routingChangedSuccess: '路由模式已更新',
       groupChangedWithGrant: '分组修改成功，已自动为用户添加「{group}」分组权限',
       groupChangeFailed: '分组修改失败',
       noUsersYet: '暂无用户',
@@ -970,6 +1018,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        video: 'Video',
         composite: 'Composite',
       },
       saving: '保存中...',

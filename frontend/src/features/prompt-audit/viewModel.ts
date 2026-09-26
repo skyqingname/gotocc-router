@@ -1,3 +1,4 @@
+import auditDefaults from '../../../../prompt-audit-defaults.json'
 import type {
   PromptAuditConfig,
   PromptAuditDraft,
@@ -6,11 +7,13 @@ import type {
   PromptEventFilters,
 } from './types'
 
-export const DEFAULT_GUARD_MODEL = 'sileader/qwen3guard:0.6b'
+export const DEFAULT_GUARD_MODEL = auditDefaults.jev.model
+export const JEV_DEFAULTS = auditDefaults.jev
 export const MIN_GUARD_TIMEOUT_MS = 100
 export const MAX_GUARD_TIMEOUT_MS = 30000
 export const MIN_GUARD_INPUT_LIMIT = 128
 export const MAX_GUARD_INPUT_LIMIT = 100000
+export const MAX_AUDIT_PROMPT_RUNES = 20000
 
 export const SCANNER_CATALOG = [
   { id: 'violent', label: 'Violent' },
@@ -48,11 +51,11 @@ export function createDefaultEndpoint(index = 1): PromptAuditEndpointDraft {
   return {
     id: `guard-${Date.now()}-${index}`,
     name: `Guard ${index}`,
-    protocol: 'openai_compatible',
-    base_url: 'http://127.0.0.1:8000',
+    protocol: 'typesafe',
+    base_url: JEV_DEFAULTS.base_url,
     model: DEFAULT_GUARD_MODEL,
-    timeout_ms: 3000,
-    input_limit: 4000,
+    timeout_ms: JEV_DEFAULTS.timeout_ms,
+    input_limit: JEV_DEFAULTS.input_limit,
     enabled: true,
     has_token: false,
     token_status: 'missing',
@@ -66,17 +69,21 @@ export function buildUpdateRequest(draft: PromptAuditDraft): PromptAuditUpdateRe
     expected_config_version: draft.config_version,
     enabled: draft.enabled,
     blocking_enabled: draft.enabled && draft.blocking_enabled,
+    blocking_latest_turn_only: draft.blocking_latest_turn_only,
     store_pass_events: draft.store_pass_events,
     strategy: 'priority',
     worker_count: Number(draft.worker_count),
     queue_capacity: Number(draft.queue_capacity),
+    audit_prompt: draft.audit_prompt.trim(),
+    response_format: draft.response_format,
+    confidence_threshold: Number(draft.confidence_threshold),
     scanners: [...draft.scanners],
     all_groups: draft.all_groups,
     group_ids: draft.all_groups ? [] : [...draft.group_ids].sort((a, b) => a - b),
     endpoints: draft.endpoints.map((endpoint) => ({
       id: endpoint.id.trim(),
       name: endpoint.name.trim(),
-      protocol: 'openai_compatible',
+      protocol: endpoint.protocol,
       base_url: endpoint.base_url.trim(),
       model: endpoint.model.trim() || DEFAULT_GUARD_MODEL,
       token: endpoint.token.trim() || undefined,

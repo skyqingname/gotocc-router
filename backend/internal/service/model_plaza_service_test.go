@@ -5,18 +5,57 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
+type stubPlazaModelSource struct {
+	models    map[int64]map[string][]string
+	platforms map[int64]map[string]struct{}
+}
+
+func (s *stubPlazaModelSource) GetAvailableModels(_ context.Context, groupID *int64, platform string) []string {
+	if s == nil || groupID == nil {
+		return nil
+	}
+	return append([]string(nil), s.models[*groupID][platform]...)
+}
+
+func (s *stubPlazaModelSource) GetSchedulablePlatforms(_ context.Context, groupID *int64) map[string]struct{} {
+	if s == nil || groupID == nil {
+		return nil
+	}
+	out := make(map[string]struct{}, len(s.platforms[*groupID]))
+	for platform := range s.platforms[*groupID] {
+		out[platform] = struct{}{}
+	}
+	return out
+}
+
+func newSchedulableModelPlazaServiceForTest(groups []Group, source PlazaModelSource) *ModelPlazaService {
+	return &ModelPlazaService{
+		groupRepo:   &stubGroupRepoForAvailable{activeGroups: groups},
+		modelSource: source,
+	}
+}
+
+func plazaModelNames(models []PlazaModel) []string {
+	names := make([]string, len(models))
+	for i := range models {
+		names[i] = models[i].Name
+	}
+	return names
+}
+
 // newPlazaService 构造 ListGroups 测试用的 ModelPlazaService（不接计费服务：展示定价原样透传）。
 func newPlazaService(channels []Channel, groups []Group, pricing *PricingService) *ModelPlazaService {
 	repo := &mockChannelRepository{
 		listAllFn: func(ctx context.Context) ([]Channel, error) { return channels, nil },
 	}
-	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, pricing, nil, nil)
+	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, pricing, nil, nil, nil)
 }
 
 func plazaPricedChannel(id int64, name string, groupIDs []int64, platform string, models ...string) Channel {
@@ -326,7 +365,7 @@ func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	repo := &mockChannelRepository{
 		listAllFn: func(ctx context.Context) ([]Channel, error) { return nil, sentinel },
 	}
-	svc := NewModelPlazaService(repo, &stubGroupRepoForAvailable{}, nil, nil, nil)
+	svc := NewModelPlazaService(repo, &stubGroupRepoForAvailable{}, nil, nil, nil, nil)
 	out, err := svc.ListGroups(context.Background())
 	require.Nil(t, out)
 	require.ErrorIs(t, err, sentinel)
@@ -334,7 +373,7 @@ func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	svc2 := NewModelPlazaService(
 		&mockChannelRepository{listAllFn: func(ctx context.Context) ([]Channel, error) { return nil, nil }},
 		&stubGroupRepoForAvailable{listActiveErr: sentinel},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	out2, err2 := svc2.ListGroups(context.Background())
 	require.Nil(t, out2)
@@ -351,7 +390,7 @@ func newPlazaServiceWithBilling(channels []Channel, groups []Group, groupPlatfor
 	}
 	cs := NewChannelService(repo, nil, nil, nil, nil)
 	bs := NewBillingService(&config.Config{}, catalog)
-	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, catalog, bs, NewModelPricingResolver(cs, bs))
+	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, catalog, bs, NewModelPricingResolver(cs, bs), nil)
 }
 
 func plazaModelsByName(models []PlazaModel) map[string]PlazaModel {
@@ -504,4 +543,81 @@ func TestListGroups_TimePricingPassthrough(t *testing.T) {
 	require.InDelta(t, 0.5, m.TimePricing.Periods[0].Multiplier, 1e-12)
 	// 展示单价为标准时段价
 	require.InDelta(t, 0.28e-6, *m.Pricing.InputPrice, 1e-15)
+}
+
+func TestModelPlazaService_UsesSchedulableModelsWithoutChannelPricing(t *testing.T) {
+	groups := []Group{
+		{ID: 1, Name: "GPT", Platform: PlatformOpenAI, ActiveAccountCount: 2, RateMultiplier: 1},
+		{ID: 2, Name: "Grok", Platform: PlatformGrok, ActiveAccountCount: 1, RateMultiplier: 0.5},
+		{ID: 3, Name: "Stale", Platform: PlatformOpenAI, ActiveAccountCount: 0, RateMultiplier: 0.1},
+	}
+	source := &stubPlazaModelSource{models: map[int64]map[string][]string{
+		1: {PlatformOpenAI: {"gpt-5.6-sol", "GPT-5.6-SOL", "gpt-5.5"}},
+		2: {PlatformGrok: {"grok-4.5"}},
+		3: {PlatformOpenAI: {"must-not-leak"}},
+	}}
+
+	out, err := newSchedulableModelPlazaServiceForTest(groups, source).ListGroups(context.Background())
+
+	require.NoError(t, err)
+	require.Len(t, out, 2)
+	require.Equal(t, "Grok", out[0].Name)
+	require.Equal(t, []string{"grok-4.5"}, plazaModelNames(out[0].Models))
+	require.Equal(t, "GPT", out[1].Name)
+	require.Equal(t, []string{"gpt-5.5", "gpt-5.6-sol"}, plazaModelNames(out[1].Models))
+	for _, model := range out[1].Models {
+		require.Nil(t, model.Pricing, "missing pricing must not remove a live model")
+	}
+}
+
+func TestModelPlazaService_ExpandsWildcardsAndUsesPlatformDefaults(t *testing.T) {
+	groups := []Group{
+		{ID: 1, Name: "Mapped", Platform: PlatformOpenAI, ActiveAccountCount: 1, RateMultiplier: 1},
+		{ID: 2, Name: "Default", Platform: PlatformGrok, ActiveAccountCount: 1, RateMultiplier: 1},
+	}
+	source := &stubPlazaModelSource{models: map[int64]map[string][]string{
+		1: {PlatformOpenAI: {"gpt-5.6-*", "gpt-5.5"}},
+	}}
+
+	out, err := newSchedulableModelPlazaServiceForTest(groups, source).ListGroups(context.Background())
+
+	require.NoError(t, err)
+	require.Len(t, out, 2)
+	byID := map[int64]PlazaGroup{out[0].ID: out[0], out[1].ID: out[1]}
+	require.Contains(t, plazaModelNames(byID[1].Models), "gpt-5.6-sol")
+	require.Contains(t, plazaModelNames(byID[1].Models), "gpt-5.5")
+	require.NotEmpty(t, byID[2].Models)
+	for _, group := range byID {
+		for _, model := range group.Models {
+			require.NotContains(t, model.Name, "*")
+		}
+	}
+}
+
+func TestModelPlazaService_CompositeUsesOnlySchedulableConcretePlatforms(t *testing.T) {
+	groups := []Group{{ID: 9, Name: "Composite", Platform: PlatformComposite, ActiveAccountCount: 2, RateMultiplier: 1}}
+	source := &stubPlazaModelSource{
+		models: map[int64]map[string][]string{
+			9: {
+				PlatformAnthropic: {"shared-model", "claude-opus-4-6"},
+				PlatformOpenAI:    {"SHARED-MODEL", "gpt-5.6-sol"},
+				PlatformGrok:      {"must-not-leak"},
+			},
+		},
+		platforms: map[int64]map[string]struct{}{
+			9: {PlatformAnthropic: {}, PlatformOpenAI: {}},
+		},
+	}
+
+	out, err := newSchedulableModelPlazaServiceForTest(groups, source).ListGroups(context.Background())
+
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	require.Equal(t, []string{"claude-opus-4-6", "gpt-5.6-sol", "shared-model"}, plazaModelNames(out[0].Models))
+	byName := make(map[string]PlazaModel, len(out[0].Models))
+	for _, model := range out[0].Models {
+		byName[strings.ToLower(model.Name)] = model
+	}
+	require.Equal(t, PlatformAnthropic, byName["shared-model"].Platform, "composite dedupe follows gateway platform order")
+	require.NotContains(t, byName, "must-not-leak")
 }

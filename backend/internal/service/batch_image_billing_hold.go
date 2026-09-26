@@ -27,6 +27,16 @@ func BatchImageReleaseRequestID(batchID string) string {
 	return batchImageReleaseRequestPrefix + strings.TrimSpace(batchID)
 }
 
+func batchImageBillingUserID(job *BatchImageJob) int64 {
+	if job == nil {
+		return 0
+	}
+	if job.BillingUserID > 0 {
+		return job.BillingUserID
+	}
+	return job.UserID
+}
+
 func buildBatchImageHoldCommand(job *BatchImageJob, requestID string, actualAmount float64, payloadHash string) (*BatchImageBalanceHoldCommand, error) {
 	if job == nil {
 		return nil, ErrBatchImageBillingHoldFailed
@@ -44,15 +54,26 @@ func buildBatchImageHoldCommand(job *BatchImageJob, requestID string, actualAmou
 	if actualAmount < 0 {
 		actualAmount = 0
 	}
-	return &BatchImageBalanceHoldCommand{
+	cmd := &BatchImageBalanceHoldCommand{
+		ResellerSnapshot:   job.ResellerSnapshot,
+		Model:              job.Model,
 		RequestID:          requestID,
 		APIKeyID:           *job.APIKeyID,
-		UserID:             job.UserID,
+		UserID:             batchImageBillingUserID(job),
 		BatchID:            job.BatchID,
 		HoldAmount:         holdAmount,
 		ActualAmount:       actualAmount,
 		RequestPayloadHash: strings.TrimSpace(payloadHash),
-	}, nil
+	}
+	// Historical in-flight jobs keep their original fingerprint and legacy
+	// allowance behavior. New jobs always persist billing_user_id.
+	if job.BillingUserID > 0 || job.TeamID != nil {
+		cmd.ActorUserID = job.UserID
+		cmd.TeamID = job.TeamID
+		cmd.AllowanceReserved = job.AllowanceReserved
+		cmd.ReservedAt = job.CreatedAt
+	}
+	return cmd, nil
 }
 
 func reserveBatchImageBalanceHold(ctx context.Context, repo UsageBillingRepository, job *BatchImageJob, payloadHash string) error {
@@ -70,8 +91,13 @@ func reserveBatchImageBalanceHold(ctx context.Context, repo UsageBillingReposito
 		if errors.Is(err, ErrBatchImageInsufficientBalance) {
 			return ErrBatchImageInsufficientBalance
 		}
+		if errors.Is(err, ErrAPIKeyQuotaExhausted) || errors.Is(err, ErrAPIKeyRateLimit5hExceeded) || errors.Is(err, ErrAPIKeyRateLimit1dExceeded) || errors.Is(err, ErrAPIKeyRateLimit7dExceeded) ||
+			errors.Is(err, ErrTeamMemberDailyExceeded) || errors.Is(err, ErrTeamMemberWeeklyExceeded) || errors.Is(err, ErrTeamMemberMonthlyExceeded) {
+			return err
+		}
 		return ErrBatchImageBillingHoldFailed.WithCause(err)
 	}
+	job.AllowanceReserved = true
 	return nil
 }
 
@@ -87,6 +113,7 @@ func captureBatchImageBalanceHold(ctx context.Context, repo UsageBillingReposito
 	if _, err := repo.CaptureBatchImageBalance(ctx, cmd); err != nil {
 		return ErrBatchImageSettlementBillingFailed.WithCause(err)
 	}
+	job.AllowanceReserved = false
 	return nil
 }
 
@@ -109,9 +136,11 @@ func releaseBatchImageBalanceHold(ctx context.Context, repo UsageBillingReposito
 			logger.L().Warn("batch_image.release_fingerprint_conflict_treated_as_released",
 				zap.String("batch_id", job.BatchID),
 			)
+			job.AllowanceReserved = false
 			return nil
 		}
 		return ErrBatchImageBillingHoldFailed.WithCause(err)
 	}
+	job.AllowanceReserved = false
 	return nil
 }

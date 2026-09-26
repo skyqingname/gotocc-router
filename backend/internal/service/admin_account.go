@@ -417,6 +417,15 @@ func normalizeOpenAILongContextBillingUpdateExtra(account *Account, input *Updat
 // Grok media eligibility helpers live in account_grok_media_eligibility.go.
 
 func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]any) (*Account, error) {
+	if input.Platform == PlatformVideo {
+		if input.Type != AccountTypeAPIKey {
+			return nil, infraerrors.BadRequest("VIDEO_API_KEY_REQUIRED", "Video 账号使用 API Key")
+		}
+		base, _ := input.Credentials["base_url"].(string)
+		if strings.TrimSpace(base) == "" {
+			return nil, infraerrors.BadRequest("VIDEO_BASE_URL_REQUIRED", "请填写视频供应商地址")
+		}
+	}
 	// Probe/session state is system-managed. New accounts always start with automatic refresh disabled.
 	delete(accountExtra, "upstream_billing_probe_enabled")
 	delete(accountExtra, "upstream_billing_rate_sync_enabled")

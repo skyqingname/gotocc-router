@@ -1,40 +1,30 @@
-Sub2API Plus v0.2.8+custom.001
+# GoToCC 0.2.8+custom.002
 
-## Highlights
+基于 Plus v0.2.8+custom.001（0f4a93bd27868c6c48bf26a803546d0023784665），官方 Sub2API v0.2.8（fd80b08c90b55edcad5b00171b53f08721d30da1）。保留此前本地 0.2.7+custom.005 的统一邀请码和代理主动开通。
 
-Second Plus release on the official `v0.2.8` baseline. It keeps Plus identity,
-ingress audit, session/quota accounting, proxy egress metadata, and retired
-billing probes, while importing the official GPT-6 Sol/Luna, Claude Opus 5.5,
-and Grok 4.7 model support, the OpenCode Go official usage window with
-automatic refresh, configurable reasoning-effort billing multipliers, automatic
-Claude Code client version synchronization, simple-mode API key consumption
-windows, monthly backup archives, offline affiliate withdrawal registration,
-rolling log retention, and Codex credits display. Plus adds three rounds of
-Codex OAuth outbound alignment with the official `codex-rs` client on top of
-this baseline.
+## 代理中心
 
-## Changed
+点击申请即成为代理，无人工审核、不可退出。成为代理即可看到一、二、三代比例、可返利额度、历史额度和邀请名单；不再检查是否绑定或拥有专属永久邀请码。移除旧展示门槛查询。存量用户保留资格，申请前不计佣、不补发。站长中心继续仅展示客户消费差价。
 
-- New model support: GPT-6 Sol, GPT-6 Luna, Claude Opus 5.5, and Grok 4.7.
-- OpenCode Go usage window: official quota query, automatic refresh, same-key group sharing, manual query, and account list/usage-cell balance badges (7d/1m); the `/zen/go` base-variant quota endpoint is normalized and usage state survives account updates.
-- Billing: per-channel reasoning-effort multipliers, final reasoning effort preserved across forwarding paths, and scientific notation at token boundaries parsed.
-- Claude Code client version numbers are synchronized automatically.
-- Simple mode can enable API key consumption window limits; first-start default group creation is now optional.
-- Backups support monthly archive with an independent retention policy.
-- Affiliate offline withdrawals are registered idempotently via Idempotency-Key.
-- Rolling log retention is configurable.
-- Official tool-schema cleaning strips illegal null `required` and `prefixItems`/tuple arrays; Antigravity resolves bare Gemini model names to thinking variants at every forwarding entry; streaming ends on the terminal event without waiting for upstream EOF.
-- Plus closes Codex OAuth outbound divergences across custom-CA rotation on the HTTP and auth-plane client pools, WebSocket metadata header handling, credits-only rate-limit events, `include:["reasoning.encrypted_content"]` merges, transport-refusal handling, and rollout budget unit recording.
+## 上游更新
 
-## Compatibility and migration
+- GPT-6 Sol/Luna、Claude Opus 5.5、Grok 4.7 模型支持；保留 GoToCC 已核验的默认价格。
+- OpenCode Go 官方用量窗口、自动刷新、同 Key 分组共享与手动查询。
+- 渠道推理强度倍率配置、最终推理强度记录；保留本地既有 Max 参数与多时段倍率。
+- Claude Code 客户端版本自动同步；简单模式 Key 消费窗口、月度备份、滚动日志保留。
+- 管理端线下返利提取登记，沿用上游幂等行为；不会替用户打款，不影响站长差价界面。
+- Codex credits、rollout budget 用量记录、OAuth 出站兼容、工具 schema 与流式终态处理修正。
 
-Migrations 269 and 270 add per-usage `codex_rollout_budget_units` and the idempotent affiliate withdrawal `operation_id`. Back up the database before upgrade. Rollback image is `v0.2.5+custom.001`.
+团队 Actor/Billing Owner/Team 归属、智能 Key、图像原模型名、Video 协议与终态计费、提示词审核、返佣和自有更新通道继续保留。
 
-## Known issues
+## 数据与回退
 
-None.
+相对此前本地 custom.005，只新增 281_codex_rollout_budget_units.sql 与 282_affiliate_ledger_operation_id.sql，分别对应上游 269/270 原 SQL，因本地编号已使用而顺延；既有 280 及之前迁移不改。新增 usage_logs 用量列、返佣账本 operation_id 列及唯一索引，涉及短时 DDL 锁、账本扫描、索引和 WAL 空间，不回填历史资金。代码生成保持 Codex 用量与团队归属字段共存。
 
-## Upstream baseline
+从已发布 0.2.7+custom.003 升级还包含 279/280 的代理建表、存量资格登记和统一邀请码目录回填。更旧生产须按自身 migration lineage 核对；生产 lock 不代表当前本地或 GitHub 状态。
 
-Official release: v0.2.8
-Official commit: fd80b08c90b55edcad5b00171b53f08721d30da1
+迁移前备份并保持单 writer；新数据写入后不以单独换回旧二进制或旧 dump 覆盖当前数据作为回滚。新上游 settings/config 默认与自动版本同步行为由该版本代码提供，未自动修改生产设置、网络、账号或分组。保留现有会话与 Redis 数据，不清库。
+
+本版本是本地候选，实际定向验证记录在运维工作区 docs/history。人工验收通过后仅发布该包；生产由用户从自有发行通道更新。
+
+适配补充：283_channel_reasoning_effort_multipliers.sql 补齐上游新查询所需的两个推理倍率 JSONB 列，初始为空对象，不更改现有倍率。显式新倍率按对应推理级别使用；旧渠道 Max 值继续保留且不重复相乘。普通渠道和账号成本统计使用同一解析规则。

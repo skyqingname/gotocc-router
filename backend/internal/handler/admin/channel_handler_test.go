@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,35 @@ import (
 
 func float64Ptr(v float64) *float64 { return &v }
 func intPtr(v int) *int             { return &v }
+
+func TestChannelRequestBindingAcceptsVideoBillingMode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/channels", func(c *gin.Context) {
+		var req createChannelRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"billing_mode": req.ModelPricing[0].BillingMode})
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/channels", strings.NewReader(`{
+		"name":"unified-video",
+		"model_pricing":[{
+			"platform":"openai",
+			"models":["grok-imagine-video"],
+			"billing_mode":"video",
+			"per_request_price":0.1
+		}]
+	}`))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.JSONEq(t, `{"billing_mode":"video"}`, recorder.Body.String())
+}
 
 // ---------------------------------------------------------------------------
 // 1. channelToResponse

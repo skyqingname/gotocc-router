@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"maps"
 	"sort"
 	"strings"
@@ -23,6 +24,7 @@ type AvailableGroupRef struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
+	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 }
 
@@ -73,6 +75,7 @@ func (s *ChannelService) ListAvailable(ctx context.Context) ([]AvailableChannel,
 			PeakStart:          g.PeakStart,
 			PeakEnd:            g.PeakEnd,
 			PeakRateMultiplier: g.PeakRateMultiplier,
+			RateSchedule:       g.RateSchedule,
 			IsExclusive:        g.IsExclusive,
 		}
 	}
@@ -138,7 +141,7 @@ func pricingNeedsFallback(p *ChannelModelPricing) bool {
 	}
 	if p.InputPrice != nil || p.OutputPrice != nil ||
 		p.CacheWritePrice != nil || p.CacheWrite1hPrice != nil || p.CacheReadPrice != nil ||
-		p.ImageOutputPrice != nil || p.PerRequestPrice != nil {
+		p.ImageInputPrice != nil || p.ImageOutputPrice != nil || p.PerRequestPrice != nil {
 		return false
 	}
 	for _, iv := range p.Intervals {

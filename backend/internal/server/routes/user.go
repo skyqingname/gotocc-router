@@ -14,17 +14,28 @@ func RegisterUserRoutes(
 	h *handler.Handlers,
 	jwtAuth middleware.JWTAuthMiddleware,
 	auditLog middleware.AuditLogMiddleware,
+	stepUpAuth middleware.StepUpAuthMiddleware,
 	settingService *service.SettingService,
 	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
+	authenticated.Use(h.Reseller.PricingContext)
 	// 面板全局按用户限流：防止单个账号高频刷接口打爆数据库
 	authenticated.Use(panelRateLimiter.Global())
 	// 用户管理面变更类操作入审计（含 TOTP 启用/禁用、step-up 验证、密码修改等安全事件）
 	authenticated.Use(gin.HandlerFunc(auditLog))
 	{
+		reseller := authenticated.Group("/reseller")
+		reseller.GET("/access", h.Reseller.Access)
+		reseller.GET("", h.Reseller.Overview)
+		reseller.GET("/customers", h.Reseller.Customers)
+		reseller.PUT("/customers/:id/notes", h.Reseller.CustomerNotes)
+		reseller.GET("/prices", h.Reseller.Prices)
+		reseller.PUT("/prices", h.Reseller.SavePrices)
+		reseller.GET("/earnings", h.Reseller.Earnings)
+
 		// 用户接口
 		user := authenticated.Group("/user")
 		{
@@ -33,6 +44,9 @@ func RegisterUserRoutes(
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
+			// LC-024 代理中心：自助申请，无需请求体；通过后不提供退出入口
+			user.GET("/agent", h.Agent.Overview)
+			user.POST("/agent/apply", h.Agent.Apply)
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)
 			user.DELETE("/account-bindings/:provider", h.User.UnbindIdentity)
@@ -77,15 +91,19 @@ func RegisterUserRoutes(
 		{
 			keys.GET("", h.APIKey.List)
 			keys.GET("/:id", h.APIKey.GetByID)
+			keys.GET("/:id/routing-capabilities", h.Gateway.UserRoutingCapabilities)
 			keys.POST("", h.APIKey.Create)
 			keys.PUT("/:id", h.APIKey.Update)
 			keys.DELETE("/:id", h.APIKey.Delete)
 		}
 
+		registerUserTeamRoutes(authenticated, h, stepUpAuth, panelRateLimiter)
+
 		// 用户可用分组（非管理员接口）
 		groups := authenticated.Group("/groups")
 		{
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
+			groups.GET("/routing-priorities", panelRateLimiter.Heavy(), h.Gateway.UserRoutingPriorities)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
 
@@ -154,5 +172,39 @@ func RegisterUserRoutes(
 			monitorV2.GET("/errors", h.ChannelMonitorV2.Errors)
 			monitorV2.GET("/users", h.ChannelMonitorV2.Users)
 		}
+	}
+}
+
+func registerUserTeamRoutes(authenticated *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware, panelRateLimiter *middleware.PanelRateLimiter) {
+	// 团队管理沿用 Plus 的认证、面板限流和审计链；敏感生命周期操作额外要求 step-up。
+	team := authenticated.Group("/team")
+	{
+		team.GET("", h.Team.GetCurrent)
+		team.POST("", h.Team.Create)
+		team.PATCH("", h.Team.Update)
+		team.PATCH("/default-member-limits", h.Team.UpdateDefaultMemberLimits)
+		team.POST("/status", gin.HandlerFunc(stepUpAuth), h.Team.SetStatus)
+		team.DELETE("", gin.HandlerFunc(stepUpAuth), h.Team.Dissolve)
+		team.GET("/members", h.Team.ListMembers)
+		team.GET("/usage", panelRateLimiter.Heavy(), h.Team.GetUsageSummary)
+		team.GET("/usage/members", panelRateLimiter.Heavy(), h.Team.ListMemberUsageSeries)
+		team.GET("/usage/logs", panelRateLimiter.Heavy(), h.Team.ListUsageLogs)
+		team.GET("/keys", h.Team.ListTeamKeys)
+		team.POST("/keys/:id/disable", h.Team.DisableTeamKey)
+		team.POST("/keys/:id/enable", h.Team.EnableTeamKey)
+		team.DELETE("/keys/:id", h.Team.DeleteTeamKey)
+		team.DELETE("/members/:user_id", h.Team.RemoveMember)
+		team.PATCH("/members/:user_id/limits", h.Team.UpdateMemberLimits)
+		team.POST("/members/:user_id/usage/reset", h.Team.ResetMemberUsage)
+		team.POST("/leave", h.Team.Leave)
+		team.GET("/invitations", h.Team.ListInvitations)
+		team.POST("/invitations", h.Team.Invite)
+		team.POST("/invitations/preview", h.Team.PreviewInvitation)
+		team.POST("/invitations/resolve", h.Team.ResolveInvitation)
+		team.POST("/invitations/:id/reissue", h.Team.ReissueInvitation)
+		team.DELETE("/invitations/:id", h.Team.RevokeInvitation)
+		team.POST("/ownership-transfer", gin.HandlerFunc(stepUpAuth), h.Team.StartOwnershipTransfer)
+		team.POST("/ownership-transfer/resolve", gin.HandlerFunc(stepUpAuth), h.Team.ResolveOwnershipTransfer)
+		team.DELETE("/ownership-transfer", gin.HandlerFunc(stepUpAuth), h.Team.CancelOwnershipTransfer)
 	}
 }

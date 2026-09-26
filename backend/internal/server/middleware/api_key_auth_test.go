@@ -1479,6 +1479,75 @@ func TestAPIKeyAuthQuotaErrorKeepsLegacyFormatOutsideResponses(t *testing.T) {
 	requireAPIKeyAuthError(t, w, "API_KEY_QUOTA_EXHAUSTED", "API key 额度已用完")
 }
 
+func TestAPIKeyAuthAllowsAsyncImageReadsAfterQuotaExhaustion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	user := &service.User{
+		ID:          12,
+		Role:        service.RoleUser,
+		Status:      service.StatusActive,
+		Balance:     10,
+		Concurrency: 3,
+	}
+	group := &service.Group{
+		ID:       9,
+		Platform: service.PlatformOpenAI,
+		Status:   service.StatusActive,
+		Hydrated: true,
+	}
+	apiKey := &service.APIKey{
+		ID:        106,
+		UserID:    user.ID,
+		Key:       "async-images-quota-exhausted",
+		Status:    service.StatusAPIKeyQuotaExhausted,
+		User:      user,
+		Group:     group,
+		GroupID:   &group.ID,
+		Quota:     1,
+		QuotaUsed: 1,
+	}
+	apiKeyRepo := &stubApiKeyRepo{getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+		if key != apiKey.Key {
+			return nil, service.ErrAPIKeyNotFound
+		}
+		clone := *apiKey
+		userClone := *user
+		groupClone := *group
+		clone.User = &userClone
+		clone.Group = &groupClone
+		return &clone, nil
+	}}
+
+	cfg := &config.Config{RunMode: config.RunModeStandard}
+	router := newAuthTestRouter(service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg), nil, cfg)
+	ok := func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	}
+	router.GET("/v1/images/tasks/:task_id", ok)
+	router.GET("/v1/images/objects/:object_id/url", ok)
+	router.POST("/v1/images/generations/async", ok)
+
+	for _, path := range []string{
+		"/v1/images/tasks/imgtask_123",
+		"/v1/images/objects/imgobj_123/url",
+	} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("x-api-key", apiKey.Key)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code, path)
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations/async", nil)
+	req.Header.Set("x-api-key", apiKey.Key)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+	requireAPIKeyAuthError(t, w, "API_KEY_QUOTA_EXHAUSTED", "API key 额度已用完")
+}
+
 func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService *service.SubscriptionService, cfg *config.Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.HandlerFunc(NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, cfg)))

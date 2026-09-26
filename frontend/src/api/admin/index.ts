@@ -10,6 +10,8 @@ import accountsAPI from './accounts'
 import proxiesAPI from './proxies'
 import redeemAPI from './redeem'
 import promoAPI from './promo'
+import reusableInvitationCodesAPI from './reusableInvitationCodes'
+import teamsAPI from './teams'
 import announcementsAPI from './announcements'
 import settingsAPI from './settings'
 import systemAPI from './system'
@@ -49,6 +51,8 @@ export const adminAPI = {
   proxies: proxiesAPI,
   redeem: redeemAPI,
   promo: promoAPI,
+  reusableInvitationCodes: reusableInvitationCodesAPI,
+  teams: teamsAPI,
   announcements: announcementsAPI,
   settings: settingsAPI,
   system: systemAPI,
@@ -86,6 +90,8 @@ export {
   proxiesAPI,
   redeemAPI,
   promoAPI,
+  reusableInvitationCodesAPI,
+  teamsAPI,
   announcementsAPI,
   settingsAPI,
   systemAPI,
@@ -120,6 +126,12 @@ export default adminAPI
 // Re-export types used by components
 export type { AuditLog, AuditLogQuery, AuditLogListResponse } from './audit'
 export type { BalanceHistoryItem } from './users'
+export type {
+  CreateReusableInvitationCodeRequest,
+  ReusableInvitationCode,
+  ReusableInvitationCodeUse
+} from './reusableInvitationCodes'
+export type { AdminTeam } from './teams'
 export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from './errorPassthrough'
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
