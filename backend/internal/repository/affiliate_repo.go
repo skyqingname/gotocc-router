@@ -805,8 +805,8 @@ func ensureUserAffiliateWithClient(ctx context.Context, client *dbent.Client, us
 		res, err := client.ExecContext(ctx, `
 WITH created AS (
  INSERT INTO user_affiliates (user_id, aff_code, created_at, updated_at)
- SELECT $1, $2, NOW(), NOW()
- WHERE NOT EXISTS (SELECT 1 FROM reusable_invitation_codes WHERE UPPER(code) = $2)
+ SELECT $1::bigint, $2::text, NOW(), NOW()
+ WHERE NOT EXISTS (SELECT 1 FROM reusable_invitation_codes WHERE UPPER(code) = $2::text)
  ON CONFLICT DO NOTHING
  RETURNING user_id, aff_code
 )
