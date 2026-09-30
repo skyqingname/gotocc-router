@@ -349,12 +349,20 @@ func (m *ConfigManager) buildNextStorage(current storageConfig, req UpdateConfig
 		currentByID[endpoint.ID] = endpoint
 	}
 	next := storageConfig{
-		Enabled: req.Enabled, BlockingEnabled: req.BlockingEnabled, StorePassEvents: req.StorePassEvents,
+		Enabled: req.Enabled, BlockingEnabled: req.BlockingEnabled, BlockingLatestTurnOnly: req.BlockingLatestTurnOnly, StorePassEvents: req.StorePassEvents,
 		Strategy: strings.TrimSpace(req.Strategy), WorkerCount: req.WorkerCount,
-		QueueCapacity: req.QueueCapacity, Scanners: append([]string(nil), req.Scanners...),
+		QueueCapacity: req.QueueCapacity, AuditPrompt: strings.TrimSpace(req.AuditPrompt),
+		ResponseFormat: current.ResponseFormat, ConfidenceThreshold: current.ConfidenceThreshold,
+		Scanners:  append([]string(nil), req.Scanners...),
 		AllGroups: req.AllGroups, GroupIDs: append([]int64(nil), req.GroupIDs...),
 		ConfigVersion: current.ConfigVersion, UpdatedBy: actorID,
 		Endpoints: make([]StorageEndpoint, 0, len(req.Endpoints)),
+	}
+	if req.ResponseFormat != nil {
+		next.ResponseFormat = strings.TrimSpace(*req.ResponseFormat)
+	}
+	if req.ConfidenceThreshold != nil {
+		next.ConfidenceThreshold = *req.ConfidenceThreshold
 	}
 	for _, endpoint := range req.Endpoints {
 		baseURL, err := NormalizeBaseURL(endpoint.BaseURL)
@@ -373,7 +381,7 @@ func (m *ConfigManager) buildNextStorage(current storageConfig, req UpdateConfig
 		case strings.TrimSpace(endpoint.Token) != "":
 			if !m.encryptionKeyConfigured {
 				return storageConfig{}, infraerrors.BadRequest(ErrorCodeEncryptionKeyRequired,
-					"未配置固定加密密钥，审计节点 Token 将在服务重启后失效。请先设置 TOTP_ENCRYPTION_KEY 环境变量（64 位十六进制）并重启服务")
+					"未配置固定加密密钥，审计节点 Token 将在服务重启后失效。请先在服务配置文件中设置 totp.encryption_key（64 位十六进制）并重启服务")
 			}
 			ciphertext, err := m.encryptor.Encrypt(strings.TrimSpace(endpoint.Token))
 			if err != nil {

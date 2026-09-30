@@ -29,6 +29,23 @@ type usageRepoStub struct {
 	onCall     chan struct{}
 }
 
+type dashboardPublicStatsRepoStub struct {
+	*usageRepoStub
+	publicStats   *DashboardPublicStats
+	publicErr     error
+	publicCalls   int32
+	useAggregates bool
+}
+
+func (s *dashboardPublicStatsRepoStub) GetDashboardPublicStats(_ context.Context, _, _ time.Time, useAggregates bool) (*DashboardPublicStats, error) {
+	atomic.AddInt32(&s.publicCalls, 1)
+	s.useAggregates = useAggregates
+	if s.publicErr != nil {
+		return nil, s.publicErr
+	}
+	return s.publicStats, nil
+}
+
 func (s *usageRepoStub) GetDashboardStats(ctx context.Context) (*usagestats.DashboardStats, error) {
 	atomic.AddInt32(&s.calls, 1)
 	if s.onCall != nil {
@@ -144,6 +161,24 @@ func (c *dashboardCacheStub) readLastEntry(t *testing.T) dashboardStatsCacheEntr
 	err := json.Unmarshal([]byte(data), &entry)
 	require.NoError(t, err)
 	return entry
+}
+
+func TestDashboardService_GetPublicDashboardStatsUsesLightweightFetcher(t *testing.T) {
+	expected := &DashboardPublicStats{TodayTokens: 12, TotalTokens: 34, TotalUsers: 56}
+	repo := &dashboardPublicStatsRepoStub{
+		usageRepoStub: &usageRepoStub{stats: &usagestats.DashboardStats{TotalUsers: 999}},
+		publicStats:   expected,
+	}
+	svc := NewDashboardService(repo, nil, nil, &config.Config{
+		DashboardAgg: config.DashboardAggregationConfig{Enabled: true},
+	})
+
+	got, err := svc.GetPublicDashboardStats(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, expected, got)
+	require.Equal(t, int32(1), atomic.LoadInt32(&repo.publicCalls))
+	require.Equal(t, int32(0), atomic.LoadInt32(&repo.calls))
+	require.False(t, repo.useAggregates, "aggregate reads require an aggregation repository")
 }
 
 func TestDashboardService_CacheHitFresh(t *testing.T) {

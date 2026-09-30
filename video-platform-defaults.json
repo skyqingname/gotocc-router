@@ -1,0 +1,33 @@
+{
+  "protocol": "openai",
+  "enabled": true,
+  "upstream_model": "",
+  "create_path": "/v1/videos",
+  "status_path": "/v1/videos/{task_id}",
+  "content_path": "/v1/videos/{task_id}/content",
+  "headers": {},
+  "defaults": {},
+  "parameters": [],
+  "request_fields": {
+    "model": "model",
+    "prompt": "prompt",
+    "seconds": "seconds",
+    "resolution": "resolution",
+    "input_reference": "input_reference"
+  },
+  "id_field": "id",
+  "status_field": "status",
+  "video_url_field": "url",
+  "statuses": {
+    "queued": "pending",
+    "pending": "pending",
+    "processing": "processing",
+    "in_progress": "processing",
+    "completed": "completed",
+    "succeeded": "completed",
+    "failed": "failed",
+    "cancelled": "cancelled",
+    "expired": "expired"
+  },
+  "create_status": "pending"
+}

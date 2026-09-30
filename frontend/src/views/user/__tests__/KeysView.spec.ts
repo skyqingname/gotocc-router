@@ -9,6 +9,7 @@ import KeysView from '../KeysView.vue'
 const {
   listKeys,
   updateKey,
+  createKey,
   getPublicSettings,
   getDashboardApiKeysUsage,
   getAvailableGroups,
@@ -18,9 +19,12 @@ const {
   copyToClipboard,
   isCurrentStep,
   nextStep,
+  replaceRoute,
+  routeQuery,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
   updateKey: vi.fn(),
+  createKey: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
@@ -30,10 +34,13 @@ const {
   copyToClipboard: vi.fn(),
   isCurrentStep: vi.fn(),
   nextStep: vi.fn(),
+  replaceRoute: vi.fn(),
+  routeQuery: {} as Record<string, string>,
 }))
 
 const messages: Record<string, string> = {
   'common.actions': 'Actions',
+  'common.cancel': 'Cancel',
   'common.name': 'Name',
   'common.refresh': 'Refresh',
   'common.status': 'Status',
@@ -49,6 +56,9 @@ const messages: Record<string, string> = {
   'keys.currentConcurrency': 'Current Concurrency',
   'keys.lastUsedAt': 'Last Used',
   'keys.lastUsedIP': 'Last Used IP',
+  'keys.oneClickAccess': 'One-Click Access',
+  'keys.oneClickSelect.description': 'Choose a personal API key.',
+  'keys.oneClickSelect.title': 'Select a key to connect',
   'keys.rateLimitColumn': 'Rate Limit',
   'keys.searchPlaceholder': 'Search name or key...',
   'keys.status.active': 'Active',
@@ -56,12 +66,13 @@ const messages: Record<string, string> = {
   'keys.status.inactive': 'Inactive',
   'keys.status.quota_exhausted': 'Quota exhausted',
   'keys.usage': 'Usage',
+  'keys.useKey': 'Use Key',
 }
 
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
-    create: vi.fn(),
+    create: createKey,
     update: updateKey,
     delete: vi.fn(),
     toggleStatus: vi.fn(),
@@ -76,6 +87,11 @@ vi.mock('@/api', () => ({
     getAvailable: getAvailableGroups,
     getUserGroupRates,
   },
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: routeQuery }),
+  useRouter: () => ({ replace: replaceRoute }),
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -111,6 +127,9 @@ vi.mock('vue-i18n', async () => {
 const createApiKey = (): ApiKey => ({
   id: 1,
   user_id: 1,
+  team_id: null,
+  scope: 'personal',
+  team_owner_disabled: false,
   key: 'sk-test-key',
   name: 'test-key',
   group_id: null,
@@ -177,6 +196,9 @@ const DataTableStub = {
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
+        <div data-test="row-actions">
+          <slot name="cell-actions" :row="row" />
+        </div>
         <div
           v-if="columns.some((col) => col.key === 'last_used_ip')"
           data-test="last-used-ip"
@@ -219,6 +241,18 @@ const IconStub = {
   template: '<span data-test="icon">{{ name }}</span>',
 }
 
+const BaseDialogStub = {
+  name: 'BaseDialog',
+  props: ['show', 'title'],
+  template: '<div v-if="show"><slot /><slot name="footer" /></div>',
+}
+
+const UseKeyModalStub = {
+  name: 'UseKeyModal',
+  props: ['show', 'apiKey'],
+  template: '<div v-if="show" data-test="use-key-modal">{{ apiKey }}</div>',
+}
+
 const mountView = async () => {
   const wrapper = mount(KeysView, {
     global: {
@@ -227,19 +261,16 @@ const mountView = async () => {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: PaginationStub,
-        BaseDialog: {
-          props: ['show', 'title'],
-          emits: ['close'],
-          template: '<div v-if="show" role="dialog"><button data-test="close-dialog" @click="$emit(\'close\')">Close</button><slot /><slot name="footer" /></div>',
-        },
+        BaseDialog: BaseDialogStub,
         ConfirmDialog: true,
         EmptyState: true,
         Select: SelectStub,
         SearchInput: SearchInputStub,
         Icon: IconStub,
-        UseKeyModal: true,
+        UseKeyModal: UseKeyModalStub,
         BulkEditKeysModal: true,
         EndpointPopover: true,
+        RoutingPriorityPanel: { props: ['scope'], template: '<div data-test="priority-panel-stub">{{ scope }}</div>' },
         GroupBadge: true,
         GroupOptionItem: true,
         Teleport: true,
@@ -272,6 +303,7 @@ describe('user KeysView column settings', () => {
     listKeys.mockReset()
     updateKey.mockReset()
     vi.mocked(keysAPI.create).mockReset()
+    createKey.mockReset()
     getPublicSettings.mockReset()
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
@@ -281,6 +313,8 @@ describe('user KeysView column settings', () => {
     copyToClipboard.mockReset()
     isCurrentStep.mockReset()
     nextStep.mockReset()
+    replaceRoute.mockReset()
+    for (const key of Object.keys(routeQuery)) delete routeQuery[key]
 
     listKeys.mockResolvedValue({
       items: [createApiKey()],
@@ -293,6 +327,8 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
+    createKey.mockResolvedValue(createApiKey())
+    replaceRoute.mockResolvedValue(undefined)
     isCurrentStep.mockReturnValue(false)
   })
 
@@ -542,6 +578,144 @@ describe('user KeysView column settings', () => {
         group_id: 42,
         sort_by: 'current_concurrency',
         sort_order: 'asc',
+        scope: 'personal',
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('loads personal keys and group metadata with an explicit personal scope', async () => {
+    await mountView()
+
+    expect(listKeys).toHaveBeenCalledWith(
+      1,
+      20,
+      expect.objectContaining({ scope: 'personal' }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(getAvailableGroups).toHaveBeenCalledWith('personal')
+    expect(getUserGroupRates).toHaveBeenCalledWith('personal')
+  })
+
+  it('opens the Plus key configuration directly when one personal key is available', async () => {
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="one-click-access-global"]').attributes('disabled')).toBeUndefined()
+    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
+
+    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-test-key')
+  })
+
+  it('selects a personal key before opening one-click access when multiple keys are available', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: [createApiKey(), { ...createApiKey(), id: 2, key: 'sk-second-key', name: 'second-key' }],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
+    const options = wrapper.findAll('[data-test="one-click-key-option"]')
+    expect(options).toHaveLength(2)
+
+    await options[1].trigger('click')
+    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-second-key')
+  })
+
+  it('exposes one-click access for team-scoped keys', async () => {
+    routeQuery.scope = 'team'
+    listKeys.mockResolvedValueOnce({
+      items: [{ ...createApiKey(), team_id: 8, scope: 'team', key: 'sk-***-masked' }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="one-click-access-global"]').exists()).toBe(true)
+    expect(wrapper.get('[data-test="use-key-action"]').exists()).toBe(true)
+
+    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
+    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-***-masked')
+  })
+
+  it('creates a team key without falling back to personal scope', async () => {
+    routeQuery.scope = 'team'
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
+    await nextTick()
+    await wrapper.get('[data-tour="key-form-name"]').setValue('team-key')
+    const selects = wrapper.findAllComponents({ name: 'Select' })
+    await selects[3].vm.$emit('update:modelValue', 7)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+
+    expect(createKey).toHaveBeenCalledWith(
+      'team-key',
+      7,
+      undefined,
+      [],
+      [],
+      0,
+      undefined,
+      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
+      'team',
+      'fixed'
+    )
+    expect(listKeys).toHaveBeenCalledWith(
+      1,
+      20,
+      expect.objectContaining({ scope: 'team' }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('creates an automatic-routing team key with an explicit null group contract', async () => {
+    routeQuery.scope = 'team'
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
+    await nextTick()
+    await wrapper.get('[data-tour="key-form-name"]').setValue('team-auto-key')
+    expect(wrapper.find('[data-test="priority-panel-stub"]').exists()).toBe(false)
+    await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
+    expect(wrapper.get('[data-test="priority-panel-stub"]').text()).toBe('team')
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+
+    expect(createKey).toHaveBeenCalledWith(
+      'team-auto-key',
+      null,
+      undefined,
+      [],
+      [],
+      0,
+      undefined,
+      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
+      'team',
+      'auto'
+    )
+  })
+
+  it('sends a separate routing-mode filter without changing the ungrouped filter', async () => {
+    const wrapper = await mountView()
+    const selects = wrapper.findAllComponents({ name: 'Select' })
+
+    await selects[2].vm.$emit('update:modelValue', 'auto')
+    await flushPromises()
+
+    expect(listKeys).toHaveBeenLastCalledWith(
+      1,
+      20,
+      {
+        routing_mode: 'auto',
+        sort_by: 'created_at',
+        sort_order: 'desc',
+        scope: 'personal',
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )

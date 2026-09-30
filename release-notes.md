@@ -1,78 +1,23 @@
-Sub2API Plus v0.2.9+custom.001
+# GoToCC 0.2.9+custom.002
 
-## Highlights
+基于 Sub2API Plus `v0.2.9+custom.001`（`53f73bf1619b9c35207b6a94c8720a673fa21bb1`），对应官方 Sub2API `v0.2.9`。保留全部 active GoToCC 契约及自有更新通道。
 
-First release on the official `v0.2.9` baseline. The integration fixes protocol
-conversion, streaming completion, client cancellation, billing, quota
-scheduling, and model discovery while keeping every Plus contract: trusted
-outbound identity precedence, ingress audit ordering, per-reasoning-effort
-billing multipliers, quota semantics, and the restricted Grok fallback.
+## GPT-6.1 Sol 默认计费
 
-Channel image prices that are intentionally left blank now inherit the catalog
-price instead of being forced to zero, and group model allowlist rules accept
-`*` at any position instead of only as a trailing wildcard.
+按 2026-09-30 核实的 [OpenAI 官方模型价格](https://developers.openai.com/api/docs/models/gpt-6.1-sol)，`gpt-6.1-sol` 每百万 token 标准价为：输入 $2、缓存读取 $0.10、缓存写入 $2.50、输出 $10。超过 272K 输入 token 后，整次请求的输入与缓存价格乘 2，输出价格乘 1.5。Fast 为标准价 2 倍；Flex/Batch 目录价为标准价一半，实际使用范围遵循既有端点和服务档支持。
 
-## Changed
+价格由根目录 `model-pricing-defaults.json` 生成到随版目录，新模型显式采用随版官方价，覆盖远端目录可能保留的旧值。分组与渠道显式价格优先，旧 GPT-6 Sol 价格不变。没有新增付费调用、修改账号、分组或渠道配置。
 
-- Streams: Antigravity retries an otherwise empty stream or a
-  `MALFORMED_FUNCTION_CALL` stream before any irreversible output is
-  committed, so downstream sees no duplicate content and no phantom first
-  token; Plus audio metering, partial usage, and output timing stay
-  authoritative.
-- Protocol conversion: base64 PDF/document parts convert to Gemini
-  `inlineData`, string `const` stays within its `enum` intersection, explicit
-  `thinking: disabled` survives bridged defaults, GPT generation sampling
-  parameters are filtered, converted role items are typed as messages, tool
-  arguments sent on `content_block_start` are retained, and empty terminal
-  text is recovered from already delivered content.
-- Identity: `OpenAI-Beta` is honored for Responses multi-agent and Anthropic
-  structured output under the Plus non-passthrough policy; inbound UA,
-  Originator, Version, and generic overrides still cannot select identity.
-- Cancellation: a real client disconnect maps to 499 for uncommitted
-  responses while already accepted requests continue their independent
-  settlement, billing, and disconnect-risk lifecycle; a lone upstream
-  `context.Canceled` on a live client context is no longer classified as a
-  client disconnect.
-- Billing: account statistics use the account long-context gate, Free Fast
-  keeps its zero-cost usage log when a price is missing, Alpha Search only
-  reports a billable success on a genuine completed terminal, and the Opus 5.5
-  OpenRouter alias is recognized.
-- Scheduling and discovery: confirmed no-credit accounts stop re-querying and
-  query failures back off, a known future reset time holds the pause, scheduler
-  cache projection keeps its fields, and passthrough accounts supplement model
-  discovery without bypassing the group allowlist.
-- Clients and deployment: CC Switch keeps the Grok/Codex root endpoint, usage
-  queries no longer request `/v1/v1/usage`, the Windows Codex model catalog
-  uses `~/`, the model plaza shows an independent video multiplier, idle usage
-  windows count down from their known reset time, dialog listeners and pending
-  searches are cleaned up on unmount, Redis uses the `exec` list command form,
-  and the install wizard no longer emits the obsolete `rate_limit` default.
-- Plus follow-ups: platform-aware channel pricing reference sync and autofill,
-  model-switch clearing of stale prices/intervals/multipliers, new-model
-  billing fallback fixes, a Codex client version baseline aligned to official
-  v0.158.0, validation-runtime resource cleanup in the push tooling, gofmt
-  normalization, production-audit CVE exceptions for the export-only `xlsx`
-  usage, and a corrected Codex residency explanation in the admin settings.
+## 上游升级
 
-## Compatibility and migration
+引入渠道按平台同步参考价、切换模型后清除旧价、通配模型白名单、协议与工具参数转换、流式终态、账号配额重置与统计修复。图片渠道未填写的输入/输出价继承目录价，显式 0 仍表示免费。断线保留已发送的 HTTP 状态与独立结算；尚未发送响应的真实客户端取消按上游 499 处理。
 
-- Channel image prices left blank now inherit the catalog price; keep or set an
-  explicit `0` for a free configuration.
-- Group model allowlist entries may place `*` at any position (case-insensitive
-  full match); `?` and `[]` gain no wildcard meaning. The previous trailing-only
-  restriction is removed. Existing databases store the new syntax at runtime;
-  the historical one-time migration validation is unchanged.
-- Back up the database before upgrading. This release contains no schema
-  migrations.
+团队及智能 Key 归属、统一邀请码与三代返佣、点击立即成为代理、Video 协议与终态计费、图片永久对象、提示词审核、分组时段倍率和站长差价继续保留。
 
-## Known issues
+## 数据与回退
 
-- Grok accounts keep the fixed-point shell identity, base-URL routing, and
-  fallback behavior; no known regression.
-- The parallel validation lanes exhaust the 8 GB validation container on some
-  hosts; run the local matrix with `--serial` there.
+历史 283 及以前迁移保持不变。新增 284 将旧渠道/分组显式 Max 推理倍率迁到通用推理倍率 map，已有 map 的 max 值优先；285 是上游 271 的原 SQL 顺延，完成通用倍率列及旧分组字段转换。仅更新价格配置结构，不回填历史费用或余额；升级前保留数据库备份，保持单 writer。涉及配置行锁、JSON 扫描和 WAL，现有列的 ADD IF NOT EXISTS 不重建全表。
 
-## Upstream baseline
+迁移或新业务写入后不以只回滚二进制或旧 dump 覆盖当前数据作为回退；优先前向修复。包、资源、迁移与配置须作为同一版本处理。
 
-Official release: v0.2.9
-Official commit: 4c00df2e0183e2c70b7fa8ba45914205e36aad0c
+本包用于本地人工验收，尚未发布或部署生产；用户验收并要求发布后，上传此目录中的同一包，生产由用户在自有更新通道操作。

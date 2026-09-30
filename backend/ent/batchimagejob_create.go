@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/batchimagejob"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 )
 
 // BatchImageJobCreate is the builder for creating a BatchImageJob entity.
@@ -20,6 +21,12 @@ type BatchImageJobCreate struct {
 	mutation *BatchImageJobMutation
 	hooks    []Hook
 	conflict []sql.ConflictOption
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_c *BatchImageJobCreate) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobCreate {
+	_c.mutation.SetResellerSnapshot(v)
+	return _c
 }
 
 // SetBatchID sets the "batch_id" field.
@@ -31,6 +38,34 @@ func (_c *BatchImageJobCreate) SetBatchID(v string) *BatchImageJobCreate {
 // SetUserID sets the "user_id" field.
 func (_c *BatchImageJobCreate) SetUserID(v int64) *BatchImageJobCreate {
 	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetBillingUserID sets the "billing_user_id" field.
+func (_c *BatchImageJobCreate) SetBillingUserID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetBillingUserID(v)
+	return _c
+}
+
+// SetNillableBillingUserID sets the "billing_user_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableBillingUserID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetBillingUserID(*v)
+	}
+	return _c
+}
+
+// SetTeamID sets the "team_id" field.
+func (_c *BatchImageJobCreate) SetTeamID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetTeamID(v)
+	return _c
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableTeamID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetTeamID(*v)
+	}
 	return _c
 }
 
@@ -58,6 +93,20 @@ func (_c *BatchImageJobCreate) SetAccountID(v int64) *BatchImageJobCreate {
 func (_c *BatchImageJobCreate) SetNillableAccountID(v *int64) *BatchImageJobCreate {
 	if v != nil {
 		_c.SetAccountID(*v)
+	}
+	return _c
+}
+
+// SetGroupID sets the "group_id" field.
+func (_c *BatchImageJobCreate) SetGroupID(v int64) *BatchImageJobCreate {
+	_c.mutation.SetGroupID(v)
+	return _c
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableGroupID(v *int64) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetGroupID(*v)
 	}
 	return _c
 }
@@ -258,6 +307,20 @@ func (_c *BatchImageJobCreate) SetActualCost(v float64) *BatchImageJobCreate {
 func (_c *BatchImageJobCreate) SetNillableActualCost(v *float64) *BatchImageJobCreate {
 	if v != nil {
 		_c.SetActualCost(*v)
+	}
+	return _c
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (_c *BatchImageJobCreate) SetAllowanceReserved(v bool) *BatchImageJobCreate {
+	_c.mutation.SetAllowanceReserved(v)
+	return _c
+}
+
+// SetNillableAllowanceReserved sets the "allowance_reserved" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableAllowanceReserved(v *bool) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetAllowanceReserved(*v)
 	}
 	return _c
 }
@@ -601,6 +664,10 @@ func (_c *BatchImageJobCreate) defaults() {
 		v := batchimagejob.DefaultEstimatedCost
 		_c.mutation.SetEstimatedCost(v)
 	}
+	if _, ok := _c.mutation.AllowanceReserved(); !ok {
+		v := batchimagejob.DefaultAllowanceReserved
+		_c.mutation.SetAllowanceReserved(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := batchimagejob.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -708,6 +775,9 @@ func (_c *BatchImageJobCreate) check() error {
 	if _, ok := _c.mutation.EstimatedCost(); !ok {
 		return &ValidationError{Name: "estimated_cost", err: errors.New(`ent: missing required field "BatchImageJob.estimated_cost"`)}
 	}
+	if _, ok := _c.mutation.AllowanceReserved(); !ok {
+		return &ValidationError{Name: "allowance_reserved", err: errors.New(`ent: missing required field "BatchImageJob.allowance_reserved"`)}
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "BatchImageJob.currency"`)}
 	}
@@ -780,6 +850,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 		_spec = sqlgraph.NewCreateSpec(batchimagejob.Table, sqlgraph.NewFieldSpec(batchimagejob.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldResellerSnapshot, field.TypeJSON, value)
+		_node.ResellerSnapshot = value
+	}
 	if value, ok := _c.mutation.BatchID(); ok {
 		_spec.SetField(batchimagejob.FieldBatchID, field.TypeString, value)
 		_node.BatchID = value
@@ -788,6 +862,14 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 		_spec.SetField(batchimagejob.FieldUserID, field.TypeInt64, value)
 		_node.UserID = value
 	}
+	if value, ok := _c.mutation.BillingUserID(); ok {
+		_spec.SetField(batchimagejob.FieldBillingUserID, field.TypeInt64, value)
+		_node.BillingUserID = value
+	}
+	if value, ok := _c.mutation.TeamID(); ok {
+		_spec.SetField(batchimagejob.FieldTeamID, field.TypeInt64, value)
+		_node.TeamID = &value
+	}
 	if value, ok := _c.mutation.APIKeyID(); ok {
 		_spec.SetField(batchimagejob.FieldAPIKeyID, field.TypeInt64, value)
 		_node.APIKeyID = &value
@@ -795,6 +877,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AccountID(); ok {
 		_spec.SetField(batchimagejob.FieldAccountID, field.TypeInt64, value)
 		_node.AccountID = &value
+	}
+	if value, ok := _c.mutation.GroupID(); ok {
+		_spec.SetField(batchimagejob.FieldGroupID, field.TypeInt64, value)
+		_node.GroupID = &value
 	}
 	if value, ok := _c.mutation.Provider(); ok {
 		_spec.SetField(batchimagejob.FieldProvider, field.TypeString, value)
@@ -859,6 +945,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(batchimagejob.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = &value
+	}
+	if value, ok := _c.mutation.AllowanceReserved(); ok {
+		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
+		_node.AllowanceReserved = value
 	}
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)
@@ -947,7 +1037,7 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 // of the `INSERT` statement. For example:
 //
 //	client.BatchImageJob.Create().
-//		SetBatchID(v).
+//		SetResellerSnapshot(v).
 //		OnConflict(
 //			// Update the row with the new values
 //			// the was proposed for insertion.
@@ -956,7 +1046,7 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.BatchImageJobUpsert) {
-//			SetBatchID(v+v).
+//			SetResellerSnapshot(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *BatchImageJobCreate) OnConflict(opts ...sql.ConflictOption) *BatchImageJobUpsertOne {
@@ -992,6 +1082,24 @@ type (
 	}
 )
 
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *BatchImageJobUpsert) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldResellerSnapshot, v)
+	return u
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateResellerSnapshot() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldResellerSnapshot)
+	return u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *BatchImageJobUpsert) ClearResellerSnapshot() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldResellerSnapshot)
+	return u
+}
+
 // SetUserID sets the "user_id" field.
 func (u *BatchImageJobUpsert) SetUserID(v int64) *BatchImageJobUpsert {
 	u.Set(batchimagejob.FieldUserID, v)
@@ -1007,6 +1115,54 @@ func (u *BatchImageJobUpsert) UpdateUserID() *BatchImageJobUpsert {
 // AddUserID adds v to the "user_id" field.
 func (u *BatchImageJobUpsert) AddUserID(v int64) *BatchImageJobUpsert {
 	u.Add(batchimagejob.FieldUserID, v)
+	return u
+}
+
+// SetBillingUserID sets the "billing_user_id" field.
+func (u *BatchImageJobUpsert) SetBillingUserID(v int64) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldBillingUserID, v)
+	return u
+}
+
+// UpdateBillingUserID sets the "billing_user_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateBillingUserID() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldBillingUserID)
+	return u
+}
+
+// AddBillingUserID adds v to the "billing_user_id" field.
+func (u *BatchImageJobUpsert) AddBillingUserID(v int64) *BatchImageJobUpsert {
+	u.Add(batchimagejob.FieldBillingUserID, v)
+	return u
+}
+
+// ClearBillingUserID clears the value of the "billing_user_id" field.
+func (u *BatchImageJobUpsert) ClearBillingUserID() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldBillingUserID)
+	return u
+}
+
+// SetTeamID sets the "team_id" field.
+func (u *BatchImageJobUpsert) SetTeamID(v int64) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldTeamID, v)
+	return u
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateTeamID() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldTeamID)
+	return u
+}
+
+// AddTeamID adds v to the "team_id" field.
+func (u *BatchImageJobUpsert) AddTeamID(v int64) *BatchImageJobUpsert {
+	u.Add(batchimagejob.FieldTeamID, v)
+	return u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *BatchImageJobUpsert) ClearTeamID() *BatchImageJobUpsert {
+	u.SetNull(batchimagejob.FieldTeamID)
 	return u
 }
 
@@ -1331,6 +1487,18 @@ func (u *BatchImageJobUpsert) AddActualCost(v float64) *BatchImageJobUpsert {
 // ClearActualCost clears the value of the "actual_cost" field.
 func (u *BatchImageJobUpsert) ClearActualCost() *BatchImageJobUpsert {
 	u.SetNull(batchimagejob.FieldActualCost)
+	return u
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (u *BatchImageJobUpsert) SetAllowanceReserved(v bool) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldAllowanceReserved, v)
+	return u
+}
+
+// UpdateAllowanceReserved sets the "allowance_reserved" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateAllowanceReserved() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldAllowanceReserved)
 	return u
 }
 
@@ -1678,6 +1846,9 @@ func (u *BatchImageJobUpsertOne) UpdateNewValues() *BatchImageJobUpsertOne {
 		if _, exists := u.create.mutation.BatchID(); exists {
 			s.SetIgnore(batchimagejob.FieldBatchID)
 		}
+		if _, exists := u.create.mutation.GroupID(); exists {
+			s.SetIgnore(batchimagejob.FieldGroupID)
+		}
 		if _, exists := u.create.mutation.CreatedAt(); exists {
 			s.SetIgnore(batchimagejob.FieldCreatedAt)
 		}
@@ -1712,6 +1883,27 @@ func (u *BatchImageJobUpsertOne) Update(set func(*BatchImageJobUpsert)) *BatchIm
 	return u
 }
 
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *BatchImageJobUpsertOne) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetResellerSnapshot(v)
+	})
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateResellerSnapshot() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateResellerSnapshot()
+	})
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *BatchImageJobUpsertOne) ClearResellerSnapshot() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearResellerSnapshot()
+	})
+}
+
 // SetUserID sets the "user_id" field.
 func (u *BatchImageJobUpsertOne) SetUserID(v int64) *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
@@ -1730,6 +1922,62 @@ func (u *BatchImageJobUpsertOne) AddUserID(v int64) *BatchImageJobUpsertOne {
 func (u *BatchImageJobUpsertOne) UpdateUserID() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetBillingUserID sets the "billing_user_id" field.
+func (u *BatchImageJobUpsertOne) SetBillingUserID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetBillingUserID(v)
+	})
+}
+
+// AddBillingUserID adds v to the "billing_user_id" field.
+func (u *BatchImageJobUpsertOne) AddBillingUserID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddBillingUserID(v)
+	})
+}
+
+// UpdateBillingUserID sets the "billing_user_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateBillingUserID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateBillingUserID()
+	})
+}
+
+// ClearBillingUserID clears the value of the "billing_user_id" field.
+func (u *BatchImageJobUpsertOne) ClearBillingUserID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearBillingUserID()
+	})
+}
+
+// SetTeamID sets the "team_id" field.
+func (u *BatchImageJobUpsertOne) SetTeamID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetTeamID(v)
+	})
+}
+
+// AddTeamID adds v to the "team_id" field.
+func (u *BatchImageJobUpsertOne) AddTeamID(v int64) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddTeamID(v)
+	})
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateTeamID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateTeamID()
+	})
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *BatchImageJobUpsertOne) ClearTeamID() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearTeamID()
 	})
 }
 
@@ -2108,6 +2356,20 @@ func (u *BatchImageJobUpsertOne) UpdateActualCost() *BatchImageJobUpsertOne {
 func (u *BatchImageJobUpsertOne) ClearActualCost() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearActualCost()
+	})
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (u *BatchImageJobUpsertOne) SetAllowanceReserved(v bool) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAllowanceReserved(v)
+	})
+}
+
+// UpdateAllowanceReserved sets the "allowance_reserved" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateAllowanceReserved() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAllowanceReserved()
 	})
 }
 
@@ -2631,7 +2893,7 @@ func (_c *BatchImageJobCreateBulk) ExecX(ctx context.Context) {
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.BatchImageJobUpsert) {
-//			SetBatchID(v+v).
+//			SetResellerSnapshot(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *BatchImageJobCreateBulk) OnConflict(opts ...sql.ConflictOption) *BatchImageJobUpsertBulk {
@@ -2675,6 +2937,9 @@ func (u *BatchImageJobUpsertBulk) UpdateNewValues() *BatchImageJobUpsertBulk {
 			if _, exists := b.mutation.BatchID(); exists {
 				s.SetIgnore(batchimagejob.FieldBatchID)
 			}
+			if _, exists := b.mutation.GroupID(); exists {
+				s.SetIgnore(batchimagejob.FieldGroupID)
+			}
 			if _, exists := b.mutation.CreatedAt(); exists {
 				s.SetIgnore(batchimagejob.FieldCreatedAt)
 			}
@@ -2710,6 +2975,27 @@ func (u *BatchImageJobUpsertBulk) Update(set func(*BatchImageJobUpsert)) *BatchI
 	return u
 }
 
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *BatchImageJobUpsertBulk) SetResellerSnapshot(v *reseller.Snapshot) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetResellerSnapshot(v)
+	})
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateResellerSnapshot() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateResellerSnapshot()
+	})
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *BatchImageJobUpsertBulk) ClearResellerSnapshot() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearResellerSnapshot()
+	})
+}
+
 // SetUserID sets the "user_id" field.
 func (u *BatchImageJobUpsertBulk) SetUserID(v int64) *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
@@ -2728,6 +3014,62 @@ func (u *BatchImageJobUpsertBulk) AddUserID(v int64) *BatchImageJobUpsertBulk {
 func (u *BatchImageJobUpsertBulk) UpdateUserID() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.UpdateUserID()
+	})
+}
+
+// SetBillingUserID sets the "billing_user_id" field.
+func (u *BatchImageJobUpsertBulk) SetBillingUserID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetBillingUserID(v)
+	})
+}
+
+// AddBillingUserID adds v to the "billing_user_id" field.
+func (u *BatchImageJobUpsertBulk) AddBillingUserID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddBillingUserID(v)
+	})
+}
+
+// UpdateBillingUserID sets the "billing_user_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateBillingUserID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateBillingUserID()
+	})
+}
+
+// ClearBillingUserID clears the value of the "billing_user_id" field.
+func (u *BatchImageJobUpsertBulk) ClearBillingUserID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearBillingUserID()
+	})
+}
+
+// SetTeamID sets the "team_id" field.
+func (u *BatchImageJobUpsertBulk) SetTeamID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetTeamID(v)
+	})
+}
+
+// AddTeamID adds v to the "team_id" field.
+func (u *BatchImageJobUpsertBulk) AddTeamID(v int64) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.AddTeamID(v)
+	})
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateTeamID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateTeamID()
+	})
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *BatchImageJobUpsertBulk) ClearTeamID() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.ClearTeamID()
 	})
 }
 
@@ -3106,6 +3448,20 @@ func (u *BatchImageJobUpsertBulk) UpdateActualCost() *BatchImageJobUpsertBulk {
 func (u *BatchImageJobUpsertBulk) ClearActualCost() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearActualCost()
+	})
+}
+
+// SetAllowanceReserved sets the "allowance_reserved" field.
+func (u *BatchImageJobUpsertBulk) SetAllowanceReserved(v bool) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetAllowanceReserved(v)
+	})
+}
+
+// UpdateAllowanceReserved sets the "allowance_reserved" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateAllowanceReserved() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateAllowanceReserved()
 	})
 }
 

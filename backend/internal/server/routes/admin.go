@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 		// 优惠码管理
 		registerPromoCodeRoutes(admin, h)
 
+		// 永久邀请码管理
+		registerReusableInvitationCodeRoutes(admin, h)
+
 		// 系统设置
 		registerSettingsRoutes(admin, h)
 
@@ -131,11 +134,31 @@ func RegisterAdminRoutes(
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
 
+		// LC-024 代理中心（只读名单）
+		registerAgentRoutes(admin, h)
+
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
+		registerTeamRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	teams := admin.Group("/teams")
+	{
+		teams.GET("", h.Admin.Team.List)
+		teams.POST("", h.Admin.Team.Create)
+		teams.GET("/:id", h.Admin.Team.Get)
+		teams.GET("/:id/members", h.Admin.Team.ListMembers)
+		teams.GET("/:id/usage", h.Admin.Team.GetUsage)
+		teams.PATCH("/:id", h.Admin.Team.Update)
+		teams.POST("/:id/force-transfer", gin.HandlerFunc(stepUpAuth), h.Admin.Team.ForceTransfer)
+		teams.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Team.Dissolve)
 	}
 }
 
@@ -181,6 +204,7 @@ func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promptAudit.GET("/config", h.Admin.PromptAudit.GetConfig)
 		promptAudit.PUT("/config", h.Admin.PromptAudit.UpdateConfig)
 		promptAudit.POST("/endpoints/probe", h.Admin.PromptAudit.ProbeEndpoint)
+		promptAudit.POST("/test", h.Admin.PromptAudit.TestText)
 		promptAudit.GET("/runtime", h.Admin.PromptAudit.GetRuntime)
 		promptAudit.GET("/events", h.Admin.PromptAudit.ListEvents)
 		promptAudit.GET("/events/:id", h.Admin.PromptAudit.GetEvent)
@@ -231,7 +255,10 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 func registerAdminAPIKeyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	apiKeys := admin.Group("/api-keys")
 	{
+		apiKeys.GET("/routing-policy", h.Gateway.AdminGetRoutingPolicy)
+		apiKeys.PUT("/routing-policy", middleware.RequestBodyLimit(1<<20), h.Gateway.AdminUpdateRoutingPolicy)
 		apiKeys.PUT("/:id", h.Admin.APIKey.UpdateGroup)
+		apiKeys.GET("/:id/routing-capabilities", h.Gateway.AdminRoutingCapabilities)
 	}
 }
 
@@ -349,6 +376,8 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		users.GET("", h.Admin.User.List)
 		users.GET("/:id", h.Admin.User.GetByID)
+		users.GET("/:id/reseller", h.Reseller.AdminProfile)
+		users.PUT("/:id/reseller", h.Reseller.AdminSave)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
@@ -376,6 +405,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		groups.GET("", h.Admin.Group.List)
 		groups.GET("/all", h.Admin.Group.GetAll)
+		groups.GET("/video-protocols", h.Admin.Group.VideoProtocols)
 		groups.GET("/usage-summary", h.Admin.Group.GetUsageSummary)
 		groups.GET("/capacity-summary", h.Admin.Group.GetCapacitySummary)
 		groups.GET("/live-capability", h.Admin.Group.GetLiveCapability)
@@ -608,6 +638,20 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
+	}
+}
+
+func registerReusableInvitationCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	if h.Admin == nil || h.Admin.ReusableInvitationCode == nil {
+		return
+	}
+	codes := admin.Group("/reusable-invitation-codes")
+	{
+		codes.GET("", h.Admin.ReusableInvitationCode.List)
+		codes.POST("", h.Admin.ReusableInvitationCode.Create)
+		codes.PUT("/:id/owner", h.Admin.ReusableInvitationCode.SetOwner)
+		codes.POST("/:id/disable", h.Admin.ReusableInvitationCode.Disable)
+		codes.GET("/:id/uses", h.Admin.ReusableInvitationCode.ListUses)
 	}
 }
 
@@ -869,6 +913,14 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers, s
 	}
 }
 
+// registerAgentRoutes 注册 LC-024 代理中心管理端路由（只读代理名单）
+func registerAgentRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	agents := admin.Group("/agents")
+	{
+		agents.GET("", h.Agent.List)
+	}
+}
+
 // registerAffiliateRoutes 注册邀请返利的管理端路由（专属用户配置）
 func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	affiliates := admin.Group("/affiliates")
@@ -876,6 +928,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		affiliates.GET("/invites", h.Admin.Affiliate.ListInviteRecords)
 		affiliates.GET("/rebates", h.Admin.Affiliate.ListRebateRecords)
 		affiliates.GET("/transfers", h.Admin.Affiliate.ListTransferRecords)
+		affiliates.POST("/inviter/resolve", h.Admin.Affiliate.ResolveInviterCode)
 
 		users := affiliates.Group("/users")
 		{
@@ -884,6 +937,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.POST("/batch-rate", h.Admin.Affiliate.BatchSetRate)
 			users.GET("/:user_id/overview", h.Admin.Affiliate.GetUserOverview)
 			users.POST("/:user_id/withdraw", h.Admin.Affiliate.WithdrawQuota)
+			users.GET("/:user_id/inviter", h.Admin.Affiliate.GetInviter)
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}

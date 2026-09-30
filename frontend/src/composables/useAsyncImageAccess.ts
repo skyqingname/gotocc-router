@@ -1,22 +1,70 @@
 import { computed, ref } from 'vue'
 import { keysAPI } from '@/api/keys'
 import { useAuthStore } from '@/stores/auth'
-import type { ApiKey } from '@/types'
+import type { ApiKey, ApiKeyRoutingCapabilities } from '@/types'
 
 const loaded = ref(false)
 const loading = ref(false)
 const hasManageableAsyncImageKey = ref(false)
 let pendingLoad: Promise<boolean> | null = null
 const pageSize = 100
+const autoRoutingCapabilities = new Map<number, ApiKeyRoutingCapabilities>()
+const pendingAutoRoutingCapabilities = new Map<number, Promise<ApiKeyRoutingCapabilities | null>>()
+let autoRoutingCapabilitiesGeneration = 0
 
 export function keyCanManageAsyncImage(key: ApiKey): boolean {
   return key.status === 'active' || key.status === 'quota_exhausted' || key.status === 'expired'
 }
 
-export function keyAllowsAsyncImage(key: ApiKey): boolean {
+export function isAutoRoutingKey(key: Pick<ApiKey, 'routing_mode'>): boolean {
+  return key.routing_mode === 'auto'
+}
+
+export function keyAllowsAsyncImage(
+  key: ApiKey,
+  capabilities?: Pick<ApiKeyRoutingCapabilities, 'async_image_submit'>,
+): boolean {
+  if (isAutoRoutingKey(key)) {
+    return key.status === 'active' && capabilities?.async_image_submit === true
+  }
   return key.status === 'active'
     && (key.group?.platform === 'openai' || key.group?.platform === 'grok')
     && key.group?.allow_image_generation === true
+}
+
+// Auto capabilities are loaded only for a selected/inspected key. The shared
+// promise cache also lets the batch-image entry reuse the same response.
+export async function getAutoRoutingCapabilities(key: ApiKey): Promise<ApiKeyRoutingCapabilities | null> {
+  if (!isAutoRoutingKey(key)) return null
+  const cached = autoRoutingCapabilities.get(key.id)
+  if (cached) return cached
+  const pending = pendingAutoRoutingCapabilities.get(key.id)
+  if (pending) return pending
+
+  const generation = autoRoutingCapabilitiesGeneration
+  const request: Promise<ApiKeyRoutingCapabilities | null> = keysAPI.getRoutingCapabilities(key.id)
+    .then((capabilities) => {
+      if (generation !== autoRoutingCapabilitiesGeneration) return null
+      if (capabilities.routing_mode !== 'auto') return null
+      autoRoutingCapabilities.set(key.id, capabilities)
+      return capabilities
+    })
+    .catch(() => null)
+    .finally(() => {
+      if (pendingAutoRoutingCapabilities.get(key.id) === request) {
+        pendingAutoRoutingCapabilities.delete(key.id)
+      }
+    })
+  pendingAutoRoutingCapabilities.set(key.id, request)
+  return request
+}
+
+export function clearAutoRoutingCapabilities() {
+  autoRoutingCapabilitiesGeneration += 1
+  // Capabilities reflect the owner's current group permissions, so changing
+  // any one key can invalidate the shared owner-scoped view.
+  autoRoutingCapabilities.clear()
+  pendingAutoRoutingCapabilities.clear()
 }
 
 // Administrators need the entry even when they have not created a personal API

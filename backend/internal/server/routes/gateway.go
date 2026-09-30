@@ -38,8 +38,8 @@ func RegisterGatewayRoutes(
 	compositeGeminiTarget := compositeGeminiTargetPlatformMiddleware(compositeResolver)
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
-	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
-	requireGroupGoogle := middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter)
+	requireGroupAnthropic := autoKeyGroupMiddleware(h.Gateway, middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter))
+	requireGroupGoogle := autoKeyGroupMiddleware(h.Gateway, middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter))
 
 	// 分组级模型白名单准入：在 apiKeyAuth 之后、compositeTarget 之前，
 	// 保证校验发生在合成路由改写与调度之前，且只看客户端书写的模型名。
@@ -95,11 +95,29 @@ func RegisterGatewayRoutes(
 			})
 		}
 	}
+	videoCreationHandler := func(c *gin.Context) {
+		switch getGroupPlatform(c) {
+		case service.PlatformOpenAI, service.PlatformVideo:
+			h.OpenAIGateway.Videos(c)
+			return
+		case service.PlatformGrok:
+			h.OpenAIGateway.GrokVideoGeneration(c)
+			return
+		}
+		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": gin.H{
+				"type":    "not_found_error",
+				"message": "Videos API is not supported for this platform",
+			},
+		})
+	}
 	videoGenerationHandler := func(c *gin.Context) {
-		// Video status/content lookups below already allow Composite groups; keep
-		// task creation aligned so composite keys that route to Grok accounts can
-		// submit video generation jobs.
-		if platform := getGroupPlatform(c); platform == service.PlatformGrok || platform == service.PlatformComposite {
+		switch getGroupPlatform(c) {
+		case service.PlatformOpenAI, service.PlatformVideo:
+			h.OpenAIGateway.Videos(c)
+			return
+		case service.PlatformGrok, service.PlatformComposite:
 			h.OpenAIGateway.GrokVideoGeneration(c)
 			return
 		}
@@ -112,9 +130,6 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoStatusHandler := func(c *gin.Context) {
-		// Video status requests do not carry a model, so composite groups cannot
-		// be resolved by compositeTargetPlatformMiddleware. Route them through
-		// the Grok handler and let scheduler/account selection enforce capacity.
 		if getGroupPlatform(c) == service.PlatformGrok || getGroupPlatform(c) == service.PlatformComposite {
 			h.OpenAIGateway.GrokVideoStatus(c)
 			return
@@ -128,9 +143,6 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoContentHandler := func(c *gin.Context) {
-		// Video content requests do not carry a model, so composite groups cannot
-		// be resolved by compositeTargetPlatformMiddleware. Route them through
-		// the Grok handler just like video status lookups.
 		if getGroupPlatform(c) == service.PlatformGrok || getGroupPlatform(c) == service.PlatformComposite {
 			h.OpenAIGateway.GrokVideoContent(c)
 			return
@@ -142,6 +154,34 @@ func RegisterGatewayRoutes(
 				"message": "Videos API is not supported for this platform",
 			},
 		})
+	}
+	videoTaskHandler := func(c *gin.Context) {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
+			h.OpenAIGateway.VideoTask(c)
+			return
+		}
+		videoStatusHandler(c)
+	}
+	videoTaskContentHandler := func(c *gin.Context) {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
+			h.OpenAIGateway.VideoContent(c)
+			return
+		}
+		videoContentHandler(c)
+	}
+	videoGenerationStatusHandler := func(c *gin.Context) {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
+			h.OpenAIGateway.VideoTask(c)
+			return
+		}
+		videoStatusHandler(c)
+	}
+	videoGenerationContentHandler := func(c *gin.Context) {
+		if getGroupPlatform(c) == service.PlatformOpenAI || getGroupPlatform(c) == service.PlatformVideo {
+			h.OpenAIGateway.VideoContent(c)
+			return
+		}
+		videoContentHandler(c)
 	}
 	videoEditHandler := func(c *gin.Context) {
 		if getGroupPlatform(c) == service.PlatformGrok {
@@ -184,11 +224,13 @@ func RegisterGatewayRoutes(
 
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
+	gateway.Use(canonicalVideoGenerationAlias)
 	gateway.Use(bodyLimit)
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
+	gateway.Use(h.Reseller.PricingContext)
 	gateway.Use(groupModelAllowlist)
 	gateway.Use(compositeTarget)
 	gateway.Use(requireGroupAnthropic)
@@ -261,6 +303,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/images/tasks/:task_id", h.AsyncImage.Get)
 		gateway.GET("/images/tasks/:task_id/download", h.AsyncImage.Download)
 		gateway.DELETE("/images/tasks/:task_id", h.AsyncImage.Delete)
+		gateway.GET("/images/objects/:object_id/url", h.AsyncImage.GetObjectURL)
 		gateway.POST("/images/batches", h.BatchImage.Submit)
 		gateway.GET("/images/batches", h.BatchImage.List)
 		gateway.GET("/images/batches/models", h.BatchImage.Models)
@@ -273,18 +316,21 @@ func RegisterGatewayRoutes(
 		gateway.DELETE("/images/batches/:id/outputs", h.BatchImage.DeleteOutputs)
 		// OpenAI-compatible clients may create through /videos; xAI receives the
 		// canonical /videos/generations route inside the Grok media forwarder.
-		gateway.POST("/videos", videoGenerationHandler)
+		gateway.POST("/videos", videoCreationHandler)
+		gateway.POST("/video/generations", videoCreationHandler)
+		gateway.GET("/video/generations/:request_id", videoTaskHandler)
+		gateway.GET("/video/generations/:request_id/content", videoTaskContentHandler)
 		gateway.POST("/videos/generations", videoGenerationHandler)
 		gateway.POST("/videos/edits", videoEditHandler)
 		gateway.POST("/videos/extensions", videoExtensionHandler)
-		gateway.GET("/videos/generations/:request_id/content", videoContentHandler)
+		gateway.GET("/videos/generations/:request_id/content", videoGenerationContentHandler)
 		gateway.GET("/videos/edits/:request_id/content", videoContentHandler)
 		gateway.GET("/videos/extensions/:request_id/content", videoContentHandler)
-		gateway.GET("/videos/generations/:request_id", videoStatusHandler)
+		gateway.GET("/videos/generations/:request_id", videoGenerationStatusHandler)
 		gateway.GET("/videos/edits/:request_id", videoStatusHandler)
 		gateway.GET("/videos/extensions/:request_id", videoStatusHandler)
-		gateway.GET("/videos/:request_id", videoStatusHandler)
-		gateway.GET("/videos/:request_id/content", videoContentHandler)
+		gateway.GET("/videos/:request_id", videoTaskHandler)
+		gateway.GET("/videos/:request_id/content", videoTaskContentHandler)
 
 		// xAI Voice APIs (Grok platform only): HTTP TTS/STT + Realtime WS.
 		// Not part of the creation-center product surface — gateway relay only.
@@ -347,6 +393,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(opsErrorLogger)
 	gemini.Use(endpointNorm)
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	gemini.Use(h.Reseller.PricingContext)
 	gemini.Use(groupModelAllowlist)
 	gemini.Use(compositeGeminiTarget)
 	gemini.Use(requireGroupGoogle)
@@ -368,7 +415,7 @@ func RegisterGatewayRoutes(
 	// 根路径别名共用中间件链：白名单准入在 apiKeyAuth 之后、compositeTarget
 	// 之前，避免逐条路由手工维护链导致漏挂。
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
-		r.Handle(method, path, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic, handler)
+		r.Handle(method, path, canonicalVideoGenerationAlias, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic, handler)
 	}
 	for _, prefix := range []string{"/api/v3", "/v3", "/v1", ""} {
 		rootRoute(http.MethodPost, prefix+"/contents/generations/tasks", bodyLimit, h.OpenAIGateway.SeedanceTasks)
@@ -387,7 +434,7 @@ func RegisterGatewayRoutes(
 	// Local subscription quota view, never an upstream ChatGPT proxy.
 	r.GET("/backend-api/wham/usage", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.CodexLocalGroupQuotaUsage)
 	codexDirect := r.Group("/backend-api/codex")
-	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, compositeTarget, requireGroupAnthropic)
+	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic)
 	{
 		codexDirect.POST("/realtime/calls", h.OpenAIGateway.Live)
 		codexDirect.GET("/:call_id", h.OpenAIGateway.LiveSideband)
@@ -425,21 +472,25 @@ func RegisterGatewayRoutes(
 	rootRoute(http.MethodPost, "/images/generations/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodPost, "/images/edits/async", bodyLimit, h.AsyncImage.Submit)
 	rootRoute(http.MethodGet, "/images/tasks/:task_id", bodyLimit, h.AsyncImage.Get)
-	rootRoute(http.MethodPost, "/videos", bodyLimit, videoGenerationHandler)
+	rootRoute(http.MethodPost, "/videos", bodyLimit, videoCreationHandler)
+	rootRoute(http.MethodPost, "/video/generations", bodyLimit, videoCreationHandler)
+	rootRoute(http.MethodGet, "/video/generations/:request_id", bodyLimit, videoTaskHandler)
+	rootRoute(http.MethodGet, "/video/generations/:request_id/content", bodyLimit, videoTaskContentHandler)
 	rootRoute(http.MethodPost, "/videos/generations", bodyLimit, videoGenerationHandler)
 	rootRoute(http.MethodPost, "/videos/edits", bodyLimit, videoEditHandler)
 	rootRoute(http.MethodPost, "/videos/extensions", bodyLimit, videoExtensionHandler)
-	rootRoute(http.MethodGet, "/videos/generations/:request_id/content", bodyLimit, videoContentHandler)
+	rootRoute(http.MethodGet, "/videos/generations/:request_id/content", bodyLimit, videoGenerationContentHandler)
 	rootRoute(http.MethodGet, "/videos/edits/:request_id/content", bodyLimit, videoContentHandler)
 	rootRoute(http.MethodGet, "/videos/extensions/:request_id/content", bodyLimit, videoContentHandler)
-	rootRoute(http.MethodGet, "/videos/generations/:request_id", bodyLimit, videoStatusHandler)
+	rootRoute(http.MethodGet, "/videos/generations/:request_id", bodyLimit, videoGenerationStatusHandler)
 	rootRoute(http.MethodGet, "/videos/edits/:request_id", bodyLimit, videoStatusHandler)
 	rootRoute(http.MethodGet, "/videos/extensions/:request_id", bodyLimit, videoStatusHandler)
-	rootRoute(http.MethodGet, "/videos/:request_id", bodyLimit, videoStatusHandler)
-	rootRoute(http.MethodGet, "/videos/:request_id/content", bodyLimit, videoContentHandler)
+	rootRoute(http.MethodGet, "/videos/:request_id", bodyLimit, videoTaskHandler)
+	rootRoute(http.MethodGet, "/videos/:request_id/content", bodyLimit, videoTaskContentHandler)
 	rootRoute(http.MethodGet, "/images/tasks", bodyLimit, h.AsyncImage.List)
 	rootRoute(http.MethodGet, "/images/tasks/:task_id/download", bodyLimit, h.AsyncImage.Download)
 	rootRoute(http.MethodDelete, "/images/tasks/:task_id", bodyLimit, h.AsyncImage.Delete)
+	rootRoute(http.MethodGet, "/images/objects/:object_id/url", bodyLimit, h.AsyncImage.GetObjectURL)
 
 	rootVoiceHandler := func(endpoint string) gin.HandlerFunc {
 		return func(c *gin.Context) {
@@ -493,7 +544,7 @@ func RegisterGatewayRoutes(
 	})
 
 	// Antigravity 模型列表
-	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
+	r.GET("/antigravity/models", middleware.ForcePlatform(service.PlatformAntigravity), gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
 
 	// Antigravity 专用路由（仅使用 antigravity 账户，不混合调度）
 	antigravityV1 := r.Group("/antigravity/v1")
@@ -503,6 +554,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(endpointNorm)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
+	antigravityV1.Use(h.Reseller.PricingContext)
 	antigravityV1.Use(groupModelAllowlist)
 	antigravityV1.Use(requireGroupAnthropic)
 	{
@@ -519,6 +571,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	antigravityV1Beta.Use(h.Reseller.PricingContext)
 	antigravityV1Beta.Use(groupModelAllowlist)
 	antigravityV1Beta.Use(requireGroupGoogle)
 	{
@@ -527,6 +580,17 @@ func RegisterGatewayRoutes(
 		antigravityV1Beta.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
 	}
 
+}
+
+func autoKeyGroupMiddleware(gateway *handler.GatewayHandler, fixed gin.HandlerFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key, ok := middleware.GetAPIKeyFromContext(c)
+		if ok && key != nil && key.IsAutoRouting() {
+			gateway.RouteAutoAPIKey(c)
+			return
+		}
+		fixed(c)
+	}
 }
 
 func dispatchCodexModelsGateway(c *gin.Context, openAIHandler, generatedHandler gin.HandlerFunc) {
@@ -690,4 +754,17 @@ func compositeRouteEndpointForPath(path string) string {
 	default:
 		return service.CompositeRouteEndpointAny
 	}
+}
+
+// NewAPI's singular video route is an alias of the same authenticated task API.
+func canonicalVideoGenerationAlias(c *gin.Context) {
+	for _, prefix := range []string{"/v1/video/generations", "/video/generations"} {
+		path := c.Request.URL.Path
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			c.Request.URL.Path = strings.TrimSuffix(prefix, "/video/generations") + "/videos" + strings.TrimPrefix(path, prefix)
+			c.Request.URL.RawPath = ""
+			break
+		}
+	}
+	c.Next()
 }

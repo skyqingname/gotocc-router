@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const groupModelAllowlistRepairMigration = "260_group_model_allowlist_repair.sql"
+const groupModelAllowlistRepairMigration = "264_group_model_allowlist_repair.sql"
 
 // 260 是可重放的修复迁移：259 的重命名一旦被记账就不会重跑，数据库若回到旧结构
 // （手工改回列名、按旧结构部分恢复）应用仍能启动，但所有关联 groups 的查询都会

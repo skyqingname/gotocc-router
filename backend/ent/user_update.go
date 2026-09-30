@@ -20,6 +20,8 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
 	"github.com/LuckyKuang/sub2api-plus/ent/promocodeusage"
 	"github.com/LuckyKuang/sub2api-plus/ent/redeemcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcodeuse"
+	"github.com/LuckyKuang/sub2api-plus/ent/teammembership"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/ent/userattributevalue"
@@ -641,6 +643,36 @@ func (_u *UserUpdate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdate {
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddReusableInvitationCodeUseIDs adds the "reusable_invitation_code_uses" edge to the ReusableInvitationCodeUse entity by IDs.
+func (_u *UserUpdate) AddReusableInvitationCodeUseIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddReusableInvitationCodeUseIDs(ids...)
+	return _u
+}
+
+// AddReusableInvitationCodeUses adds the "reusable_invitation_code_uses" edges to the ReusableInvitationCodeUse entity.
+func (_u *UserUpdate) AddReusableInvitationCodeUses(v ...*ReusableInvitationCodeUse) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReusableInvitationCodeUseIDs(ids...)
+}
+
+// AddTeamMembershipIDs adds the "team_memberships" edge to the TeamMembership entity by IDs.
+func (_u *UserUpdate) AddTeamMembershipIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddTeamMembershipIDs(ids...)
+	return _u
+}
+
+// AddTeamMemberships adds the "team_memberships" edges to the TeamMembership entity.
+func (_u *UserUpdate) AddTeamMemberships(v ...*TeamMembership) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTeamMembershipIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -917,6 +949,48 @@ func (_u *UserUpdate) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpdate 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearReusableInvitationCodeUses clears all "reusable_invitation_code_uses" edges to the ReusableInvitationCodeUse entity.
+func (_u *UserUpdate) ClearReusableInvitationCodeUses() *UserUpdate {
+	_u.mutation.ClearReusableInvitationCodeUses()
+	return _u
+}
+
+// RemoveReusableInvitationCodeUseIDs removes the "reusable_invitation_code_uses" edge to ReusableInvitationCodeUse entities by IDs.
+func (_u *UserUpdate) RemoveReusableInvitationCodeUseIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveReusableInvitationCodeUseIDs(ids...)
+	return _u
+}
+
+// RemoveReusableInvitationCodeUses removes "reusable_invitation_code_uses" edges to ReusableInvitationCodeUse entities.
+func (_u *UserUpdate) RemoveReusableInvitationCodeUses(v ...*ReusableInvitationCodeUse) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReusableInvitationCodeUseIDs(ids...)
+}
+
+// ClearTeamMemberships clears all "team_memberships" edges to the TeamMembership entity.
+func (_u *UserUpdate) ClearTeamMemberships() *UserUpdate {
+	_u.mutation.ClearTeamMemberships()
+	return _u
+}
+
+// RemoveTeamMembershipIDs removes the "team_memberships" edge to TeamMembership entities by IDs.
+func (_u *UserUpdate) RemoveTeamMembershipIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveTeamMembershipIDs(ids...)
+	return _u
+}
+
+// RemoveTeamMemberships removes "team_memberships" edges to TeamMembership entities.
+func (_u *UserUpdate) RemoveTeamMemberships(v ...*TeamMembership) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTeamMembershipIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1713,6 +1787,96 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ReusableInvitationCodeUsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReusableInvitationCodeUsesIDs(); len(nodes) > 0 && !_u.mutation.ReusableInvitationCodeUsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReusableInvitationCodeUsesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TeamMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTeamMembershipsIDs(); len(nodes) > 0 && !_u.mutation.TeamMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TeamMembershipsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -2334,6 +2498,36 @@ func (_u *UserUpdateOne) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdateO
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddReusableInvitationCodeUseIDs adds the "reusable_invitation_code_uses" edge to the ReusableInvitationCodeUse entity by IDs.
+func (_u *UserUpdateOne) AddReusableInvitationCodeUseIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddReusableInvitationCodeUseIDs(ids...)
+	return _u
+}
+
+// AddReusableInvitationCodeUses adds the "reusable_invitation_code_uses" edges to the ReusableInvitationCodeUse entity.
+func (_u *UserUpdateOne) AddReusableInvitationCodeUses(v ...*ReusableInvitationCodeUse) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReusableInvitationCodeUseIDs(ids...)
+}
+
+// AddTeamMembershipIDs adds the "team_memberships" edge to the TeamMembership entity by IDs.
+func (_u *UserUpdateOne) AddTeamMembershipIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddTeamMembershipIDs(ids...)
+	return _u
+}
+
+// AddTeamMemberships adds the "team_memberships" edges to the TeamMembership entity.
+func (_u *UserUpdateOne) AddTeamMemberships(v ...*TeamMembership) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTeamMembershipIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -2610,6 +2804,48 @@ func (_u *UserUpdateOne) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpda
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearReusableInvitationCodeUses clears all "reusable_invitation_code_uses" edges to the ReusableInvitationCodeUse entity.
+func (_u *UserUpdateOne) ClearReusableInvitationCodeUses() *UserUpdateOne {
+	_u.mutation.ClearReusableInvitationCodeUses()
+	return _u
+}
+
+// RemoveReusableInvitationCodeUseIDs removes the "reusable_invitation_code_uses" edge to ReusableInvitationCodeUse entities by IDs.
+func (_u *UserUpdateOne) RemoveReusableInvitationCodeUseIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveReusableInvitationCodeUseIDs(ids...)
+	return _u
+}
+
+// RemoveReusableInvitationCodeUses removes "reusable_invitation_code_uses" edges to ReusableInvitationCodeUse entities.
+func (_u *UserUpdateOne) RemoveReusableInvitationCodeUses(v ...*ReusableInvitationCodeUse) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReusableInvitationCodeUseIDs(ids...)
+}
+
+// ClearTeamMemberships clears all "team_memberships" edges to the TeamMembership entity.
+func (_u *UserUpdateOne) ClearTeamMemberships() *UserUpdateOne {
+	_u.mutation.ClearTeamMemberships()
+	return _u
+}
+
+// RemoveTeamMembershipIDs removes the "team_memberships" edge to TeamMembership entities by IDs.
+func (_u *UserUpdateOne) RemoveTeamMembershipIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveTeamMembershipIDs(ids...)
+	return _u
+}
+
+// RemoveTeamMemberships removes "team_memberships" edges to TeamMembership entities.
+func (_u *UserUpdateOne) RemoveTeamMemberships(v ...*TeamMembership) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTeamMembershipIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -3429,6 +3665,96 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReusableInvitationCodeUsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReusableInvitationCodeUsesIDs(); len(nodes) > 0 && !_u.mutation.ReusableInvitationCodeUsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReusableInvitationCodeUsesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ReusableInvitationCodeUsesTable,
+			Columns: []string{user.ReusableInvitationCodeUsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(reusableinvitationcodeuse.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TeamMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTeamMembershipsIDs(); len(nodes) > 0 && !_u.mutation.TeamMembershipsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TeamMembershipsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.TeamMembershipsTable,
+			Columns: []string{user.TeamMembershipsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(teammembership.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

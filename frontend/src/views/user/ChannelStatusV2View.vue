@@ -384,7 +384,7 @@
             </div>
           </div>
 
-          <div v-else class="table-container border-0">
+          <div v-else-if="activeTab === 'users' && isAdmin" class="table-container border-0">
             <table class="table monitor-table min-w-[640px]">
               <thead>
                 <tr>
@@ -473,7 +473,7 @@ import RelayPulseMatrix from '@/features/channel-monitor-v2/RelayPulseMatrix.vue
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
-import { isChannelMonitorThroughputHidden, isChannelMonitorUserRankingHidden } from '@/utils/featureFlags'
+import { isChannelMonitorThroughputHidden } from '@/utils/featureFlags'
 import * as api from '@/api/channelMonitorV2'
 import type {
   HealthState,
@@ -513,8 +513,6 @@ const { t, te, locale } = useI18n()
 const isAdmin = computed(() => authStore.isAdmin)
 /** Admins always see RPM/TPM; users honor the hide-throughput system setting. */
 const showThroughput = computed(() => isAdmin.value || !isChannelMonitorThroughputHidden())
-/** Admins always see ranking; users honor the hide-user-ranking system setting. */
-const showUserRanking = computed(() => isAdmin.value || !isChannelMonitorUserRankingHidden())
 
 const ranges = computed(() => [
   { value: '90m' as MonitorRange, label: t('channelMonitorV2.ranges.90m') },
@@ -523,12 +521,12 @@ const ranges = computed(() => [
   { value: '30d' as MonitorRange, label: t('channelMonitorV2.ranges.30d') },
 ])
 const tabs = computed(() => {
-  const items: Array<{ value: Tab; label: string }> = [
-    { value: 'models', label: t('channelMonitorV2.tabs.models') },
-    { value: 'errors', label: t('channelMonitorV2.tabs.errors') },
+  const items = [
+    { value: 'models' as Tab, label: t('channelMonitorV2.tabs.models') },
+    { value: 'errors' as Tab, label: t('channelMonitorV2.tabs.errors') },
   ]
-  if (showUserRanking.value) {
-    items.push({ value: 'users', label: t('channelMonitorV2.tabs.users') })
+  if (isAdmin.value) {
+    items.push({ value: 'users' as Tab, label: t('channelMonitorV2.tabs.users') })
   }
   return items
 })
@@ -551,7 +549,7 @@ const filter = ref<MonitorFilter>({
   groupIds: csv(route.query.group).map(Number).filter(Boolean),
   models: csv(route.query.model),
 })
-const activeTab = ref<Tab>(parseTab(route.query.tab, showUserRanking.value))
+const activeTab = ref<Tab>(parseTab(route.query.tab, isAdmin.value))
 const matrixGroupBy = ref<MonitorMatrixGroupBy>(parseMatrixGroupBy(route.query.group_by))
 const healthMode = ref<HealthMode>(parseHealthMode(route.query.health_mode))
 const trendView = ref<TrendView>(parseTrendView(route.query.trend_view))
@@ -678,16 +676,17 @@ function parseMatrixGroupBy(value: unknown): MonitorMatrixGroupBy {
     ? (value as MonitorMatrixGroupBy)
     : 'platform_group'
 }
-function parseTab(value: unknown, allowUsers: boolean): Tab {
-  const allowed: Tab[] = allowUsers ? ['models', 'errors', 'users'] : ['models', 'errors']
-  return allowed.includes(value as Tab) ? (value as Tab) : 'models'
-}
 function parseHealthMode(value: unknown): HealthMode {
   const allowed: HealthMode[] = ['overall', 'success', 'ttft', 'cache']
   return allowed.includes(value as HealthMode) ? (value as HealthMode) : 'overall'
 }
 function parseTrendView(value: unknown): TrendView {
   return value === 'line' ? 'line' : 'pulse'
+}
+function parseTab(value: unknown, admin: boolean): Tab {
+  if (value === 'errors') return 'errors'
+  if (value === 'users' && admin) return 'users'
+  return 'models'
 }
 function syncQuery() {
   void router.replace({
@@ -783,7 +782,7 @@ async function loadTab(signal?: AbortSignal, id = sequence) {
       modelRows.value = (await api.getModels(filter.value, isAdmin.value, signal)).items || []
     } else if (activeTab.value === 'errors') {
       errorRows.value = (await api.getErrors(filter.value, isAdmin.value, signal)).items || []
-    } else if (showUserRanking.value) {
+    } else if (activeTab.value === 'users' && isAdmin.value) {
       userRows.value = (await api.getUsers(filter.value, isAdmin.value, signal)).items || []
     } else {
       userRows.value = []
@@ -915,16 +914,22 @@ watch(matrixGroupBy, () => {
 })
 watch(healthMode, syncQuery)
 watch(trendView, syncQuery)
+watch(isAdmin, (admin) => {
+  const normalized = parseTab(activeTab.value, admin)
+  if (normalized !== activeTab.value) {
+    activeTab.value = normalized
+  }
+})
 watch(activeTab, () => {
   syncQuery()
   void loadTab()
 })
-watch(showUserRanking, (allowed) => {
-  if (!allowed && activeTab.value === 'users') {
-    activeTab.value = 'models'
+onMounted(() => {
+  if (route.query.tab === 'users' && !isAdmin.value) {
+    syncQuery()
   }
+  void reload(false)
 })
-onMounted(() => void reload(false))
 onBeforeUnmount(() => {
   controller?.abort()
   if (autoRefreshTimer) window.clearInterval(autoRefreshTimer)

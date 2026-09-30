@@ -52,6 +52,10 @@ type Tx struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// ImageObject is the client for interacting with the ImageObject builders.
+	ImageObject *ImageObjectClient
+	// OpenAIVideoTask is the client for interacting with the OpenAIVideoTask builders.
+	OpenAIVideoTask *OpenAIVideoTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -68,6 +72,10 @@ type Tx struct {
 	Proxy *ProxyClient
 	// RedeemCode is the client for interacting with the RedeemCode builders.
 	RedeemCode *RedeemCodeClient
+	// ReusableInvitationCode is the client for interacting with the ReusableInvitationCode builders.
+	ReusableInvitationCode *ReusableInvitationCodeClient
+	// ReusableInvitationCodeUse is the client for interacting with the ReusableInvitationCodeUse builders.
+	ReusableInvitationCodeUse *ReusableInvitationCodeUseClient
 	// SecuritySecret is the client for interacting with the SecuritySecret builders.
 	SecuritySecret *SecuritySecretClient
 	// Setting is the client for interacting with the Setting builders.
@@ -76,6 +84,14 @@ type Tx struct {
 	SubscriptionPlan *SubscriptionPlanClient
 	// TLSFingerprintProfile is the client for interacting with the TLSFingerprintProfile builders.
 	TLSFingerprintProfile *TLSFingerprintProfileClient
+	// Team is the client for interacting with the Team builders.
+	Team *TeamClient
+	// TeamInvitation is the client for interacting with the TeamInvitation builders.
+	TeamInvitation *TeamInvitationClient
+	// TeamMembership is the client for interacting with the TeamMembership builders.
+	TeamMembership *TeamMembershipClient
+	// TeamOwnershipTransfer is the client for interacting with the TeamOwnershipTransfer builders.
+	TeamOwnershipTransfer *TeamOwnershipTransferClient
 	// UsageCleanupTask is the client for interacting with the UsageCleanupTask builders.
 	UsageCleanupTask *UsageCleanupTaskClient
 	// UsageLog is the client for interacting with the UsageLog builders.
@@ -242,6 +258,8 @@ func (tx *Tx) init() {
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)
+	tx.ImageObject = NewImageObjectClient(tx.config)
+	tx.OpenAIVideoTask = NewOpenAIVideoTaskClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)
@@ -250,10 +268,16 @@ func (tx *Tx) init() {
 	tx.PromoCodeUsage = NewPromoCodeUsageClient(tx.config)
 	tx.Proxy = NewProxyClient(tx.config)
 	tx.RedeemCode = NewRedeemCodeClient(tx.config)
+	tx.ReusableInvitationCode = NewReusableInvitationCodeClient(tx.config)
+	tx.ReusableInvitationCodeUse = NewReusableInvitationCodeUseClient(tx.config)
 	tx.SecuritySecret = NewSecuritySecretClient(tx.config)
 	tx.Setting = NewSettingClient(tx.config)
 	tx.SubscriptionPlan = NewSubscriptionPlanClient(tx.config)
 	tx.TLSFingerprintProfile = NewTLSFingerprintProfileClient(tx.config)
+	tx.Team = NewTeamClient(tx.config)
+	tx.TeamInvitation = NewTeamInvitationClient(tx.config)
+	tx.TeamMembership = NewTeamMembershipClient(tx.config)
+	tx.TeamOwnershipTransfer = NewTeamOwnershipTransferClient(tx.config)
 	tx.UsageCleanupTask = NewUsageCleanupTaskClient(tx.config)
 	tx.UsageLog = NewUsageLogClient(tx.config)
 	tx.User = NewUserClient(tx.config)

@@ -1,19 +1,30 @@
 package service
 
-import "time"
+import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
+	"time"
+)
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
-	Version     int                      `json:"version"`
-	APIKeyID    int64                    `json:"api_key_id"`
-	UserID      int64                    `json:"user_id"`
-	GroupID     *int64                   `json:"group_id,omitempty"`
-	Name        string                   `json:"name"`
-	Status      string                   `json:"status"`
-	IPWhitelist []string                 `json:"ip_whitelist,omitempty"`
-	IPBlacklist []string                 `json:"ip_blacklist,omitempty"`
-	User        APIKeyAuthUserSnapshot   `json:"user"`
-	Group       *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
+	Version           int                      `json:"version"`
+	APIKeyID          int64                    `json:"api_key_id"`
+	UserID            int64                    `json:"user_id"`
+	TeamID            *int64                   `json:"team_id,omitempty"`
+	TeamOwnerDisabled bool                     `json:"team_owner_disabled"`
+	CreatedAt         time.Time                `json:"created_at"`
+	GroupID           *int64                   `json:"group_id,omitempty"`
+	RoutingMode       string                   `json:"routing_mode"`
+	Name              string                   `json:"name"`
+	Status            string                   `json:"status"`
+	IPWhitelist       []string                 `json:"ip_whitelist,omitempty"`
+	IPBlacklist       []string                 `json:"ip_blacklist,omitempty"`
+	User              APIKeyAuthUserSnapshot   `json:"user"`
+	ActorUser         *APIKeyAuthActorSnapshot `json:"actor_user,omitempty"`
+	Team              *APIKeyAuthTeamSnapshot  `json:"team,omitempty"`
+	TeamMembership    *TeamMembership          `json:"team_membership,omitempty"`
+	Group             *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
 
 	// Quota fields for API Key independent quota feature
 	Quota     float64 `json:"quota"`      // Quota limit in USD (0 = unlimited)
@@ -26,6 +37,19 @@ type APIKeyAuthSnapshot struct {
 	RateLimit5h float64 `json:"rate_limit_5h"`
 	RateLimit1d float64 `json:"rate_limit_1d"`
 	RateLimit7d float64 `json:"rate_limit_7d"`
+}
+
+type APIKeyAuthActorSnapshot struct {
+	ID       int64  `json:"id"`
+	Status   string `json:"status"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+}
+
+type APIKeyAuthTeamSnapshot struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 // APIKeyAuthUserSnapshot 用户快照
@@ -81,6 +105,7 @@ type APIKeyAuthGroupSnapshot struct {
 	VideoPrice720P                  *float64                      `json:"video_price_720p,omitempty"`
 	VideoPrice1080P                 *float64                      `json:"video_price_1080p,omitempty"`
 	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
+	VideoModels                     videoprotocol.Models          `json:"video_models"`
 	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call,omitempty"`
 	SearchPricePer1k                *float64                      `json:"search_price_per_1k,omitempty"`
 	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min,omitempty"`
@@ -126,10 +151,11 @@ type APIKeyAuthGroupSnapshot struct {
 	// 高峰时段倍率：PeakRateEnabled 为 true 且请求时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier（详见 Group.PeakMultiplierAt）。
 	// 必须随快照缓存，否则扣费路径拿到的 apiKey.Group 缺字段、高峰倍率失效。
-	PeakRateEnabled    bool    `json:"peak_rate_enabled"`
-	PeakStart          string  `json:"peak_start"`
-	PeakEnd            string  `json:"peak_end"`
-	PeakRateMultiplier float64 `json:"peak_rate_multiplier"`
+	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
+	PeakStart          string              `json:"peak_start"`
+	PeakEnd            string              `json:"peak_end"`
+	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
+	RateSchedule       rateschedule.Config `json:"rate_schedule"`
 
 	// 分组利润控制：调度准入门在直连热路径上读的就是这份快照——门解析
 	// （resolveOpenAIProfitControlGate / resolveProfitControlGroup）优先取

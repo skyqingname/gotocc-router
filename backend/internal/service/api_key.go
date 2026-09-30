@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
@@ -12,6 +13,11 @@ const (
 	StatusAPIKeyDisabled       = "disabled"
 	StatusAPIKeyQuotaExhausted = "quota_exhausted"
 	StatusAPIKeyExpired        = "expired"
+)
+
+const (
+	APIKeyRoutingFixed = "fixed"
+	APIKeyRoutingAuto  = "auto"
 )
 
 // Rate limit window durations
@@ -28,14 +34,18 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupID     *int64
-	Status      string
-	IPWhitelist []string
-	IPBlacklist []string
+	ResellerPrices    map[int64]*reseller.Snapshot `json:"-"`
+	ID                int64
+	UserID            int64
+	TeamID            *int64
+	TeamOwnerDisabled bool
+	Key               string
+	Name              string
+	GroupID           *int64
+	RoutingMode       string
+	Status            string
+	IPWhitelist       []string
+	IPBlacklist       []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
@@ -43,9 +53,13 @@ type APIKey struct {
 	LastUsedIP          *string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
-	User                *User
-	Group               *Group
-	CurrentConcurrency  int
+	// User is the billing owner. For team keys ActorUser remains the member.
+	User               *User
+	ActorUser          *User
+	Team               *Team
+	TeamMembership     *TeamMembership
+	Group              *Group
+	CurrentConcurrency int
 
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
@@ -64,8 +78,19 @@ type APIKey struct {
 	Window7dStart *time.Time // Start of current 7d window
 }
 
+func (k *APIKey) EffectiveRoutingMode() string {
+	if k == nil || k.RoutingMode == "" {
+		return APIKeyRoutingFixed
+	}
+	return k.RoutingMode
+}
+
+func (k *APIKey) IsAutoRouting() bool {
+	return k != nil && k.RoutingMode == APIKeyRoutingAuto
+}
+
 func (k *APIKey) IsActive() bool {
-	return k.Status == StatusActive
+	return k.Status == StatusActive && !k.TeamOwnerDisabled
 }
 
 // HasRateLimits returns true if any rate limit window is configured
@@ -139,7 +164,9 @@ func (k *APIKey) EffectiveUsage7d() float64 {
 
 // APIKeyListFilters holds optional filtering parameters for listing API keys.
 type APIKeyListFilters struct {
-	Search  string
-	Status  string
-	GroupID *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	RoutingMode string
+	Search      string
+	Status      string
+	GroupID     *int64 // nil=不筛选, 0=无分组, >0=指定分组
+	Scope       string // personal or team; empty keeps legacy all-scope behavior
 }

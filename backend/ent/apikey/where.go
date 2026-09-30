@@ -75,6 +75,16 @@ func UserID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUserID, v))
 }
 
+// TeamID applies equality check predicate on the "team_id" field. It's identical to TeamIDEQ.
+func TeamID(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamID, v))
+}
+
+// TeamOwnerDisabled applies equality check predicate on the "team_owner_disabled" field. It's identical to TeamOwnerDisabledEQ.
+func TeamOwnerDisabled(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamOwnerDisabled, v))
+}
+
 // Key applies equality check predicate on the "key" field. It's identical to KeyEQ.
 func Key(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldKey, v))
@@ -88,6 +98,11 @@ func Name(v string) predicate.APIKey {
 // GroupID applies equality check predicate on the "group_id" field. It's identical to GroupIDEQ.
 func GroupID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldGroupID, v))
+}
+
+// RoutingMode applies equality check predicate on the "routing_mode" field. It's identical to RoutingModeEQ.
+func RoutingMode(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRoutingMode, v))
 }
 
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
@@ -310,6 +325,46 @@ func UserIDNotIn(vs ...int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotIn(FieldUserID, vs...))
 }
 
+// TeamIDEQ applies the EQ predicate on the "team_id" field.
+func TeamIDEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamID, v))
+}
+
+// TeamIDNEQ applies the NEQ predicate on the "team_id" field.
+func TeamIDNEQ(v int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldTeamID, v))
+}
+
+// TeamIDIn applies the In predicate on the "team_id" field.
+func TeamIDIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldTeamID, vs...))
+}
+
+// TeamIDNotIn applies the NotIn predicate on the "team_id" field.
+func TeamIDNotIn(vs ...int64) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldTeamID, vs...))
+}
+
+// TeamIDIsNil applies the IsNil predicate on the "team_id" field.
+func TeamIDIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldTeamID))
+}
+
+// TeamIDNotNil applies the NotNil predicate on the "team_id" field.
+func TeamIDNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldTeamID))
+}
+
+// TeamOwnerDisabledEQ applies the EQ predicate on the "team_owner_disabled" field.
+func TeamOwnerDisabledEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldTeamOwnerDisabled, v))
+}
+
+// TeamOwnerDisabledNEQ applies the NEQ predicate on the "team_owner_disabled" field.
+func TeamOwnerDisabledNEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldTeamOwnerDisabled, v))
+}
+
 // KeyEQ applies the EQ predicate on the "key" field.
 func KeyEQ(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldKey, v))
@@ -468,6 +523,71 @@ func GroupIDIsNil() predicate.APIKey {
 // GroupIDNotNil applies the NotNil predicate on the "group_id" field.
 func GroupIDNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldGroupID))
+}
+
+// RoutingModeEQ applies the EQ predicate on the "routing_mode" field.
+func RoutingModeEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldRoutingMode, v))
+}
+
+// RoutingModeNEQ applies the NEQ predicate on the "routing_mode" field.
+func RoutingModeNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldRoutingMode, v))
+}
+
+// RoutingModeIn applies the In predicate on the "routing_mode" field.
+func RoutingModeIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldRoutingMode, vs...))
+}
+
+// RoutingModeNotIn applies the NotIn predicate on the "routing_mode" field.
+func RoutingModeNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldRoutingMode, vs...))
+}
+
+// RoutingModeGT applies the GT predicate on the "routing_mode" field.
+func RoutingModeGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldRoutingMode, v))
+}
+
+// RoutingModeGTE applies the GTE predicate on the "routing_mode" field.
+func RoutingModeGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldRoutingMode, v))
+}
+
+// RoutingModeLT applies the LT predicate on the "routing_mode" field.
+func RoutingModeLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldRoutingMode, v))
+}
+
+// RoutingModeLTE applies the LTE predicate on the "routing_mode" field.
+func RoutingModeLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldRoutingMode, v))
+}
+
+// RoutingModeContains applies the Contains predicate on the "routing_mode" field.
+func RoutingModeContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldRoutingMode, v))
+}
+
+// RoutingModeHasPrefix applies the HasPrefix predicate on the "routing_mode" field.
+func RoutingModeHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldRoutingMode, v))
+}
+
+// RoutingModeHasSuffix applies the HasSuffix predicate on the "routing_mode" field.
+func RoutingModeHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldRoutingMode, v))
+}
+
+// RoutingModeEqualFold applies the EqualFold predicate on the "routing_mode" field.
+func RoutingModeEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldRoutingMode, v))
+}
+
+// RoutingModeContainsFold applies the ContainsFold predicate on the "routing_mode" field.
+func RoutingModeContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldRoutingMode, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
@@ -1186,6 +1306,29 @@ func HasUsageLogs() predicate.APIKey {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasTeam applies the HasEdge predicate on the "team" edge.
+func HasTeam() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, TeamTable, TeamColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTeamWith applies the HasEdge predicate on the "team" edge with a given conditions (other predicates).
+func HasTeamWith(preds ...predicate.Team) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newTeamStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

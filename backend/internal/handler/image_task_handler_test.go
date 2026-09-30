@@ -316,6 +316,44 @@ func TestAsyncImageHandlerAdminSupportReadsTargetWithoutAPIKeyCredential(t *test
 	require.Len(t, history.tasks, 2)
 }
 
+func TestAsyncImageHandlerObjectURLIsUserScopedButNotAPIKeyScoped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tasks := service.NewImageTaskServiceWithUploader(
+		&asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)},
+		service.NewImageResultUploader(asyncImageSigningStorage{}, "images/", false, 0, nil),
+		time.Hour,
+		time.Minute,
+	)
+	tasks.SetImageObjectRepository(&asyncImageObjectRepository{object: service.ImageObjectRecord{
+		ObjectID: "imgobj_123", UserID: 7, APIKeyID: 9, StorageKey: "images/imgtask_123-0.png",
+	}})
+	h := &AsyncImageHandler{tasks: tasks}
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		userID := int64(7)
+		if c.GetHeader("X-Test-Other-User") == "1" {
+			userID = 8
+		}
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{ID: 99, UserID: userID})
+		c.Next()
+	})
+	router.GET("/v1/images/objects/:object_id/url", h.GetObjectURL)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/images/objects/imgobj_123/url", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Body.String(), "https://signed.test/images/imgtask_123-0.png")
+	require.Contains(t, w.Body.String(), "1893456000")
+	require.NotContains(t, w.Body.String(), "storage_key")
+
+	otherReq := httptest.NewRequest(http.MethodGet, "/v1/images/objects/imgobj_123/url", nil)
+	otherReq.Header.Set("X-Test-Other-User", "1")
+	otherWriter := httptest.NewRecorder()
+	router.ServeHTTP(otherWriter, otherReq)
+	require.Equal(t, http.StatusNotFound, otherWriter.Code)
+}
+
 func TestAsyncImageHandlerSubmitEditPreservesMultipartRequestAndTaskType(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
@@ -616,6 +654,7 @@ func completedAsyncImageDownloadTask(t *testing.T, storage *asyncImageDownloadSt
 	t.Helper()
 	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
 	tasks := service.NewImageTaskServiceWithUploader(store, service.NewImageResultUploader(storage, "images/", false, 0, nil), time.Hour, time.Minute)
+	tasks.SetImageObjectRepository(&asyncImageObjectRepository{})
 	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
 	task, err := tasks.Create(context.Background(), owner)
 	require.NoError(t, err)

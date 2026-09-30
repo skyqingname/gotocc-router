@@ -261,3 +261,8 @@ func TestAdminService_UpdateUserBalance_AffiliateFailureDoesNotRollbackRecharge(
 	require.Equal(t, []adminRechargeAffiliateAccrual{{userID: 7, amount: 5}}, affiliate.calls)
 	require.Len(t, redeemRepo.created, 1)
 }
+
+func (*adminRechargeAffiliateAccruerStub) ChangeInviter(context.Context, int64, *AffiliateInviterChange) error {
+	panic("unexpected ChangeInviter call")
+}
+func (*adminRechargeAffiliateAccruerStub) LockInviterBindings(context.Context) error { return nil }

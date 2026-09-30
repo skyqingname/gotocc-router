@@ -62,6 +62,7 @@ var categoryAliases = map[string]string{
 }
 
 type GuardError struct {
+	EndpointID string
 	Code       string
 	HTTPStatus int
 	Retryable  bool
@@ -196,8 +197,8 @@ type OpenAICompatibleScanner struct {
 
 func NewOpenAICompatibleScanner() *OpenAICompatibleScanner { return &OpenAICompatibleScanner{} }
 
-func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, chunk string, enabledScanners []string) (*NormalizedResult, error) {
-	return s.scan(promptEndpointIdentityContext(ctx, endpoint), endpoint, chunk, enabledScanners)
+func (s *OpenAICompatibleScanner) Scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+	return s.scan(promptEndpointIdentityContext(ctx, endpoint), endpoint, auditPrompt, chunk, enabledScanners)
 }
 
 type promptIdentityScopeKey struct{}
@@ -230,7 +231,10 @@ func promptEndpointIdentityContext(ctx context.Context, endpoint ActiveEndpoint)
 }
 
 // scan reuses the endpoint snapshot when discovery and inference form one probe.
-func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpoint, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpoint, auditPrompt, chunk string, enabledScanners []string) (*NormalizedResult, error) {
+	if endpoint.Protocol == "typesafe" {
+		return s.scanJev(ctx, endpoint, auditPrompt, chunk, enabledScanners)
+	}
 	client, err := s.clientFor(endpoint)
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}
@@ -240,8 +244,11 @@ func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpo
 		return nil, &GuardError{Code: ErrorCodeUnavailable, Cause: err}
 	}
 	payload := map[string]any{
-		"model":       endpoint.Model,
-		"messages":    []map[string]string{{"role": "user", "content": chunk}},
+		"model": endpoint.Model,
+		"messages": []map[string]string{
+			{"role": "system", "content": strings.TrimSpace(auditPrompt)},
+			{"role": "user", "content": formatAuditUserInput(chunk)},
+		},
 		"temperature": 0,
 		"max_tokens":  64,
 		"seed":        42,
@@ -285,13 +292,26 @@ func (s *OpenAICompatibleScanner) scan(ctx context.Context, endpoint ActiveEndpo
 	if err != nil {
 		return nil, &GuardError{Code: ErrorCodeInvalidResponse, Cause: err}
 	}
-	result, err := ParseQwen3Guard(content, enabledScanners)
+	var result *NormalizedResult
+	switch endpoint.ResponseFormat {
+	case "confidence_json":
+		result, err = ParseConfidenceJSON(content, endpoint.ConfidenceThreshold)
+	case "", "qwen3guard": // Empty denotes legacy Qwen3Guard configuration.
+		result, err = ParseQwen3Guard(content, enabledScanners)
+	default:
+		return nil, &GuardError{Code: ErrorCodeInvalidResponse}
+	}
 	if err != nil {
 		return nil, err
 	}
 	result.GuardEndpointID = endpoint.ID
 	result.ScannerVersion = endpoint.Model
 	return result, nil
+}
+
+func formatAuditUserInput(chunk string) string {
+	encoded, _ := json.Marshal(chunk)
+	return "<user_input>\n" + string(encoded) + "\n</user_input>"
 }
 
 func (s *OpenAICompatibleScanner) clientFor(endpoint ActiveEndpoint) (*http.Client, error) {

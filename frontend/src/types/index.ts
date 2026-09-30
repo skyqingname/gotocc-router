@@ -1,3 +1,5 @@
+import type { VideoModelConfig } from '@/components/admin/channel/video-models'
+import type { RateScheduleConfig } from '@/utils/rate-schedule'
 /**
  * Core Type Definitions for Sub2API Frontend
  */
@@ -146,6 +148,7 @@ export interface RegisterRequest {
 }
 
 export interface AffiliateInvitee {
+  level: number
   user_id: number
   email: string
   username: string
@@ -153,7 +156,17 @@ export interface AffiliateInvitee {
   total_rebate: number
 }
 
+/** LC-024 agent enrollment state. An empty status means the user never applied. */
+export interface AgentProfile {
+  user_id: number
+  status: '' | 'approved'
+  source?: 'applied' | 'grandfathered' | ''
+  applied_at?: string | null
+  reviewed_at?: string | null
+}
+
 export interface UserAffiliateDetail {
+  show_rebate_details: boolean
   user_id: number
   aff_code: string
   inviter_id?: number | null
@@ -161,7 +174,8 @@ export interface UserAffiliateDetail {
   aff_quota: number
   aff_frozen_quota: number
   aff_history_quota: number
-  /** 当前用户作为邀请人时实际生效的返利比例（专属覆盖全局）。0-100。 */
+  /** 按与充值用户的距离排列的一、二、三代返佣比例，单位为百分比。 */
+  rebate_rates_percent: number[]
   effective_rebate_rate_percent: number
   invitees: AffiliateInvitee[]
 }
@@ -242,6 +256,8 @@ export interface PublicSettings {
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
   payment_enabled: boolean
+	team_enabled: boolean
+	team_self_service_enabled: boolean
   risk_control_enabled: boolean
   global_ip_access_control_enabled: boolean
   table_default_page_size: number
@@ -539,7 +555,17 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'composite'
+export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'video' | 'composite'
+export type ApiKeyRoutingMode = 'fixed' | 'auto'
+
+// The server owns the calculation of these capabilities. They are advisory for
+// UI affordances only; each API request still performs full authorization.
+export interface ApiKeyRoutingCapabilities {
+  routing_mode: ApiKeyRoutingMode
+  protocols: string[]
+  async_image_submit: boolean
+  batch_image_submit: boolean
+}
 
 export type VideoModelPrices = Record<string, Record<string, number>>
 
@@ -596,6 +622,7 @@ export interface Group {
   video_price_1080p: number | null
   // Optional model-family x resolution overrides for Grok video pricing.
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   // Codex 网页搜索单次价格（USD/次）；null 表示使用默认价 0.01
   web_search_price_per_call: number | null
   // Grok Voice 显式定价（分组级）
@@ -608,6 +635,7 @@ export interface Group {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
+  rate_schedule: RateScheduleConfig
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
@@ -738,10 +766,16 @@ export interface CompositeRouteDecision {
 export interface ApiKey {
   id: number
   user_id: number
+  team_id?: number | null
+  scope: 'personal' | 'team'
+  team_owner_disabled: boolean
   key: string
   name: string
   group_id: number | null
-  status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
+  // Older API responses may not contain this field during a rolling upgrade.
+  // Missing mode remains the legacy fixed-group behavior.
+  routing_mode?: ApiKeyRoutingMode
+  status: 'active' | 'inactive' | 'disabled' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
   last_used_at: string | null
@@ -769,7 +803,9 @@ export interface ApiKey {
 
 export interface CreateApiKeyRequest {
   name: string
+  scope?: 'personal' | 'team'
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -783,6 +819,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string
   group_id?: number | null
+  routing_mode?: ApiKeyRoutingMode
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -827,6 +864,7 @@ export interface CreateGroupRequest {
   video_price_720p?: number | null
   video_price_1080p?: number | null
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   web_search_price_per_call?: number | null
   search_price_per_1k?: number | null
   audio_realtime_price_per_min?: number | null
@@ -836,6 +874,7 @@ export interface CreateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
+  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -896,6 +935,7 @@ export interface UpdateGroupRequest {
   video_price_720p?: number | null
   video_price_1080p?: number | null
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   web_search_price_per_call?: number | null
   search_price_per_1k?: number | null
   audio_realtime_price_per_min?: number | null
@@ -905,6 +945,7 @@ export interface UpdateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
+  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -933,7 +974,7 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go'
+export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'video'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1997,6 +2038,12 @@ export interface ApiKeyUsageTrendPoint {
 // ==================== Admin User Management ====================
 
 export interface UpdateUserRequest {
+  inviter_change?: {
+    code_type: 'permanent' | 'aff'
+    code: string
+    resolved_user_id: number
+    expected_version: number
+  }
   email?: string
   password?: string
   username?: string

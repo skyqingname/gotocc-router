@@ -10,7 +10,7 @@ import (
 )
 
 func TestGroupFreeOpenAIFastMigration(t *testing.T) {
-	content, err := FS.ReadFile("244_group_free_openai_fast.sql")
+	content, err := FS.ReadFile("246_group_free_openai_fast.sql")
 	require.NoError(t, err)
 
 	sql := strings.Join(strings.Fields(string(content)), " ")

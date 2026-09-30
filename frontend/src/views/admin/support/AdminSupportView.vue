@@ -96,7 +96,25 @@
                     <div class="text-xs text-gray-400">#{{ key.id }}</div>
                   </td>
                   <td class="table-cell"><span :class="statusBadgeClass(key.status)">{{ statusLabel(key.status) }}</span></td>
-                  <td class="table-cell">{{ key.group?.name || (key.group_id ? `#${key.group_id}` : t('common.none')) }}</td>
+                  <td class="table-cell">
+                    <div v-if="key.routing_mode === 'auto'" class="space-y-1">
+                      <div class="flex items-center gap-2">
+                        <span class="inline-flex rounded bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">{{ t('admin.support.routingAuto') }}</span>
+                        <button
+                          type="button"
+                          class="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-primary-600 disabled:cursor-wait dark:hover:bg-dark-800 dark:hover:text-primary-300"
+                          :disabled="routingCapabilityLoadingKeyID === key.id"
+                          :title="t('admin.support.loadRoutingCapabilities')"
+                          @click="loadRoutingCapabilities(key)"
+                        >
+                          <Icon :name="routingCapabilityLoadingKeyID === key.id ? 'refresh' : 'infoCircle'" size="sm" :class="routingCapabilityLoadingKeyID === key.id ? 'animate-spin' : ''" />
+                        </button>
+                      </div>
+                      <p v-if="routingCapabilities[key.id]" class="text-xs text-gray-500 dark:text-gray-400">{{ routingCapabilities[key.id].protocols.join(', ') || t('common.none') }}</p>
+                      <p v-else-if="routingCapabilityErrors[key.id]" class="text-xs text-amber-700 dark:text-amber-300">{{ t('admin.support.routingCapabilitiesUnavailable') }}</p>
+                    </div>
+                    <span v-else>{{ key.group?.name || (key.group_id ? `#${key.group_id}` : t('common.none')) }}</span>
+                  </td>
                   <td class="table-cell tabular-nums">{{ key.quota > 0 ? `${formatMoney(key.quota_used)} / ${formatMoney(key.quota)}` : t('admin.support.unlimited') }}</td>
                   <td class="table-cell tabular-nums">{{ key.current_concurrency }}</td>
                   <td class="table-cell">
@@ -380,10 +398,11 @@ import AvailableChannelsTable from '@/components/channels/AvailableChannelsTable
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import { useAdminSupportViewStore } from '@/stores'
 import * as supportAPI from '@/api/admin/supportView'
+import { getApiKeyRoutingCapabilities } from '@/api/admin/apiKeys'
 import type { AdminSupportAPIKey, AdminSupportImageTask, AdminSupportUsage } from '@/api/admin/supportView'
 import type { UserAvailableChannel } from '@/api/channels'
 import type { UserMonitorDetail, UserMonitorView } from '@/api/channelMonitor'
-import type { UserSubscription } from '@/types'
+import type { ApiKeyRoutingCapabilities, UserSubscription } from '@/types'
 import type { PaymentOrder } from '@/types/payment'
 import { adminSupportPath, parseAdminSupportTargetId, selfPathForSupportResource, type AdminSupportResource } from '@/utils/adminSupport'
 import { sanitizeUrl } from '@/utils/url'
@@ -420,6 +439,9 @@ const errorMessage = ref('')
 const apiKeys = ref<AdminSupportAPIKey[]>([])
 const apiKeyPage = ref(1)
 const apiKeyPages = ref(1)
+const routingCapabilities = ref<Record<number, ApiKeyRoutingCapabilities>>({})
+const routingCapabilityErrors = ref<Record<number, boolean>>({})
+const routingCapabilityLoadingKeyID = ref<number | null>(null)
 const imageTasks = ref<AdminSupportImageTask[]>([])
 const imageStatus = ref('')
 const imageOffset = ref(0)
@@ -598,6 +620,24 @@ async function loadAPIKeys(request: SupportReadRequest): Promise<void> {
   if (!isCurrentReadRequest(request)) return
   apiKeys.value = response.items
   apiKeyPages.value = Math.max(1, response.pages || 1)
+}
+
+async function loadRoutingCapabilities(key: AdminSupportAPIKey): Promise<void> {
+  if (key.routing_mode !== 'auto' || routingCapabilityLoadingKeyID.value === key.id) return
+  if (routingCapabilities.value[key.id]) return
+
+  routingCapabilityLoadingKeyID.value = key.id
+  try {
+    const capabilities = await getApiKeyRoutingCapabilities(key.id)
+    routingCapabilities.value = { ...routingCapabilities.value, [key.id]: capabilities }
+    const remainingErrors = { ...routingCapabilityErrors.value }
+    delete remainingErrors[key.id]
+    routingCapabilityErrors.value = remainingErrors
+  } catch {
+    routingCapabilityErrors.value = { ...routingCapabilityErrors.value, [key.id]: true }
+  } finally {
+    if (routingCapabilityLoadingKeyID.value === key.id) routingCapabilityLoadingKeyID.value = null
+  }
 }
 
 async function changeAPIKeyPage(page: number): Promise<void> {

@@ -229,10 +229,18 @@
             <PlatformIcon platform="opencode_go" size="sm" />
             OpenCode
           </button>
+          <button type="button" @click="form.platform = 'video'" :class="['flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all', form.platform === 'video' ? 'bg-white text-cyan-600 shadow-sm dark:bg-dark-600 dark:text-cyan-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400']">
+            <PlatformIcon platform="video" size="sm" />
+            <span>Video</span>
+          </button>
         </div>
       </div>
 
       <!-- Account Type Selection (Anthropic) -->
+      <div v-if="form.platform === 'video'" class="rounded-lg border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-800 dark:bg-cyan-950/30">
+        <p class="font-medium">Video · API Key</p>
+        <p class="input-hint">{{ t('admin.accounts.videoAccountHint') }}</p>
+      </div>
       <div v-if="form.platform === 'anthropic'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
         <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="account-form-type">
@@ -1406,6 +1414,7 @@
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
         </div>
 
+        <div v-if="form.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="videoSecretKey" type="password" autocomplete="new-password" class="input font-mono" placeholder="腾讯混元、火山即梦等签名协议填写；普通 API Key 协议留空" /><p class="input-hint">上方 API Key 填写 SecretId / Access Key，下方填写对应 Secret Key。</p></div>
         <!-- Gemini API Key tier selection -->
         <div v-if="form.platform === 'gemini'">
           <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
@@ -3750,6 +3759,7 @@ const oauthStepTitle = computed(() => {
 
 // Platform-specific hints for API Key type
 const baseUrlHint = computed(() => {
+  if (form.platform === 'video') return t('admin.accounts.videoBaseUrlHint')
   if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (form.platform === 'grok') return ''
@@ -3757,6 +3767,7 @@ const baseUrlHint = computed(() => {
 })
 
 const apiKeyHint = computed(() => {
+  if (form.platform === 'video') return ''
   if (form.platform === 'openai') return t('admin.accounts.openai.apiKeyHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.apiKeyHint')
   if (form.platform === 'grok') return ''
@@ -3770,6 +3781,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
     return defaultCNBaseUrl(form.platform, mode, apiProtocol.value) || 'https://api.example.com'
   }
   switch (form.platform) {
+    case 'video':
+      return t('admin.accounts.videoBaseUrlPlaceholder')
     case 'openai':
       return 'https://api.openai.com'
     case 'gemini':
@@ -3783,6 +3796,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
 
 const apiKeyValuePlaceholder = computed(() => {
   switch (form.platform) {
+    case 'video':
+      return 'API Key'
     case 'openai':
       return 'sk-proj-...'
     case 'gemini':
@@ -3891,6 +3906,7 @@ const submitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_account'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
+const videoSecretKey = ref('')
 const apiKeyValue = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
@@ -4585,7 +4601,10 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
+    if (newPlatform === 'video') {
+      apiKeyBaseUrl.value = ''
+      accountCategory.value = 'apikey'
+    } else if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
       const mode = newPlatform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, mode, apiProtocol.value)
     } else {
@@ -5062,6 +5081,7 @@ const resetForm = () => {
   openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
   adaptiveBaseUrls.value = { chat_completions: '', anthropic: '', responses: '' }
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
+  videoSecretKey.value = ''
   apiKeyValue.value = ''
   upstreamRequestIdHeader.value = ''
   editQuotaLimit.value = null
@@ -5544,6 +5564,11 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.platform === 'video' && !apiKeyBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.videoBaseUrlRequired'))
+    return
+  }
+
   // Determine default base URL based on platform
   const defaultBaseUrl =
     form.platform === 'openai'
@@ -5556,8 +5581,9 @@ const handleSubmit = async () => {
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
-    base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
-    api_key: apiKeyValue.value.trim()
+    base_url: form.platform === 'video' ? apiKeyBaseUrl.value.trim() : apiKeyBaseUrl.value.trim() || defaultBaseUrl,
+    api_key: apiKeyValue.value.trim(),
+ ...(form.platform === 'video' && videoSecretKey.value.trim() ? {secret_key:videoSecretKey.value.trim()} : {})
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

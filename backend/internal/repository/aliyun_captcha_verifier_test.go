@@ -100,5 +100,15 @@ func TestAliyunCaptchaVerifier_TransportError(t *testing.T) {
 	_, err := verifier.VerifyCaptcha(context.Background(), cred, "param")
 	require.Error(t, err)
 	var apiErr *service.AliyunCaptchaAPIError
-	require.False(t, errors.As(err, &apiErr), "transport errors must not be normalized to API errors")
+	require.False(t, errors.As(err, &apiErr), "transport errors must not be normalized to API errors (%T: %v)", err, err)
+}
+
+// The SDK can use proxy environment variables even for localhost. A proxy may
+// turn connection refusal into HTTP 503, which is correctly an API response but
+// defeats this test's intended transport failure. Keep fake endpoints local.
+func disableAliyunCaptchaTestProxy(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+		t.Setenv(name, "")
+	}
 }

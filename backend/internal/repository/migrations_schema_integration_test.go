@@ -204,7 +204,7 @@ WHERE ns.nspname = 'public'
 }
 
 func TestMigration251_ChannelMonitorGPT6AstraFactoryOrdering(t *testing.T) {
-	migrationSQL, err := dbmigrations.FS.ReadFile("251_channel_monitor_gpt6_astra.sql")
+	migrationSQL, err := dbmigrations.FS.ReadFile("255_channel_monitor_gpt6_astra.sql")
 	require.NoError(t, err)
 
 	t.Run("prepends Astra once to factory configuration", func(t *testing.T) {

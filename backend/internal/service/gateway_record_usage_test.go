@@ -150,6 +150,31 @@ func TestGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloadHash(
 	require.Equal(t, payloadHash, billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestGatewayServiceRecordUsage_TeamAttributionUsesActorAndBillingOwner(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+	teamID := int64(77)
+	owner := &User{ID: 601}
+	actor := &User{ID: 602}
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result:  &ForwardResult{RequestID: "gateway_team_attribution", Usage: ClaudeUsage{InputTokens: 10}, Model: "claude-sonnet-4", Duration: time.Second},
+		APIKey:  &APIKey{ID: 501, UserID: actor.ID, TeamID: &teamID, User: owner, ActorUser: actor},
+		User:    owner,
+		Account: &Account{ID: 701},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, actor.ID, usageRepo.lastLog.UserID)
+	require.Equal(t, owner.ID, usageRepo.lastLog.BillingUserID)
+	require.Equal(t, &teamID, usageRepo.lastLog.TeamID)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.Equal(t, actor.ID, billingRepo.lastCmd.ActorUserID)
+	require.Equal(t, owner.ID, billingRepo.lastCmd.UserID)
+	require.Equal(t, &teamID, billingRepo.lastCmd.TeamID)
+}
+
 func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/apikey"
 	"github.com/LuckyKuang/sub2api-plus/ent/group"
+	"github.com/LuckyKuang/sub2api-plus/ent/team"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 )
@@ -73,6 +74,34 @@ func (_c *APIKeyCreate) SetUserID(v int64) *APIKeyCreate {
 	return _c
 }
 
+// SetTeamID sets the "team_id" field.
+func (_c *APIKeyCreate) SetTeamID(v int64) *APIKeyCreate {
+	_c.mutation.SetTeamID(v)
+	return _c
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableTeamID(v *int64) *APIKeyCreate {
+	if v != nil {
+		_c.SetTeamID(*v)
+	}
+	return _c
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (_c *APIKeyCreate) SetTeamOwnerDisabled(v bool) *APIKeyCreate {
+	_c.mutation.SetTeamOwnerDisabled(v)
+	return _c
+}
+
+// SetNillableTeamOwnerDisabled sets the "team_owner_disabled" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableTeamOwnerDisabled(v *bool) *APIKeyCreate {
+	if v != nil {
+		_c.SetTeamOwnerDisabled(*v)
+	}
+	return _c
+}
+
 // SetKey sets the "key" field.
 func (_c *APIKeyCreate) SetKey(v string) *APIKeyCreate {
 	_c.mutation.SetKey(v)
@@ -95,6 +124,20 @@ func (_c *APIKeyCreate) SetGroupID(v int64) *APIKeyCreate {
 func (_c *APIKeyCreate) SetNillableGroupID(v *int64) *APIKeyCreate {
 	if v != nil {
 		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (_c *APIKeyCreate) SetRoutingMode(v string) *APIKeyCreate {
+	_c.mutation.SetRoutingMode(v)
+	return _c
+}
+
+// SetNillableRoutingMode sets the "routing_mode" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableRoutingMode(v *string) *APIKeyCreate {
+	if v != nil {
+		_c.SetRoutingMode(*v)
 	}
 	return _c
 }
@@ -332,6 +375,11 @@ func (_c *APIKeyCreate) AddUsageLogs(v ...*UsageLog) *APIKeyCreate {
 	return _c.AddUsageLogIDs(ids...)
 }
 
+// SetTeam sets the "team" edge to the Team entity.
+func (_c *APIKeyCreate) SetTeam(v *Team) *APIKeyCreate {
+	return _c.SetTeamID(v.ID)
+}
+
 // Mutation returns the APIKeyMutation object of the builder.
 func (_c *APIKeyCreate) Mutation() *APIKeyMutation {
 	return _c.mutation
@@ -383,6 +431,14 @@ func (_c *APIKeyCreate) defaults() error {
 		v := apikey.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.TeamOwnerDisabled(); !ok {
+		v := apikey.DefaultTeamOwnerDisabled
+		_c.mutation.SetTeamOwnerDisabled(v)
+	}
+	if _, ok := _c.mutation.RoutingMode(); !ok {
+		v := apikey.DefaultRoutingMode
+		_c.mutation.SetRoutingMode(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := apikey.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -433,6 +489,9 @@ func (_c *APIKeyCreate) check() error {
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "APIKey.user_id"`)}
 	}
+	if _, ok := _c.mutation.TeamOwnerDisabled(); !ok {
+		return &ValidationError{Name: "team_owner_disabled", err: errors.New(`ent: missing required field "APIKey.team_owner_disabled"`)}
+	}
 	if _, ok := _c.mutation.Key(); !ok {
 		return &ValidationError{Name: "key", err: errors.New(`ent: missing required field "APIKey.key"`)}
 	}
@@ -447,6 +506,14 @@ func (_c *APIKeyCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := apikey.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RoutingMode(); !ok {
+		return &ValidationError{Name: "routing_mode", err: errors.New(`ent: missing required field "APIKey.routing_mode"`)}
+	}
+	if v, ok := _c.mutation.RoutingMode(); ok {
+		if err := apikey.RoutingModeValidator(v); err != nil {
+			return &ValidationError{Name: "routing_mode", err: fmt.Errorf(`ent: validator failed for field "APIKey.routing_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -523,6 +590,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
 	}
+	if value, ok := _c.mutation.TeamOwnerDisabled(); ok {
+		_spec.SetField(apikey.FieldTeamOwnerDisabled, field.TypeBool, value)
+		_node.TeamOwnerDisabled = value
+	}
 	if value, ok := _c.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
 		_node.Key = value
@@ -530,6 +601,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.RoutingMode(); ok {
+		_spec.SetField(apikey.FieldRoutingMode, field.TypeString, value)
+		_node.RoutingMode = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -645,6 +720,23 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.TeamIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.TeamTable,
+			Columns: []string{apikey.TeamColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(team.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.TeamID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -739,6 +831,36 @@ func (u *APIKeyUpsert) UpdateUserID() *APIKeyUpsert {
 	return u
 }
 
+// SetTeamID sets the "team_id" field.
+func (u *APIKeyUpsert) SetTeamID(v int64) *APIKeyUpsert {
+	u.Set(apikey.FieldTeamID, v)
+	return u
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateTeamID() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldTeamID)
+	return u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *APIKeyUpsert) ClearTeamID() *APIKeyUpsert {
+	u.SetNull(apikey.FieldTeamID)
+	return u
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (u *APIKeyUpsert) SetTeamOwnerDisabled(v bool) *APIKeyUpsert {
+	u.Set(apikey.FieldTeamOwnerDisabled, v)
+	return u
+}
+
+// UpdateTeamOwnerDisabled sets the "team_owner_disabled" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateTeamOwnerDisabled() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldTeamOwnerDisabled)
+	return u
+}
+
 // SetKey sets the "key" field.
 func (u *APIKeyUpsert) SetKey(v string) *APIKeyUpsert {
 	u.Set(apikey.FieldKey, v)
@@ -778,6 +900,18 @@ func (u *APIKeyUpsert) UpdateGroupID() *APIKeyUpsert {
 // ClearGroupID clears the value of the "group_id" field.
 func (u *APIKeyUpsert) ClearGroupID() *APIKeyUpsert {
 	u.SetNull(apikey.FieldGroupID)
+	return u
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (u *APIKeyUpsert) SetRoutingMode(v string) *APIKeyUpsert {
+	u.Set(apikey.FieldRoutingMode, v)
+	return u
+}
+
+// UpdateRoutingMode sets the "routing_mode" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateRoutingMode() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldRoutingMode)
 	return u
 }
 
@@ -1157,6 +1291,41 @@ func (u *APIKeyUpsertOne) UpdateUserID() *APIKeyUpsertOne {
 	})
 }
 
+// SetTeamID sets the "team_id" field.
+func (u *APIKeyUpsertOne) SetTeamID(v int64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetTeamID(v)
+	})
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateTeamID() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateTeamID()
+	})
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *APIKeyUpsertOne) ClearTeamID() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearTeamID()
+	})
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (u *APIKeyUpsertOne) SetTeamOwnerDisabled(v bool) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetTeamOwnerDisabled(v)
+	})
+}
+
+// UpdateTeamOwnerDisabled sets the "team_owner_disabled" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateTeamOwnerDisabled() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateTeamOwnerDisabled()
+	})
+}
+
 // SetKey sets the "key" field.
 func (u *APIKeyUpsertOne) SetKey(v string) *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -1203,6 +1372,20 @@ func (u *APIKeyUpsertOne) UpdateGroupID() *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) ClearGroupID() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (u *APIKeyUpsertOne) SetRoutingMode(v string) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRoutingMode(v)
+	})
+}
+
+// UpdateRoutingMode sets the "routing_mode" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateRoutingMode() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRoutingMode()
 	})
 }
 
@@ -1795,6 +1978,41 @@ func (u *APIKeyUpsertBulk) UpdateUserID() *APIKeyUpsertBulk {
 	})
 }
 
+// SetTeamID sets the "team_id" field.
+func (u *APIKeyUpsertBulk) SetTeamID(v int64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetTeamID(v)
+	})
+}
+
+// UpdateTeamID sets the "team_id" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateTeamID() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateTeamID()
+	})
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (u *APIKeyUpsertBulk) ClearTeamID() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearTeamID()
+	})
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (u *APIKeyUpsertBulk) SetTeamOwnerDisabled(v bool) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetTeamOwnerDisabled(v)
+	})
+}
+
+// UpdateTeamOwnerDisabled sets the "team_owner_disabled" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateTeamOwnerDisabled() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateTeamOwnerDisabled()
+	})
+}
+
 // SetKey sets the "key" field.
 func (u *APIKeyUpsertBulk) SetKey(v string) *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -1841,6 +2059,20 @@ func (u *APIKeyUpsertBulk) UpdateGroupID() *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) ClearGroupID() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearGroupID()
+	})
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (u *APIKeyUpsertBulk) SetRoutingMode(v string) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetRoutingMode(v)
+	})
+}
+
+// UpdateRoutingMode sets the "routing_mode" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateRoutingMode() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateRoutingMode()
 	})
 }
 

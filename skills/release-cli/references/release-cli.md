@@ -41,7 +41,7 @@ strictness, a protected rule, or a context is missing. It invokes
 typed PR marker with 40-character base/head SHAs, a matching current PR
 base/head, and a successful profile-specific `sub2api/local-validation` status
 on the head. `full` forbids a tag; `release-finalization` requires the exact
-published tag. The PR must come from `LuckyKuang/sub2api-plus`, remain open and
+published tag. The PR must come from `skyqingname/gotocc-router`, remain open and
 non-draft, and target the GitHub default branch.
 
 After required checks complete, promotion refetches the default branch and PR.

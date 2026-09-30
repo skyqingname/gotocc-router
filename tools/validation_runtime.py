@@ -187,36 +187,16 @@ def probe_windows_runtime(
 
 def probe_macos_runtime(
     *,
-    optional_capture: OptionalCapture,
-    which: Callable[[str], str | None] = shutil.which,
+    probe_docker_fn: ProbeDocker,
 ) -> Runtime:
-    if not which("container"):
+    docker_ok, detail = probe_docker_fn()
+    if not docker_ok:
         raise ValidationRuntimeError(
-            "macOS push validation requires Apple Containers. Install the "
-            "container CLI and ensure `container --version` and `container ls` "
-            "succeed. Colima/Docker Desktop fallback is forbidden"
+            "macOS validation requires a running Docker Engine and Compose "
+            f"plugin; host-toolchain fallback is forbidden: {detail[-500:]}"
         )
-
-    version_ok, version = optional_capture(["container", "--version"])
-    if not version_ok:
-        detail = version[-500:] if version else "container --version failed"
-        raise ValidationRuntimeError(
-            "Apple Containers is the mandatory macOS runtime, but its CLI is "
-            "not usable; Colima/Docker fallback is forbidden: "
-            f"{detail}"
-        )
-    list_ok, list_output = optional_capture(["container", "ls"])
-    if not list_ok:
-        detail = list_output[-500:] if list_output else "container ls failed"
-        raise ValidationRuntimeError(
-            "Apple Containers is the mandatory macOS runtime, but its service "
-            "is not ready; start or repair Apple Containers and retry. "
-            "Colima/Docker fallback is forbidden: "
-            f"{detail}"
-        )
-    version_label = version.splitlines()[0] if version else "version available"
-    print(f"Runtime: Apple Containers ({version_label})")
-    return Runtime("apple-containers", compose_required=False)
+    print(f"Runtime: macOS Docker ({detail})")
+    return Runtime("docker")
 
 
 def probe_runtime(
@@ -237,7 +217,7 @@ def probe_runtime(
             which=which,
         )
     if system == "Darwin":
-        return probe_macos_runtime(optional_capture=optional_capture, which=which)
+        return probe_macos_runtime(probe_docker_fn=probe_docker_fn)
 
     docker_ok, docker_detail = probe_docker_fn()
     if docker_ok:

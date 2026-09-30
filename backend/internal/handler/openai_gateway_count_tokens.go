@@ -74,6 +74,9 @@ func (h *OpenAIGatewayHandler) ResponsesInputTokens(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+		return
+	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
@@ -162,6 +165,17 @@ func (h *OpenAIGatewayHandler) GrokCountTokens(c *gin.Context) {
 		return
 	}
 
+	if key, ok := middleware2.GetAPIKeyFromContext(c); ok && key.IsAutoRouting() {
+		subject, _ := middleware2.GetAuthSubjectFromContext(c)
+		reqLog := requestLogger(c, "handler.openai_gateway.grok_count_tokens")
+		if decision := h.checkSecurityAudit(c, reqLog, key, subject, service.ContentModerationProtocolAnthropicMessages, parsedReq.Model, body); decision != nil && !decision.AllowNextStage {
+			h.anthropicSecurityAuditError(c, decision)
+			return
+		}
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &key) {
+			return
+		}
+	}
 	estimated, err := service.EstimateGrokCountTokens(parsedReq.Body.Bytes())
 	if err != nil {
 		requestLogger(c, "handler.openai_gateway.grok_count_tokens").Warn("grok_count_tokens.local_estimate_failed", zap.Error(err))
@@ -242,6 +256,15 @@ func (h *OpenAIGatewayHandler) CountTokens(c *gin.Context) {
 	if !openAICompatibleTextTargetAllowed(c, apiKey, reqModel) {
 		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Model is not supported by this OpenAI-compatible endpoint for composite groups")
 		return
+	}
+	if apiKey.IsAutoRouting() {
+		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, reqModel, body); decision != nil && !decision.AllowNextStage {
+			h.anthropicSecurityAuditError(c, decision)
+			return
+		}
+		if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) || !applyAutoHTTPModel(c, &body, &reqModel) {
+			return
+		}
 	}
 	routingModel := service.NormalizeOpenAICompatRequestedModel(reqModel)
 	preferredMappedModel := resolveOpenAIMessagesDispatchMappedModel(c, apiKey, reqModel)

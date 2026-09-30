@@ -296,9 +296,9 @@ func (a *Account) IsCNProvider() bool {
 
 // IsOpenAICompatible 报告账号是否走 OpenAI 网关（OpenAI 协议族）。
 // openai/grok 原生走 OpenAI 网关；国产供应商同为 OpenAI Chat Completions
-// 兼容上游，也经 OpenAI 网关转发。OpenCode 同样经 OpenAI 网关按模型分流。
+// 兼容上游，也经 OpenAI 网关转发。OpenCode 按模型分流；Video 仅走视频协议。
 func (a *Account) IsOpenAICompatible() bool {
-	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformGrok || a.IsCNProvider() || a.IsOpenCodeGo())
+	return a != nil && (a.Platform == PlatformOpenAI || a.Platform == PlatformVideo || a.Platform == PlatformGrok || a.IsCNProvider() || a.IsOpenCodeGo())
 }
 
 func (a *Account) GeminiOAuthType() string {
@@ -877,6 +877,24 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 	return normalized != requestedModel && mappingSupportsRequestedModel(mapping, normalized)
 }
 
+// IsModelDirectlySupported reports whether the account can receive the exact
+// requested model without an account-level model rewrite. OpenAI Images uses
+// this stricter check because its request, upstream, and usage model must match.
+func (a *Account) IsModelDirectlySupported(requestedModel string) bool {
+	if a == nil {
+		return false
+	}
+	if a.IsOpenAIPassthroughEnabled() {
+		return true
+	}
+	mapping := a.GetModelMapping()
+	if len(mapping) == 0 {
+		return a.IsModelSupported(requestedModel)
+	}
+	mappedModel, matched := resolveRequestedModelInMapping(mapping, requestedModel)
+	return matched && strings.TrimSpace(mappedModel) == strings.TrimSpace(requestedModel)
+}
+
 // GetMappedModel 获取映射后的模型名（支持通配符，最长优先匹配）
 // 如果未配置 mapping，返回原始模型名
 func (a *Account) GetMappedModel(requestedModel string) string {
@@ -1345,15 +1363,20 @@ func (a *Account) IsOpenAIPersonalAccessToken() bool {
 		isOpenAIPersonalAccessTokenAuthMode(a.GetCredential(openAIAuthModeLegacyCredentialKey))
 }
 
+// IsVideoAPIKey includes dedicated Video credentials and legacy OpenAI-compatible video accounts.
+func (a *Account) IsVideoAPIKey() bool {
+	return a != nil && a.Type == AccountTypeAPIKey && (a.Platform == PlatformVideo || a.Platform == PlatformOpenAI)
+}
+
 func (a *Account) IsOpenAIApiKey() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeAPIKey
 }
 
 // GetOpenAIBaseURL 解析 OpenAI 协议族账号的上游 base_url。
-// 适用 openai、国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）与 OpenCode Go；
+// 适用 openai、video、国产 OpenAI 兼容供应商与 OpenCode Go；
 // grok 走 GetGrokBaseURL，此处对 grok 返回 "" 以保持原有行为。
 func (a *Account) GetOpenAIBaseURL() string {
-	if !a.IsOpenAI() && !a.IsCNProvider() && !a.IsOpenCodeGo() {
+	if !a.IsOpenAI() && a.Platform != PlatformVideo && !a.IsCNProvider() && !a.IsOpenCodeGo() {
 		return ""
 	}
 	if a.IsMultiProtocolAPIKey() && a.IsAdaptiveAPIProtocol() {
@@ -1370,6 +1393,8 @@ func (a *Account) GetOpenAIBaseURL() string {
 	}
 	// 平台默认 base_url：CN 供应商按 account_mode 选择 payg / coding 默认值。
 	switch a.Platform {
+	case PlatformVideo:
+		return "" // Video accounts require an explicit provider origin.
 	case PlatformKimi:
 		if a.GetAccountMode() == AccountModeCoding {
 			return DefaultKimiCodingBaseURL
@@ -1753,14 +1778,14 @@ func (a *Account) GetOpenAIApiKey() string {
 
 // GetOpenAIProtocolAPIKey 返回 OpenAI 协议族 APIKey 账号的密钥。
 // 覆盖 openai 原生账号、国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）
-// 以及 OpenCode Go 账号，供转发鉴权、模型列表同步等协议族共用路径使用。
+// 以及 OpenCode Go、Video 账号，供转发鉴权、模型列表同步等协议族共用路径使用。
 // 注意 IsOpenAIApiKey 语义上仅指 openai 平台账号，调度倍率/WS 能力门控
 // 继续以其为准，不受本方法影响。
 func (a *Account) GetOpenAIProtocolAPIKey() string {
 	if a == nil {
 		return ""
 	}
-	if a.IsMultiProtocolAPIKey() {
+	if a.IsMultiProtocolAPIKey() || a.Platform == PlatformVideo {
 		if a.Type != AccountTypeAPIKey {
 			return ""
 		}

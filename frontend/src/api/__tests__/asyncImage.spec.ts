@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AsyncImageDownloadValidationError, deleteAsyncImageTask, downloadAsyncImageZip, listAsyncImageModels, preferredAsyncImageModel, submitAsyncImageEdit } from '../asyncImage'
+import { AsyncImageDownloadValidationError, deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageObjectURL, listAsyncImageModels, preferredAsyncImageModel, submitAsyncImageEdit } from '../asyncImage'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -62,6 +62,22 @@ describe('async image model API', () => {
     await expect(deleteAsyncImageTask('sk-selected-key', 'imgtask/a b')).resolves.toBeUndefined()
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/v1/images/tasks/imgtask%2Fa%20b', {
       method: 'DELETE',
+      headers: { Authorization: 'Bearer sk-selected-key' },
+    })
+  })
+
+  it('renews an encoded object ID with the selected API key', async () => {
+    const renewed = {
+      id: 'imgobj/a b',
+      object: 'image.object',
+      url: 'https://signed.test/fresh.png',
+      url_expires_at: 1893456000,
+    }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => renewed })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(getAsyncImageObjectURL('sk-selected-key', 'imgobj/a b')).resolves.toEqual(renewed)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/v1/images/objects/imgobj%2Fa%20b/url', {
       headers: { Authorization: 'Bearer sk-selected-key' },
     })
   })

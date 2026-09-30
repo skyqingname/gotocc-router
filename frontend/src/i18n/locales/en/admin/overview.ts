@@ -441,6 +441,29 @@ export default {
       }
     },
 
+    agents: {
+      "description": "View self-enrolled and existing agents. No manual review is required.",
+      "columns": {
+            "user": "User",
+            "registeredAt": "Registered",
+            "appliedAt": "Applied",
+            "status": "Status",
+            "source": "Source",
+            "activatedAt": "Activated"
+      },
+      "searchPlaceholder": "Email, username, user ID",
+      "status": {
+            "approved": "Active"
+      },
+      "source": {
+            "applied": "Self-enrolled",
+            "grandfathered": "Existing member"
+      },
+      "empty": "No agents yet",
+      "errors": {
+            "loadFailed": "Failed to load agents"
+      }
+},
     affiliates: {
       invitesDescription: 'View site-wide inviter and invitee relationships',
       rebatesDescription: 'View recharge orders that generated affiliate rebates',
@@ -449,6 +472,11 @@ export default {
         loadFailed: 'Failed to load affiliate records'
       },
       records: {
+        sources: { admin_recharge: 'Admin deposit', redeem_code: 'Redeem code recharge', legacy: 'Legacy commission', payment: 'Online recharge' },
+        rebateLevel: "Generation",
+        rebateRate: "Commission rate",
+        rebateBase: "Commission principal (USD)",
+        generation: "Generation {level}",
         search: 'Search',
         searchPlaceholder: 'Email, username, user ID, or order number',
         startAt: 'Start date',
@@ -486,6 +514,24 @@ export default {
 
     // Users
     users: {
+      inviter: {
+        codeLabel: "Invitation code",
+        codePlaceholder: "Enter the referrer’s invitation code",
+        codeHint: "One code identifies registration and referral ownership. Reassignment does not consume a registration use.",
+        title: "Invitation code and rebate attribution",
+        current: "Current referrer",
+        unbound: "No referrer assigned",
+        loading: "Loading referrer…",
+        retry: "Reload",
+        resolve: "Find referrer",
+        resolving: "Looking up…",
+        next: "Referrer after update",
+        matched: "Referrer for this code",
+        resolveFirst: "The code has changed. Find and check the referrer before updating.",
+        self: "A user cannot be their own referrer. Enter another referrer’s code.",
+        notFound: "No code of this type was found. Check the code and its type.",
+        effect: "Takes effect when you click Update below. Past commissions stay unchanged. Future three-generation rebates for this customer and their descendants follow the new relationship.",
+      },
       title: 'User Management',
       description: 'Manage users and their permissions',
       createUser: 'Create User',
@@ -623,7 +669,9 @@ export default {
       noApiKeys: 'This user has no API keys',
       group: 'Group',
       none: 'None',
+      routingAuto: 'Smart routing',
       groupChangedSuccess: 'Group updated successfully',
+      routingChangedSuccess: 'Routing mode updated successfully',
       groupChangedWithGrant: 'Group updated. User auto-granted access to "{group}"',
       groupChangeFailed: 'Failed to update group',
       noUsersYet: 'No users yet',
@@ -1038,6 +1086,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        video: 'Video',
         composite: 'Composite',
       },
       deleteConfirm:

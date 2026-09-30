@@ -39,6 +39,9 @@ func (r *userGroupRateRepository) GetByUserID(ctx context.Context, userID int64)
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	for groupID, quote := range service.ResellerPricesFromContext(ctx, userID) {
+		result[groupID] = quote.TextRate
+	}
 	return result, nil
 }
 
@@ -135,6 +138,10 @@ func (r *userGroupRateRepository) GetByGroupID(ctx context.Context, groupID int6
 
 // GetByUserAndGroup 获取用户在特定分组的专属 rate_multiplier（NULL 返回 nil）
 func (r *userGroupRateRepository) GetByUserAndGroup(ctx context.Context, userID, groupID int64) (*float64, error) {
+	if quote := service.ResellerPriceFromContext(ctx, userID, groupID); quote != nil {
+		value := quote.TextRate
+		return &value, nil
+	}
 	query := `SELECT rate_multiplier FROM user_group_rate_multipliers WHERE user_id = $1 AND group_id = $2`
 	var rate sql.NullFloat64
 	err := scanSingleRow(ctx, r.sql, query, []any{userID, groupID}, &rate)

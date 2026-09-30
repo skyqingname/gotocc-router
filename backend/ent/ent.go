@@ -31,6 +31,8 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/group"
 	"github.com/LuckyKuang/sub2api-plus/ent/idempotencyrecord"
 	"github.com/LuckyKuang/sub2api-plus/ent/identityadoptiondecision"
+	"github.com/LuckyKuang/sub2api-plus/ent/imageobject"
+	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentauditlog"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentproviderinstance"
@@ -39,9 +41,15 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/promocodeusage"
 	"github.com/LuckyKuang/sub2api-plus/ent/proxy"
 	"github.com/LuckyKuang/sub2api-plus/ent/redeemcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/reusableinvitationcodeuse"
 	"github.com/LuckyKuang/sub2api-plus/ent/securitysecret"
 	"github.com/LuckyKuang/sub2api-plus/ent/setting"
 	"github.com/LuckyKuang/sub2api-plus/ent/subscriptionplan"
+	"github.com/LuckyKuang/sub2api-plus/ent/team"
+	"github.com/LuckyKuang/sub2api-plus/ent/teaminvitation"
+	"github.com/LuckyKuang/sub2api-plus/ent/teammembership"
+	"github.com/LuckyKuang/sub2api-plus/ent/teamownershiptransfer"
 	"github.com/LuckyKuang/sub2api-plus/ent/tlsfingerprintprofile"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagecleanuptask"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
@@ -130,6 +138,8 @@ func checkColumn(t, c string) error {
 			group.Table:                         group.ValidColumn,
 			idempotencyrecord.Table:             idempotencyrecord.ValidColumn,
 			identityadoptiondecision.Table:      identityadoptiondecision.ValidColumn,
+			imageobject.Table:                   imageobject.ValidColumn,
+			openaivideotask.Table:               openaivideotask.ValidColumn,
 			paymentauditlog.Table:               paymentauditlog.ValidColumn,
 			paymentorder.Table:                  paymentorder.ValidColumn,
 			paymentproviderinstance.Table:       paymentproviderinstance.ValidColumn,
@@ -138,10 +148,16 @@ func checkColumn(t, c string) error {
 			promocodeusage.Table:                promocodeusage.ValidColumn,
 			proxy.Table:                         proxy.ValidColumn,
 			redeemcode.Table:                    redeemcode.ValidColumn,
+			reusableinvitationcode.Table:        reusableinvitationcode.ValidColumn,
+			reusableinvitationcodeuse.Table:     reusableinvitationcodeuse.ValidColumn,
 			securitysecret.Table:                securitysecret.ValidColumn,
 			setting.Table:                       setting.ValidColumn,
 			subscriptionplan.Table:              subscriptionplan.ValidColumn,
 			tlsfingerprintprofile.Table:         tlsfingerprintprofile.ValidColumn,
+			team.Table:                          team.ValidColumn,
+			teaminvitation.Table:                teaminvitation.ValidColumn,
+			teammembership.Table:                teammembership.ValidColumn,
+			teamownershiptransfer.Table:         teamownershiptransfer.ValidColumn,
 			usagecleanuptask.Table:              usagecleanuptask.ValidColumn,
 			usagelog.Table:                      usagelog.ValidColumn,
 			user.Table:                          user.ValidColumn,

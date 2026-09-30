@@ -113,6 +113,11 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	if apiKey.Group != nil {
 		platform = apiKey.Group.Platform
 	}
+	if apiKey.IsAutoRouting() {
+		if decision, ok := service.AutoRouteDecisionFromContext(c.Request.Context()); ok {
+			platform = decision.Platform
+		}
+	}
 	if platform != service.PlatformOpenAI && platform != service.PlatformGrok {
 		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "Images API is not supported for this platform")
 		return
@@ -162,6 +167,12 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 	if !h.checkSecurityAuditBeforeSubmit(c, apiKey, platform, body) {
+		return
+	}
+	if apiKey.IsAutoRouting() && (h.openAI == nil || !admitAutoHTTPRoute(c, h.openAI.autoGroupResolver, &apiKey)) {
+		if !c.IsAborted() {
+			middleware2.WriteAutoRoutingError(c, service.ErrAutoRouteUnavailable)
+		}
 		return
 	}
 	requestedImages := h.requestedImages(c, platform, body)
@@ -399,6 +410,28 @@ func (h *AsyncImageHandler) Get(c *gin.Context) {
 		c.Header("Retry-After", "3")
 	}
 	c.JSON(http.StatusOK, task)
+}
+
+// GetObjectURL mints a fresh URL only after the persistent object record has
+// been matched to the current user. API key rotation does not break history,
+// while another user receives the same not-found response as an unknown ID.
+func (h *AsyncImageHandler) GetObjectURL(c *gin.Context) {
+	if h == nil || h.tasks == nil {
+		imageTaskError(c, service.ErrImageObjectUnavailable)
+		return
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID <= 0 {
+		imageTaskError(c, service.ErrImageObjectNotFound)
+		return
+	}
+	object, err := h.tasks.RefreshObjectURL(c.Request.Context(), apiKey.UserID, c.Param("object_id"))
+	if err != nil {
+		imageTaskError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, object)
 }
 
 func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, body []byte) error {

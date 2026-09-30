@@ -3011,7 +3011,11 @@ func (r *oauthPendingFlowRedeemCodeRepo) Delete(context.Context, int64) error {
 }
 
 func (r *oauthPendingFlowRedeemCodeRepo) Use(ctx context.Context, id, userID int64) error {
-	affected, err := r.client.RedeemCode.Update().
+	client := r.client
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	affected, err := client.RedeemCode.Update().
 		Where(redeemcode.IDEQ(id), redeemcode.StatusEQ(service.StatusUnused)).
 		SetStatus(service.StatusUsed).
 		SetUsedBy(userID).

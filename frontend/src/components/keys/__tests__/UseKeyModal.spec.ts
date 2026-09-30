@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-const { copyToClipboardMock, saveAsMock } = vi.hoisted(() => ({
+const { copyToClipboardMock, saveAsMock, getRoutingCapabilitiesMock } = vi.hoisted(() => ({
   copyToClipboardMock: vi.fn().mockResolvedValue(true),
-  saveAsMock: vi.fn()
+  saveAsMock: vi.fn(),
+  getRoutingCapabilitiesMock: vi.fn(),
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -23,6 +24,12 @@ vi.mock('file-saver', () => ({
   saveAs: saveAsMock
 }))
 
+vi.mock('@/api/keys', () => ({
+  keysAPI: {
+    getRoutingCapabilities: getRoutingCapabilitiesMock,
+  },
+}))
+
 import UseKeyModal from '../UseKeyModal.vue'
 
 function readBlobAsText(blob: Blob): Promise<string> {
@@ -38,6 +45,37 @@ describe('UseKeyModal', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     saveAsMock.mockClear()
+  })
+
+  it('renders the protocol-neutral guide for an automatic-routing key', () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-auto-test',
+        baseUrl: 'https://example.com/v1',
+        platform: null,
+        routingMode: 'auto',
+        routingCapabilities: {
+          routing_mode: 'auto',
+          protocols: ['openai', 'anthropic', 'gemini'],
+          async_image_submit: true,
+          batch_image_submit: false,
+        },
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Icon: { template: '<span />' },
+        },
+      },
+    })
+
+    const guide = wrapper.get('[data-testid="auto-routing-guide"]')
+    expect(guide.text()).toContain('https://example.com/v1/models')
+    expect(guide.text()).toContain('sk-auto-test')
+    expect(wrapper.findAll('[data-testid="auto-routing-protocol"]').map((item) => item.attributes('data-protocol')))
+      .toEqual(['openai', 'anthropic', 'gemini'])
+    expect(wrapper.text()).not.toContain('keys.useKeyModal.noGroupTitle')
   })
 
   it('omits the attribution override from every standard Claude Code setup form', async () => {

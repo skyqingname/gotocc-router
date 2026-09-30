@@ -10,11 +10,12 @@ import (
 // administrator endpoints. It deliberately omits plaintext key material,
 // authorization/export payloads, and complete IP allow/deny lists.
 type AdminAPIKeySummary struct {
-	ID      int64  `json:"id"`
-	UserID  int64  `json:"user_id"`
-	Name    string `json:"name"`
-	GroupID *int64 `json:"group_id"`
-	Status  string `json:"status"`
+	ID          int64  `json:"id"`
+	UserID      int64  `json:"user_id"`
+	Name        string `json:"name"`
+	GroupID     *int64 `json:"group_id"`
+	RoutingMode string `json:"routing_mode"`
+	Status      string `json:"status"`
 
 	HasIPWhitelist  bool `json:"has_ip_whitelist"`
 	IPWhitelistSize int  `json:"ip_whitelist_size"`
@@ -97,6 +98,7 @@ func AdminAPIKeySummaryFromService(k *service.APIKey) *AdminAPIKeySummary {
 		UserID:             k.UserID,
 		Name:               k.Name,
 		GroupID:            k.GroupID,
+		RoutingMode:        k.EffectiveRoutingMode(),
 		Status:             k.Status,
 		HasIPWhitelist:     len(k.IPWhitelist) > 0,
 		IPWhitelistSize:    len(k.IPWhitelist),

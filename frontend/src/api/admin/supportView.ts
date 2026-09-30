@@ -1,5 +1,5 @@
 import { apiClient } from '../client'
-import type { Group, PaginatedResponse } from '@/types'
+import type { ApiKeyRoutingMode, Group, PaginatedResponse } from '@/types'
 import type { UserSubscription } from '@/types'
 import type { UserAvailableChannel } from '@/api/channels'
 import type { UserMonitorDetail, UserMonitorView } from '@/api/channelMonitor'
@@ -28,6 +28,7 @@ export interface AdminSupportAPIKey {
   user_id: number
   name: string
   group_id: number | null
+  routing_mode?: ApiKeyRoutingMode
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   has_ip_whitelist: boolean
   ip_whitelist_size: number
