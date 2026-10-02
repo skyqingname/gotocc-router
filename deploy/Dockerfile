@@ -86,7 +86,7 @@ FROM ${ALPINE_IMAGE}
 # Labels
 LABEL maintainer="LuckyKuang <https://github.com/luckykuang>"
 LABEL description="Sub2API Plus - AI API Gateway Platform"
-LABEL org.opencontainers.image.source="https://github.com/luckykuang/sub2api-plus"
+LABEL org.opencontainers.image.source="https://github.com/skyqingname/gotocc-router"
 LABEL org.opencontainers.image.licenses="LGPL-3.0-or-later"
 
 # Install runtime dependencies

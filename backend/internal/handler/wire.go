@@ -27,6 +27,7 @@ func ProvideAdminHandlers(
 	proxyHandler *admin.ProxyHandler,
 	redeemHandler *admin.RedeemHandler,
 	promoHandler *admin.PromoHandler,
+	reusableInvitationCodeHandler *admin.ReusableInvitationCodeHandler,
 	settingHandler *admin.SettingHandler,
 	opsHandler *admin.OpsHandler,
 	systemHandler *admin.SystemHandler,
@@ -48,6 +49,7 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	ipAccessControlHandler *admin.IPAccessControlHandler,
+	teamHandler *admin.TeamHandler,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	usageAlert *service.UsageAlertService,
 	opencodeGoUsage *service.OpenCodeGoUsageService,
@@ -74,6 +76,7 @@ func ProvideAdminHandlers(
 		Proxy:                  proxyHandler,
 		Redeem:                 redeemHandler,
 		Promo:                  promoHandler,
+		ReusableInvitationCode: reusableInvitationCodeHandler,
 		Setting:                settingHandler,
 		Ops:                    opsHandler,
 		System:                 systemHandler,
@@ -95,14 +98,16 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		AuditLog:               auditLogHandler,
 		IPAccessControl:        ipAccessControlHandler,
+		Team:                   teamHandler,
 	}
 }
 
 // ProvideAuthHandler keeps the stable constructor used throughout handler
 // tests while attaching the global login-failure policy in production wiring.
-func ProvideAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService, ipAccessControl *service.IPAccessControlService) *AuthHandler {
+func ProvideAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService, ipAccessControl *service.IPAccessControlService, reusableInvitationRepo service.ReusableInvitationCodeRepository) *AuthHandler {
 	h := NewAuthHandler(cfg, authService, userService, settingService, promoService, redeemService, totpService, userAttributeService)
 	h.SetIPAccessControlService(ipAccessControl)
+	h.SetReusableInvitationCodeRepository(reusableInvitationRepo)
 	return h
 }
 
@@ -132,6 +137,7 @@ func ProvideAdminUsageHandler(usageService *service.UsageService, apiKeyService 
 }
 
 func ProvideGatewayHandler(
+	autoGroupResolver *service.AutoGroupResolver,
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
 	geminiCompatService *service.GeminiMessagesCompatService,
@@ -154,11 +160,14 @@ func ProvideGatewayHandler(
 		userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool,
 		errorPassthroughService, contentModerationService, userMsgQueueService, cfg, settingService)
 	h.securityAuditCoordinator = coordinator
+	h.autoGroupResolver = autoGroupResolver
 	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h
 }
 
 func ProvideOpenAIGatewayHandler(
+	resellerService *service.ResellerService,
+	autoGroupResolver *service.AutoGroupResolver,
 	gatewayService *service.OpenAIGatewayService,
 	pluginManager *service.PluginManager,
 	concurrencyService *service.ConcurrencyService,
@@ -180,7 +189,9 @@ func ProvideOpenAIGatewayHandler(
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.compositeResolver = compositeResolver
 	h.securityAuditCoordinator = coordinator
+	h.resellerService = resellerService
 	h.grokMediaEligibilityProber = grokQuotaService
+	h.autoGroupResolver = autoGroupResolver
 	h.SetIPAccessControlService(ipAccessControl)
 	h.SetClientDisconnectRiskService(clientDisconnectRisk)
 	return h
@@ -230,6 +241,8 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
+	agentHandler *AgentHandler,
+	resellerHandler *ResellerHandler,
 	authHandler *AuthHandler,
 	userHandler *UserHandler,
 	apiKeyHandler *APIKeyHandler,
@@ -240,6 +253,7 @@ func ProvideHandlers(
 	channelMonitorUserHandler *ChannelMonitorUserHandler,
 	channelMonitorV2Handler *ChannelMonitorV2Handler,
 	channelMonitorV3Handler *ChannelMonitorV3Handler,
+	marketplaceStatsHandler *MarketplaceStatsHandler,
 	adminHandlers *AdminHandlers,
 	gatewayHandler *GatewayHandler,
 	openaiGatewayHandler *OpenAIGatewayHandler,
@@ -252,11 +266,14 @@ func ProvideHandlers(
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	teamHandler *TeamHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
 	return &Handlers{
+		Agent:            agentHandler,
+		Reseller:         resellerHandler,
 		Auth:             authHandler,
 		User:             userHandler,
 		APIKey:           apiKeyHandler,
@@ -267,6 +284,7 @@ func ProvideHandlers(
 		ChannelMonitor:   channelMonitorUserHandler,
 		ChannelMonitorV2: channelMonitorV2Handler,
 		ChannelMonitorV3: channelMonitorV3Handler,
+		MarketplaceStats: marketplaceStatsHandler,
 		Admin:            adminHandlers,
 		Gateway:          gatewayHandler,
 		OpenAIGateway:    openaiGatewayHandler,
@@ -279,11 +297,14 @@ func ProvideHandlers(
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Team:             teamHandler,
 	}
 }
 
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
+	NewAgentHandler,
+	NewResellerHandler,
 	// Top-level handlers
 	ProvideAuthHandler,
 	NewUserHandler,
@@ -295,6 +316,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelMonitorUserHandler,
 	NewChannelMonitorV2Handler,
 	NewChannelMonitorV3Handler,
+	NewMarketplaceStatsHandler,
 	ProvideGatewayHandler,
 	ProvideOpenAIGatewayHandler,
 	NewTotpHandler,
@@ -306,6 +328,7 @@ var ProviderSet = wire.NewSet(
 	NewModelPlazaHandler,
 	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
+	NewTeamHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -324,6 +347,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewProxyHandler,
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
+	admin.NewReusableInvitationCodeHandler,
 	ProvideAdminSettingHandler,
 	ProvideOpsHandler,
 	ProvideSystemHandler,
@@ -344,6 +368,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewAuditLogHandler,
 	admin.NewIPAccessControlHandler,
+	admin.NewTeamHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

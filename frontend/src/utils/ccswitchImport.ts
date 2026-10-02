@@ -1,6 +1,7 @@
 import type { GroupPlatform } from '@/types'
+import clientAccessDefaults from '../../../client-access-defaults.json'
 
-export const OPENAI_CC_SWITCH_CODEX_MODEL = 'gpt-5.5'
+export const OPENAI_CC_SWITCH_CODEX_MODEL = clientAccessDefaults.openai_model
 export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
 
 export type CcSwitchClientType = 'claude' | 'gemini'

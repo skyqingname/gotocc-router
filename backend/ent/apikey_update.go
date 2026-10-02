@@ -15,6 +15,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/apikey"
 	"github.com/LuckyKuang/sub2api-plus/ent/group"
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
+	"github.com/LuckyKuang/sub2api-plus/ent/team"
 	"github.com/LuckyKuang/sub2api-plus/ent/usagelog"
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 )
@@ -72,6 +73,40 @@ func (_u *APIKeyUpdate) SetNillableUserID(v *int64) *APIKeyUpdate {
 	return _u
 }
 
+// SetTeamID sets the "team_id" field.
+func (_u *APIKeyUpdate) SetTeamID(v int64) *APIKeyUpdate {
+	_u.mutation.SetTeamID(v)
+	return _u
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableTeamID(v *int64) *APIKeyUpdate {
+	if v != nil {
+		_u.SetTeamID(*v)
+	}
+	return _u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (_u *APIKeyUpdate) ClearTeamID() *APIKeyUpdate {
+	_u.mutation.ClearTeamID()
+	return _u
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (_u *APIKeyUpdate) SetTeamOwnerDisabled(v bool) *APIKeyUpdate {
+	_u.mutation.SetTeamOwnerDisabled(v)
+	return _u
+}
+
+// SetNillableTeamOwnerDisabled sets the "team_owner_disabled" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableTeamOwnerDisabled(v *bool) *APIKeyUpdate {
+	if v != nil {
+		_u.SetTeamOwnerDisabled(*v)
+	}
+	return _u
+}
+
 // SetKey sets the "key" field.
 func (_u *APIKeyUpdate) SetKey(v string) *APIKeyUpdate {
 	_u.mutation.SetKey(v)
@@ -117,6 +152,20 @@ func (_u *APIKeyUpdate) SetNillableGroupID(v *int64) *APIKeyUpdate {
 // ClearGroupID clears the value of the "group_id" field.
 func (_u *APIKeyUpdate) ClearGroupID() *APIKeyUpdate {
 	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (_u *APIKeyUpdate) SetRoutingMode(v string) *APIKeyUpdate {
+	_u.mutation.SetRoutingMode(v)
+	return _u
+}
+
+// SetNillableRoutingMode sets the "routing_mode" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableRoutingMode(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetRoutingMode(*v)
+	}
 	return _u
 }
 
@@ -463,6 +512,11 @@ func (_u *APIKeyUpdate) AddUsageLogs(v ...*UsageLog) *APIKeyUpdate {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetTeam sets the "team" edge to the Team entity.
+func (_u *APIKeyUpdate) SetTeam(v *Team) *APIKeyUpdate {
+	return _u.SetTeamID(v.ID)
+}
+
 // Mutation returns the APIKeyMutation object of the builder.
 func (_u *APIKeyUpdate) Mutation() *APIKeyMutation {
 	return _u.mutation
@@ -499,6 +553,12 @@ func (_u *APIKeyUpdate) RemoveUsageLogs(v ...*UsageLog) *APIKeyUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearTeam clears the "team" edge to the Team entity.
+func (_u *APIKeyUpdate) ClearTeam() *APIKeyUpdate {
+	_u.mutation.ClearTeam()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -555,6 +615,11 @@ func (_u *APIKeyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RoutingMode(); ok {
+		if err := apikey.RoutingModeValidator(v); err != nil {
+			return &ValidationError{Name: "routing_mode", err: fmt.Errorf(`ent: validator failed for field "APIKey.routing_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -587,11 +652,17 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(apikey.FieldDeletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.TeamOwnerDisabled(); ok {
+		_spec.SetField(apikey.FieldTeamOwnerDisabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RoutingMode(); ok {
+		_spec.SetField(apikey.FieldRoutingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -799,6 +870,35 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.TeamCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.TeamTable,
+			Columns: []string{apikey.TeamColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(team.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TeamIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.TeamTable,
+			Columns: []string{apikey.TeamColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(team.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{apikey.Label}
@@ -859,6 +959,40 @@ func (_u *APIKeyUpdateOne) SetNillableUserID(v *int64) *APIKeyUpdateOne {
 	return _u
 }
 
+// SetTeamID sets the "team_id" field.
+func (_u *APIKeyUpdateOne) SetTeamID(v int64) *APIKeyUpdateOne {
+	_u.mutation.SetTeamID(v)
+	return _u
+}
+
+// SetNillableTeamID sets the "team_id" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableTeamID(v *int64) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetTeamID(*v)
+	}
+	return _u
+}
+
+// ClearTeamID clears the value of the "team_id" field.
+func (_u *APIKeyUpdateOne) ClearTeamID() *APIKeyUpdateOne {
+	_u.mutation.ClearTeamID()
+	return _u
+}
+
+// SetTeamOwnerDisabled sets the "team_owner_disabled" field.
+func (_u *APIKeyUpdateOne) SetTeamOwnerDisabled(v bool) *APIKeyUpdateOne {
+	_u.mutation.SetTeamOwnerDisabled(v)
+	return _u
+}
+
+// SetNillableTeamOwnerDisabled sets the "team_owner_disabled" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableTeamOwnerDisabled(v *bool) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetTeamOwnerDisabled(*v)
+	}
+	return _u
+}
+
 // SetKey sets the "key" field.
 func (_u *APIKeyUpdateOne) SetKey(v string) *APIKeyUpdateOne {
 	_u.mutation.SetKey(v)
@@ -904,6 +1038,20 @@ func (_u *APIKeyUpdateOne) SetNillableGroupID(v *int64) *APIKeyUpdateOne {
 // ClearGroupID clears the value of the "group_id" field.
 func (_u *APIKeyUpdateOne) ClearGroupID() *APIKeyUpdateOne {
 	_u.mutation.ClearGroupID()
+	return _u
+}
+
+// SetRoutingMode sets the "routing_mode" field.
+func (_u *APIKeyUpdateOne) SetRoutingMode(v string) *APIKeyUpdateOne {
+	_u.mutation.SetRoutingMode(v)
+	return _u
+}
+
+// SetNillableRoutingMode sets the "routing_mode" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableRoutingMode(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetRoutingMode(*v)
+	}
 	return _u
 }
 
@@ -1250,6 +1398,11 @@ func (_u *APIKeyUpdateOne) AddUsageLogs(v ...*UsageLog) *APIKeyUpdateOne {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetTeam sets the "team" edge to the Team entity.
+func (_u *APIKeyUpdateOne) SetTeam(v *Team) *APIKeyUpdateOne {
+	return _u.SetTeamID(v.ID)
+}
+
 // Mutation returns the APIKeyMutation object of the builder.
 func (_u *APIKeyUpdateOne) Mutation() *APIKeyMutation {
 	return _u.mutation
@@ -1286,6 +1439,12 @@ func (_u *APIKeyUpdateOne) RemoveUsageLogs(v ...*UsageLog) *APIKeyUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearTeam clears the "team" edge to the Team entity.
+func (_u *APIKeyUpdateOne) ClearTeam() *APIKeyUpdateOne {
+	_u.mutation.ClearTeam()
+	return _u
 }
 
 // Where appends a list predicates to the APIKeyUpdate builder.
@@ -1355,6 +1514,11 @@ func (_u *APIKeyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RoutingMode(); ok {
+		if err := apikey.RoutingModeValidator(v); err != nil {
+			return &ValidationError{Name: "routing_mode", err: fmt.Errorf(`ent: validator failed for field "APIKey.routing_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -1404,11 +1568,17 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(apikey.FieldDeletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.TeamOwnerDisabled(); ok {
+		_spec.SetField(apikey.FieldTeamOwnerDisabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(apikey.FieldKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RoutingMode(); ok {
+		_spec.SetField(apikey.FieldRoutingMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -1609,6 +1779,35 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TeamCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.TeamTable,
+			Columns: []string{apikey.TeamColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(team.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TeamIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   apikey.TeamTable,
+			Columns: []string{apikey.TeamColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(team.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

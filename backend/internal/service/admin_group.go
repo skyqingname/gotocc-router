@@ -278,6 +278,8 @@ func compositeRouteFromInput(groupID int64, input CompositeRouteInput) (*Composi
 
 func defaultModelsListCandidateIDs(platform string) []string {
 	switch platform {
+	case PlatformVideo:
+		return []string{}
 	case PlatformOpenAI:
 		return openai.DefaultModelIDs()
 	case PlatformGemini:
@@ -333,7 +335,7 @@ func canCopyAccountsFromGroupPlatform(targetPlatform, sourcePlatform string) boo
 	if targetPlatform == PlatformComposite {
 		return sourcePlatform == PlatformComposite || isConcreteRequestPlatform(sourcePlatform)
 	}
-	return sourcePlatform == targetPlatform
+	return sourcePlatform == targetPlatform || (targetPlatform == PlatformVideo && sourcePlatform == PlatformOpenAI)
 }
 
 func groupSupportsOAuthOnlyFilter(platform string) bool {
@@ -429,6 +431,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
+	if err := validateGroupVideoModels(platform, input.VideoModels); err != nil {
+		return nil, err
+	}
 	// 固定账号 manifest 配置：账号绑定发生在创建之后，创建时无法校验成员关系，
 	// 拒绝开启并在创建后的编辑里配置。
 	if normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig).Enabled {
@@ -523,6 +528,11 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	peakRateEnabled, peakStart, peakEnd, peakRateMultiplier := NormalizePeakRateConfig(subscriptionType, input.PeakRateEnabled, input.PeakStart, input.PeakEnd, peakRateMultiplier)
 	if err := ValidatePeakRateConfig(subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
+	}
+
+	rateSchedule, err := normalizeGroupRateSchedule(input.RateSchedule, subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier)
+	if err != nil {
+		return nil, err
 	}
 
 	profitMinMargin := 0.0
@@ -633,6 +643,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		PeakStart:                       peakStart,
 		PeakEnd:                         peakEnd,
 		PeakRateMultiplier:              peakRateMultiplier,
+		RateSchedule:                    rateSchedule,
 		ProfitControlEnabled:            profitControlEnabled,
 		ProfitMinMargin:                 profitMinMargin,
 		ProfitSafetyBuffer:              profitSafetyBuffer,
@@ -643,6 +654,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		VideoPrice720P:                  videoPrice720P,
 		VideoPrice1080P:                 videoPrice1080P,
 		VideoModelPrices:                NormalizeVideoModelPrices(input.VideoModelPrices),
+		VideoModels:                     input.VideoModels.Clone(),
 		WebSearchPricePerCall:           webSearchPricePerCall,
 		SearchPricePer1k:                searchPricePer1k,
 		AudioRealtimePricePerMin:        audioRealtimePricePerMin,
@@ -824,6 +836,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.Platform != "" {
 		group.Platform = input.Platform
 	}
+	if input.VideoModels != nil {
+		if err := validateGroupVideoModels(group.Platform, input.VideoModels); err != nil {
+			return nil, err
+		}
+		group.VideoModels = input.VideoModels.Clone()
+	}
 	if input.RateMultiplier != nil {
 		if *input.RateMultiplier <= 0 {
 			return nil, errors.New("rate_multiplier must be > 0")
@@ -988,6 +1006,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err := ValidatePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
+	if input.RateSchedule != nil || input.PeakRateEnabled != nil || input.PeakStart != nil || input.PeakEnd != nil || input.PeakRateMultiplier != nil {
+		group.RateSchedule, err = normalizeGroupRateSchedule(input.RateSchedule, group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if input.ProfitControlEnabled != nil {
 		group.ProfitControlEnabled = *input.ProfitControlEnabled
 	}
@@ -1440,18 +1465,47 @@ func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []
 // AdminUpdateAPIKeyGroupID 管理员修改 API Key 分组绑定
 // groupID: nil=不修改, 指向0=解绑, 指向正整数=绑定到目标分组
 func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	return s.AdminUpdateAPIKeyRouting(ctx, keyID, APIKeyRoutingUpdate{GroupID: groupID, GroupIDSet: groupID != nil})
+}
+
+func (s *adminServiceImpl) AdminUpdateAPIKeyRouting(ctx context.Context, keyID int64, input APIKeyRoutingUpdate) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	groupID := input.GroupID
+	validationGroupID := groupID
+	if groupID != nil && *groupID == 0 && (input.RoutingMode == nil || *input.RoutingMode == APIKeyRoutingFixed) {
+		validationGroupID = nil
+	}
+	if err := ValidateAPIKeyRoutingInput(input.RoutingMode, input.RoutingMode != nil, validationGroupID); err != nil {
+		return nil, err
+	}
+	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingAuto &&
+		s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.RunMode == config.RunModeSimple {
+		return nil, infraerrors.Forbidden("AUTO_ROUTING_UNSUPPORTED_RUN_MODE", "automatic routing requires standard run mode")
+	}
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
 		return nil, err
 	}
 
-	if groupID == nil {
+	if input.RoutingMode == nil && groupID == nil {
 		// nil 表示不修改，直接返回
 		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
 	}
-
-	if *groupID < 0 {
-		return nil, infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative")
+	if apiKey.IsAutoRouting() && input.RoutingMode == nil && groupID != nil && *groupID > 0 {
+		return nil, infraerrors.BadRequest("ROUTING_MODE_CONFLICT", "select fixed routing before assigning a group")
+	}
+	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingFixed && groupID == nil && !input.GroupIDSet {
+		if apiKey.IsAutoRouting() {
+			return nil, infraerrors.BadRequest("ROUTING_GROUP_REQUIRED", "specify a group or explicitly unassign this key")
+		}
+		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
+	}
+	apiKey.RoutingMode = APIKeyRoutingFixed
+	if input.RoutingMode != nil {
+		apiKey.RoutingMode = *input.RoutingMode
+	}
+	if apiKey.IsAutoRouting() || groupID == nil {
+		unassigned := int64(0)
+		groupID = &unassigned
 	}
 
 	result := &AdminUpdateAPIKeyGroupIDResult{}
@@ -1505,7 +1559,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 			if addErr := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, gid); addErr != nil {
 				return nil, fmt.Errorf("add group to user allowed groups: %w", addErr)
 			}
-			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
 				return nil, fmt.Errorf("update api key: %w", err)
 			}
 			if tx != nil {
@@ -1529,7 +1583,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	}
 
 	// 非专属分组 / 解绑：无需事务，单步更新即可
-	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true}); err != nil {
+	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
 		return nil, fmt.Errorf("update api key: %w", err)
 	}
 

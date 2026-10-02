@@ -621,6 +621,9 @@
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
 
+              <button type="button" @click="resellerUser = row" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700">
+                <Icon name="users" size="sm" /><span class="text-xs">{{ t('nav.reseller') }}</span>
+              </button>
               <!-- Toggle Status Button (not for admin) -->
               <button
                 v-if="row.role !== 'admin'"
@@ -769,6 +772,7 @@
       @cancel="bulkDeleteIds = []"
     />
     <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
+    <ResellerSettingsModal :show="!!resellerUser" :user="resellerUser" @close="resellerUser = null" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
     <BulkEditUserModal
       :show="showBulkEditModal"
@@ -822,6 +826,7 @@ import PlatformUsageBreakdown from '@/components/user/PlatformUsageBreakdown.vue
 import PlatformCostCell from '@/components/user/PlatformCostCell.vue'
 import UserPlatformQuotaCell from '@/components/user/UserPlatformQuotaCell.vue'
 import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
+import ResellerSettingsModal from '@/components/admin/user/ResellerSettingsModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import BulkEditUserModal from '@/components/admin/user/BulkEditUserModal.vue'
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
@@ -1349,6 +1354,7 @@ const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
 const editingUser = ref<AdminUser | null>(null)
+const resellerUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
 const platformQuotaUser = ref<AdminUser | null>(null)

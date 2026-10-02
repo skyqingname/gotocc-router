@@ -23,7 +23,9 @@ if str(TOOLS) not in sys.path:
 import release_validation
 
 DEFAULT_REMOTE = "origin"
-EXPECTED_REPOSITORY = "LuckyKuang/sub2api-plus"
+EXPECTED_REPOSITORY = json.loads(
+    (ROOT / "release-channel.json").read_text(encoding="utf-8")
+)["release_repository"]
 LOCAL_VALIDATION_CONTEXT = "sub2api/local-validation"
 FULL_PROFILE = "full"
 FINALIZATION_PROFILE = "release-finalization"

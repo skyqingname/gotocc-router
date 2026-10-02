@@ -9,7 +9,7 @@ import (
 )
 
 func TestContentModerationInputContentMigrationAddsScanWindowText(t *testing.T) {
-	sql, err := FS.ReadFile("250_content_moderation_input_content.sql")
+	sql, err := FS.ReadFile("252_content_moderation_input_content.sql")
 	require.NoError(t, err)
 	text := string(sql)
 	require.Contains(t, text, "input_content")

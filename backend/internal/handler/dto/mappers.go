@@ -84,9 +84,13 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 	out := &APIKey{
 		ID:                 k.ID,
 		UserID:             k.UserID,
+		TeamID:             k.TeamID,
+		Scope:              apiKeyScope(k),
+		TeamOwnerDisabled:  k.TeamOwnerDisabled,
 		Key:                k.Key,
 		Name:               k.Name,
 		GroupID:            k.GroupID,
+		RoutingMode:        k.EffectiveRoutingMode(),
 		Status:             k.Status,
 		IPWhitelist:        k.IPWhitelist,
 		IPBlacklist:        k.IPBlacklist,
@@ -125,6 +129,21 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 	return out
 }
 
+func APIKeyFromServiceForUser(k *service.APIKey) *APIKey {
+	out := APIKeyFromService(k)
+	if out != nil {
+		out.User = nil
+	}
+	return out
+}
+
+func apiKeyScope(k *service.APIKey) string {
+	if k != nil && k.TeamID != nil {
+		return "team"
+	}
+	return "personal"
+}
+
 func GroupFromServiceShallow(g *service.Group) *Group {
 	if g == nil {
 		return nil
@@ -147,6 +166,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		return nil
 	}
 	out := &AdminGroup{
+		VideoModels:                 g.VideoModels.Clone(),
 		Group:                       groupFromServiceBase(g),
 		QuotaResetSourceAccountID:   g.QuotaResetSourceAccountID,
 		QuotaResetSourceAccountName: g.QuotaResetSourceAccountName,
@@ -222,6 +242,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		PeakStart:                       g.PeakStart,
 		PeakEnd:                         g.PeakEnd,
 		PeakRateMultiplier:              g.PeakRateMultiplier,
+		RateSchedule:                    g.RateSchedule,
 		ImagePrice1K:                    g.ImagePrice1K,
 		ImagePrice2K:                    g.ImagePrice2K,
 		ImagePrice4K:                    g.ImagePrice4K,

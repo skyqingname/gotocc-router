@@ -299,6 +299,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CyberPolicyUserAllowlist:                               settings.CyberPolicyUserAllowlist,
 		CyberSessionBlockTTLSeconds:                            settings.CyberSessionBlockTTLSeconds,
 		AffiliateRebateRate:                                    settings.AffiliateRebateRate,
+		AffiliateRebateRateL2:                                  settings.AffiliateRebateRateL2,
+		AffiliateRebateRateL3:                                  settings.AffiliateRebateRateL3,
 		AffiliateRebateFreezeHours:                             settings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:                            settings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           settings.AffiliateRebatePerInviteeCap,

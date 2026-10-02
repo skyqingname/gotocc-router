@@ -404,3 +404,16 @@ Structured logs for this feature carry `component`, `stage`
 `error_code` / `warning_code`, and the catalog version and model count. They
 never log caller fields beyond the requested model name, credentials, or
 request bodies.
+
+## GoToCC upgrade compatibility
+
+Owned migration 283 already created the generic reasoning maps. Before upstream
+271 (renumbered 285), migration 284 carries explicit legacy channel/group max
+values into the map when max is absent, matching the previous owned runtime.
+An existing map max wins. The editor and billing paths then use the upstream
+generic map; no legacy scalar is multiplied a second time.
+
+GPT-6.1 Sol reference and default billing prices come from the generated bundled
+catalog, maintained in `model-pricing-defaults.json` and verified on 2026-09-30.
+The entry explicitly prefers its bundled price over a stale remote catalog.
+Group and channel prices retain their normal precedence.

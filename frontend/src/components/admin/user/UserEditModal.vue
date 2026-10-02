@@ -29,6 +29,7 @@
         <label class="input-label">{{ t('admin.users.username') }}</label>
         <input v-model="form.username" type="text" class="input" />
       </div>
+      <UserInviterEditor :user-id="user.id" :active="show" :disabled="submitting" v-model:change="inviterChange" @validity="inviterReady = $event" />
       <div>
         <label class="input-label">{{ t('admin.users.form.roleLabel') }}</label>
         <Select
@@ -71,7 +72,7 @@
     <template #footer>
       <div class="flex justify-end gap-3">
         <button @click="$emit('close')" type="button" class="btn btn-secondary">{{ t('common.cancel') }}</button>
-        <button type="submit" form="edit-user-form" :disabled="submitting" class="btn btn-primary">
+        <button type="submit" form="edit-user-form" :disabled="submitting || !inviterReady" class="btn btn-primary">
           {{ submitting ? t('admin.users.updating') : t('common.update') }}
         </button>
       </div>
@@ -95,12 +96,16 @@ import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useStepUp, isStepUpBlocked, isStepUpCancelled, stepUpBlockReason } from '@/composables/useStepUp'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
+import UserInviterEditor from './UserInviterEditor.vue'
+import type { AffiliateInviterChange } from '@/api/admin/affiliates'
 
 const props = defineProps<{ show: boolean, user: AdminUser | null }>()
 const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
+const inviterChange = ref<AffiliateInviterChange | null>(null)
+const inviterReady = ref(true)
 const roleOptions = computed(() => [
   { value: 'user', label: t('admin.users.roles.user') },
   { value: 'admin', label: t('admin.users.roles.admin') }
@@ -136,7 +141,7 @@ const copyPassword = async () => {
 const stepUp = useStepUp()
 
 const handleUpdateUser = async () => {
-  if (!props.user) return
+  if (!props.user || !inviterReady.value) return
   if (!form.email.trim()) {
     appStore.showError(t('admin.users.emailRequired'))
     return
@@ -151,6 +156,7 @@ const handleUpdateUser = async () => {
   try {
     const data: any = { email: form.email, username: form.username, notes: form.notes, role: form.role, concurrency: form.concurrency, rpm_limit: form.rpm_limit }
     if (form.password.trim()) data.password = form.password.trim()
+    if (inviterChange.value) data.inviter_change = inviterChange.value
     // 提升为管理员属敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 验证并重试
     await stepUp.run(() => adminAPI.users.update(userId, data))
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(userId, form.customAttributes)

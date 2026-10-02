@@ -1,44 +1,23 @@
-Sub2API Plus v0.2.11+custom.002
+# GoToCC 0.2.9+custom.002
 
-## Highlights
+基于 Sub2API Plus `v0.2.9+custom.001`（`53f73bf1619b9c35207b6a94c8720a673fa21bb1`），对应官方 Sub2API `v0.2.9`。保留全部 active GoToCC 契约及自有更新通道。
 
-- Add administrator read-only user assistance: the ordinary user pages, menus, feature gates and GET handlers are reused for the selected user, every assisted read writes an `admin.support.read` audit entry, and all mutations plus image submission, redemption and authentication binding stay disabled.
-- Add the request-driven Channel Monitor V3 service status mode. It derives authorized platform and incident states from real user request outcomes in `usage_logs` and `ops_error_logs`, sends no probes, and leaves the existing V1 probe and V2 aggregation modes and their saved history untouched.
-- Add the authorized available-channel model catalog: models are aggregated per platform and model ID with effective price ranges and per-group quote details, including context, media, service-tier and dynamic pricing conditions, resolved through the same billing path that preserves explicit zero rates.
-- Change usage throughput to request-average TPS over total duration, excluding image and audio output tokens while keeping the first-token, total-duration and TPS labels and explaining unavailable or incomplete results.
-- Restore integrated searchable, checkbox and rich-option dropdown controls while keeping native selects for plain choices, and repair monitor mode switching, saved-setting synchronization and support-page key status translations.
+## GPT-6.1 Sol 默认计费
 
-## Changed
+按 2026-09-30 核实的 [OpenAI 官方模型价格](https://developers.openai.com/api/docs/models/gpt-6.1-sol)，`gpt-6.1-sol` 每百万 token 标准价为：输入 $2、缓存读取 $0.10、缓存写入 $2.50、输出 $10。超过 272K 输入 token 后，整次请求的输入与缓存价格乘 2，输出价格乘 1.5。Fast 为标准价 2 倍；Flex/Batch 目录价为标准价一半，实际使用范围遵循既有端点和服务档支持。
 
-- `GET /api/v1/channels/available` keeps its legacy channel array; `view=catalog` selects the new grouped catalog under the same authentication, feature gate and success envelope.
-- Channel monitor keeps V1, V2 and V3 as separate pages with independent configuration; the saved mode is reloaded on entry, on focus and on visibility change, and V1/V2 user visibility and authorization are preserved.
-- Administrator assistance reads are registered explicitly as GET routes under `/api/v1/admin/support/users/:user_id`. Assisted keys, profile, usage, subscriptions, payments, redeem history, images and monitors reuse the user handlers and DTOs.
-- The assisted `/usage/dashboard/api-keys-usage` read uses GET query parameters instead of a business POST, and continued ownership checks for the target user's keys.
-- Locale validation now also checks dynamic API enum values and interpolated UI labels for both shipped locales.
+价格由根目录 `model-pricing-defaults.json` 生成到随版目录，新模型显式采用随版官方价，覆盖远端目录可能保留的旧值。分组与渠道显式价格优先，旧 GPT-6 Sol 价格不变。没有新增付费调用、修改账号、分组或渠道配置。
 
-## Fixed
+## 上游升级
 
-- Restore missing API key status translations and previously untranslated user-page labels.
-- Stop stale cached public settings from overwriting the just-saved monitor mode, restore the original V1/V2/V3 mode buttons, and fix key-group layout, monitor status labels and Escape handling.
-- Preserve the administrator's own JWT, refresh token and persisted login profile while assisting a user, and keep internal authentication material out of assisted responses.
+引入渠道按平台同步参考价、切换模型后清除旧价、通配模型白名单、协议与工具参数转换、流式终态、账号配额重置与统计修复。图片渠道未填写的输入/输出价继承目录价，显式 0 仍表示免费。断线保留已发送的 HTTP 状态与独立结算；尚未发送响应的真实客户端取消按上游 499 处理。
 
-## Compatibility and migration
+团队及智能 Key 归属、统一邀请码与三代返佣、点击立即成为代理、Video 协议与终态计费、图片永久对象、提示词审核、分组时段倍率和站长差价继续保留。
 
-Apply SQL migration `272_channel_monitor_v3.sql` before starting the new image. It only creates the `channel_monitor_v3_config`, `channel_monitor_v3_facts`, `channel_monitor_v3_states`, `channel_monitor_v3_incidents` and `channel_monitor_v3_watermark` tables plus their indexes, and is safe for an existing database; no existing table, column or row is modified. Back up persistent data before upgrading.
+## 数据与回退
 
-The channel monitor feature keeps its previous default mode, so an upgrade does not change monitoring behavior by itself. Selecting V3 is an explicit operator action; V3 does not backfill history from periods when it was disabled, and incident silence never resolves an incident.
+历史 283 及以前迁移保持不变。新增 284 将旧渠道/分组显式 Max 推理倍率迁到通用推理倍率 map，已有 map 的 max 值优先；285 是上游 271 的原 SQL 顺延，完成通用倍率列及旧分组字段转换。仅更新价格配置结构，不回填历史费用或余额；升级前保留数据库备份，保持单 writer。涉及配置行锁、JSON 扫描和 WAL，现有列的 ADD IF NOT EXISTS 不重建全表。
 
-Usage tables and exports still read the same stored timestamps, but the throughput column is now a request-average TPS over total duration. Numbers therefore change after the upgrade for the same historical rows; image and audio output tokens no longer count toward it. No stored usage data is rewritten.
+迁移或新业务写入后不以只回滚二进制或旧 dump 覆盖当前数据作为回退；优先前向修复。包、资源、迁移与配置须作为同一版本处理。
 
-Assisted administrator reads are read-only by design: editing dialogs open for inspection with disabled submits, and no endpoint accepts an assisted write. Other gateway, user and administrator APIs, the security-audit boundary and compiled outbound identity fingerprints are unchanged.
-
-## Known issues
-
-Channel Monitor V3 only shows terminal outcomes of real requests, so a group without recent traffic, and every model below the configured minimum sample count, remains unknown rather than healthy. Requests whose final outcome was not recorded with a shared request ID are counted per log row instead of being deduplicated.
-
-Completing an assisted read of external embedded sites does not create a user session or forward the administrator's JWT, so those sites keep their own external login state. Assisted images are downloaded with the target user's key ownership checks and are not marked as downloaded.
-
-## Upstream baseline
-
-Official release: v0.2.11
-Official commit: 96f4c115c9749078f90cbf210a01d39baf3f53b6
+本包用于本地人工验收，尚未发布或部署生产；用户验收并要求发布后，上传此目录中的同一包，生产由用户在自有更新通道操作。

@@ -167,7 +167,7 @@
 
                 <a
                   v-if="view.isAdmin"
-                  href="https://github.com/luckykuang/sub2api-plus"
+                  href="https://github.com/skyqingname/gotocc-router"
                   target="_blank"
                   rel="noopener noreferrer"
                   @click="closeDropdown"

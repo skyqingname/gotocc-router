@@ -3,8 +3,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -16,6 +19,7 @@ type GroupCodexModelsManifestConfig = domain.GroupCodexModelsManifestConfig
 type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
+	requestRates   *sync.Map
 	ID             int64
 	Name           string
 	Description    string
@@ -27,6 +31,7 @@ type Group struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
+	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 	Status             string
 	Hydrated           bool // indicates the group was loaded from a trusted repository source
@@ -68,6 +73,7 @@ type Group struct {
 	// (groups.video_model_prices JSONB). Shape: family → resolution → USD/s.
 	// When set for a model, overrides VideoPrice* for that model only.
 	VideoModelPrices map[string]map[string]float64
+	VideoModels      videoprotocol.Models
 	// Codex alpha/search 网页搜索单次价格（USD/次，仅 openai 平台使用）；
 	// nil 表示使用默认价 defaultWebSearchPricePerCall（官方 $10/1000 次）。
 	WebSearchPricePerCall *float64
@@ -330,6 +336,34 @@ func parseMinutes(hhmm string) (int, bool) {
 //
 // 该方法是纯函数，不读取任何外部状态，便于单测。
 func (g *Group) PeakMultiplierAt(now time.Time) float64 {
+	if snapshot, ok := g.requestRateAt(now); ok {
+		return snapshot.Factor
+	}
+	if g != nil && g.RateSchedule.Rules != nil {
+		if !g.RateSchedule.Enabled {
+			return 1
+		}
+		location := timezone.Location()
+		if g.RateSchedule.Timezone != "" {
+			location, _ = time.LoadLocation(g.RateSchedule.Timezone)
+		}
+		local := now.In(location)
+		minute := local.Hour()*60 + local.Minute()
+		for _, rule := range g.RateSchedule.Rules {
+			if !rule.Enabled {
+				continue
+			}
+			start, _ := parseMinutes(rule.Start)
+			end, _ := parseMinutes(rule.End)
+			if rule.End == "24:00" {
+				end = 1440
+			}
+			if (start < end && minute >= start && minute < end) || (start > end && (minute >= start || minute < end)) {
+				return rule.Multiplier
+			}
+		}
+		return 1
+	}
 	if g == nil || !g.IsSubscriptionType() || !g.PeakRateEnabled || g.PeakStart == "" || g.PeakEnd == "" {
 		return 1.0
 	}
@@ -408,7 +442,15 @@ func NormalizePeakRateConfig(subscriptionType string, enabled bool, start, end s
 // gateway_service.recordUsageCore 与 openai_gateway_service.RecordUsage 共用此函数，
 // 锁死"高峰因子只乘入 token 倍率、图片按次倍率不受影响"这一叠加顺序——任何调换都会被 group_peak_rate_test 覆盖。
 func computePeakAwareMultipliers(apiKey *APIKey, base float64, now time.Time) (text, image float64) {
-	image = resolveImageRateMultiplier(apiKey, base)
+	if apiKey != nil && apiKey.Group != nil {
+		if snapshot, ok := apiKey.Group.requestRateAt(now); ok {
+			base = snapshot.Base
+		}
+	}
+	image = resolveBaseImageRateMultiplier(apiKey, base)
+	if quote := apiKey.ResellerPriceAt(now); quote != nil {
+		image = quote.ImageRate
+	}
 	peak := 1.0
 	if apiKey != nil && apiKey.Group != nil {
 		peak = apiKey.Group.PeakMultiplierAt(now)

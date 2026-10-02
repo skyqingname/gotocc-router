@@ -189,6 +189,7 @@ func TestPricingNeedsFallback(t *testing.T) {
 			Intervals:   []PricingInterval{{TierLabel: "1K"}, {TierLabel: "2K"}},
 		}, true},
 		{"flat input set", &ChannelModelPricing{InputPrice: testPtrFloat64(3e-6)}, false},
+		{"flat image input set", &ChannelModelPricing{ImageInputPrice: testPtrFloat64(2e-6)}, false},
 		{"flat per_request set", &ChannelModelPricing{PerRequestPrice: testPtrFloat64(0.04)}, false},
 		{"interval with price", &ChannelModelPricing{
 			Intervals: []PricingInterval{{TierLabel: "1K", PerRequestPrice: testPtrFloat64(0.04)}},

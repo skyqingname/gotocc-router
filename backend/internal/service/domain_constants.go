@@ -24,7 +24,6 @@ const (
 
 // Affiliate rebate settings
 const (
-	AffiliateRebateRateDefault          = 20.0
 	AffiliateRebateRateMin              = 0.0
 	AffiliateRebateRateMax              = 100.0
 	AffiliateEnabledDefault             = false // 邀请返利总开关默认关闭
@@ -49,6 +48,7 @@ const (
 	PlatformDeepseek   = domain.PlatformDeepseek
 	PlatformMiniMax    = domain.PlatformMiniMax
 	PlatformOpenCodeGo = domain.PlatformOpenCodeGo
+	PlatformVideo      = domain.PlatformVideo
 	PlatformComposite  = domain.PlatformComposite
 	// PlatformKiro is retained for unsupported-platform threshold tests and legacy
 	// account rows. Scheduling-threshold evaluation never pauses kiro accounts.
@@ -232,6 +232,8 @@ const (
 	SettingKeyFrontendURL                              = "frontend_url"                     // 前端基础URL，用于生成邮件中的重置密码链接
 	SettingKeyInvitationCodeEnabled                    = "invitation_code_enabled"          // 是否开启邀请码注册
 	SettingKeyAffiliateEnabled                         = "affiliate_enabled"                // 邀请返利功能总开关
+	SettingKeyAffiliateRebateRateL2                    = "affiliate_rebate_rate_l2"
+	SettingKeyAffiliateRebateRateL3                    = "affiliate_rebate_rate_l3"
 	SettingKeyAffiliateRebateRate                      = "affiliate_rebate_rate"            // 邀请返利比例（百分比，0-100）
 	SettingKeyAffiliateRebateFreezeHours               = "affiliate_rebate_freeze_hours"    // 返利冻结期（小时，0=不冻结）
 	SettingKeyAffiliateRebateDurationDays              = "affiliate_rebate_duration_days"   // 返利有效期（天，0=永久）

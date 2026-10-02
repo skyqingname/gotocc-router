@@ -20,6 +20,8 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // GroupCreate is the builder for creating a Group entity.
@@ -158,6 +160,20 @@ func (_c *GroupCreate) SetPeakRateMultiplier(v float64) *GroupCreate {
 func (_c *GroupCreate) SetNillablePeakRateMultiplier(v *float64) *GroupCreate {
 	if v != nil {
 		_c.SetPeakRateMultiplier(*v)
+	}
+	return _c
+}
+
+// SetRateSchedule sets the "rate_schedule" field.
+func (_c *GroupCreate) SetRateSchedule(v rateschedule.Config) *GroupCreate {
+	_c.mutation.SetRateSchedule(v)
+	return _c
+}
+
+// SetNillableRateSchedule sets the "rate_schedule" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableRateSchedule(v *rateschedule.Config) *GroupCreate {
+	if v != nil {
+		_c.SetRateSchedule(*v)
 	}
 	return _c
 }
@@ -565,6 +581,12 @@ func (_c *GroupCreate) SetNillableVideoPrice1080p(v *float64) *GroupCreate {
 	if v != nil {
 		_c.SetVideoPrice1080p(*v)
 	}
+	return _c
+}
+
+// SetVideoModels sets the "video_models" field.
+func (_c *GroupCreate) SetVideoModels(v videoprotocol.Models) *GroupCreate {
+	_c.mutation.SetVideoModels(v)
 	return _c
 }
 
@@ -1215,6 +1237,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultVideoRateMultiplier
 		_c.mutation.SetVideoRateMultiplier(v)
 	}
+	if _, ok := _c.mutation.VideoModels(); !ok {
+		v := group.DefaultVideoModels
+		_c.mutation.SetVideoModels(v)
+	}
 	if _, ok := _c.mutation.LongContextPricingEnabled(); !ok {
 		v := group.DefaultLongContextPricingEnabled
 		_c.mutation.SetLongContextPricingEnabled(v)
@@ -1424,6 +1450,9 @@ func (_c *GroupCreate) check() error {
 	if _, ok := _c.mutation.VideoRateMultiplier(); !ok {
 		return &ValidationError{Name: "video_rate_multiplier", err: errors.New(`ent: missing required field "Group.video_rate_multiplier"`)}
 	}
+	if _, ok := _c.mutation.VideoModels(); !ok {
+		return &ValidationError{Name: "video_models", err: errors.New(`ent: missing required field "Group.video_models"`)}
+	}
 	if v, ok := _c.mutation.SearchPricePer1k(); ok {
 		if err := group.SearchPricePer1kValidator(v); err != nil {
 			return &ValidationError{Name: "search_price_per_1k", err: fmt.Errorf(`ent: validator failed for field "Group.search_price_per_1k": %w`, err)}
@@ -1595,6 +1624,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldPeakRateMultiplier, field.TypeFloat64, value)
 		_node.PeakRateMultiplier = value
 	}
+	if value, ok := _c.mutation.RateSchedule(); ok {
+		_spec.SetField(group.FieldRateSchedule, field.TypeJSON, value)
+		_node.RateSchedule = value
+	}
 	if value, ok := _c.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)
 		_node.IsExclusive = value
@@ -1710,6 +1743,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.VideoPrice1080p(); ok {
 		_spec.SetField(group.FieldVideoPrice1080p, field.TypeFloat64, value)
 		_node.VideoPrice1080p = &value
+	}
+	if value, ok := _c.mutation.VideoModels(); ok {
+		_spec.SetField(group.FieldVideoModels, field.TypeJSON, value)
+		_node.VideoModels = value
 	}
 	if value, ok := _c.mutation.VideoModelPrices(); ok {
 		_spec.SetField(group.FieldVideoModelPrices, field.TypeJSON, value)
@@ -2128,6 +2165,24 @@ func (u *GroupUpsert) UpdatePeakRateMultiplier() *GroupUpsert {
 // AddPeakRateMultiplier adds v to the "peak_rate_multiplier" field.
 func (u *GroupUpsert) AddPeakRateMultiplier(v float64) *GroupUpsert {
 	u.Add(group.FieldPeakRateMultiplier, v)
+	return u
+}
+
+// SetRateSchedule sets the "rate_schedule" field.
+func (u *GroupUpsert) SetRateSchedule(v rateschedule.Config) *GroupUpsert {
+	u.Set(group.FieldRateSchedule, v)
+	return u
+}
+
+// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateRateSchedule() *GroupUpsert {
+	u.SetExcluded(group.FieldRateSchedule)
+	return u
+}
+
+// ClearRateSchedule clears the value of the "rate_schedule" field.
+func (u *GroupUpsert) ClearRateSchedule() *GroupUpsert {
+	u.SetNull(group.FieldRateSchedule)
 	return u
 }
 
@@ -2638,6 +2693,18 @@ func (u *GroupUpsert) AddVideoPrice1080p(v float64) *GroupUpsert {
 // ClearVideoPrice1080p clears the value of the "video_price_1080p" field.
 func (u *GroupUpsert) ClearVideoPrice1080p() *GroupUpsert {
 	u.SetNull(group.FieldVideoPrice1080p)
+	return u
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsert) SetVideoModels(v videoprotocol.Models) *GroupUpsert {
+	u.Set(group.FieldVideoModels, v)
+	return u
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateVideoModels() *GroupUpsert {
+	u.SetExcluded(group.FieldVideoModels)
 	return u
 }
 
@@ -3365,6 +3432,27 @@ func (u *GroupUpsertOne) UpdatePeakRateMultiplier() *GroupUpsertOne {
 	})
 }
 
+// SetRateSchedule sets the "rate_schedule" field.
+func (u *GroupUpsertOne) SetRateSchedule(v rateschedule.Config) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetRateSchedule(v)
+	})
+}
+
+// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateRateSchedule() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateRateSchedule()
+	})
+}
+
+// ClearRateSchedule clears the value of the "rate_schedule" field.
+func (u *GroupUpsertOne) ClearRateSchedule() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearRateSchedule()
+	})
+}
+
 // SetIsExclusive sets the "is_exclusive" field.
 func (u *GroupUpsertOne) SetIsExclusive(v bool) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
@@ -3957,6 +4045,20 @@ func (u *GroupUpsertOne) UpdateVideoPrice1080p() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearVideoPrice1080p() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoPrice1080p()
+	})
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsertOne) SetVideoModels(v videoprotocol.Models) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVideoModels(v)
+	})
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateVideoModels() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVideoModels()
 	})
 }
 
@@ -4937,6 +5039,27 @@ func (u *GroupUpsertBulk) UpdatePeakRateMultiplier() *GroupUpsertBulk {
 	})
 }
 
+// SetRateSchedule sets the "rate_schedule" field.
+func (u *GroupUpsertBulk) SetRateSchedule(v rateschedule.Config) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetRateSchedule(v)
+	})
+}
+
+// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateRateSchedule() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateRateSchedule()
+	})
+}
+
+// ClearRateSchedule clears the value of the "rate_schedule" field.
+func (u *GroupUpsertBulk) ClearRateSchedule() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearRateSchedule()
+	})
+}
+
 // SetIsExclusive sets the "is_exclusive" field.
 func (u *GroupUpsertBulk) SetIsExclusive(v bool) *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
@@ -5529,6 +5652,20 @@ func (u *GroupUpsertBulk) UpdateVideoPrice1080p() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearVideoPrice1080p() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearVideoPrice1080p()
+	})
+}
+
+// SetVideoModels sets the "video_models" field.
+func (u *GroupUpsertBulk) SetVideoModels(v videoprotocol.Models) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetVideoModels(v)
+	})
+}
+
+// UpdateVideoModels sets the "video_models" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateVideoModels() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateVideoModels()
 	})
 }
 

@@ -1,10 +1,11 @@
-import type { ApiKey, Group } from '@/types'
+import type { ApiKey, ApiKeyRoutingMode, Group } from '@/types'
 
 export interface AdminAPIKeySummary {
   id: number
   user_id: number
   name: string
   group_id: number | null
+  routing_mode?: ApiKeyRoutingMode
   status: ApiKey['status']
   has_ip_whitelist: boolean
   ip_whitelist_size: number

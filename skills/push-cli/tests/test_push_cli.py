@@ -21,91 +21,40 @@ SPEC.loader.exec_module(push_cli)
 
 
 class ProbeRuntimeTest(unittest.TestCase):
-    def test_ready_apple_containers_is_self_sufficient(self) -> None:
-        def optional(command: list[str], **_: object) -> tuple[bool, str]:
-            if command == ["container", "--version"]:
-                return True, "container CLI version 1.2.0"
-            if command == ["container", "ls"]:
-                return True, ""
-            self.fail(f"unexpected command: {command}")
-
+    def test_ready_macos_docker_is_self_sufficient(self) -> None:
         with (
             mock.patch.object(push_cli.platform, "system", return_value="Darwin"),
-            mock.patch.object(push_cli.shutil, "which", return_value="/usr/bin/container"),
-            mock.patch.object(push_cli, "optional_capture", side_effect=optional),
             mock.patch.object(push_cli, "run_step") as run_step,
-            mock.patch.object(push_cli, "probe_docker") as probe_docker,
+            mock.patch.object(
+                push_cli,
+                "probe_docker",
+                return_value=(True, "Docker Compose version v2.39.2"),
+            ) as probe_docker,
         ):
             runtime = push_cli.probe_runtime()
 
-        self.assertEqual("apple-containers", runtime.name)
-        self.assertFalse(runtime.compose_required)
+        self.assertEqual("docker", runtime.name)
+        self.assertTrue(runtime.compose_required)
         run_step.assert_not_called()
-        probe_docker.assert_not_called()
+        probe_docker.assert_called_once_with()
 
-    def test_installed_apple_containers_not_ready_is_a_hard_failure(self) -> None:
+    def test_unavailable_macos_docker_is_a_hard_failure(self) -> None:
         with (
             mock.patch.object(push_cli.platform, "system", return_value="Darwin"),
-            mock.patch.object(push_cli.shutil, "which", return_value="/usr/bin/container"),
             mock.patch.object(
                 push_cli,
-                "optional_capture",
-                side_effect=[
-                    (True, "container CLI version 1.2.0"),
-                    (False, "runtime is not running"),
-                ],
+                "probe_docker",
+                return_value=(False, "Docker daemon is not running"),
             ),
             mock.patch.object(push_cli, "run_step") as run_step,
-            mock.patch.object(push_cli, "probe_docker") as probe_docker,
         ):
             with self.assertRaisesRegex(
                 push_cli.PushCliError,
-                "mandatory macOS runtime.*fallback is forbidden",
+                "macOS validation requires a running Docker Engine",
             ):
                 push_cli.probe_runtime()
 
         run_step.assert_not_called()
-        probe_docker.assert_not_called()
-
-    def test_installed_apple_containers_with_broken_cli_is_a_hard_failure(self) -> None:
-        with (
-            mock.patch.object(push_cli.platform, "system", return_value="Darwin"),
-            mock.patch.object(push_cli.shutil, "which", return_value="/usr/bin/container"),
-            mock.patch.object(
-                push_cli,
-                "optional_capture",
-                return_value=(False, "CLI failed"),
-            ),
-            mock.patch.object(push_cli, "run_step") as run_step,
-            mock.patch.object(push_cli, "probe_docker") as probe_docker,
-        ):
-            with self.assertRaisesRegex(
-                push_cli.PushCliError,
-                "mandatory macOS runtime.*fallback is forbidden",
-            ):
-                push_cli.probe_runtime()
-
-        run_step.assert_not_called()
-        probe_docker.assert_not_called()
-
-    def test_absent_apple_containers_does_not_fall_back(self) -> None:
-        def which(command: str) -> str | None:
-            return "/opt/homebrew/bin/colima" if command == "colima" else None
-
-        with (
-            mock.patch.object(push_cli.platform, "system", return_value="Darwin"),
-            mock.patch.object(push_cli.shutil, "which", side_effect=which),
-            mock.patch.object(push_cli, "run_step") as run_step,
-            mock.patch.object(push_cli, "probe_docker") as probe_docker,
-        ):
-            with self.assertRaisesRegex(
-                push_cli.PushCliError,
-                "requires Apple Containers.*fallback is forbidden",
-            ):
-                push_cli.probe_runtime()
-
-        run_step.assert_not_called()
-        probe_docker.assert_not_called()
 
     def test_windows_requires_wsl2_before_any_docker_probe(self) -> None:
         with (
@@ -387,6 +336,8 @@ class RuntimeFinalGateTest(unittest.TestCase):
             [
                 "docker",
                 "compose",
+                "--env-file",
+                "deploy/.env.example",
                 "-f",
                 "deploy/docker-compose.dev.yml",
                 "config",

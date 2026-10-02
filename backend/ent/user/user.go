@@ -91,6 +91,10 @@ const (
 	EdgePendingAuthSessions = "pending_auth_sessions"
 	// EdgePlatformQuotas holds the string denoting the platform_quotas edge name in mutations.
 	EdgePlatformQuotas = "platform_quotas"
+	// EdgeReusableInvitationCodeUses holds the string denoting the reusable_invitation_code_uses edge name in mutations.
+	EdgeReusableInvitationCodeUses = "reusable_invitation_code_uses"
+	// EdgeTeamMemberships holds the string denoting the team_memberships edge name in mutations.
+	EdgeTeamMemberships = "team_memberships"
 	// EdgeUserAllowedGroups holds the string denoting the user_allowed_groups edge name in mutations.
 	EdgeUserAllowedGroups = "user_allowed_groups"
 	// Table holds the table name of the user in the database.
@@ -184,6 +188,20 @@ const (
 	PlatformQuotasInverseTable = "user_platform_quotas"
 	// PlatformQuotasColumn is the table column denoting the platform_quotas relation/edge.
 	PlatformQuotasColumn = "user_id"
+	// ReusableInvitationCodeUsesTable is the table that holds the reusable_invitation_code_uses relation/edge.
+	ReusableInvitationCodeUsesTable = "reusable_invitation_code_uses"
+	// ReusableInvitationCodeUsesInverseTable is the table name for the ReusableInvitationCodeUse entity.
+	// It exists in this package in order to avoid circular dependency with the "reusableinvitationcodeuse" package.
+	ReusableInvitationCodeUsesInverseTable = "reusable_invitation_code_uses"
+	// ReusableInvitationCodeUsesColumn is the table column denoting the reusable_invitation_code_uses relation/edge.
+	ReusableInvitationCodeUsesColumn = "user_id"
+	// TeamMembershipsTable is the table that holds the team_memberships relation/edge.
+	TeamMembershipsTable = "team_memberships"
+	// TeamMembershipsInverseTable is the table name for the TeamMembership entity.
+	// It exists in this package in order to avoid circular dependency with the "teammembership" package.
+	TeamMembershipsInverseTable = "team_memberships"
+	// TeamMembershipsColumn is the table column denoting the team_memberships relation/edge.
+	TeamMembershipsColumn = "user_id"
 	// UserAllowedGroupsTable is the table that holds the user_allowed_groups relation/edge.
 	UserAllowedGroupsTable = "user_allowed_groups"
 	// UserAllowedGroupsInverseTable is the table name for the UserAllowedGroup entity.
@@ -612,6 +630,34 @@ func ByPlatformQuotas(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByReusableInvitationCodeUsesCount orders the results by reusable_invitation_code_uses count.
+func ByReusableInvitationCodeUsesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReusableInvitationCodeUsesStep(), opts...)
+	}
+}
+
+// ByReusableInvitationCodeUses orders the results by reusable_invitation_code_uses terms.
+func ByReusableInvitationCodeUses(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReusableInvitationCodeUsesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByTeamMembershipsCount orders the results by team_memberships count.
+func ByTeamMembershipsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTeamMembershipsStep(), opts...)
+	}
+}
+
+// ByTeamMemberships orders the results by team_memberships terms.
+func ByTeamMemberships(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTeamMembershipsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserAllowedGroupsCount orders the results by user_allowed_groups count.
 func ByUserAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -714,6 +760,20 @@ func newPlatformQuotasStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PlatformQuotasInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PlatformQuotasTable, PlatformQuotasColumn),
+	)
+}
+func newReusableInvitationCodeUsesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReusableInvitationCodeUsesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ReusableInvitationCodeUsesTable, ReusableInvitationCodeUsesColumn),
+	)
+}
+func newTeamMembershipsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TeamMembershipsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TeamMembershipsTable, TeamMembershipsColumn),
 	)
 }
 func newUserAllowedGroupsStep() *sqlgraph.Step {

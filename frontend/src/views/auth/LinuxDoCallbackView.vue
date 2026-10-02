@@ -273,7 +273,7 @@ const errorMessage = ref('')
 
 // Invitation code flow state
 const needsInvitation = ref(false)
-const invitationCode = ref('')
+const invitationCode = ref(oauthAffiliatePayload(loadOAuthAffiliateCode()).invitation_code ?? '')
 const isSubmitting = ref(false)
 const invitationError = ref('')
 const redirectTo = ref('/dashboard')

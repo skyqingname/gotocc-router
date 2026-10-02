@@ -100,6 +100,7 @@
                     :platform="g.platform as GroupPlatform"
                     :subscription-type="(g.subscription_type || 'standard') as SubscriptionType"
                     :rate-multiplier="g.rate_multiplier"
+ :rate-schedule="g.rate_schedule"
                     :user-rate-multiplier="userGroupRates[g.id] ?? null"
                     always-show-rate
                   />
@@ -134,6 +135,7 @@
                     :platform="g.platform as GroupPlatform"
                     :subscription-type="(g.subscription_type || 'standard') as SubscriptionType"
                     :rate-multiplier="g.rate_multiplier"
+ :rate-schedule="g.rate_schedule"
                     :user-rate-multiplier="userGroupRates[g.id] ?? null"
                     always-show-rate
                   />
@@ -239,6 +241,7 @@
                         :platform="g.platform as GroupPlatform"
                         :subscription-type="(g.subscription_type || 'standard') as SubscriptionType"
                         :rate-multiplier="g.rate_multiplier"
+ :rate-schedule="g.rate_schedule"
                         :user-rate-multiplier="userGroupRates[g.id] ?? null"
                         always-show-rate
                       />
@@ -274,6 +277,7 @@
                         :platform="g.platform as GroupPlatform"
                         :subscription-type="(g.subscription_type || 'standard') as SubscriptionType"
                         :rate-multiplier="g.rate_multiplier"
+ :rate-schedule="g.rate_schedule"
                         :user-rate-multiplier="userGroupRates[g.id] ?? null"
                         always-show-rate
                       />

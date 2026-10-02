@@ -40,7 +40,7 @@ const view = useUserView()
 const supportUser = computed(() => adminSupportContext.value ? view.user : null)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
 
-const { replayTour } = useOnboardingTour({
+const { replayTour, startTeamTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
   autoStart: !adminSupportContext.value
 })
@@ -49,6 +49,7 @@ const onboardingStore = useOnboardingStore()
 
 onMounted(() => {
   onboardingStore.setReplayCallback(replayTour)
+  onboardingStore.setTeamGuideCallback(startTeamTour)
 })
 
 defineExpose({ replayTour })

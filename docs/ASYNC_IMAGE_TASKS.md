@@ -13,9 +13,10 @@ GET  /v1/images/tasks
 GET  /v1/images/tasks/{task_id}
 GET  /v1/images/tasks/{task_id}/download
 DELETE /v1/images/tasks/{task_id}
+GET  /v1/images/objects/{object_id}/url
 ```
 
-Every endpoint also has the equivalent no-prefix `/images/...` alias.
+Each endpoint also has the existing no-`/v1` alias under `/images/...`.
 
 Only OpenAI and Grok groups are supported. Requests use the same JSON or multipart payload as the corresponding synchronous endpoint. Streaming image requests are rejected because a polled task returns one final JSON result.
 
@@ -57,7 +58,7 @@ image_storage:
   max_download_bytes: 33554432     # cap when re-hosting an upstream image URL (32MB)
 ```
 
-When a task completes, each generated image is uploaded to the bucket and the result is rewritten to a compact form: `data[].url` points at the stored object (a permanent `public_base_url/key` link, or a time-limited presigned URL) and `b64_json` is removed. Only this small JSON and the private exact object keys needed for ZIP downloads are stored in Redis. The object keys are not exposed in the public task response. If an upload fails, the task is marked `failed` rather than persisting the raw base64.
+When a task completes, each generated image is uploaded to the bucket and the result is rewritten to a compact form: `data[].url` points at the stored object (a permanent `public_base_url/key` link, or a time-limited presigned URL), while `data[].object_id` and `data[].url_expires_at` identify the durable reference; `b64_json` is removed. Only this small JSON and the private exact object keys needed for ZIP downloads are stored in Redis. PostgreSQL `image_objects` stores ownership and object metadata, never image bytes or base64. Storage keys remain server-private and are not exposed in task or URL-renewal responses. If an upload or ownership write fails, the task is marked `failed` rather than persisting the raw base64 or returning an unowned object.
 
 To support a different vendor beyond the S3-compatible client, implement the `service.ImageStorage` interface (`Save(ctx, key, contentType, data) (url, error)`) and provide it in place of the S3 implementation.
 
@@ -140,7 +141,11 @@ On success, `result` mirrors the synchronous image API body, except each image h
   "image_url": "https://...",
   "result": {
     "created": 1784092923,
-    "data": [{"url": "https://..."}]
+    "data": [{
+      "object_id": "imgobj_0123456789abcdef",
+      "url": "https://...",
+      "url_expires_at": 1784179323
+    }]
   },
   "created_at": 1784092800,
   "completed_at": 1784092923,
@@ -197,3 +202,32 @@ Only `failed` tasks can be deleted. Deleting an owned `processing` or `completed
 The task-page API Key filter continues to show every non-disabled key, including expired and quota-exhausted keys and keys whose group or platform changed after task creation, so their owner-scoped history remains manageable. The new-task form remains stricter and offers only active OpenAI/Grok keys whose current group allows image generation.
 
 Deleting a task record never scans or deletes S3-compatible object storage. In particular, no object key is reconstructed from the active prefix. Object lifecycle and cleanup remain the responsibility of the configured bucket policy.
+
+## Durable object URLs
+
+Task polling, task history, and ZIP download stay scoped to the user and the
+API key that submitted the task. Durable object URL renewal uses a different,
+intentional boundary: after a completed result supplies an `object_id`, any
+other active API key belonging to the same user may request a fresh URL:
+
+```bash
+curl https://api.example.com/v1/images/objects/imgobj_0123456789abcdef/url \
+  -H 'Authorization: Bearer sk-...'
+```
+
+The server looks up the object by `object_id` and authenticated user, then
+signs the server-owned `storage_key`. Clients cannot supply an arbitrary object
+key. Unknown objects and objects owned by another user both return `404`.
+Disabled keys, inactive users, IP restrictions, and group restrictions still
+apply. This read is not billed and remains available when generation consumed
+the key's remaining quota.
+
+The built-in async-image page renews a missing, expired, or soon-to-expire
+signed URL before rendering it. It uses the currently selected manageable API
+key, deduplicates repeated object IDs, and never falls back to a known-expired
+URL when renewal fails.
+
+`GET /v1/images/tasks` returns the submitting key's compact PostgreSQL history
+with optional `status`, `limit`, and `offset` query parameters. `GET
+/v1/images/tasks/{task_id}/download` streams a bounded ZIP assembled from
+server-owned object keys; it never fetches a client-supplied URL.

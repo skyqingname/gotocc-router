@@ -1,3 +1,4 @@
+import type { RateScheduleConfig } from './rate-schedule'
 /**
  * 高峰时段倍率的共享展示逻辑。
  *
@@ -7,6 +8,7 @@
  */
 
 export interface PeakRateFields {
+  rate_schedule?: RateScheduleConfig
   peak_rate_enabled?: boolean
   peak_start?: string
   peak_end?: string
@@ -14,6 +16,7 @@ export interface PeakRateFields {
 }
 
 export function hasPeakRate(fields?: PeakRateFields | null): boolean {
+  if (fields?.rate_schedule) return fields.rate_schedule.enabled && fields.rate_schedule.rules.some(rule => rule.enabled)
   return Boolean(fields?.peak_rate_enabled && fields.peak_start && fields.peak_end)
 }
 
@@ -28,6 +31,11 @@ export function formatPeakRateWindow(
   tzLabel?: string
 ): string {
   if (!hasPeakRate(fields) || !fields) return ''
+  if (fields.rate_schedule) {
+    const zone = fields.rate_schedule.timezone || tzLabel
+    const windows = fields.rate_schedule.rules.filter(rule => rule.enabled).map(rule => `${rule.start}–${rule.end} ×${rule.multiplier}`).join(' / ')
+    return zone ? `${windows} (${zone})` : windows
+  }
   const base = `${fields.peak_start}-${fields.peak_end} ×${fields.peak_rate_multiplier ?? 1}`
   return tzLabel ? `${base} (${tzLabel})` : base
 }

@@ -14,6 +14,10 @@ const {
   listMyErrorRequests,
   list,
   getAvailable,
+  getCurrentTeam,
+  getTeamKeys,
+  getTeamMembers,
+  getTeamMemberUsage,
   showError,
   showWarning,
   showSuccess,
@@ -26,6 +30,10 @@ const {
   listMyErrorRequests: vi.fn(),
   list: vi.fn(),
   getAvailable: vi.fn(),
+  getCurrentTeam: vi.fn(),
+  getTeamKeys: vi.fn(),
+  getTeamMembers: vi.fn(),
+  getTeamMemberUsage: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
   showSuccess: vi.fn(),
@@ -91,6 +99,15 @@ vi.mock('@/api', () => ({
   },
 }))
 
+vi.mock('@/api/team', () => ({
+  teamAPI: {
+    current: getCurrentTeam,
+    keys: getTeamKeys,
+    members: getTeamMembers,
+    memberUsage: getTeamMemberUsage,
+  },
+}))
+
 const appStoreState = vi.hoisted(() => ({
   cachedPublicSettings: { allow_user_view_error_requests: true } as Record<string, unknown>,
 }))
@@ -116,6 +133,10 @@ vi.mock('vue-i18n', async () => {
 
 const simpleStub = { template: '<div><slot /></div>' }
 const chartStub = { template: '<div />' }
+const UsageTableStub = {
+  props: ['columns', 'userClickable', 'compactUserColumn'],
+  template: '<div data-test="usage-table" />',
+}
 
 const usageLog = {
   id: 1,
@@ -164,12 +185,13 @@ function mountUsageView() {
         DateRangePicker: true,
         Icon: true,
         UsageStatsCards: chartStub,
-        UsageTable: chartStub,
+        UsageTable: UsageTableStub,
         UserErrorRequestsTable: chartStub,
         ModelDistributionChart: chartStub,
         GroupDistributionChart: chartStub,
         EndpointDistributionChart: chartStub,
         TokenUsageTrend: chartStub,
+        TeamMemberUsageCharts: chartStub,
       },
     },
   })
@@ -184,6 +206,10 @@ describe('user UsageView', () => {
     listMyErrorRequests.mockReset()
     list.mockReset()
     getAvailable.mockReset()
+    getCurrentTeam.mockReset()
+    getTeamKeys.mockReset()
+    getTeamMembers.mockReset()
+    getTeamMemberUsage.mockReset()
     showError.mockReset()
     showWarning.mockReset()
     showSuccess.mockReset()
@@ -219,6 +245,10 @@ describe('user UsageView', () => {
     listMyErrorRequests.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 0 })
     list.mockResolvedValue({ items: [{ id: 1, name: 'demo-key' }], total: 1, page: 1, page_size: 100, pages: 1 })
     getAvailable.mockResolvedValue([{ id: 1, name: 'default' }])
+    getCurrentTeam.mockRejectedValue({ response: { status: 404 } })
+    getTeamKeys.mockResolvedValue([])
+    getTeamMembers.mockResolvedValue([])
+    getTeamMemberUsage.mockResolvedValue([])
   })
 
   it('loads logs, stats, model stats, and snapshot on first render', async () => {
@@ -233,8 +263,7 @@ describe('user UsageView', () => {
       include_model_stats: false,
       include_group_stats: true,
     }))
-    expect(list).toHaveBeenCalledTimes(1)
-    expect(list).toHaveBeenCalledWith(1, 100)
+    expect(list).toHaveBeenCalledWith(1, 100, { scope: 'personal' })
     expect(getAvailable).toHaveBeenCalled()
   })
 
@@ -367,6 +396,51 @@ describe('user UsageView', () => {
     expect(getStats).toHaveBeenCalledWith(expect.objectContaining({ native_compaction_v2: null }))
     expect(getDashboardModels).toHaveBeenCalledWith(expect.objectContaining({ native_compaction_v2: null }))
     expect(getDashboardSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({ native_compaction_v2: null }))
+  })
+
+  it('loads team keys and aggregated member charts for a team owner', async () => {
+    getCurrentTeam.mockResolvedValue({
+      team: { id: 7, name: 'Demo team' },
+      membership: { user_id: 42, role: 'owner' },
+      owner: { user_id: 42, role: 'owner' },
+    })
+    getTeamKeys.mockResolvedValue([{ id: 9, name: 'Team key' }])
+    getTeamMembers.mockResolvedValue([
+      { user_id: 42, username: 'Owner', email: 'owner@example.com', role: 'owner' },
+      { user_id: 43, username: 'Member', email: 'member@example.com', role: 'member' },
+    ])
+    getTeamMemberUsage.mockResolvedValue([
+      {
+        actor_user_id: 42,
+        display_name: 'Owner',
+        status: 'active',
+        summary: { actual_cost: 1.2, request_count: 1, input_tokens: 10, output_tokens: 5, daily: [] },
+      },
+      {
+        actor_user_id: 43,
+        display_name: 'Former member',
+        status: 'left',
+        summary: { actual_cost: 0.8, request_count: 1, input_tokens: 10, output_tokens: 5, daily: [] },
+      },
+    ])
+
+    const wrapper = mountUsageView()
+    await flushPromises()
+
+    expect(getTeamKeys).toHaveBeenCalledOnce()
+    expect(getTeamMembers).toHaveBeenCalledOnce()
+    expect(getTeamMemberUsage).toHaveBeenCalledOnce()
+    expect(getTeamMemberUsage).toHaveBeenCalledWith(expect.objectContaining({
+      from: expect.any(String),
+      to: expect.any(String),
+    }))
+    const usageTable = wrapper.findComponent(UsageTableStub)
+    const columns = usageTable.props('columns') as Array<{ key: string; class?: string }>
+    expect(columns.map((column) => column.key)).toContain('user')
+    expect(columns.find((column) => column.key === 'user')?.class).toContain('w-36')
+    expect(usageTable.props('userClickable')).toBe(false)
+    expect(usageTable.props('compactUserColumn')).toBe(true)
+    expect(wrapper.find('[data-tour="team-member-usage-charts"]').exists()).toBe(true)
   })
 
   it('exports csv with current filters and without admin-only fields', async () => {

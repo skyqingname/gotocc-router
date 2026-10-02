@@ -16,6 +16,7 @@ import type {
   UserAuthProvider,
   UserAffiliateDetail,
   AffiliateTransferResponse,
+  AgentProfile,
   PlatformQuotasResponse,
 } from '@/types'
 
@@ -186,6 +187,18 @@ export async function transferAffiliateQuota(): Promise<AffiliateTransferRespons
   return data
 }
 
+/** LC-024 agent enrollment state for the current user. */
+export async function getAgentProfile(): Promise<AgentProfile> {
+  const { data } = await apiClient.get<AgentProfile>('/user/agent')
+  return data
+}
+
+/** Submit the agent application. It carries no payload by design. */
+export async function applyForAgent(): Promise<AgentProfile> {
+  const { data } = await apiClient.post<AgentProfile>('/user/agent/apply')
+  return data
+}
+
 /**
  * 获取当前用户的平台限额 + 用量。
  */
@@ -209,6 +222,8 @@ export const userAPI = {
   startOAuthBinding,
   getAffiliateDetail,
   transferAffiliateQuota,
+  getAgentProfile,
+  applyForAgent,
   getMyPlatformQuotas,
 }
 

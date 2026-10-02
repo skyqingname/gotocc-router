@@ -44,6 +44,13 @@ export const useAppStore = defineStore('app', () => {
   const hasUpdate = ref<boolean>(false)
   const buildType = ref<string>('source')
   const releaseInfo = ref<ReleaseInfo | null>(null)
+  const releaseRepository = ref<string>('')
+  const releaseImage = ref<string>('')
+  const upstreamRepository = ref<string>('')
+  const upstreamBaseline = ref<string>('')
+  const upstreamLatestVersion = ref<string>('')
+  const upstreamHasUpdate = ref<boolean>(false)
+  const upstreamWarning = ref<string>('')
   let versionRequestId = 0
 
   // Auto-incrementing ID for toasts
@@ -262,6 +269,13 @@ export const useAppStore = defineStore('app', () => {
         has_update: hasUpdate.value,
         build_type: buildType.value,
         release_info: releaseInfo.value || undefined,
+        release_repository: releaseRepository.value,
+        release_image: releaseImage.value,
+        upstream_repository: upstreamRepository.value,
+        upstream_baseline: upstreamBaseline.value,
+        upstream_latest_version: upstreamLatestVersion.value,
+        upstream_has_update: upstreamHasUpdate.value,
+        upstream_warning: upstreamWarning.value || undefined,
         cached: true
       }
     }
@@ -283,6 +297,13 @@ export const useAppStore = defineStore('app', () => {
       hasUpdate.value = data.has_update
       buildType.value = data.build_type || 'source'
       releaseInfo.value = data.release_info || null
+      releaseRepository.value = data.release_repository
+      releaseImage.value = data.release_image
+      upstreamRepository.value = data.upstream_repository
+      upstreamBaseline.value = data.upstream_baseline
+      upstreamLatestVersion.value = data.upstream_latest_version
+      upstreamHasUpdate.value = data.upstream_has_update
+      upstreamWarning.value = data.upstream_warning || ''
       versionLoaded.value = true
       return data
     } catch (error) {
@@ -304,6 +325,7 @@ export const useAppStore = defineStore('app', () => {
     versionLoaded.value = false
     versionLoading.value = false
     hasUpdate.value = false
+    upstreamHasUpdate.value = false
   }
 
   /**
@@ -315,6 +337,12 @@ export const useAppStore = defineStore('app', () => {
     latestVersion.value = ''
     buildType.value = 'source'
     releaseInfo.value = null
+    releaseRepository.value = ''
+    releaseImage.value = ''
+    upstreamRepository.value = ''
+    upstreamBaseline.value = ''
+    upstreamLatestVersion.value = ''
+    upstreamWarning.value = ''
   }
 
   // ==================== Public Settings Management ====================
@@ -382,6 +410,8 @@ export const useAppStore = defineStore('app', () => {
         compact_home_enabled: false,
         hide_ccs_import_button: false,
         payment_enabled: false,
+        team_enabled: true,
+        team_self_service_enabled: true,
         table_default_page_size: 20,
         table_page_size_options: [10, 20, 50, 100],
         custom_menu_items: [],
@@ -502,6 +532,13 @@ export const useAppStore = defineStore('app', () => {
     hasUpdate,
     buildType,
     releaseInfo,
+    releaseRepository,
+    releaseImage,
+    upstreamRepository,
+    upstreamBaseline,
+    upstreamLatestVersion,
+    upstreamHasUpdate,
+    upstreamWarning,
 
     // Computed
     hasActiveToasts,

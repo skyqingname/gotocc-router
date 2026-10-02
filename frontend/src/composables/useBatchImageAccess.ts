@@ -2,7 +2,8 @@ import { computed, ref, watch } from 'vue'
 import { keysAPI } from '@/api/keys'
 import { useUserView as useAuthStore } from '@/composables/useUserView'
 import { adminSupportContext, supportRequestGeneration } from '@/utils/adminSupportContext'
-import type { ApiKey } from '@/types'
+import type { ApiKey, ApiKeyRoutingCapabilities } from '@/types'
+import { getAutoRoutingCapabilities, isAutoRoutingKey } from './useAsyncImageAccess'
 
 const loaded = ref(false)
 const loading = ref(false)
@@ -10,7 +11,13 @@ const hasAllowedBatchImageKey = ref(false)
 let pendingLoad: Promise<boolean> | null = null
 const pageSize = 100
 
-function keyAllowsBatchImage(key: ApiKey): boolean {
+export function keyAllowsBatchImage(
+  key: ApiKey,
+  capabilities?: Pick<ApiKeyRoutingCapabilities, 'batch_image_submit'>,
+): boolean {
+  if (isAutoRoutingKey(key)) {
+    return key.status === 'active' && capabilities?.batch_image_submit === true
+  }
   return (
     key.status === 'active' &&
     key.group?.platform === 'gemini' &&
@@ -46,10 +53,20 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
       })
 
       if (scope !== supportRequestGeneration()) return false
-      if ((response.items || []).some(keyAllowsBatchImage)) {
-        hasAllowedBatchImageKey.value = true
-        loaded.value = true
-        return true
+      for (const key of response.items || []) {
+        if (!isAutoRoutingKey(key) && keyAllowsBatchImage(key)) {
+          hasAllowedBatchImageKey.value = true
+          loaded.value = true
+          return true
+        }
+        if (isAutoRoutingKey(key)) {
+          const capabilities = await getAutoRoutingCapabilities(key)
+          if (keyAllowsBatchImage(key, capabilities || undefined)) {
+            hasAllowedBatchImageKey.value = true
+            loaded.value = true
+            return true
+          }
+        }
       }
 
       if (page >= response.pages || (response.items || []).length === 0) {

@@ -24,7 +24,7 @@
           <th colspan="3" class="pz-bg pt-2 text-center">
             <div class="pz-title border-b pb-2 font-semibold">
               {{ t('modelPlaza.table.paidPrice') }}
-              <span class="pz-unit ml-1 normal-case font-normal">{{ t('modelPlaza.table.unitPerMillion') }}</span>
+              <span class="pz-unit ml-1 normal-case font-normal">{{ paidPriceUnit }}</span>
             </div>
           </th>
           <th
@@ -306,13 +306,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
+import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
 import { formatScaled, resolveIntervalPrices } from '@/utils/pricing'
 import { platformAccentColor, platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import {
   BILLING_MODE_TOKEN,
   BILLING_MODE_IMAGE,
+  BILLING_MODE_PER_REQUEST,
   BILLING_MODE_VIDEO,
   REASONING_EFFORT_LEVELS,
   type BillingMode
@@ -349,6 +352,7 @@ const props = defineProps<{
    * 表格所有价格均为不含高峰因子的口径,该窗口仅用于分时时段行的 tooltip 披露:
    * 与高峰重叠的部分实付还会再乘高峰倍率。
    */
+  rateSchedule?: RateScheduleConfig
   peakWindow?: string
   peakRateMultiplier?: number | null
 }>()
@@ -380,7 +384,16 @@ const sortedModels = computed(() => {
   })
 })
 
-const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const appStore = useAppStore()
+const rateNow = ref(new Date())
+let rateTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { rateTimer = setInterval(() => { rateNow.value = new Date() }, 1000) })
+onUnmounted(() => { if (rateTimer) clearInterval(rateTimer) })
+const baseRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
+const effectiveRate = computed(() => {
+  if (!props.rateSchedule?.enabled) return baseRate.value
+  return compileRateSchedule(props.rateSchedule, appStore.cachedPublicSettings?.server_timezone || '').resolve(rateNow.value, baseRate.value).effective_multiplier
+})
 const hasCustomRate = computed(
   () => props.userRateMultiplier != null && props.userRateMultiplier !== props.rateMultiplier
 )
@@ -390,10 +403,30 @@ function billingMode(m: PlazaModel): BillingMode {
 }
 
 function billingModeLabel(m: PlazaModel): string {
-  return billingMode(m) === BILLING_MODE_IMAGE
-    ? t('modelPlaza.table.perImage')
-    : t('modelPlaza.table.perRequest')
+  switch (billingMode(m)) {
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.perImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.perSecondVideo')
+    default:
+      return t('modelPlaza.table.perRequest')
+  }
 }
+
+const paidPriceUnit = computed(() => {
+  const modes = new Set(props.models.map((model) => billingMode(model)))
+  if (modes.size !== 1) return t('modelPlaza.table.unitMixed')
+  switch ([...modes][0]) {
+    case BILLING_MODE_PER_REQUEST:
+      return t('modelPlaza.table.unitPerRequest')
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.unitPerImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.unitPerSecond')
+    default:
+      return t('modelPlaza.table.unitPerMillion')
+  }
+})
 
 /** 价格统一保底 2 位小数,更长的有效小数原样保留。 */
 const MIN_DECIMALS = 2
@@ -442,7 +475,7 @@ function requestRate(m: PlazaModel): number {
   }
   return billingMode(m) === BILLING_MODE_IMAGE && props.imageRateIndependent === true
     ? (props.imageRateMultiplier ?? 1)
-    : effectiveRate.value
+    : baseRate.value
 }
 
 /** 非 token 单价乘该行生效倍率，不换算为每百万 token。 */
@@ -457,11 +490,16 @@ function official(value: number | null | undefined): string {
   return formatScaled(value, PER_MILLION, MIN_DECIMALS)
 }
 
-/** 非 token 计费的单位后缀:按图片 → “/ 张”,按次 → “/ 次”。 */
+/** 非 token 计费的单位后缀：按图片 / 按秒视频 / 按次。 */
 function perUnitSuffix(m: PlazaModel): string {
-  return billingMode(m) === BILLING_MODE_IMAGE
-    ? t('modelPlaza.table.perUnitImage')
-    : t('modelPlaza.table.perUnitRequest')
+  switch (billingMode(m)) {
+    case BILLING_MODE_IMAGE:
+      return t('modelPlaza.table.perUnitImage')
+    case BILLING_MODE_VIDEO:
+      return t('modelPlaza.table.perUnitSecond')
+    default:
+      return t('modelPlaza.table.perUnitRequest')
+  }
 }
 
 function hasCachePricing(m: PlazaModel): boolean {

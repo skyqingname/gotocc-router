@@ -152,7 +152,6 @@ func namespaceToolMapping() apicompat.ResponsesClientToolMapping {
 
 func TestHandleResponsesBufferedStreamingResponse_RestoresNamespaceTool(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -169,7 +168,6 @@ func TestHandleResponsesBufferedStreamingResponse_RestoresNamespaceTool(t *testi
 
 func TestHandleResponsesBufferedStreamingResponse_ToolArgumentsAreValidJSON(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -200,7 +198,6 @@ func TestAppendRawJSON_EmptyObjectPlaceholder(t *testing.T) {
 
 func TestHandleResponsesStreamingResponse_RestoresNamespaceTool(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -243,7 +240,6 @@ func TestExtractResponsesReasoningEffortFromBody(t *testing.T) {
 
 func TestHandleResponsesBufferedStreamingResponse_PreservesMessageStartCacheUsage(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -276,7 +272,6 @@ func TestHandleResponsesBufferedStreamingResponse_PreservesMessageStartCacheUsag
 
 func TestHandleResponsesStreamingResponse_PreservesMessageStartCacheUsage(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -499,7 +494,6 @@ func TestParseAnthropicSSEField(t *testing.T) {
 
 func TestHandleResponsesBufferedStreamingResponse_CompactSSEFormat(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -530,7 +524,6 @@ func TestHandleResponsesBufferedStreamingResponse_CompactSSEFormat(t *testing.T)
 
 func TestHandleResponsesStreamingResponse_CompactSSEFormat(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)

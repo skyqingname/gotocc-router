@@ -117,7 +117,10 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 		return
 	}
 
-	// Billing eligibility (same as other requests)
+	if !admitAutoHTTPRoute(c, h.autoGroupResolver, &apiKey) {
+		return
+	}
+	subject, _ = middleware2.GetAuthSubjectFromContext(c)
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
 		status, code, message, retryAfter := billingErrorDetails(err)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestChannelReasoningEffortMultipliersMigration(t *testing.T) {
-	content, err := FS.ReadFile("271_channel_reasoning_effort_multipliers.sql")
+	content, err := FS.ReadFile("285_channel_reasoning_effort_multipliers.sql")
 	require.NoError(t, err)
 	sql := strings.Join(strings.Fields(string(content)), " ")
 	require.Contains(t, sql, "ALTER TABLE channel_model_pricing ADD COLUMN IF NOT EXISTS reasoning_effort_multipliers JSONB NOT NULL DEFAULT '{}'::jsonb")

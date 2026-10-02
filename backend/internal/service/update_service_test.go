@@ -40,12 +40,12 @@ type updateServiceGitHubClientStub struct {
 	downloadFunc   func(context.Context, string, string, int64) error
 	checksumData   []byte
 	checksumErr    error
-	latestRepo     string
+	latestRepos    []string
 	recentRepo     string
 }
 
 func (s *updateServiceGitHubClientStub) FetchLatestRelease(_ context.Context, repo string) (*GitHubRelease, error) {
-	s.latestRepo = repo
+	s.latestRepos = append(s.latestRepos, repo)
 	return s.release, s.latestErr
 }
 
@@ -272,7 +272,7 @@ func TestUpdateServiceUsesForkRepositoryAndCustomIteration(t *testing.T) {
 	info, err := svc.CheckUpdate(context.Background(), true)
 
 	require.NoError(t, err)
-	require.Equal(t, githubRepo, github.latestRepo)
+	require.Equal(t, githubRepo, github.latestRepos[0])
 	require.Equal(t, "0.1.164+custom.002", info.LatestVersion)
 	require.True(t, info.HasUpdate)
 }

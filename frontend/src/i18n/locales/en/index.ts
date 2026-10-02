@@ -7,6 +7,7 @@ import batchImage from './batchImage'
 import asyncImage from './asyncImage'
 import admin from './admin'
 import misc from './misc'
+import team from './team'
 
 export default {
   ...landing,
@@ -18,4 +19,5 @@ export default {
   ...asyncImage,
   admin,
   ...misc,
+  ...team,
 }

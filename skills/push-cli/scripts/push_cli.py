@@ -28,7 +28,9 @@ import validation_runtime
 import release_validation
 
 DEFAULT_REMOTE = "origin"
-EXPECTED_REPOSITORY = "LuckyKuang/sub2api-plus"
+EXPECTED_REPOSITORY = json.loads(
+    (ROOT / "release-channel.json").read_text(encoding="utf-8")
+)["release_repository"]
 LOCAL_VALIDATION_CONTEXT = "sub2api/local-validation"
 FULL_PROFILE = "full"
 FINALIZATION_PROFILE = "release-finalization"
@@ -446,14 +448,18 @@ def run_runtime_final_gate(runtime: Runtime) -> None:
         return
 
     compose_path = "deploy/docker-compose.dev.yml"
+    compose_env_path = "deploy/.env.example"
     if runtime.compose_root:
         compose_path = f"{runtime.compose_root}/deploy/docker-compose.dev.yml"
+        compose_env_path = f"{runtime.compose_root}/deploy/.env.example"
     run_step(
         "Docker Compose final gate",
         [
             *runtime.prefix,
             "docker",
             "compose",
+            "--env-file",
+            compose_env_path,
             "-f",
             compose_path,
             "config",
