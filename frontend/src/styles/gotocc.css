@@ -1,0 +1,123 @@
+/* GoToCC 设计令牌与自有组件样式，在 style.css 之后加载。
+   动效参数与菜单、分段控件样式移植自 TokenRouter（LGPL-3.0，https://github.com/TokenFlux/TokenRouter）。 */
+
+/* 动效时长只在这里定义；系统开启「减少动态效果」时全部压到 1ms，位移归零。 */
+:root {
+  --motion-fast: 150ms;
+  --motion-normal: 200ms;
+  --motion-layout: 220ms;
+  --motion-exit: var(--motion-fast);
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-shift: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-normal: 1ms;
+    --motion-layout: 1ms;
+    --motion-shift: 0px;
+  }
+}
+
+/* 主按钮：靛 600 底白字（对比度 6.3:1），悬停加深。 */
+.btn-primary {
+  @apply bg-primary-600 text-white;
+}
+
+.btn-primary:hover {
+  @apply bg-primary-700;
+}
+
+/* 新手引导：继承样式写死了青绿色，提高优先级后改用品牌主色。 */
+html .driver-active-element {
+  outline-color: rgb(99 102 241 / 0.25) !important;
+}
+
+html .theme-tour-popover .driver-popover-next-btn {
+  background-color: theme('colors.primary.600') !important;
+  color: #ffffff !important;
+}
+
+html .theme-tour-popover .driver-popover-next-btn:hover {
+  background-color: theme('colors.primary.700') !important;
+}
+
+/* 下拉面板：从锚点方向淡入并位移 --motion-shift，退出更快且不再接收鼠标。 */
+.dropdown-fade-enter-active {
+  transition:
+    opacity var(--motion-normal) var(--motion-ease),
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.dropdown-fade-leave-active {
+  transition:
+    opacity var(--motion-exit) var(--motion-ease-exit),
+    transform var(--motion-exit) var(--motion-ease-exit);
+  pointer-events: none;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--motion-shift)));
+}
+
+/* 内缩菜单：面板内容按 .menu-section 分区，相邻分区自动加分隔线；菜单项悬停显示圆角品牌底色。 */
+.menu-section {
+  @apply p-1.5;
+}
+
+.menu-section + .menu-section {
+  @apply border-t border-gray-100 dark:border-dark-700;
+}
+
+.menu-item {
+  @apply flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium;
+  @apply text-gray-700 hover:bg-primary-50 hover:text-primary-700;
+  @apply dark:text-dark-100 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.menu-item-danger {
+  @apply text-red-600 hover:bg-red-50 hover:text-red-700;
+  @apply dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300;
+}
+
+/* 分段控件：选中背景是一块共用的底板，由 vSegmented 定位并在选项间连续滑动。 */
+.segmented {
+  @apply relative rounded-lg border border-gray-200 bg-gray-50 p-0.5;
+  @apply dark:border-dark-600 dark:bg-dark-900;
+}
+
+.segmented-item {
+  @apply relative rounded-md text-gray-500 hover:text-gray-800;
+  @apply dark:text-dark-400 dark:hover:text-dark-100;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.segmented-item-active {
+  @apply bg-white text-primary-700 shadow-sm ring-1 ring-gray-200;
+  @apply dark:bg-dark-700 dark:text-white dark:ring-dark-600;
+}
+
+.segmented[data-segmented-ready]::before {
+  content: '';
+  @apply pointer-events-none absolute left-0 top-0 rounded-md bg-white shadow-sm ring-1 ring-gray-200;
+  @apply dark:bg-dark-700 dark:ring-dark-600;
+  width: var(--segmented-width);
+  height: var(--segmented-height);
+  transform: translate(var(--segmented-x), var(--segmented-y));
+  transition:
+    transform var(--motion-normal) var(--motion-ease),
+    width var(--motion-normal) var(--motion-ease),
+    height var(--motion-normal) var(--motion-ease);
+}
+
+.segmented[data-segmented-ready] > .segmented-item-active {
+  background-color: transparent;
+  box-shadow: none;
+}
