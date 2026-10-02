@@ -1,5 +1,4 @@
 import type { VideoModelConfig } from '@/components/admin/channel/video-models'
-import type { RateScheduleConfig } from '@/utils/rate-schedule'
 /**
  * Core Type Definitions for Sub2API Frontend
  */
@@ -635,7 +634,6 @@ export interface Group {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
-  rate_schedule: RateScheduleConfig
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
@@ -874,7 +872,6 @@ export interface CreateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
-  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -945,7 +942,6 @@ export interface UpdateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
-  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number

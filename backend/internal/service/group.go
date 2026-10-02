@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"math"
 	"strings"
@@ -31,7 +30,6 @@ type Group struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
-	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 	Status             string
 	Hydrated           bool // indicates the group was loaded from a trusted repository source
@@ -338,31 +336,6 @@ func parseMinutes(hhmm string) (int, bool) {
 func (g *Group) PeakMultiplierAt(now time.Time) float64 {
 	if snapshot, ok := g.requestRateAt(now); ok {
 		return snapshot.Factor
-	}
-	if g != nil && g.RateSchedule.Rules != nil {
-		if !g.RateSchedule.Enabled {
-			return 1
-		}
-		location := timezone.Location()
-		if g.RateSchedule.Timezone != "" {
-			location, _ = time.LoadLocation(g.RateSchedule.Timezone)
-		}
-		local := now.In(location)
-		minute := local.Hour()*60 + local.Minute()
-		for _, rule := range g.RateSchedule.Rules {
-			if !rule.Enabled {
-				continue
-			}
-			start, _ := parseMinutes(rule.Start)
-			end, _ := parseMinutes(rule.End)
-			if rule.End == "24:00" {
-				end = 1440
-			}
-			if (start < end && minute >= start && minute < end) || (start > end && (minute >= start || minute < end)) {
-				return rule.Multiplier
-			}
-		}
-		return 1
 	}
 	if g == nil || !g.IsSubscriptionType() || !g.PeakRateEnabled || g.PeakStart == "" || g.PeakEnd == "" {
 		return 1.0

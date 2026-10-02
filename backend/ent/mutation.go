@@ -61,7 +61,6 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/userplatformquota"
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
@@ -22787,7 +22786,6 @@ type GroupMutation struct {
 	peak_end                                *string
 	peak_rate_multiplier                    *float64
 	addpeak_rate_multiplier                 *float64
-	rate_schedule                           *rateschedule.Config
 	is_exclusive                            *bool
 	status                                  *string
 	duplicate_operation_id                  *string
@@ -23428,55 +23426,6 @@ func (m *GroupMutation) AddedPeakRateMultiplier() (r float64, exists bool) {
 func (m *GroupMutation) ResetPeakRateMultiplier() {
 	m.peak_rate_multiplier = nil
 	m.addpeak_rate_multiplier = nil
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (m *GroupMutation) SetRateSchedule(r rateschedule.Config) {
-	m.rate_schedule = &r
-}
-
-// RateSchedule returns the value of the "rate_schedule" field in the mutation.
-func (m *GroupMutation) RateSchedule() (r rateschedule.Config, exists bool) {
-	v := m.rate_schedule
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldRateSchedule returns the old "rate_schedule" field's value of the Group entity.
-// If the Group object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GroupMutation) OldRateSchedule(ctx context.Context) (v rateschedule.Config, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRateSchedule is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRateSchedule requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRateSchedule: %w", err)
-	}
-	return oldValue.RateSchedule, nil
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (m *GroupMutation) ClearRateSchedule() {
-	m.rate_schedule = nil
-	m.clearedFields[group.FieldRateSchedule] = struct{}{}
-}
-
-// RateScheduleCleared returns if the "rate_schedule" field was cleared in this mutation.
-func (m *GroupMutation) RateScheduleCleared() bool {
-	_, ok := m.clearedFields[group.FieldRateSchedule]
-	return ok
-}
-
-// ResetRateSchedule resets all changes to the "rate_schedule" field.
-func (m *GroupMutation) ResetRateSchedule() {
-	m.rate_schedule = nil
-	delete(m.clearedFields, group.FieldRateSchedule)
 }
 
 // SetIsExclusive sets the "is_exclusive" field.
@@ -27028,7 +26977,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 74)
+	fields := make([]string, 0, 73)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -27058,9 +27007,6 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.peak_rate_multiplier != nil {
 		fields = append(fields, group.FieldPeakRateMultiplier)
-	}
-	if m.rate_schedule != nil {
-		fields = append(fields, group.FieldRateSchedule)
 	}
 	if m.is_exclusive != nil {
 		fields = append(fields, group.FieldIsExclusive)
@@ -27279,8 +27225,6 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.PeakEnd()
 	case group.FieldPeakRateMultiplier:
 		return m.PeakRateMultiplier()
-	case group.FieldRateSchedule:
-		return m.RateSchedule()
 	case group.FieldIsExclusive:
 		return m.IsExclusive()
 	case group.FieldStatus:
@@ -27436,8 +27380,6 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPeakEnd(ctx)
 	case group.FieldPeakRateMultiplier:
 		return m.OldPeakRateMultiplier(ctx)
-	case group.FieldRateSchedule:
-		return m.OldRateSchedule(ctx)
 	case group.FieldIsExclusive:
 		return m.OldIsExclusive(ctx)
 	case group.FieldStatus:
@@ -27642,13 +27584,6 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPeakRateMultiplier(v)
-		return nil
-	case group.FieldRateSchedule:
-		v, ok := value.(rateschedule.Config)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetRateSchedule(v)
 		return nil
 	case group.FieldIsExclusive:
 		v, ok := value.(bool)
@@ -28490,9 +28425,6 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldDescription) {
 		fields = append(fields, group.FieldDescription)
 	}
-	if m.FieldCleared(group.FieldRateSchedule) {
-		fields = append(fields, group.FieldRateSchedule)
-	}
 	if m.FieldCleared(group.FieldDuplicateOperationID) {
 		fields = append(fields, group.FieldDuplicateOperationID)
 	}
@@ -28581,9 +28513,6 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldDescription:
 		m.ClearDescription()
-		return nil
-	case group.FieldRateSchedule:
-		m.ClearRateSchedule()
 		return nil
 	case group.FieldDuplicateOperationID:
 		m.ClearDuplicateOperationID()
@@ -28691,9 +28620,6 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldPeakRateMultiplier:
 		m.ResetPeakRateMultiplier()
-		return nil
-	case group.FieldRateSchedule:
-		m.ResetRateSchedule()
 		return nil
 	case group.FieldIsExclusive:
 		m.ResetIsExclusive()

@@ -20,7 +20,6 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -160,20 +159,6 @@ func (_c *GroupCreate) SetPeakRateMultiplier(v float64) *GroupCreate {
 func (_c *GroupCreate) SetNillablePeakRateMultiplier(v *float64) *GroupCreate {
 	if v != nil {
 		_c.SetPeakRateMultiplier(*v)
-	}
-	return _c
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (_c *GroupCreate) SetRateSchedule(v rateschedule.Config) *GroupCreate {
-	_c.mutation.SetRateSchedule(v)
-	return _c
-}
-
-// SetNillableRateSchedule sets the "rate_schedule" field if the given value is not nil.
-func (_c *GroupCreate) SetNillableRateSchedule(v *rateschedule.Config) *GroupCreate {
-	if v != nil {
-		_c.SetRateSchedule(*v)
 	}
 	return _c
 }
@@ -1624,10 +1609,6 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldPeakRateMultiplier, field.TypeFloat64, value)
 		_node.PeakRateMultiplier = value
 	}
-	if value, ok := _c.mutation.RateSchedule(); ok {
-		_spec.SetField(group.FieldRateSchedule, field.TypeJSON, value)
-		_node.RateSchedule = value
-	}
 	if value, ok := _c.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)
 		_node.IsExclusive = value
@@ -2165,24 +2146,6 @@ func (u *GroupUpsert) UpdatePeakRateMultiplier() *GroupUpsert {
 // AddPeakRateMultiplier adds v to the "peak_rate_multiplier" field.
 func (u *GroupUpsert) AddPeakRateMultiplier(v float64) *GroupUpsert {
 	u.Add(group.FieldPeakRateMultiplier, v)
-	return u
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (u *GroupUpsert) SetRateSchedule(v rateschedule.Config) *GroupUpsert {
-	u.Set(group.FieldRateSchedule, v)
-	return u
-}
-
-// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
-func (u *GroupUpsert) UpdateRateSchedule() *GroupUpsert {
-	u.SetExcluded(group.FieldRateSchedule)
-	return u
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (u *GroupUpsert) ClearRateSchedule() *GroupUpsert {
-	u.SetNull(group.FieldRateSchedule)
 	return u
 }
 
@@ -3429,27 +3392,6 @@ func (u *GroupUpsertOne) AddPeakRateMultiplier(v float64) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdatePeakRateMultiplier() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdatePeakRateMultiplier()
-	})
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (u *GroupUpsertOne) SetRateSchedule(v rateschedule.Config) *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.SetRateSchedule(v)
-	})
-}
-
-// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
-func (u *GroupUpsertOne) UpdateRateSchedule() *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.UpdateRateSchedule()
-	})
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (u *GroupUpsertOne) ClearRateSchedule() *GroupUpsertOne {
-	return u.Update(func(s *GroupUpsert) {
-		s.ClearRateSchedule()
 	})
 }
 
@@ -5036,27 +4978,6 @@ func (u *GroupUpsertBulk) AddPeakRateMultiplier(v float64) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdatePeakRateMultiplier() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdatePeakRateMultiplier()
-	})
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (u *GroupUpsertBulk) SetRateSchedule(v rateschedule.Config) *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.SetRateSchedule(v)
-	})
-}
-
-// UpdateRateSchedule sets the "rate_schedule" field to the value that was provided on create.
-func (u *GroupUpsertBulk) UpdateRateSchedule() *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.UpdateRateSchedule()
-	})
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (u *GroupUpsertBulk) ClearRateSchedule() *GroupUpsertBulk {
-	return u.Update(func(s *GroupUpsert) {
-		s.ClearRateSchedule()
 	})
 }
 

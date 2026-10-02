@@ -21,7 +21,6 @@ below for detailed configuration and maintenance instructions.
 - [Codex client profile restrictions](protocols/CODEX_CLIENT_PROFILES.md)
 - [Asynchronous image tasks](ASYNC_IMAGE_TASKS.md)
 
-- [Group recurring rate schedules](GROUP_RATE_SCHEDULES.md)
 - [TypeSafe Jev prompt audit](TYPESAFE_PROMPT_AUDIT.md)
 
 ## Deployment and Operations

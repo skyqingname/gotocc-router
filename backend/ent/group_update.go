@@ -22,7 +22,6 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -180,26 +179,6 @@ func (_u *GroupUpdate) SetNillablePeakRateMultiplier(v *float64) *GroupUpdate {
 // AddPeakRateMultiplier adds value to the "peak_rate_multiplier" field.
 func (_u *GroupUpdate) AddPeakRateMultiplier(v float64) *GroupUpdate {
 	_u.mutation.AddPeakRateMultiplier(v)
-	return _u
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (_u *GroupUpdate) SetRateSchedule(v rateschedule.Config) *GroupUpdate {
-	_u.mutation.SetRateSchedule(v)
-	return _u
-}
-
-// SetNillableRateSchedule sets the "rate_schedule" field if the given value is not nil.
-func (_u *GroupUpdate) SetNillableRateSchedule(v *rateschedule.Config) *GroupUpdate {
-	if v != nil {
-		_u.SetRateSchedule(*v)
-	}
-	return _u
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (_u *GroupUpdate) ClearRateSchedule() *GroupUpdate {
-	_u.mutation.ClearRateSchedule()
 	return _u
 }
 
@@ -1758,12 +1737,6 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedPeakRateMultiplier(); ok {
 		_spec.AddField(group.FieldPeakRateMultiplier, field.TypeFloat64, value)
 	}
-	if value, ok := _u.mutation.RateSchedule(); ok {
-		_spec.SetField(group.FieldRateSchedule, field.TypeJSON, value)
-	}
-	if _u.mutation.RateScheduleCleared() {
-		_spec.ClearField(group.FieldRateSchedule, field.TypeJSON)
-	}
 	if value, ok := _u.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)
 	}
@@ -2573,26 +2546,6 @@ func (_u *GroupUpdateOne) SetNillablePeakRateMultiplier(v *float64) *GroupUpdate
 // AddPeakRateMultiplier adds value to the "peak_rate_multiplier" field.
 func (_u *GroupUpdateOne) AddPeakRateMultiplier(v float64) *GroupUpdateOne {
 	_u.mutation.AddPeakRateMultiplier(v)
-	return _u
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (_u *GroupUpdateOne) SetRateSchedule(v rateschedule.Config) *GroupUpdateOne {
-	_u.mutation.SetRateSchedule(v)
-	return _u
-}
-
-// SetNillableRateSchedule sets the "rate_schedule" field if the given value is not nil.
-func (_u *GroupUpdateOne) SetNillableRateSchedule(v *rateschedule.Config) *GroupUpdateOne {
-	if v != nil {
-		_u.SetRateSchedule(*v)
-	}
-	return _u
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (_u *GroupUpdateOne) ClearRateSchedule() *GroupUpdateOne {
-	_u.mutation.ClearRateSchedule()
 	return _u
 }
 
@@ -4180,12 +4133,6 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedPeakRateMultiplier(); ok {
 		_spec.AddField(group.FieldPeakRateMultiplier, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.RateSchedule(); ok {
-		_spec.SetField(group.FieldRateSchedule, field.TypeJSON, value)
-	}
-	if _u.mutation.RateScheduleCleared() {
-		_spec.ClearField(group.FieldRateSchedule, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)

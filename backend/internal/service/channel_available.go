@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"maps"
 	"sort"
 	"strings"
@@ -24,7 +23,6 @@ type AvailableGroupRef struct {
 	PeakStart          string
 	PeakEnd            string
 	PeakRateMultiplier float64
-	RateSchedule       rateschedule.Config
 	IsExclusive        bool
 }
 
@@ -75,7 +73,6 @@ func (s *ChannelService) ListAvailable(ctx context.Context) ([]AvailableChannel,
 			PeakStart:          g.PeakStart,
 			PeakEnd:            g.PeakEnd,
 			PeakRateMultiplier: g.PeakRateMultiplier,
-			RateSchedule:       g.RateSchedule,
 			IsExclusive:        g.IsExclusive,
 		}
 	}
