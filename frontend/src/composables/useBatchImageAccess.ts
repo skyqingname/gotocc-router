@@ -61,6 +61,7 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
         }
         if (isAutoRoutingKey(key)) {
           const capabilities = await getAutoRoutingCapabilities(key)
+          if (scope !== supportRequestGeneration()) return false
           if (keyAllowsBatchImage(key, capabilities || undefined)) {
             hasAllowedBatchImageKey.value = true
             loaded.value = true
