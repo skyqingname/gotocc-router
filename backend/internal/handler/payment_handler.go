@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"strconv"
 	"strings"
 	"time"
@@ -52,27 +51,26 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 	}
 	// Enrich plans with group platform for frontend color coding
 	type planWithPlatform struct {
-		ID                 int64               `json:"id"`
-		GroupID            int64               `json:"group_id"`
-		GroupPlatform      string              `json:"group_platform"`
-		GroupName          string              `json:"group_name"`
-		RateMultiplier     float64             `json:"rate_multiplier"`
-		PeakRateEnabled    bool                `json:"peak_rate_enabled"`
-		PeakStart          string              `json:"peak_start"`
-		PeakEnd            string              `json:"peak_end"`
-		PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
-		RateSchedule       rateschedule.Config `json:"rate_schedule"`
-		Name               string              `json:"name"`
-		Description        string              `json:"description"`
-		Price              float64             `json:"price"`
-		OriginalPrice      *float64            `json:"original_price,omitempty"`
-		Currency           string              `json:"currency,omitempty"`
-		ValidityDays       int                 `json:"validity_days"`
-		ValidityUnit       string              `json:"validity_unit"`
-		Features           string              `json:"features"`
-		ProductName        string              `json:"product_name"`
-		ForSale            bool                `json:"for_sale"`
-		SortOrder          int                 `json:"sort_order"`
+		ID                 int64    `json:"id"`
+		GroupID            int64    `json:"group_id"`
+		GroupPlatform      string   `json:"group_platform"`
+		GroupName          string   `json:"group_name"`
+		RateMultiplier     float64  `json:"rate_multiplier"`
+		PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+		PeakStart          string   `json:"peak_start"`
+		PeakEnd            string   `json:"peak_end"`
+		PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+		Name               string   `json:"name"`
+		Description        string   `json:"description"`
+		Price              float64  `json:"price"`
+		OriginalPrice      *float64 `json:"original_price,omitempty"`
+		Currency           string   `json:"currency,omitempty"`
+		ValidityDays       int      `json:"validity_days"`
+		ValidityUnit       string   `json:"validity_unit"`
+		Features           string   `json:"features"`
+		ProductName        string   `json:"product_name"`
+		ForSale            bool     `json:"for_sale"`
+		SortOrder          int      `json:"sort_order"`
 	}
 	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
 	result := make([]planWithPlatform, 0, len(plans))
@@ -82,7 +80,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			ID: int64(p.ID), GroupID: p.GroupID,
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
 			RateMultiplier: gi.RateMultiplier, PeakRateEnabled: gi.PeakRateEnabled,
-			PeakStart: gi.PeakStart, PeakEnd: gi.PeakEnd, PeakRateMultiplier: gi.PeakRateMultiplier, RateSchedule: gi.RateSchedule,
+			PeakStart: gi.PeakStart, PeakEnd: gi.PeakEnd, PeakRateMultiplier: gi.PeakRateMultiplier,
 			Name: p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
@@ -131,7 +129,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
 			RateMultiplier:  gi.RateMultiplier,
 			PeakRateEnabled: gi.PeakRateEnabled, PeakStart: gi.PeakStart,
-			PeakEnd: gi.PeakEnd, PeakRateMultiplier: gi.PeakRateMultiplier, RateSchedule: gi.RateSchedule,
+			PeakEnd: gi.PeakEnd, PeakRateMultiplier: gi.PeakRateMultiplier,
 			DailyLimitUSD:  gi.DailyLimitUSD,
 			WeeklyLimitUSD: gi.WeeklyLimitUSD, MonthlyLimitUSD: gi.MonthlyLimitUSD, FiveHourLimitUSD: gi.FiveHourLimitUSD,
 			ModelScopes: gi.ModelScopes,
@@ -176,30 +174,29 @@ type checkoutInfoResponse struct {
 }
 
 type checkoutPlan struct {
-	ID                 int64               `json:"id"`
-	GroupID            int64               `json:"group_id"`
-	GroupPlatform      string              `json:"group_platform"`
-	GroupName          string              `json:"group_name"`
-	RateMultiplier     float64             `json:"rate_multiplier"`
-	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
-	PeakStart          string              `json:"peak_start"`
-	PeakEnd            string              `json:"peak_end"`
-	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
-	RateSchedule       rateschedule.Config `json:"rate_schedule"`
-	DailyLimitUSD      *float64            `json:"daily_limit_usd"`
-	WeeklyLimitUSD     *float64            `json:"weekly_limit_usd"`
-	MonthlyLimitUSD    *float64            `json:"monthly_limit_usd"`
-	FiveHourLimitUSD   *float64            `json:"five_hour_limit_usd"`
-	ModelScopes        []string            `json:"supported_model_scopes"`
-	Name               string              `json:"name"`
-	Description        string              `json:"description"`
-	Price              float64             `json:"price"`
-	OriginalPrice      *float64            `json:"original_price,omitempty"`
-	Currency           string              `json:"currency,omitempty"`
-	ValidityDays       int                 `json:"validity_days"`
-	ValidityUnit       string              `json:"validity_unit"`
-	Features           []string            `json:"features"`
-	ProductName        string              `json:"product_name"`
+	ID                 int64    `json:"id"`
+	GroupID            int64    `json:"group_id"`
+	GroupPlatform      string   `json:"group_platform"`
+	GroupName          string   `json:"group_name"`
+	RateMultiplier     float64  `json:"rate_multiplier"`
+	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+	PeakStart          string   `json:"peak_start"`
+	PeakEnd            string   `json:"peak_end"`
+	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+	DailyLimitUSD      *float64 `json:"daily_limit_usd"`
+	WeeklyLimitUSD     *float64 `json:"weekly_limit_usd"`
+	MonthlyLimitUSD    *float64 `json:"monthly_limit_usd"`
+	FiveHourLimitUSD   *float64 `json:"five_hour_limit_usd"`
+	ModelScopes        []string `json:"supported_model_scopes"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Price              float64  `json:"price"`
+	OriginalPrice      *float64 `json:"original_price,omitempty"`
+	Currency           string   `json:"currency,omitempty"`
+	ValidityDays       int      `json:"validity_days"`
+	ValidityUnit       string   `json:"validity_unit"`
+	Features           []string `json:"features"`
+	ProductName        string   `json:"product_name"`
 }
 
 // parseFeatures splits a newline-separated features string into a string slice.
@@ -339,7 +336,7 @@ func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeC
 // GetMyOrders returns the authenticated user's orders.
 // GET /api/v1/payment/orders/my
 func (h *PaymentHandler) GetMyOrders(c *gin.Context) {
-	subject, ok := requireAuth(c)
+	subject, ok := requireReadAuth(c)
 	if !ok {
 		return
 	}
@@ -359,57 +356,10 @@ func (h *PaymentHandler) GetMyOrders(c *gin.Context) {
 	response.Paginated(c, sanitizePaymentOrdersForResponse(orders), int64(total), page, pageSize)
 }
 
-// AdminSupportListOrders returns a target user's orders through the same
-// provider-detail-free DTO used by the user-facing endpoint.
-func (h *PaymentHandler) AdminSupportListOrders(c *gin.Context) {
-	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if err != nil || userID <= 0 {
-		response.BadRequest(c, "Invalid user ID")
-		return
-	}
-
-	page, pageSize := response.ParsePagination(c)
-	orders, total, err := h.paymentService.GetUserOrders(c.Request.Context(), userID, service.OrderListParams{
-		Page:        page,
-		PageSize:    pageSize,
-		Status:      c.Query("status"),
-		OrderType:   c.Query("order_type"),
-		PaymentType: c.Query("payment_type"),
-	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Paginated(c, sanitizePaymentOrdersForResponse(orders), int64(total), page, pageSize)
-}
-
-// AdminSupportGetOrder returns one order only when it belongs to the explicit
-// support target. No cancel, refund, retry, or fulfillment route is registered
-// in the support namespace.
-func (h *PaymentHandler) AdminSupportGetOrder(c *gin.Context) {
-	userID, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if err != nil || userID <= 0 {
-		response.BadRequest(c, "Invalid user ID")
-		return
-	}
-	orderID, err := strconv.ParseInt(c.Param("order_id"), 10, 64)
-	if err != nil || orderID <= 0 {
-		response.BadRequest(c, "Invalid order ID")
-		return
-	}
-
-	order, err := h.paymentService.GetOrder(c.Request.Context(), orderID, userID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, sanitizePaymentOrderForResponse(order))
-}
-
 // GetOrder returns a single order for the authenticated user.
 // GET /api/v1/payment/orders/:id
 func (h *PaymentHandler) GetOrder(c *gin.Context) {
-	subject, ok := requireAuth(c)
+	subject, ok := requireReadAuth(c)
 	if !ok {
 		return
 	}
@@ -735,4 +685,12 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 
 func isWeChatBrowser(c *gin.Context) bool {
 	return strings.Contains(strings.ToLower(c.GetHeader("User-Agent")), "micromessenger")
+}
+
+func requireReadAuth(c *gin.Context) (middleware2.AuthSubject, bool) {
+	subject, ok := middleware2.GetReadSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+	}
+	return subject, ok
 }

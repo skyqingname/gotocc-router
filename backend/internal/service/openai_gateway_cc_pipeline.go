@@ -200,6 +200,11 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	userAgent string,
 	grokCacheIdentity string,
 ) (*http.Response, error) {
+	// DeepSeek thinking mode 要求历史 assistant 回传 reasoning_content。
+	// Responses→CC 回退在加密-only / 缺 reasoning item 且缓存未命中时会漏掉该
+	// 字段，上游 400 "The `reasoning_content` in the thinking mode must be
+	// passed back to the API"。在共用出站点补空格占位，真实明文不覆盖。
+	body = ensureDeepSeekChatReasoningPlaceholders(account, body)
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	upstreamReq, err := http.NewRequestWithContext(upstreamCtx, http.MethodPost, targetURL, bytes.NewReader(body))
 	releaseUpstreamCtx()
@@ -210,7 +215,11 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 	// OpenAIForwardResult（例如 503/传输失败）时使用。每次发送都覆盖，
 	// 避免 Gin context 在账号 failover 尝试之间残留旧端点。
 	SetActualOpenAIUpstreamEndpoint(c, "/v1/chat/completions")
-	upstreamReq = upstreamReq.WithContext(WithHTTPUpstreamProfile(upstreamReq.Context(), HTTPUpstreamProfileOpenAI))
+	profile := HTTPUpstreamProfileOpenAI
+	if account != nil && account.Platform == PlatformGrok {
+		profile = HTTPUpstreamProfileGrok
+	}
+	upstreamReq = upstreamReq.WithContext(WithHTTPUpstreamProfile(upstreamReq.Context(), profile))
 	upstreamReq.Header.Set("Content-Type", "application/json")
 	upstreamReq.Header.Set("Authorization", "Bearer "+bearerToken)
 	if stream {
@@ -236,7 +245,7 @@ func (s *OpenAIGatewayService) sendCCUpstreamRequest(
 		if account.IsGrokOAuth() {
 			applyGrokCLIHeaders(upstreamReq.Header)
 		}
-		applyGrokCacheHeaders(upstreamReq.Header, grokCacheIdentity)
+		applyGrokRequestMetadata(upstreamReq.Header, body, grokCacheIdentity, account.GetCredential("sub"))
 	}
 	// OpenAI identity is always the final stage. Other providers retain their
 	// existing generic override behavior.

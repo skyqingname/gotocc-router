@@ -94,33 +94,6 @@ type OpenAIAccountScheduleRequest struct {
 	ExcludedIDs    map[int64]struct{}
 }
 
-type openAIImagesDirectModelRoutingCtxKey struct{}
-
-func withOpenAIImagesDirectModelRouting(ctx context.Context) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithValue(ctx, openAIImagesDirectModelRoutingCtxKey{}, true)
-}
-
-func openAIImagesDirectModelRoutingFromContext(ctx context.Context) bool {
-	if ctx == nil {
-		return false
-	}
-	enabled, _ := ctx.Value(openAIImagesDirectModelRoutingCtxKey{}).(bool)
-	return enabled
-}
-
-func openAIAccountSupportsRequestedModel(ctx context.Context, account *Account, requestedModel string) bool {
-	if account == nil {
-		return false
-	}
-	if openAIImagesDirectModelRoutingFromContext(ctx) {
-		return account.IsModelDirectlySupported(requestedModel)
-	}
-	return account.IsModelSupported(requestedModel)
-}
-
 type OpenAIAccountScheduleDecision struct {
 	Layer               string
 	StickyPreviousHit   bool
@@ -580,7 +553,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		clearBinding()
 		return nil, false, nil
 	}
-	if shouldClearStickySession(account, req.RequestedModel) || account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
+	if shouldClearStickySession(account, req.RequestedModel) || !openAIAccountMatchesPlatform(account, req.Platform) || !account.IsOpenAICompatible() || !account.IsSchedulable() {
 		clearBinding()
 		return nil, false, nil
 	}
@@ -1528,7 +1501,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			filterStats.exclude("not_schedulable")
 			continue
 		}
-		if account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() {
+		if !openAIAccountMatchesPlatform(account, req.Platform) || !account.IsOpenAICompatible() {
 			filterStats.exclude("platform_mismatch")
 			continue
 		}
@@ -1856,6 +1829,14 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	// policy is an additional access-control veto at this initial filter stage.
 	if !openAIOAuthSessionPolicyAllowsSchedulingGroup(account, req.GroupID) {
 		return false, "oauth_session_group_denied"
+	}
+	// Composite routing may bind a public model to a specific account; that
+	// ownership veto is a separate policy layer from the OAuth session group
+	// veto above and must not replace it.
+	if source, ok := CompositeRouteSourceFromContext(ctx); ok && source == CompositeRouteSourceAccount {
+		if publicModel, modelOK := RequestedPublicModelFromContext(ctx); modelOK && !explicitModelMappingClaims(*account, publicModel) {
+			return false, "account_model_not_owned"
+		}
 	}
 	if req.RequirePrivacySet && !account.IsPrivacySet() {
 		return false, "privacy_not_set"
@@ -2708,28 +2689,6 @@ func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Accou
 		return false
 	}
 	return openAIAccountTransportCompatible(s.cfg, s.getOpenAIWSProtocolResolver(), account, requiredTransport)
-}
-
-func openAIAccountTransportCompatible(cfg *config.Config, resolver OpenAIWSProtocolResolver, account *Account, requiredTransport OpenAIUpstreamTransport) bool {
-	if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
-		return true
-	}
-	if account == nil || resolver == nil {
-		return false
-	}
-	if requiredTransport == OpenAIUpstreamTransportResponsesWebsocketV2Ingress {
-		if cfg == nil || !cfg.Gateway.OpenAIWS.ModeRouterV2Enabled {
-			return resolver.Resolve(account).Transport == OpenAIUpstreamTransportResponsesWebsocketV2
-		}
-		mode := account.ResolveOpenAIResponsesWebSocketV2Mode(cfg.Gateway.OpenAIWS.IngressModeDefault)
-		switch mode {
-		case OpenAIWSIngressModeCtxPool, OpenAIWSIngressModePassthrough, OpenAIWSIngressModeHTTPBridge, OpenAIWSIngressModeShared, OpenAIWSIngressModeDedicated:
-			return true
-		default:
-			return false
-		}
-	}
-	return resolver.Resolve(account).Transport == requiredTransport
 }
 
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Account, model string, success bool, firstTokenMs *int, observedErr ...error) bool {

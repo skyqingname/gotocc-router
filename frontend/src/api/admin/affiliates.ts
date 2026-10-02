@@ -25,7 +25,7 @@ export interface AffiliateInviterState {
 }
 
 export interface AffiliateInviterChange {
-  code_type: AffiliateInviterCodeType
+  code_type?: AffiliateInviterCodeType
   code: string
   resolved_user_id: number
   expected_version: number
@@ -36,8 +36,8 @@ export async function getInviter(userId: number): Promise<AffiliateInviterState>
   return data
 }
 
-export async function resolveInviterCode(codeType: AffiliateInviterCodeType, code: string): Promise<AffiliateInviterUser> {
-  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code_type: codeType, code })
+export async function resolveInviterCode(code: string): Promise<AffiliateInviterUser> {
+  const { data } = await apiClient.post<AffiliateInviterUser>('/admin/affiliates/inviter/resolve', { code })
   return data
 }
 
@@ -85,16 +85,16 @@ export interface AffiliateRebateRecord {
   rebate_level: number | null
   rebate_rate_percent: number | null
   rebate_base_amount: number | null
-  order_id: number
+  order_id: number | null
   out_trade_no: string
   inviter_id: number
   inviter_email: string
   inviter_username: string
-  invitee_id: number
+  invitee_id: number | null
   invitee_email: string
   invitee_username: string
-  order_amount: number
-  pay_amount: number
+  order_amount: number | null
+  pay_amount: number | null
   rebate_amount: number
   payment_type: string
   order_status: string
@@ -102,6 +102,7 @@ export interface AffiliateRebateRecord {
 }
 
 export interface AffiliateTransferRecord {
+  action: 'transfer' | 'withdraw'
   ledger_id: number
   user_id: number
   user_email: string

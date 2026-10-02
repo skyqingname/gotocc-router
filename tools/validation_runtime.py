@@ -11,9 +11,11 @@ import hashlib
 import json
 import os
 import platform
+import posixpath
 import re
 import shlex
 import shutil
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
@@ -27,6 +29,11 @@ PROXY_ENV_NAMES = (
     "http_proxy",
     "https_proxy",
     "no_proxy",
+)
+INTEGRATION_ENV_NAMES = (
+    "SUB2API_TEST_POSTGRES_DSN",
+    "SUB2API_TEST_REDIS_ADDR",
+    "SUB2API_TEST_REDIS_PASSWORD",
 )
 HOST_CHECKED_REMOTE_TAG_ENV = "SUB2API_HOST_CHECKED_REMOTE_TAG"
 VALIDATION_MARKER = Path("/etc/sub2api-validation")
@@ -403,6 +410,46 @@ def bind_mount_args(runtime: Runtime, source: str, target: str) -> list[str]:
     return ["--volume", f"{source}:{target}"]
 
 
+def worktree_git_mount(runtime: Runtime, root: Path) -> list[str]:
+    """Mount a linked worktree's shared Git metadata, without its other trees."""
+    marker = root / ".git"
+    if not marker.is_file():
+        return []
+    declaration = marker.read_text(encoding="utf-8").strip()
+    if not declaration.startswith("gitdir: "):
+        raise ValidationRuntimeError("invalid linked-worktree .git declaration")
+    git_dir = (root / declaration.removeprefix("gitdir: ")).resolve()
+    common_marker = git_dir / "commondir"
+    common = (
+        (git_dir / common_marker.read_text(encoding="utf-8").strip()).resolve()
+        if common_marker.is_file()
+        else git_dir
+    )
+    try:
+        common.relative_to(root.resolve())
+        return []
+    except ValueError:
+        pass
+    if runtime.name == "wsl2-docker":
+        # Relative metadata pointers resolve in both Windows and WSL.
+        relative = os.path.relpath(common, root).replace("\\", "/")
+        source = posixpath.normpath(posixpath.join(mount_root(runtime, root), relative))
+    else:
+        source = str(common)
+    return bind_mount_args(runtime, source, source)
+
+
+def validation_network_args(runtime: Runtime) -> list[str]:
+    mode = os.environ.get("SUB2API_VALIDATION_WSL_NETWORK", "").strip()
+    if not mode:
+        return []
+    if mode != "host" or runtime.name != "wsl2-docker":
+        raise ValidationRuntimeError(
+            "SUB2API_VALIDATION_WSL_NETWORK only supports host with WSL2 Docker"
+        )
+    return ["--network", "host"]
+
+
 def image_build_command(runtime: Runtime, root: Path, image: str) -> list[str]:
     dockerfile = container_path(root / DOCKERFILE_RELATIVE, runtime, root)
     context = container_path(root / "deploy", runtime, root)
@@ -435,11 +482,15 @@ def validation_run_command(
         *engine_command(runtime),
         "run",
         "--rm",
+        *validation_network_args(runtime),
         "--cpus",
         "4",
         "--memory",
         "8G",
+        "--label",
+        f"sub2api-validation={image.rsplit(':', 1)[-1]}",
         *bind_mount_args(runtime, repo, repo),
+        *worktree_git_mount(runtime, root),
         *bind_mount_args(
             runtime,
             *node_modules_overlay(runtime, root, generation=cache_generation),
@@ -497,7 +548,7 @@ def validation_run_command(
     ]
     if user:
         command.extend(["--user", user])
-    for name in PROXY_ENV_NAMES:
+    for name in (*PROXY_ENV_NAMES, *INTEGRATION_ENV_NAMES):
         if os.environ.get(name):
             # The engine inherits the value without placing it in the command
             # line, process list, or validation logs.
@@ -596,11 +647,27 @@ def launch_in_validation(
         )
 
 
+def remove_validation_cache(path: Path) -> None:
+    """Remove an owned cache tree, including Go's read-only module directories."""
+    if path.is_symlink():
+        path.unlink()
+        return
+    if not path.exists():
+        return
+    # Only directory entries need write access for deletion. Do not follow
+    # symlinks or change the modes of reusable caches outside this tree.
+    for directory, _, _ in os.walk(path, followlinks=False):
+        entry = Path(directory)
+        entry.chmod(entry.stat().st_mode | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    shutil.rmtree(path)
+
+
 def cleanup_validation_runtime(
     runtime: Runtime,
     *,
-    image: str,
-    cache_generation: str,
+    image: str | None = None,
+    cache_generation: str | None = None,
+    root: Path | None = None,
     capture: Capture,
     run_step: Callable[[str, Sequence[str]], None],
 ) -> None:
@@ -609,7 +676,21 @@ def cleanup_validation_runtime(
     Validation containers use --rm, so their writable snapshots are already
     removed. Cleanup is scoped to deterministic Sub2API validation images and
     cache directories and never invokes a global runtime prune.
+
+    `image` and `cache_generation` may be omitted and derived from `root`; this
+    keeps the push_cli pre-run cleanup cheap to call without eagerly computing
+    the digests (and reading the validation Dockerfile) at the call site.
     """
+    if image is None or cache_generation is None:
+        if root is None:
+            raise ValidationRuntimeError(
+                "cleanup_validation_runtime requires root when image or "
+                "cache_generation is omitted"
+            )
+        if image is None:
+            image = validation_image_ref(root)
+        if cache_generation is None:
+            cache_generation = validation_cache_digest(root)
 
     if not VALIDATION_GENERATION_RE.fullmatch(cache_generation):
         raise ValidationRuntimeError(
@@ -643,6 +724,10 @@ def cleanup_validation_runtime(
 
     if runtime.name == "wsl2-docker":
         cache_root = "/tmp/sub2api-validation-cache"
+        run_step(
+            "Initialize validation cache root",
+            [*runtime.prefix, "mkdir", "-p", cache_root],
+        )
         generations = capture(
             [
                 *runtime.prefix,
@@ -654,11 +739,15 @@ def cleanup_validation_runtime(
                 "1",
                 "-type",
                 "d",
-                "-printf",
-                "%f\n",
             ]
         )
-        for generation in generations.splitlines():
+        # Default find output avoids a literal newline argument being changed
+        # by Windows/WSL command-line serialization. Only direct children of
+        # this project cache may be considered for removal.
+        for path in generations.splitlines():
+            if not path.startswith(cache_root + "/"):
+                continue
+            generation = path[len(cache_root) + 1:]
             if generation == cache_generation:
                 continue
             if (
@@ -678,4 +767,96 @@ def cleanup_validation_runtime(
                 if path.is_symlink():
                     path.unlink()
                 elif path.is_dir():
-                    shutil.rmtree(path)
+                    remove_validation_cache(path)
+
+    # `--rm` only removes a container on graceful exit; SIGKILL/crash leaves a
+    # stopped, unlabeled-by-nothing container behind. The sub2api-validation
+    # label makes them individually addressable without a forbidden global
+    # prune. Scope to stopped project containers; running and unrelated
+    # containers are never touched. Apple Containers CLI has no label filter
+    # here, so it is skipped and still relies on --rm.
+    if runtime.name != "apple-containers":
+        for status in ("exited", "created"):
+            listed = capture(
+                [
+                    *engine,
+                    "container",
+                    "ls",
+                    "--all",
+                    "--quiet",
+                    "--filter",
+                    "label=sub2api-validation",
+                    "--filter",
+                    f"status={status}",
+                ]
+            )
+            for container_id in listed.split():
+                run_step(
+                    "Remove orphan validation container",
+                    [*engine, "container", "rm", container_id],
+                )
+
+
+def purge_validation_resources(
+    runtime: Runtime,
+    *,
+    root: Path,
+    capture: Capture,
+    run_step: Callable[[str, Sequence[str]], None],
+    assume_yes: bool = False,
+) -> None:
+    """Manually remove every Sub2API validation image, cache generation, and
+    project container.
+
+    Only the explicit `push-cli clean --yes` action calls this: deleting the
+    current generation forces the next run to rebuild the whole toolchain and
+    re-download every dependency, so it is never automatic. Scope stays inside
+    sub2api-validation resources; no global prune (container/image/builder/
+    volume/system) is ever invoked. Apple Containers only clears images and the
+    cache use --rm for containers.
+    """
+
+    engine = engine_command(runtime)
+    image_delete = "delete" if runtime.name == "apple-containers" else "rm"
+    list_command = [*engine, "image", "list"]
+    if runtime.name != "apple-containers":
+        list_command.extend(["--format", "table {{.Repository}}\t{{.Tag}}"])
+    for line in capture(list_command).splitlines()[1:]:
+        fields = line.split()
+        if len(fields) < 2:
+            continue
+        repository, tag = fields[:2]
+        if repository not in {IMAGE_NAME, f"localhost/{IMAGE_NAME}"}:
+            continue
+        run_step(
+            "Remove validation image",
+            [*engine, "image", image_delete, f"{repository}:{tag}"],
+        )
+    if runtime.name != "apple-containers":
+        listed = capture(
+            [
+                *engine,
+                "container",
+                "ls",
+                "--all",
+                "--quiet",
+                "--filter",
+                "label=sub2api-validation",
+            ]
+        )
+        for container_id in listed.split():
+            run_step(
+                "Stop validation container",
+                [*engine, "container", "stop", container_id],
+            )
+            run_step(
+                "Remove validation container",
+                [*engine, "container", "rm", container_id],
+            )
+    if runtime.name == "wsl2-docker":
+        run_step(
+            "Remove validation cache",
+            [*runtime.prefix, "rm", "-rf", "/tmp/sub2api-validation-cache"],
+        )
+    else:
+        remove_validation_cache(home_directory() / ".cache" / "sub2api-validation")

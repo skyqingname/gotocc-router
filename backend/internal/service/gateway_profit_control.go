@@ -43,6 +43,9 @@ func (s *GatewayService) withGatewayProfitControlGate(ctx context.Context, group
 	}
 	if snapshot, ok := billingGroup.requestRateAt(pricingAt); ok {
 		downstream = snapshot.Base
+		if snapshot.Reseller != nil {
+			downstream /= snapshot.Reseller.Multiplier
+		}
 	}
 	downstream *= billingGroup.PeakMultiplierAt(pricingAt)
 	threshold := clampProfitControlThreshold(downstream * (1 - group.ProfitMinMargin - group.ProfitSafetyBuffer))

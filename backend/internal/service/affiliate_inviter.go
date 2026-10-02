@@ -17,7 +17,7 @@ var (
 	ErrAffiliateInviterChanged     = infraerrors.Conflict("AFFILIATE_INVITER_CHANGED", "返佣归属已变化，请重新打开编辑窗口")
 	ErrAffiliateCodeOwnerChanged   = infraerrors.Conflict("AFFILIATE_CODE_OWNER_CHANGED", "邀请码归属已变化，请重新解析邀请码")
 	ErrAffiliateInviterCycle       = infraerrors.BadRequest("AFFILIATE_INVITER_CYCLE", "不能将用户归属给自己或自己的下级")
-	ErrAffiliateCodeOwnerMissing   = infraerrors.BadRequest("AFFILIATE_CODE_OWNER_MISSING", "该永久邀请码尚未绑定返佣归属用户")
+	ErrAffiliateCodeOwnerMissing   = infraerrors.BadRequest("AFFILIATE_CODE_OWNER_MISSING", "该邀请码尚未绑定归属用户")
 	ErrAffiliateInviterUnavailable = infraerrors.BadRequest("AFFILIATE_INVITER_UNAVAILABLE", "邀请码归属用户不存在或已停用")
 )
 
@@ -37,12 +37,12 @@ type AffiliateInviterState struct {
 }
 
 type AffiliateInviterCode struct {
-	CodeType string `json:"code_type" binding:"required,oneof=permanent aff"`
+	CodeType string `json:"code_type" binding:"omitempty,oneof=permanent aff"`
 	Code     string `json:"code" binding:"required"`
 }
 
 type AffiliateInviterChange struct {
-	CodeType        string `json:"code_type" binding:"required,oneof=permanent aff"`
+	CodeType        string `json:"code_type" binding:"omitempty,oneof=permanent aff"`
 	Code            string `json:"code" binding:"required"`
 	ResolvedUserID  int64  `json:"resolved_user_id" binding:"required,min=1"`
 	ExpectedVersion *int64 `json:"expected_version" binding:"required,min=0"`
@@ -55,10 +55,11 @@ func (s *AffiliateService) GetInviter(ctx context.Context, userID int64) (*Affil
 }
 
 func (s *AffiliateService) ResolveInviterCode(ctx context.Context, input AffiliateInviterCode) (*AffiliateInviterUser, error) {
-	return s.repo.ResolveInviterCode(ctx, input.CodeType, strings.ToUpper(strings.TrimSpace(input.Code)))
+	return s.repo.ResolveInviterCode(ctx, AffiliateCodeTypePermanent, strings.ToUpper(strings.TrimSpace(input.Code)))
 }
 
 func (s *AffiliateService) ChangeInviter(ctx context.Context, userID int64, input *AffiliateInviterChange) error {
+	input.CodeType = AffiliateCodeTypePermanent
 	input.Code = strings.ToUpper(strings.TrimSpace(input.Code))
 	return s.repo.ChangeInviter(ctx, userID, input)
 }

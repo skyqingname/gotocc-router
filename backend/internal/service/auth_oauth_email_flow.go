@@ -265,7 +265,7 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	}
 
 	signupSource = normalizeOAuthSignupSource(signupSource)
-	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+	if strings.TrimSpace(invitationCode) == "" {
 		invitationCode = affiliateCode
 	}
 	invitation, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
@@ -283,7 +283,7 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+	s.ensureSignupInvitation(ctx, user.ID)
 	return nil
 }
 
@@ -325,6 +325,9 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 			if err := s.reusableInvitationRepo.Release(ctx, use.CodeID, userID); err != nil {
 				return err
 			}
+		}
+		if _, err := client.ExecContext(ctx, `DELETE FROM reseller_customers WHERE user_id=$1`, userID); err != nil {
+			return err
 		}
 		if _, err := client.ExecContext(ctx, `
 WITH removed AS (DELETE FROM user_affiliates WHERE user_id = $1 RETURNING inviter_id)

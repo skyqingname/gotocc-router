@@ -7,8 +7,38 @@
         ></div>
       </div>
 
+      <div v-else-if="loadError" class="card p-6">
+        <p role="alert" class="text-sm text-red-600">{{ loadError }}</p>
+        <button class="btn btn-secondary mt-4" @click="loadAffiliateDetail()">{{ t('common.retry') }}</button>
+      </div>
       <template v-else-if="detail">
-        <div v-if="detail.show_rebate_details" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- LC-024：未成为代理时只展示申请入口，返利界面整体不出现 -->
+        <div v-if="!isAgent" class="card p-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0">
+              <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ agentTitle }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ agentDescription }}</p>
+              <p v-if="agentAppliedAt" class="mt-2 text-xs text-gray-400 dark:text-dark-500">
+                {{ t('affiliate.agent.appliedAt', { time: agentAppliedAt }) }}
+              </p>
+            </div>
+            <button v-support-readonly
+              v-if="canApplyForAgent"
+              class="btn btn-primary w-full sm:w-auto sm:shrink-0"
+              :disabled="applyingAgent"
+              @click="applyForAgent"
+            >
+              <Icon v-if="applyingAgent" name="refresh" size="sm" class="animate-spin" />
+              <Icon v-else name="userPlus" size="sm" />
+              <span>{{ applyingAgent ? t('affiliate.agent.applying') : agentActionLabel }}</span>
+            </button>
+
+          </div>
+        </div>
+
+        <div v-if="isAgent" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400">
               <Icon name="dollar" size="sm" class="text-primary-500" />
@@ -76,20 +106,20 @@
             <p class="text-sm font-medium text-primary-800 dark:text-primary-200">{{ t('affiliate.tips.title') }}</p>
             <ul class="mt-2 space-y-1 text-sm text-primary-700 dark:text-primary-300">
               <li>1. {{ t('affiliate.tips.line1') }}</li>
-              <li v-if="detail.show_rebate_details">2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
-              <li>{{ detail.show_rebate_details ? '3.' : '2.' }} {{ t('affiliate.tips.line3') }}</li>
-              <li v-if="detail.aff_frozen_quota > 0">{{ detail.show_rebate_details ? '4.' : '3.' }} {{ t('affiliate.tips.line4') }}</li>
+              <li v-if="isAgent">2. {{ t('affiliate.tips.line2', { rates: formattedRebateRates }) }}</li>
+              <li>{{ isAgent ? '3.' : '2.' }} {{ t('affiliate.tips.line3') }}</li>
+              <li v-if="detail.aff_frozen_quota > 0">{{ isAgent ? '4.' : '3.' }} {{ t('affiliate.tips.line4') }}</li>
             </ul>
           </div>
         </div>
 
-        <div class="card p-6">
+        <div v-if="isAgent" class="card p-6">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.transfer.title') }}</h3>
               <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('affiliate.transfer.description') }}</p>
             </div>
-            <button
+            <button v-support-readonly
               class="btn btn-primary"
               :disabled="transferring || detail.aff_quota <= 0"
               @click="transferQuota"
@@ -104,7 +134,7 @@
           </p>
         </div>
 
-        <div v-if="detail.show_rebate_details" class="card p-6">
+        <div v-if="isAgent" class="card p-6">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('affiliate.invitees.title') }}</h3>
           <div v-if="detail.invitees.length === 0" class="mt-4 rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-dark-400">
             {{ t('affiliate.invitees.empty') }}
@@ -142,14 +172,15 @@
 </template>
 
 <script setup lang="ts">
+import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
-import type { UserAffiliateDetail } from '@/types'
+import type { AgentProfile, UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
-import { useAuthStore } from '@/stores/auth'
+import { useUserView as useAuthStore } from '@/composables/useUserView'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
@@ -162,11 +193,41 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+const loadError = ref('')
+
+// LC-024 enrollment state. The rebate surface is gated on an approved identity;
+// invite code and share link stay available so recruiting never depends on it.
+const agentProfile = ref<AgentProfile | null>(null)
+const applyingAgent = ref(false)
+const isAgent = computed(() => agentProfile.value?.status === 'approved')
+const canApplyForAgent = computed(() => !isAgent.value)
+const agentAppliedAt = computed(() => agentProfile.value?.applied_at ? formatDateTime(agentProfile.value.applied_at) : '')
+const agentTitle = computed(() => t('affiliate.agent.applyTitle'))
+const agentDescription = computed(() => t('affiliate.agent.applyDescription'))
+const agentActionLabel = computed(() => t('affiliate.agent.applyButton'))
+
+async function submitAgentApplication(): Promise<void> {
+  if (applyingAgent.value || !canApplyForAgent.value) return
+  applyingAgent.value = true
+  try {
+    agentProfile.value = await userAPI.applyForAgent()
+    await loadAffiliateDetail(true)
+    appStore.showSuccess(t('affiliate.agent.applied'))
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('affiliate.agent.applyFailed')))
+  } finally {
+    applyingAgent.value = false
+  }
+}
+
+function applyForAgent(): void {
+  void submitAgentApplication()
+}
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
-  if (typeof window === 'undefined') return `/register?aff=${encodeURIComponent(detail.value.aff_code)}`
-  return `${window.location.origin}/register?aff=${encodeURIComponent(detail.value.aff_code)}`
+  if (typeof window === 'undefined') return `/register?invitation_code=${encodeURIComponent(detail.value.aff_code)}`
+  return `${window.location.origin}/register?invitation_code=${encodeURIComponent(detail.value.aff_code)}`
 })
 
 const formattedRebateRates = computed(() =>
@@ -181,10 +242,16 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
   if (!silent) {
     loading.value = true
   }
+  loadError.value = ''
   try {
-    detail.value = await userAPI.getAffiliateDetail()
+    const [affiliate, agent] = await Promise.all([
+      userAPI.getAffiliateDetail(),
+      userAPI.getAgentProfile(),
+    ])
+    detail.value = affiliate
+    agentProfile.value = agent
   } catch (error) {
-    appStore.showError(extractApiErrorMessage(error, t('affiliate.loadFailed')))
+    loadError.value = extractApiErrorMessage(error, t('affiliate.loadFailed'))
   } finally {
     if (!silent) {
       loading.value = false

@@ -13,6 +13,8 @@ const (
 	Label = "batch_image_job"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldResellerSnapshot holds the string denoting the reseller_snapshot field in the database.
+	FieldResellerSnapshot = "reseller_snapshot"
 	// FieldBatchID holds the string denoting the batch_id field in the database.
 	FieldBatchID = "batch_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
@@ -108,6 +110,7 @@ const (
 // Columns holds all SQL columns for batchimagejob fields.
 var Columns = []string{
 	FieldID,
+	FieldResellerSnapshot,
 	FieldBatchID,
 	FieldUserID,
 	FieldBillingUserID,

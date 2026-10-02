@@ -155,7 +155,7 @@ func ingressRejectRoute(path string) (string, string) {
 		return "chat_completions", "openai"
 	case strings.Contains(path, "/images"):
 		return "images", "openai"
-	case strings.Contains(path, "/videos"):
+	case strings.Contains(path, "/videos") || strings.Contains(path, "/video/generations"):
 		return "videos", "openai"
 	case strings.Contains(path, "/embeddings"):
 		return "embeddings", "openai"

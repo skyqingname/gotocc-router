@@ -1,4 +1,4 @@
-import type { RateScheduleConfig } from '@/utils/rate-schedule'
+import type { VideoModelConfig } from '@/components/admin/channel/video-models'
 /**
  * Core Type Definitions for Sub2API Frontend
  */
@@ -155,6 +155,15 @@ export interface AffiliateInvitee {
   total_rebate: number
 }
 
+/** LC-024 agent enrollment state. An empty status means the user never applied. */
+export interface AgentProfile {
+  user_id: number
+  status: '' | 'approved'
+  source?: 'applied' | 'grandfathered' | ''
+  applied_at?: string | null
+  reviewed_at?: string | null
+}
+
 export interface UserAffiliateDetail {
   show_rebate_details: boolean
   user_id: number
@@ -274,8 +283,8 @@ export interface PublicSettings {
   account_quota_notify_enabled: boolean
   balance_low_notify_threshold: number
   channel_monitor_enabled: boolean
-  /** Exclusive mode: v1 active probes or v2 passive aggregation. Default v2. */
-  channel_monitor_mode?: 'v1' | 'v2'
+  /** Exclusive mode: v1 active probes, v2 private analytics, or v3 service status. Default v1. */
+  channel_monitor_mode?: 'v1' | 'v2' | 'v3'
   channel_monitor_default_interval_seconds: number
   /** When true, user monitor hides RPM/TPM so scale cannot be reverse-estimated. */
   channel_monitor_hide_throughput?: boolean
@@ -612,6 +621,7 @@ export interface Group {
   video_price_1080p: number | null
   // Optional model-family x resolution overrides for Grok video pricing.
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   // Codex 网页搜索单次价格（USD/次）；null 表示使用默认价 0.01
   web_search_price_per_call: number | null
   // Grok Voice 显式定价（分组级）
@@ -624,7 +634,6 @@ export interface Group {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
-  rate_schedule: RateScheduleConfig
   // Claude Code 客户端限制
   claude_code_only: boolean
   fallback_group_id: number | null
@@ -853,6 +862,7 @@ export interface CreateGroupRequest {
   video_price_720p?: number | null
   video_price_1080p?: number | null
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   web_search_price_per_call?: number | null
   search_price_per_1k?: number | null
   audio_realtime_price_per_min?: number | null
@@ -862,7 +872,6 @@ export interface CreateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
-  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -923,6 +932,7 @@ export interface UpdateGroupRequest {
   video_price_720p?: number | null
   video_price_1080p?: number | null
   video_model_prices?: VideoModelPrices
+  video_models?: Record<string, VideoModelConfig>
   web_search_price_per_call?: number | null
   search_price_per_1k?: number | null
   audio_realtime_price_per_min?: number | null
@@ -932,7 +942,6 @@ export interface UpdateGroupRequest {
   peak_start?: string
   peak_end?: string
   peak_rate_multiplier?: number
-  rate_schedule?: RateScheduleConfig
   // 分组利润控制（五个 token 平台；margin/buffer 为小数）
   profit_control_enabled?: boolean
   profit_min_margin?: number
@@ -961,7 +970,7 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go'
+export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'minimax' | 'opencode_go' | 'video'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1440,7 +1449,7 @@ export interface CodexUsageSnapshot {
 
 export type OpenAICompactMode = 'auto' | 'force_on' | 'force_off'
 export type OpenAIResponsesMode = 'auto' | 'force_responses' | 'force_chat_completions'
-export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings'
+export type OpenAIEndpointCapability = 'chat_completions' | 'embeddings' | 'seedance'
 
 export interface OpenAICompactState {
   openai_compact_mode?: OpenAICompactMode

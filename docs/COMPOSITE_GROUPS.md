@@ -1,12 +1,5 @@
 # Composite Groups
 
-An API key may also enable [automatic group routing](API_KEY_SMART_ROUTING.md).
-Automatic routing first chooses an authorized group using the administrator's
-public-model priority policy. Composite routing then chooses the provider
-inside that group. Group priority never grants access or changes the billing
-group after audit; public aliases are rewritten only after the selected
-group's original request has passed audit.
-
 Composite groups are an admin routing layer for API keys that should choose a
 concrete provider from the requested model instead of binding the key to a
 single provider group. They support both built-in model detection and an
@@ -69,6 +62,13 @@ requests resolve the model from `session.model`, including multipart `session`
 payloads, and apply the configured `upstream_model` before dispatch.
 Codex model manifest requests reuse the existing OpenAI account selection and
 failover path within the Composite group.
+
+Responses WebSocket resolves the first `response.create` model in the
+`responses` route domain (including `any` routes). Only OpenAI and Grok targets
+are supported. The public model remains the admission and response identity;
+the route's upstream model is applied before channel/account mapping. Subsequent
+turns can repeat or omit the public model. Changing it requires reconnecting so
+the gateway can resolve the route and select an account again.
 
 ## Built-In Detection
 

@@ -48,6 +48,9 @@ func (s *OpenAIGatewayService) buildOpenAIVideoUpstreamRequest(
 	token string,
 ) (*http.Request, error) {
 	ctx = WithAccountOutboundIdentity(ctx, account)
+	if input.ProviderConfig != nil && input.ProviderConfig.Protocol == "yingce" {
+		return s.buildYingceVideoUpstreamRequest(ctx, c, account, input, token)
+	}
 	targetURL := openAIPlatformVideosURL
 	if account != nil {
 		baseURL := account.GetOpenAIBaseURL()
@@ -137,7 +140,7 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 	if account == nil {
 		return nil, errors.New("account is required")
 	}
-	if !account.IsOpenAIApiKey() {
+	if !account.IsVideoAPIKey() {
 		writeOpenAIVideoError(c, http.StatusBadGateway, "upstream_error", "Video generation requires an OpenAI-compatible API key account")
 		return nil, errors.New("video generation requires an OpenAI-compatible API key account")
 	}

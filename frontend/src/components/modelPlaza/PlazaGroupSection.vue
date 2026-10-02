@@ -16,7 +16,6 @@
           :peak-start="group.peak_start"
           :peak-end="group.peak_end"
           :peak-rate-multiplier="group.peak_rate_multiplier"
- :rate-schedule="group.rate_schedule"
           always-show-rate
         />
         <span
@@ -62,9 +61,10 @@
         :user-rate-multiplier="group.user_rate_multiplier ?? null"
         :image-rate-independent="group.image_rate_independent"
         :image-rate-multiplier="group.image_rate_multiplier"
+        :video-rate-independent="group.video_rate_independent"
+        :video-rate-multiplier="group.video_rate_multiplier"
         :peak-window="peakWindow"
         :peak-rate-multiplier="group.peak_rate_multiplier"
- :rate-schedule="group.rate_schedule"
       />
       <p v-else class="px-5 py-4 text-center text-sm text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.detail.noModels') }}

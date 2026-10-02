@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"time"
 
 	"entgo.io/ent"
@@ -28,6 +29,7 @@ func (BatchImageJob) Annotations() []schema.Annotation {
 
 func (BatchImageJob) Fields() []ent.Field {
 	return []ent.Field{
+		field.JSON("reseller_snapshot", &reseller.Snapshot{}).Optional(),
 		field.String("batch_id").MaxLen(64).Immutable(),
 		field.Int64("user_id"),
 		field.Int64("billing_user_id").Optional(),

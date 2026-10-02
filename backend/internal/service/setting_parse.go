@@ -232,6 +232,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
 		SettingKeyCyberSessionBlockEnabled:    "false",
+		SettingKeyCyberPolicyUserAllowlist:    "",
 		SettingKeyCyberSessionBlockTTLSeconds: "3600",
 
 		// Claude Code version check (default: empty = disabled)
@@ -255,7 +256,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyEnableClientDatelineNormalization:                  "true",
 		SettingKeyAntigravityUserAgentVersion:                        "",
 		SettingKeyOpenAICodexUserAgent:                               "",
-		SettingKeyOpenAICodexEnvironmentTimezone:                     "",
+		SettingKeyOpenAICodexEnvironmentTimezone:                     DefaultOpenAICodexEnvironmentTimezone,
+		SettingKeyOpenAICodexEgressCountry:                           DefaultOpenAICodexEgressCountry,
+		SettingKeyOpenAICodexResidency:                               DefaultOpenAICodexResidency,
 		SettingKeyCodexLegacyClientProfileCompatibilityEnabled:       "false",
 		SettingKeyOpenAICodexLocalGroupQuotaEnabled:                  "false",
 		SettingKeyOpenAICodexClientVersion:                           "",
@@ -885,6 +888,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
 	result.CyberSessionBlockEnabled = settings[SettingKeyCyberSessionBlockEnabled] == "true"
+	result.CyberPolicyUserAllowlist = settings[SettingKeyCyberPolicyUserAllowlist]
 	if v, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyCyberSessionBlockTTLSeconds])); err == nil && v > 0 {
 		result.CyberSessionBlockTTLSeconds = v
 	} else {
@@ -928,6 +932,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.AntigravityUserAgentVersion = antigravity.NormalizeUserAgentVersion(settings[SettingKeyAntigravityUserAgentVersion])
 	result.OpenAICodexUserAgent = strings.TrimSpace(settings[SettingKeyOpenAICodexUserAgent])
 	result.OpenAICodexEnvironmentTimezone = strings.TrimSpace(settings[SettingKeyOpenAICodexEnvironmentTimezone])
+	result.OpenAICodexEgressCountry = strings.TrimSpace(settings[SettingKeyOpenAICodexEgressCountry])
+	if residency, err := NormalizeOpenAICodexResidency(settings[SettingKeyOpenAICodexResidency]); err == nil {
+		result.OpenAICodexResidency = residency
+	} else {
+		result.OpenAICodexResidency = DefaultOpenAICodexResidency
+	}
 	result.CodexLegacyClientProfileCompatibilityEnabled = settings[SettingKeyCodexLegacyClientProfileCompatibilityEnabled] == "true"
 	result.OpenAICodexLocalGroupQuotaEnabled = settings[SettingKeyOpenAICodexLocalGroupQuotaEnabled] == "true"
 	result.OpenAICodexClientVersion = NormalizeCodexClientVersion(settings[SettingKeyOpenAICodexClientVersion])
@@ -943,6 +953,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.OpenAICodexVersionAutoSyncEnabled = v == "true"
 	} else {
 		result.OpenAICodexVersionAutoSyncEnabled = true
+	}
+	result.ClaudeCodeClientVersion = NormalizeClaudeCodeClientVersion(settings[SettingKeyClaudeCodeClientVersion])
+	result.ClaudeCodeClientVersionSynced = NormalizeClaudeCodeClientVersion(settings[SettingKeyClaudeCodeClientVersionSynced])
+	if v, ok := settings[SettingKeyClaudeCodeVersionAutoSyncEnabled]; ok && v != "" {
+		result.ClaudeCodeVersionAutoSyncEnabled = v == "true"
+	} else {
+		result.ClaudeCodeVersionAutoSyncEnabled = true
 	}
 	// codex_cli_only profile policy
 	result.MinCodexVersion = settings[SettingKeyMinCodexVersion]

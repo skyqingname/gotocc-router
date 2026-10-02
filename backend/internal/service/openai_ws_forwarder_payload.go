@@ -111,13 +111,19 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 		// explicit: it preserves official client context without turning the
 		// gateway into an arbitrary X-Codex-* header proxy. Routing hints are
 		// intentionally excluded because setOpenAICodexRoutingHint derives one
-		// from the selected account and final mapped model below.
+		// from the selected account and final mapped model below. The official
+		// client reuses the Responses header builder for the WS handshake, so
+		// its turn-context headers (subagent label, memgen marker, timing
+		// metrics opt-in) are copied verbatim without gateway rewrites.
 		for _, name := range [...]string{
 			"thread-id",
 			"x-client-request-id",
 			"x-codex-window-id",
 			"x-codex-installation-id",
 			"x-codex-parent-thread-id",
+			"x-openai-memgen-request",
+			"x-openai-subagent",
+			"x-responsesapi-include-timing-metrics",
 		} {
 			if value := c.Request.Header.Get(name); strings.TrimSpace(value) != "" {
 				headers.Set(name, value)
@@ -400,6 +406,48 @@ func setPreviousResponseIDToRawPayload(payload []byte, previousResponseID string
 		return nil, marshalErr
 	}
 	return rebuilt, nil
+}
+
+type openAIWSContextWindowBoundary struct {
+	WindowID                  string
+	Changed                   bool
+	PreviousResponseIDRemoved bool
+}
+
+func openAIWSPayloadCodexWindowID(payload []byte) string {
+	if len(payload) == 0 {
+		return ""
+	}
+	if windowID := strings.TrimSpace(gjson.GetBytes(payload, "client_metadata.x-codex-window-id").String()); windowID != "" {
+		return windowID
+	}
+	turnMetadata := strings.TrimSpace(gjson.GetBytes(payload, "client_metadata.x-codex-turn-metadata").String())
+	if turnMetadata == "" {
+		return ""
+	}
+	return strings.TrimSpace(gjson.Get(turnMetadata, "window_id").String())
+}
+
+// normalizeOpenAIWSContextWindowBoundary breaks a Responses continuation chain
+// when Codex moves to a new local context window. WebSocket response.create can
+// still carry the previous window's previous_response_id after new_context,
+// while HTTP starts the new window without that continuation anchor.
+func normalizeOpenAIWSContextWindowBoundary(
+	payload []byte,
+	previousWindowID string,
+) ([]byte, openAIWSContextWindowBoundary, error) {
+	currentWindowID := openAIWSPayloadCodexWindowID(payload)
+	boundary := openAIWSContextWindowBoundary{WindowID: currentWindowID}
+	if previousWindowID == "" || currentWindowID == "" || currentWindowID == previousWindowID {
+		return payload, boundary, nil
+	}
+	boundary.Changed = true
+	updated, removed, err := dropPreviousResponseIDFromRawPayload(payload)
+	if err != nil {
+		return payload, boundary, err
+	}
+	boundary.PreviousResponseIDRemoved = removed
+	return updated, boundary, nil
 }
 
 func shouldInferIngressFunctionCallOutputPreviousResponseID(

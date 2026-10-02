@@ -73,6 +73,7 @@ type usageLogBestEffortWriter interface {
 
 // postUsageBillingParams 统一扣费所需的参数
 type postUsageBillingParams struct {
+	PricingAt             time.Time
 	Cost                  *CostBreakdown
 	User                  *User
 	APIKey                *APIKey
@@ -286,6 +287,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	}
 
 	cmd := &UsageBillingCommand{
+		ResellerSnapshot:   p.APIKey.ResellerPriceAt(p.PricingAt),
 		RequestID:          requestID,
 		APIKeyID:           p.APIKey.ID,
 		UserID:             p.User.ID,
@@ -478,6 +480,16 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 			)
 		}
 		return
+	}
+	if deps.billingCacheService.InflightReservationEnabled() {
+		// 在途预留开启时同步扣减余额缓存：计费任务结束后才会释放预留，
+		// 必须保证此时准入读取的缓存余额已反映本次扣费，否则释放与扣减之间
+		// 仍存在「在途=0 且余额未扣」的窗口。本函数运行在计费 worker 中，不在请求热路径。
+		err := deps.billingCacheService.DeductBalanceCache(ctx, p.User.ID, p.Cost.ActualCost)
+		if err == nil {
+			return
+		}
+		logger.LegacyPrintf("service.gateway", "Warning: sync deduct balance cache failed for user %d, falling back to queue: %v", p.User.ID, err)
 	}
 	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
 }
@@ -878,6 +890,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				ImageOutputTokens:   result.Usage.ImageOutputTokens,
 			},
 			cost.TotalCost, pricingAt,
+			accountStatsLongContextPricingEnabled(nil),
 		)
 	}
 
@@ -900,6 +913,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 	requestID := usageLog.RequestID
 	usageLogPersisted, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		PricingAt:             pricingAt,
 		Cost:                  cost,
 		User:                  user,
 		APIKey:                apiKey,
@@ -953,6 +967,7 @@ func (s *GatewayService) calculateRecordUsageCost(
 				Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
 				UsageUnits: result.AudioUsage.DurationOrUnits, SizeTier: result.AudioUsage.Mode,
 				RateMultiplier: multiplier, Resolver: s.resolver, Resolved: resolved,
+				ReasoningEffort: optionalStringValue(result.ReasoningEffort),
 			})
 			if err == nil {
 				return cost
@@ -1077,6 +1092,7 @@ func (s *GatewayService) calculateImageCost(
 			Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
 			RequestCount: result.ImageCount, SizeTier: sizeTier,
 			RateMultiplier: multiplier, Resolver: s.resolver, Resolved: resolved,
+			ReasoningEffort: optionalStringValue(result.ReasoningEffort),
 		})
 		if err == nil {
 			return cost
@@ -1094,16 +1110,17 @@ func (s *GatewayService) calculateImageCost(
 		}
 		gid := apiKey.Group.ID
 		cost, err := s.billingService.CalculateCostUnified(CostInput{
-			Ctx:            ctx,
-			Model:          billingModel,
-			GroupID:        &gid,
-			Group:          apiKey.Group,
-			Tokens:         tokens,
-			RequestCount:   result.ImageCount,
-			SizeTier:       sizeTier,
-			RateMultiplier: multiplier,
-			Resolver:       s.resolver,
-			Resolved:       resolved,
+			Ctx:             ctx,
+			Model:           billingModel,
+			GroupID:         &gid,
+			Group:           apiKey.Group,
+			Tokens:          tokens,
+			RequestCount:    result.ImageCount,
+			SizeTier:        sizeTier,
+			RateMultiplier:  multiplier,
+			Resolver:        s.resolver,
+			Resolved:        resolved,
+			ReasoningEffort: optionalStringValue(result.ReasoningEffort),
 		})
 		if err != nil {
 			logger.LegacyPrintf("service.gateway", "Calculate image token cost failed: %v", err)

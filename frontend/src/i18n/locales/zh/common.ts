@@ -163,6 +163,7 @@ export default {
 
   // Navigation
   nav: {
+    reseller: '站长中心',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
@@ -172,8 +173,9 @@ export default {
     asyncImage: '异步生图',
     usage: '使用记录',
     redeem: '兑换',
-    affiliate: '邀请返利',
-    affiliateManagement: '邀请返利',
+    affiliate: '代理中心',
+    affiliateManagement: '代理中心',
+    agentApplications: '代理名单',
     affiliateInviteRecords: '邀请记录',
     affiliateRebateRecords: '返利记录',
     affiliateTransferRecords: '提取记录',
@@ -190,7 +192,7 @@ export default {
     redeemCodes: '兑换码',
     ops: '运维监控',
     promoCodes: '优惠码',
-    reusableInvitationCodes: '永久邀请码',
+    reusableInvitationCodes: '邀请码',
     settings: '系统设置',
     myAccount: '我的账户',
     lightMode: '浅色模式',

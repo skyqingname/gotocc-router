@@ -22,7 +22,7 @@
       <!-- Redeem Form -->
       <div class="card">
         <div class="p-6">
-          <form @submit.prevent="handleRedeem" class="space-y-5">
+          <form v-support-readonly @submit.prevent="handleRedeem" class="space-y-5">
             <div>
               <label for="code" class="input-label">
                 {{ t('redeem.redeemCodeLabel') }}
@@ -335,6 +335,30 @@
               {{ t('redeem.historyWillAppear') }}
             </p>
           </div>
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span>{{ t('common.total') }}: {{ historyTotal }} {{ t('pagination.results') }}</span>
+            <label>
+              {{ t('pagination.perPage') }}
+              <select
+                v-model="historyPageSize"
+                class="input w-20"
+                :disabled="loadingHistory || submitting"
+                @change="fetchHistory(1)"
+              >
+                <option v-for="size in [20, 50, 100]" :key="size" :value="size">{{ size }}</option>
+              </select>
+            </label>
+            <button
+              class="btn btn-secondary"
+              :disabled="loadingHistory || submitting || historyPage <= 1"
+              @click="fetchHistory(historyPage - 1)"
+            >{{ t('pagination.previous') }}</button>
+            <button
+              class="btn btn-secondary"
+              :disabled="loadingHistory || submitting || historyPage * historyPageSize >= historyTotal"
+              @click="fetchHistory(historyPage + 1)"
+            >{{ t('pagination.next') }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -342,9 +366,10 @@
 </template>
 
 <script setup lang="ts">
+import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
+import { useUserView as useAuthStore } from '@/composables/useUserView'
 import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
@@ -375,6 +400,11 @@ const errorMessage = ref('')
 // History data
 const history = ref<RedeemHistoryItem[]>([])
 const loadingHistory = ref(false)
+const historyPage = ref(1)
+const historyPageSize = ref(20)
+const historyTotal = ref(0)
+let historyRequest = 0
+let loadedHistoryPageSize = 20
 const contactInfo = ref('')
 
 // Helper functions for history display
@@ -420,14 +450,25 @@ const formatHistoryValue = (item: RedeemHistoryItem) => {
   }
 }
 
-const fetchHistory = async () => {
+const fetchHistory = async (page = 1) => {
+  const request = ++historyRequest
+  const pageSize = historyPageSize.value
   loadingHistory.value = true
   try {
-    history.value = await redeemAPI.getHistory()
+    const result = await redeemAPI.getHistory(page, pageSize)
+    if (request !== historyRequest) return
+    history.value = result.items
+    historyTotal.value = result.total
+    historyPage.value = page
+    historyPageSize.value = pageSize
+    loadedHistoryPageSize = pageSize
   } catch (error) {
+    if (request !== historyRequest) return
+    historyPageSize.value = loadedHistoryPageSize
+    appStore.showError(t('redeem.historyLoadFailed'))
     console.error('Failed to fetch history:', error)
   } finally {
-    loadingHistory.value = false
+    if (request === historyRequest) loadingHistory.value = false
   }
 }
 

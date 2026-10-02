@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { loadOAuthAffiliateCode, oauthAffiliatePayload } from '@/utils/oauthAffiliate'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
@@ -131,7 +132,7 @@ const appStore = useAppStore()
 const email = ref('')
 const password = ref('')
 const verifyCode = ref('')
-const invitationCode = ref('')
+const invitationCode = ref(oauthAffiliatePayload(loadOAuthAffiliateCode()).invitation_code ?? '')
 const isSendingCode = ref(false)
 const sendCodeError = ref('')
 const sendCodeSuccess = ref(false)

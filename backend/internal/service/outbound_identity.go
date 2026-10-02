@@ -87,11 +87,11 @@ func builtInOutboundIdentity(preset string) outboundidentity.Identity {
 		i.UserAgent, i.Originator, i.Version = DefaultOpenAICodexUserAgent, openai.CodexDefaultOriginator, DefaultOpenAICodexVersion
 		i.Headers["Originator"], i.Headers["Version"] = i.Originator, i.Version
 	case "claude":
-		i.UserAgent, i.Originator, i.Version = claude.DefaultHeaders["User-Agent"], "claude-cli", claude.CLIVersion()
+		i.UserAgent, i.Originator, i.Version = claude.DefaultHeaders()["User-Agent"], "claude-cli", claude.CLIVersion()
 		if claude.IsSupportedCLIVersion(strings.TrimSpace(os.Getenv(claude.CLIVersionEnv))) {
 			i.Source = "environment"
 		}
-		for k, v := range claude.DefaultHeaders {
+		for k, v := range claude.DefaultHeaders() {
 			if outboundidentity.IsIdentityHeader(k) {
 				i.Headers[k] = v
 			}
@@ -107,6 +107,7 @@ func builtInOutboundIdentity(preset string) outboundidentity.Identity {
 		i.UserAgent = xai.CLIUserAgent(i.Version)
 		i.Headers["x-grok-client-identifier"] = i.Originator
 		i.Headers["x-grok-client-version"] = i.Version
+		i.Headers["x-grok-client-mode"] = xai.CLIClientMode
 	case "antigravity":
 		return antigravity.DefaultIdentity()
 	default:
@@ -143,7 +144,7 @@ func buildOutboundIdentity(selection OutboundIdentitySelection) (outboundidentit
 		if brandidentity.ContainsBrand(ua) {
 			return i, fmt.Errorf("User-Agent must not contain the project brand")
 		}
-		prefix := map[string]string{"claude": "claude-cli/", "gemini": "GeminiCLI/", "grok": "xai-grok-workspace/", "antigravity": "antigravity/"}[selection.Preset]
+		prefix := map[string]string{"claude": "claude-cli/", "gemini": "GeminiCLI/", "grok": "grok-shell/", "antigravity": "antigravity/"}[selection.Preset]
 		if !strings.HasPrefix(ua, prefix) {
 			return i, fmt.Errorf("User-Agent must match the selected preset")
 		}
@@ -398,6 +399,9 @@ func resolveAccountIdentitySelection(ctx context.Context, account *Account, sele
 
 func prepareAccountOutboundRequest(req *http.Request, account *Account) *http.Request {
 	if req != nil {
+		if account != nil && account.Platform == PlatformGrok && HTTPUpstreamProfileFromContext(req.Context()) == HTTPUpstreamProfileDefault {
+			*req = *req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileGrok))
+		}
 		ApplyAccountOutboundIdentity(req.Context(), account, req)
 	}
 	return req
@@ -497,6 +501,40 @@ func NormalizeAccountOutboundIdentity(platform, accountType string, credentials 
 	return nil
 }
 
+// normalizeBulkAccountOutboundIdentity validates a shared JSONB credential
+// update against every credential owner before the repository writes any row.
+// A null/empty selection stays null because bulk updates merge JSONB keys;
+// runtime resolution treats that value as an explicit request to inherit.
+func normalizeBulkAccountOutboundIdentity(credentials map[string]any, accounts []*Account) error {
+	raw, ok := credentials[outboundIdentityCredential]
+	if !ok {
+		return nil
+	}
+
+	var normalized any
+	validated := false
+	for _, account := range accounts {
+		if account == nil {
+			continue
+		}
+		candidate := map[string]any{outboundIdentityCredential: raw}
+		if err := NormalizeAccountOutboundIdentity(account.Platform, account.Type, candidate); err != nil {
+			return err
+		}
+		normalized = candidate[outboundIdentityCredential]
+		validated = true
+	}
+	if !validated {
+		candidate := map[string]any{outboundIdentityCredential: raw}
+		if err := NormalizeAccountOutboundIdentity("", "", candidate); err != nil {
+			return err
+		}
+		normalized = candidate[outboundIdentityCredential]
+	}
+	credentials[outboundIdentityCredential] = normalized
+	return nil
+}
+
 func (s *SettingService) SetOutboundIdentitySettings(ctx context.Context, settings OutboundIdentitySettings) error {
 	settings = cloneOutboundIdentitySettings(settings)
 	for preset, selection := range settings.Profiles {
@@ -504,16 +542,20 @@ func (s *SettingService) SetOutboundIdentitySettings(ctx context.Context, settin
 			return infraerrors.BadRequest("OUTBOUND_IDENTITY_INVALID", "Codex uses its existing settings")
 		}
 		selection.Preset = preset
+		selection.UserAgent = strings.TrimSpace(selection.UserAgent)
+		selection.Version = strings.TrimSpace(selection.Version)
 		if _, err := buildOutboundIdentity(selection); err != nil {
 			return infraerrors.BadRequest("OUTBOUND_IDENTITY_INVALID", err.Error())
 		}
 		settings.Profiles[preset] = selection
 	}
 	for key, preset := range settings.Defaults {
+		preset = strings.TrimSpace(preset)
 		parts := strings.Split(key, ":")
 		if len(parts) != 2 || !validOutboundAccountKey(parts[0], parts[1]) || validateAccountIdentityPreset(&Account{Platform: parts[0], Type: parts[1]}, preset) != nil {
 			return infraerrors.BadRequest("OUTBOUND_IDENTITY_INVALID", "invalid account default mapping")
 		}
+		settings.Defaults[key] = preset
 	}
 	data, err := json.Marshal(settings)
 	if err != nil {
@@ -530,7 +572,7 @@ func (s *SettingService) SetOutboundIdentitySettings(ctx context.Context, settin
 
 func validOutboundAccountKey(platform, accountType string) bool {
 	switch platform {
-	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo:
+	case PlatformVideo, PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo:
 	default:
 		return false
 	}

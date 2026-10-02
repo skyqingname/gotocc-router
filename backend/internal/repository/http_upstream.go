@@ -76,6 +76,9 @@ const (
 	defaultOpenAIHTTP2FallbackErrorThreshold = 2
 	defaultOpenAIHTTP2FallbackWindow         = 60 * time.Second
 	defaultOpenAIHTTP2FallbackTTL            = 10 * time.Minute
+	// OpenAI 保留原有的探测与应答期限，避免中转站的延迟 PING 应答被长流策略提前判死。
+	openAIHTTP2ReadIdleTimeout = 15 * time.Second
+	openAIHTTP2PingTimeout     = 15 * time.Second
 	// 长流 HTTP/2 连接健康探测：池化连接被代理/NAT
 	// 静默掐断会成为“死连接”（两端都以为存活），请求落上去会挂到 TCP 重传超时
 	// （分钟级）。Go 的 http2.Transport 默认 ReadIdleTimeout=0（不发健康 PING），
@@ -215,7 +218,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
-	resp, err := servertiming.Do(client, req)
+	resp, err := doUpstreamRequest(client, req)
 	if err != nil {
 		s.recordOpenAIHTTP2Failure(profile, entry.protocolMode, entry.proxyKey, err)
 		// 请求失败，立即减少计数
@@ -224,9 +227,6 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 		return nil, err
 	}
 	s.recordOpenAIHTTP2Success(profile, entry.protocolMode, entry.proxyKey)
-
-	// 如果上游返回了压缩内容，解压后再交给业务层
-	decompressResponseBody(resp)
 
 	// 包装响应体，在关闭时自动减少计数并更新时间戳
 	// 这确保了流式响应（如 SSE）在完全读取前不会被淘汰
@@ -281,7 +281,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
 	client = httpClientWithGrokAccessDeniedFallback(client)
-	resp, err := servertiming.Do(client, req)
+	resp, err := doUpstreamRequest(client, req)
 	if err != nil {
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
@@ -289,14 +289,62 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 		return nil, err
 	}
 
-	decompressResponseBody(resp)
-
 	resp.Body = wrapTrackedBody(resp.Body, func() {
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
 	})
 
 	return resp, nil
+}
+
+// doUpstreamRequest owns cancellation for one attempt, without cancelling the
+// caller's context (which may be detached for billing or reused for retries).
+func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+	ctx, cancel := context.WithCancel(req.Context())
+	resp, err := servertiming.Do(client, req.WithContext(ctx))
+	if err != nil {
+		cancel()
+		return resp, err
+	}
+	decompressResponseBody(resp)
+	resp.Body = &cancelOnCloseBody{ReadCloser: resp.Body, cancel: cancel}
+	return resp, nil
+}
+
+type cancelOnCloseBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+	once   sync.Once
+	err    error
+	readMu sync.Mutex
+	closed bool
+}
+
+func (b *cancelOnCloseBody) Read(p []byte) (int, error) {
+	b.readMu.Lock()
+	defer b.readMu.Unlock()
+	if b.closed {
+		return 0, http.ErrBodyReadAfterClose
+	}
+	return b.ReadCloser.Read(p)
+}
+
+func (b *cancelOnCloseBody) Close() error {
+	b.once.Do(func() {
+		// Cancel before closing, including before closing a decompressor. In Go
+		// 1.27 an early HTTP/1 close concurrent with Read can otherwise leave an
+		// EOF waiter on a reused connection and stall subsequent responses.
+		// Fully consumed responses have already released their transport request,
+		// so cancelling here preserves normal keep-alive reuse.
+		b.cancel()
+		// Wait for an active read to observe cancellation before touching the
+		// body or decompressor. Do not hold readMu while cancelling the request.
+		b.readMu.Lock()
+		defer b.readMu.Unlock()
+		b.closed = true
+		b.err = b.ReadCloser.Close()
+	})
+	return b.err
 }
 
 // httpClientForUpstreamRequest 按请求上下文的标记派生客户端：禁用重定向，或对重定向的每一跳做主机校验。
@@ -346,6 +394,9 @@ func httpClientWithGrokAccessDeniedFallback(client *http.Client) *http.Client {
 }
 
 func (t *grokAccessDeniedFallbackTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	applyGrokCLIProxyAuthentication(req)
+	outboundidentity.ApplyContext(req)
+	brandidentity.FilterOutboundRequest(req)
 	resp, err := t.base.RoundTrip(req)
 	if err != nil || !isGrokCLIAccessDeniedFallbackCandidate(req, resp) {
 		return resp, err
@@ -381,24 +432,36 @@ func (t *grokAccessDeniedFallbackTransport) RoundTrip(req *http.Request) (*http.
 
 func isGrokCLICompatibilityAccessDenied(body []byte) bool {
 	lower := bytes.ToLower(body)
-	if bytes.Contains(lower, []byte("access denied")) {
-		return true
+	for _, phrase := range [][]byte{
+		[]byte("subscription required"),
+		[]byte("no active subscription"),
+		[]byte("entitlement denied"),
+		[]byte("spending limit"),
+		[]byte("out of credits"),
+		[]byte("run out of credits"),
+	} {
+		if bytes.Contains(lower, phrase) {
+			return false
+		}
 	}
 	var payload struct {
-		Code  string `json:"code"`
-		Error string `json:"error"`
+		Code    string `json:"code"`
+		Error   string `json:"error"`
+		Message string `json:"message"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil || !strings.EqualFold(strings.TrimSpace(payload.Code), "permission_denied") {
 		return false
 	}
 	const chatEndpointDeniedPrefix = "access to the chat endpoint is denied. please ensure you're using the correct credentials. if you believe this is a mistake, please"
-	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(payload.Error)), chatEndpointDeniedPrefix)
+	detail := firstNonEmptyString(payload.Error, payload.Message)
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(detail)), chatEndpointDeniedPrefix)
 }
 
 func isGrokCLIAccessDeniedFallbackCandidate(req *http.Request, resp *http.Response) bool {
 	return req != nil && req.URL != nil && req.GetBody != nil && resp != nil &&
 		resp.StatusCode == http.StatusForbidden &&
 		strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) &&
+		isGrokCLIProxyResponseAuthenticatedRequest(req) &&
 		strings.EqualFold(strings.TrimSpace(req.Header.Get("X-XAI-Token-Auth")), "xai-grok-cli") &&
 		strings.HasPrefix(strings.ToLower(strings.TrimSpace(req.Header.Get("Authorization"))), "bearer ")
 }
@@ -418,6 +481,7 @@ func newGrokOfficialAPIFallbackRequest(req *http.Request) (*http.Request, error)
 	fallbackReq.Header = req.Header.Clone()
 	for _, header := range []string{
 		"X-XAI-Token-Auth",
+		"x-authenticateresponse",
 		"X-Grok-Client-Surface",
 		"X-UserID",
 		"X-Email",
@@ -425,6 +489,7 @@ func newGrokOfficialAPIFallbackRequest(req *http.Request) (*http.Request, error)
 		fallbackReq.Header.Del(header)
 	}
 	outboundidentity.ApplyContext(fallbackReq)
+	brandidentity.FilterOutboundRequest(fallbackReq)
 	return fallbackReq, nil
 }
 
@@ -460,16 +525,53 @@ type prefixedReadCloser struct {
 	io.Closer
 }
 
-// The destination owns its authentication hint, never the client's identity.
-// Identity resolution and version validation belong to the account/preset layer.
+// The destination owns its authentication hints, never the client's identity.
+// Reconcile on every RoundTrip so redirects cannot carry CLI-only declarations
+// to another host. Identity resolution belongs to the account/preset layer.
 func applyGrokCLIProxyAuthentication(req *http.Request) {
-	if req == nil || req.URL == nil || !strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) {
+	if req == nil || req.URL == nil {
 		return
 	}
 	if req.Header == nil {
 		req.Header = make(http.Header)
 	}
+	if !strings.EqualFold(strings.TrimSpace(req.URL.Hostname()), grokCLIProxyHost) {
+		req.Header.Del("X-XAI-Token-Auth")
+		req.Header.Del("x-authenticateresponse")
+		return
+	}
 	req.Header.Set("X-XAI-Token-Auth", xai.CLITokenAuth)
+	if isGrokCLIProxyResponseAuthenticatedRequest(req) {
+		req.Header.Set("x-authenticateresponse", xai.CLIAuthenticateResponse)
+	} else {
+		req.Header.Del("x-authenticateresponse")
+	}
+}
+
+func isGrokCLIProxyResponseAuthenticatedRequest(req *http.Request) bool {
+	if req == nil || req.URL == nil {
+		return false
+	}
+	path := strings.ToLower(strings.TrimRight(req.URL.EscapedPath(), "/"))
+	for _, suffix := range []string{
+		"/responses", "/chat/completions", "/messages",
+		"/images/generations", "/images/edits",
+		"/videos/generations", "/videos/edits", "/videos/extensions",
+	} {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // acquireClientWithTLS 获取或创建带 TLS 指纹的客户端
@@ -1318,7 +1420,7 @@ func buildUpstreamTransport(settings poolSettings, proxyURL *url.URL, protocolMo
 		transport.ForceAttemptHTTP2 = true
 		// 显式配置 http2 并启用 PING 健康探测，剔除代理/NAT 静默掐断的死连接，
 		// 避免请求挂在死连接上直到 TCP 重传超时（分钟级）。
-		if _, err := enableHTTP2KeepAlive(transport); err != nil {
+		if _, err := enableHTTP2KeepAlive(transport, protocolMode); err != nil {
 			return nil, err
 		}
 	case upstreamProtocolModeOpenAIH1:
@@ -1339,7 +1441,7 @@ func buildUpstreamTransport(settings poolSettings, proxyURL *url.URL, protocolMo
 // Go 默认惰性配置 http2 且 ReadIdleTimeout=0（不发健康 PING），无法检测被代理/NAT
 // 静默掐断的死连接。此处主动设置 ReadIdleTimeout/PingTimeout，让死连接被提前 PING
 // 出并关闭，请求得以重建连接而非挂到 TCP 重传超时。返回底层 *http2.Transport 便于测试。
-func enableHTTP2KeepAlive(transport *http.Transport) (*http2.Transport, error) {
+func enableHTTP2KeepAlive(transport *http.Transport, protocolMode string) (*http2.Transport, error) {
 	h2, err := http2.ConfigureTransports(transport)
 	if err != nil {
 		return nil, err
@@ -1347,6 +1449,10 @@ func enableHTTP2KeepAlive(transport *http.Transport) (*http2.Transport, error) {
 	if h2 != nil {
 		h2.ReadIdleTimeout = longStreamHTTP2ReadIdleTimeout
 		h2.PingTimeout = longStreamHTTP2PingTimeout
+		if protocolMode == upstreamProtocolModeOpenAIH2 {
+			h2.ReadIdleTimeout = openAIHTTP2ReadIdleTimeout
+			h2.PingTimeout = openAIHTTP2PingTimeout
+		}
 	}
 	return h2, nil
 }

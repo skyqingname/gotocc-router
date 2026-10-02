@@ -32,8 +32,6 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
-import type { RateScheduleConfig } from '@/utils/rate-schedule'
-import { hasPeakRate as hasRateSchedule } from '@/utils/peak-rate'
 import PlatformIcon from './PlatformIcon.vue'
 
 interface Props {
@@ -42,7 +40,6 @@ interface Props {
   subscriptionType?: SubscriptionType
   rateMultiplier?: number
   userRateMultiplier?: number | null // 用户专属倍率
-  rateSchedule?: RateScheduleConfig
   peakRateEnabled?: boolean
   peakStart?: string
   peakEnd?: string
@@ -83,13 +80,12 @@ const hasCustomRate = computed(() => {
 const appStore = useAppStore()
 
 const hasPeakRate = computed(() => {
-  return Boolean(props.showRate && hasRateSchedule({ rate_schedule: props.rateSchedule, peak_rate_enabled: props.peakRateEnabled, peak_start: props.peakStart, peak_end: props.peakEnd }))
+  return Boolean(props.showRate && props.peakRateEnabled && props.peakStart && props.peakEnd)
 })
 
 const peakRateText = computed(() => {
   return formatPeakRateWindow(
     {
-      rate_schedule: props.rateSchedule,
       peak_rate_enabled: props.peakRateEnabled,
       peak_start: props.peakStart,
       peak_end: props.peakEnd,

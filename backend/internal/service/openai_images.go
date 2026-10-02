@@ -78,6 +78,8 @@ type OpenAIImagesCapability string
 const (
 	OpenAIImagesCapabilityBasic  OpenAIImagesCapability = "images-basic"
 	OpenAIImagesCapabilityNative OpenAIImagesCapability = "images-native"
+	// Compatible provider models require the API-key Images passthrough path.
+	OpenAIImagesCapabilityAPIKey OpenAIImagesCapability = "images-apikey"
 )
 
 type OpenAIImagesUpload struct {
@@ -246,7 +248,7 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	}
 
 	applyOpenAIImagesDefaults(req)
-	if err := validateOpenAIImagesModel(req.Model); err != nil {
+	if err := validateCompatibleImagesModel(req.Model); err != nil {
 		return nil, err
 	}
 	if err := ValidateGPTImage2Request(req); err != nil {
@@ -535,6 +537,30 @@ func validateOpenAIImagesModel(model string) error {
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
 }
 
+// Keep this separate from isOpenAIImageGenerationModel: that predicate also
+// drives native Responses tool conversion, pricing and rate-limit policy.
+func isGeminiCompatibleImageModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "gemini-") &&
+		(strings.HasSuffix(model, "-image") || strings.Contains(model, "-image-"))
+}
+
+func validateCompatibleImagesModel(model string) error {
+	if isGeminiCompatibleImageModel(model) {
+		return nil
+	}
+	return validateOpenAIImagesModel(model)
+}
+
+// RequiredCapabilityForModel also applies the API-key-only fence when channel
+// mapping introduces a compatible provider model after request parsing.
+func (req *OpenAIImagesRequest) RequiredCapabilityForModel(model string) OpenAIImagesCapability {
+	if isGeminiCompatibleImageModel(model) {
+		return OpenAIImagesCapabilityAPIKey
+	}
+	return req.RequiredCapability
+}
+
 func normalizeOpenAIImagesEndpointPath(path string) string {
 	trimmed := strings.TrimSpace(path)
 	switch {
@@ -550,6 +576,9 @@ func normalizeOpenAIImagesEndpointPath(path string) string {
 func classifyOpenAIImagesCapability(req *OpenAIImagesRequest) OpenAIImagesCapability {
 	if req == nil {
 		return OpenAIImagesCapabilityNative
+	}
+	if isGeminiCompatibleImageModel(req.Model) {
+		return OpenAIImagesCapabilityAPIKey
 	}
 	if req.ExplicitModel || req.ExplicitSize {
 		return OpenAIImagesCapabilityNative
@@ -634,7 +663,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
 	requestModel := strings.TrimSpace(parsed.Model)
-	if err := validateOpenAIImagesModel(requestModel); err != nil {
+	if err := validateCompatibleImagesModel(requestModel); err != nil {
 		return nil, err
 	}
 	upstreamModel := requestModel
@@ -698,6 +727,22 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 		upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+		if isOpenAIImagesInsufficientBalance(respBody) {
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				ProxyID:            opsUpstreamProxyID(account),
+				ProxyName:          opsUpstreamProxyName(account),
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
+				UpstreamStatusCode: resp.StatusCode,
+				UpstreamRequestID:  resp.Header.Get("x-request-id"),
+				UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
+				Kind:               "failover",
+				Message:            OpenAIImagesInsufficientBalanceMessage,
+			})
+			s.coolOpenAIImagesInsufficientBalance(upstreamCtx, account)
+			return nil, newOpenAIImagesInsufficientBalanceFailoverError(resp.StatusCode, resp.Header, respBody)
+		}
 		if s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				ProxyID:            opsUpstreamProxyID(account),
@@ -959,66 +1004,6 @@ func cloneMultipartHeader(src textproto.MIMEHeader) textproto.MIMEHeader {
 		dst[key] = copied
 	}
 	return dst
-}
-
-type openAIGeminiImageData struct {
-	B64JSON  string `json:"b64_json"`
-	MimeType string `json:"mime_type,omitempty"`
-}
-
-type openAIGeminiImageResponse struct {
-	Created int64                   `json:"created,omitempty"`
-	Data    []openAIGeminiImageData `json:"data"`
-}
-
-func normalizeOpenAIGeminiImageResponse(body []byte) ([]byte, bool) {
-	if len(body) == 0 || !gjson.ValidBytes(body) || gjson.GetBytes(body, "data").IsArray() {
-		return body, false
-	}
-
-	root := gjson.ParseBytes(body)
-	candidates := root.Get("candidates")
-	createTime := root.Get("createTime").String()
-	if !candidates.IsArray() {
-		candidates = root.Get("response.candidates")
-		createTime = root.Get("response.createTime").String()
-	}
-	if !candidates.IsArray() {
-		return body, false
-	}
-
-	images := make([]openAIGeminiImageData, 0, 1)
-	candidates.ForEach(func(_, candidate gjson.Result) bool {
-		candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
-			inlineData := part.Get("inlineData")
-			if !inlineData.Exists() {
-				inlineData = part.Get("inline_data")
-			}
-			mimeType := strings.TrimSpace(inlineData.Get("mimeType").String())
-			if mimeType == "" {
-				mimeType = strings.TrimSpace(inlineData.Get("mime_type").String())
-			}
-			data := strings.TrimSpace(inlineData.Get("data").String())
-			if data != "" && strings.HasPrefix(strings.ToLower(mimeType), "image/") {
-				images = append(images, openAIGeminiImageData{B64JSON: data, MimeType: mimeType})
-			}
-			return true
-		})
-		return true
-	})
-	if len(images) == 0 {
-		return body, false
-	}
-
-	response := openAIGeminiImageResponse{Data: images}
-	if parsedTime, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(createTime)); err == nil {
-		response.Created = parsedTime.Unix()
-	}
-	normalized, err := json.Marshal(response)
-	if err != nil {
-		return body, false
-	}
-	return normalized, true
 }
 
 func (s *OpenAIGatewayService) handleOpenAIImagesNonStreamingResponse(

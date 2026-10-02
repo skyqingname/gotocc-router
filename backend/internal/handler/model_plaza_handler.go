@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
 	"log/slog"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
@@ -77,23 +76,24 @@ type modelPlazaModel struct {
 
 // modelPlazaGroup 广场分组条目（白名单字段）。
 type modelPlazaGroup struct {
-	ID                 int64               `json:"id"`
-	Name               string              `json:"name"`
-	Description        string              `json:"description"`
-	Platform           string              `json:"platform"`
-	SubscriptionType   string              `json:"subscription_type"`
-	RateMultiplier     float64             `json:"rate_multiplier"`
-	UserRateMultiplier *float64            `json:"user_rate_multiplier,omitempty"`
-	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
-	PeakStart          string              `json:"peak_start"`
-	PeakEnd            string              `json:"peak_end"`
-	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
-	RateSchedule       rateschedule.Config `json:"rate_schedule"`
-	IsExclusive        bool                `json:"is_exclusive"`
+	ID                 int64    `json:"id"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Platform           string   `json:"platform"`
+	SubscriptionType   string   `json:"subscription_type"`
+	RateMultiplier     float64  `json:"rate_multiplier"`
+	UserRateMultiplier *float64 `json:"user_rate_multiplier,omitempty"`
+	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+	PeakStart          string   `json:"peak_start"`
+	PeakEnd            string   `json:"peak_end"`
+	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+	IsExclusive        bool     `json:"is_exclusive"`
 	// 生图独立倍率：为 true 时图片计费模型的实付倍率取 ImageRateMultiplier，
 	// 不取分组/用户专属倍率。
 	ImageRateIndependent bool    `json:"image_rate_independent"`
 	ImageRateMultiplier  float64 `json:"image_rate_multiplier"`
+	VideoRateIndependent bool    `json:"video_rate_independent"`
+	VideoRateMultiplier  float64 `json:"video_rate_multiplier"`
 	// 分组是否启用长上下文阶梯计费；关闭时模型实付列只展示最低档/基础价。
 	LongContextPricingEnabled bool              `json:"long_context_pricing_enabled"`
 	Models                    []modelPlazaModel `json:"models"`
@@ -210,10 +210,11 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) mo
 		PeakStart:                 g.PeakStart,
 		PeakEnd:                   g.PeakEnd,
 		PeakRateMultiplier:        g.PeakRateMultiplier,
-		RateSchedule:              g.RateSchedule,
 		IsExclusive:               g.IsExclusive,
 		ImageRateIndependent:      g.ImageRateIndependent,
 		ImageRateMultiplier:       g.ImageRateMultiplier,
+		VideoRateIndependent:      g.VideoRateIndependent,
+		VideoRateMultiplier:       g.VideoRateMultiplier,
 		LongContextPricingEnabled: g.LongContextPricingEnabled,
 		Models:                    models,
 	}

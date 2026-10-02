@@ -4,23 +4,35 @@ package videoprotocol
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 
+	yp "github.com/LuckyKuang/sub2api-plus/internal/pkg/yingceprotocol"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
 type Parameter struct {
 	Name     string   `json:"name"`
+	Label    string   `json:"label,omitempty"`
+	Disabled bool     `json:"disabled,omitempty"`
 	Type     string   `json:"type"`
 	Required bool     `json:"required"`
 	Values   []string `json:"values"`
 	Min      *float64 `json:"min,omitempty"`
 	Max      *float64 `json:"max,omitempty"`
+	Step     *float64 `json:"step,omitempty"`
 }
 
 type Config struct {
+	ProviderDefinition *yp.ManifestProvider      `json:"provider_definition,omitempty"`
+	ProviderID         string                    `json:"provider_id,omitempty"`
+	ProviderManifest   json.RawMessage           `json:"provider_manifest,omitempty"`
+	PollRequest        *yp.GenerationRequest     `json:"poll_request,omitempty"`
+	CreateRequest      *yp.GenerationRequest     `json:"-"`
+	ProviderOptions    map[string]map[string]any `json:"provider_options,omitempty"`
+
 	CreateStatus  string            `json:"create_status"`
 	Enabled       bool              `json:"enabled"`
 	Protocol      string            `json:"protocol"`
@@ -39,6 +51,24 @@ type Config struct {
 }
 
 func (c Config) Validate() error {
+	if c.Protocol == "yingce" {
+		if err := c.FreezeCatalog(); err != nil {
+			return err
+		}
+		if _, err := c.Adapter(); err != nil {
+			return err
+		}
+		legacy := c
+		legacy.Protocol = "openai"
+		legacy.CreatePath = "/v1/videos"
+		legacy.StatusPath = "/v1/videos/{task_id}"
+		legacy.ContentPath = "/v1/videos/{task_id}/content"
+		legacy.IDField = "id"
+		legacy.StatusField = "status"
+		legacy.Statuses = map[string]string{"pending": "pending"}
+		return legacy.Validate()
+	}
+
 	if c.Protocol != "openai" && c.Protocol != "custom_json" {
 		return fmt.Errorf("video protocol must be openai or custom_json")
 	}
@@ -86,6 +116,9 @@ func (c Config) Validate() error {
 		default:
 			return fmt.Errorf("invalid video parameter type for %s", p.Name)
 		}
+		if p.Step != nil && *p.Step <= 0 {
+			return fmt.Errorf("video parameter step must be positive for %s", p.Name)
+		}
 		if p.Min != nil && p.Max != nil && *p.Min > *p.Max {
 			return fmt.Errorf("invalid video parameter range for %s", p.Name)
 		}
@@ -118,7 +151,13 @@ func (c Config) Validate() error {
 			return fmt.Errorf("invalid normalized video status")
 		}
 	}
-	return nil
+	defaultsConfig := c
+	defaultsConfig.Parameters = append([]Parameter(nil), c.Parameters...)
+	for i := range defaultsConfig.Parameters {
+		defaultsConfig.Parameters[i].Required = false
+	}
+	_, err := defaultsConfig.Prepare([]byte(`{}`))
+	return err
 }
 
 // Prepare operates on canonical fields before billing. Defaults never override
@@ -126,6 +165,16 @@ func (c Config) Validate() error {
 func (c Config) Prepare(body []byte) ([]byte, error) {
 	result := append([]byte(nil), body...)
 	for name, value := range c.Defaults {
+		disabled := false
+		for _, p := range c.Parameters {
+			if p.Name == name && p.Disabled {
+				disabled = true
+				break
+			}
+		}
+		if disabled {
+			continue
+		}
 		if !gjson.GetBytes(result, name).Exists() {
 			var err error
 			result, err = sjson.SetBytes(result, name, value)
@@ -136,6 +185,12 @@ func (c Config) Prepare(body []byte) ([]byte, error) {
 	}
 	for _, p := range c.Parameters {
 		value := gjson.GetBytes(result, p.Name)
+		if p.Disabled {
+			if value.Exists() {
+				return nil, fmt.Errorf("video parameter %s is disabled for this channel model", p.Name)
+			}
+			continue
+		}
 		if !value.Exists() || value.Type == gjson.Null {
 			if p.Required {
 				return nil, fmt.Errorf("video parameter %s is required", p.Name)
@@ -172,6 +227,16 @@ func (c Config) Prepare(body []byte) ([]byte, error) {
 				return nil, fmt.Errorf("video parameter %s is not an allowed value", p.Name)
 			}
 		}
+		if value.Type == gjson.Number && p.Step != nil {
+			origin := 0.0
+			if p.Min != nil {
+				origin = *p.Min
+			}
+			steps := (value.Float() - origin) / *p.Step
+			if math.Abs(steps-math.Round(steps)) > 1e-8 {
+				return nil, fmt.Errorf("video parameter %s does not match its step", p.Name)
+			}
+		}
 		if value.Type == gjson.Number && ((p.Min != nil && value.Float() < *p.Min) || (p.Max != nil && value.Float() > *p.Max)) {
 			return nil, fmt.Errorf("video parameter %s is outside its range", p.Name)
 		}
@@ -199,6 +264,9 @@ func (c Config) MapRequest(body []byte) ([]byte, error) {
 }
 
 func (c Config) NormalizeResponse(body []byte, taskID string, create bool) ([]byte, error) {
+	if c.Protocol == "yingce" {
+		return c.normalizeYingceResponse(body, taskID, create)
+	}
 	id := gjson.GetBytes(body, c.IDField).String()
 	if id == "" {
 		id = taskID

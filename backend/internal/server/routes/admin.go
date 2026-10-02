@@ -41,7 +41,7 @@ func RegisterAdminRoutes(
 		registerUserManagementRoutes(admin, h)
 
 		// 用户支持视图（仅注册 GET 路由）
-		registerAdminSupportRoutes(admin, h)
+		registerAdminSupportRoutes(admin, h, settingService)
 
 		// 分组管理
 		registerGroupRoutes(admin, h)
@@ -127,12 +127,19 @@ func RegisterAdminRoutes(
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h, settingService)
 		registerChannelMonitorV2Routes(admin, h, settingService)
+		monitorV3 := admin.Group("/channel-monitor-v3")
+		monitorV3.Use(channelMonitorAdminFeatureGuard(settingService))
+		monitorV3.GET("/config", h.ChannelMonitorV3.GetConfig)
+		monitorV3.PUT("/config", h.ChannelMonitorV3.UpdateConfig)
 
 		// 风控中心
 		registerContentModerationRoutes(admin, h)
 
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
+
+		// LC-024 代理中心（只读名单）
+		registerAgentRoutes(admin, h)
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
@@ -142,39 +149,6 @@ func RegisterAdminRoutes(
 
 		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
 		registerTeamRoutes(admin, h, stepUpAuth)
-	}
-}
-
-func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
-	teams := admin.Group("/teams")
-	{
-		teams.GET("", h.Admin.Team.List)
-		teams.POST("", h.Admin.Team.Create)
-		teams.GET("/:id", h.Admin.Team.Get)
-		teams.GET("/:id/members", h.Admin.Team.ListMembers)
-		teams.GET("/:id/usage", h.Admin.Team.GetUsage)
-		teams.PATCH("/:id", h.Admin.Team.Update)
-		teams.POST("/:id/force-transfer", gin.HandlerFunc(stepUpAuth), h.Admin.Team.ForceTransfer)
-		teams.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Team.Dissolve)
-	}
-}
-
-func registerAdminSupportRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	support := admin.Group("/support/users/:user_id")
-	support.Use(h.Admin.User.RequireSupportTarget)
-	{
-		support.GET("", h.Admin.User.GetSupportProfile)
-		support.GET("/profile", h.Admin.User.GetSupportProfile)
-		support.GET("/api-keys", h.Admin.User.GetSupportAPIKeys)
-		support.GET("/usage", h.Usage.AdminSupportStats)
-		support.GET("/async-images", h.AsyncImage.AdminSupportList)
-		support.GET("/async-images/:task_id", h.AsyncImage.AdminSupportGet)
-		support.GET("/channels", h.AvailableChannel.AdminSupportList)
-		support.GET("/channel-status", h.ChannelMonitor.List)
-		support.GET("/channel-status/:id", h.ChannelMonitor.GetStatus)
-		support.GET("/subscriptions", h.Subscription.AdminSupportList)
-		support.GET("/orders", h.Payment.AdminSupportListOrders)
-		support.GET("/orders/:order_id", h.Payment.AdminSupportGetOrder)
 	}
 }
 
@@ -373,6 +347,8 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		users.GET("", h.Admin.User.List)
 		users.GET("/:id", h.Admin.User.GetByID)
+		users.GET("/:id/reseller", h.Reseller.AdminProfile)
+		users.PUT("/:id/reseller", h.Reseller.AdminSave)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
 		users.PUT("/:id", h.Admin.User.Update)
@@ -400,6 +376,7 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		groups.GET("", h.Admin.Group.List)
 		groups.GET("/all", h.Admin.Group.GetAll)
+		groups.GET("/video-protocols", h.Admin.Group.VideoProtocols)
 		groups.GET("/usage-summary", h.Admin.Group.GetUsageSummary)
 		groups.GET("/capacity-summary", h.Admin.Group.GetCapacitySummary)
 		groups.GET("/live-capability", h.Admin.Group.GetLiveCapability)
@@ -431,7 +408,12 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/ollama-cloud-usage/settings", h.Admin.Account.GetOllamaCloudUsageSettings)
 		accounts.PUT("/ollama-cloud-usage/settings", h.Admin.Account.UpdateOllamaCloudUsageSettings)
+		accounts.GET("/opencode-go-usage/settings", h.Admin.Account.GetOpenCodeGoUsageSettings)
+		accounts.PUT("/opencode-go-usage/settings", h.Admin.Account.UpdateOpenCodeGoUsageSettings)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
+		accounts.GET("/:id/claude/reset-credits", h.Admin.Account.ClaudeResetCredits)
+		// Same protection as the Codex reset-quota route (admin auth, audit, compliance guard).
+		accounts.POST("/:id/claude/reset-credits/redeem", h.Admin.Account.RedeemClaudeResetCredit)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/:id/duplicate", h.Admin.Account.Duplicate)
 		accounts.POST("/check-mixed-channel", h.Admin.Account.CheckMixedChannel)
@@ -446,6 +428,9 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.DELETE("/:id/ollama-cloud-usage/session", h.Admin.Account.DeleteOllamaCloudUsageSession)
 		accounts.PUT("/:id/ollama-cloud-usage/auto-refresh", h.Admin.Account.SetOllamaCloudUsageAutoRefresh)
 		accounts.POST("/:id/ollama-cloud-usage/refresh", h.Admin.Account.RefreshOllamaCloudUsage)
+		accounts.GET("/:id/opencode-go-usage", h.Admin.Account.GetOpenCodeGoUsage)
+		accounts.PUT("/:id/opencode-go-usage/auto-refresh", h.Admin.Account.SetOpenCodeGoUsageAutoRefresh)
+		accounts.POST("/:id/opencode-go-usage/refresh", h.Admin.Account.RefreshOpenCodeGoUsage)
 		accounts.DELETE("/:id", h.Admin.Account.Delete)
 		accounts.POST("/:id/test", h.Admin.Account.Test)
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
@@ -528,6 +513,8 @@ func registerOpenAIOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		openai.GET("/accounts/:id/quota", h.Admin.OpenAIOAuth.QueryQuota)
 		openai.POST("/accounts/:id/quota/refresh", h.Admin.OpenAIOAuth.RefreshQuota)
 		openai.POST("/accounts/:id/reset-quota", h.Admin.OpenAIOAuth.ResetQuota)
+		openai.POST("/accounts/:id/referrals/refresh", h.Admin.OpenAIOAuth.RefreshReferrals)
+		openai.POST("/accounts/:id/referrals/invite", h.Admin.OpenAIOAuth.SendReferralInvite)
 	}
 }
 
@@ -625,20 +612,6 @@ func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promoCodes.PUT("/:id", h.Admin.Promo.Update)
 		promoCodes.DELETE("/:id", h.Admin.Promo.Delete)
 		promoCodes.GET("/:id/usages", h.Admin.Promo.GetUsages)
-	}
-}
-
-func registerReusableInvitationCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	if h.Admin == nil || h.Admin.ReusableInvitationCode == nil {
-		return
-	}
-	codes := admin.Group("/reusable-invitation-codes")
-	{
-		codes.GET("", h.Admin.ReusableInvitationCode.List)
-		codes.POST("", h.Admin.ReusableInvitationCode.Create)
-		codes.PUT("/:id/owner", h.Admin.ReusableInvitationCode.SetOwner)
-		codes.POST("/:id/disable", h.Admin.ReusableInvitationCode.Disable)
-		codes.GET("/:id/uses", h.Admin.ReusableInvitationCode.ListUses)
 	}
 }
 
@@ -852,6 +825,7 @@ func registerPluginRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 		plugins.POST("/:id/disable", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Disable)
 		plugins.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Delete)
 		plugins.GET("/:id/config", h.Admin.Plugin.GetConfig)
+		plugins.GET("/:id/status", h.Admin.Plugin.Status)
 		plugins.PUT("/:id/config", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.SaveConfig)
 		plugins.POST("/:id/test", gin.HandlerFunc(stepUpAuth), h.Admin.Plugin.Test)
 		plugins.POST("/:id/ui-session", h.Admin.Plugin.CreateUISession)
@@ -863,7 +837,7 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		channels.GET("", h.Admin.Channel.List)
 		channels.GET("/model-pricing", h.Admin.Channel.GetModelDefaultPricing)
-		channels.GET("/pricing/sync-models", h.Admin.Channel.SyncPricingModels)
+		channels.POST("/pricing/sync-models", h.Admin.Channel.SyncPricingModels)
 		channels.GET("/:id", h.Admin.Channel.GetByID)
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
@@ -914,6 +888,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.GET("/lookup", h.Admin.Affiliate.LookupUsers)
 			users.POST("/batch-rate", h.Admin.Affiliate.BatchSetRate)
 			users.GET("/:user_id/overview", h.Admin.Affiliate.GetUserOverview)
+			users.POST("/:user_id/withdraw", h.Admin.Affiliate.WithdrawQuota)
 			users.GET("/:user_id/inviter", h.Admin.Affiliate.GetInviter)
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
@@ -974,6 +949,28 @@ func channelMonitorModeV2Guard(settingService *service.SettingService) gin.Handl
 			return
 		}
 		if !rt.PassiveAggregationAllowed() {
+			response.ErrorFrom(c, service.ErrChannelMonitorModeMismatch)
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func channelMonitorModeV3Guard(settings *service.SettingService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if settings == nil {
+			response.ErrorFrom(c, service.ErrChannelMonitorDisabled)
+			c.Abort()
+			return
+		}
+		rt := settings.GetChannelMonitorRuntime(c.Request.Context())
+		if !rt.Enabled {
+			response.ErrorFrom(c, service.ErrChannelMonitorDisabled)
+			c.Abort()
+			return
+		}
+		if rt.Mode != service.ChannelMonitorModeV3 {
 			response.ErrorFrom(c, service.ErrChannelMonitorModeMismatch)
 			c.Abort()
 			return

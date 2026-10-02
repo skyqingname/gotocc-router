@@ -50,6 +50,7 @@ export default {
       tokens: 'Token',
       cache: '缓存',
       recentUsage: '最近使用',
+      actualSpending: '实际消费 ($)',
       viewModelDistribution: '模型分布',
       viewSpendingRanking: '用户消费榜',
       spendingRankingTitle: '用户消费榜',
@@ -441,6 +442,29 @@ export default {
       }
     },
 
+    agents: {
+      "description": "查看已主动开通和存量自动开通的代理，无需人工审核。",
+      "columns": {
+            "user": "用户",
+            "registeredAt": "注册时间",
+            "appliedAt": "申请时间",
+            "status": "状态",
+            "source": "来源",
+            "activatedAt": "生效时间"
+      },
+      "searchPlaceholder": "邮箱、用户名、用户 ID",
+      "status": {
+            "approved": "已开通"
+      },
+      "source": {
+            "applied": "主动开通",
+            "grandfathered": "存量保留"
+      },
+      "empty": "暂无代理",
+      "errors": {
+            "loadFailed": "加载代理名单失败"
+      }
+},
     affiliates: {
       invitesDescription: '查看全站邀请关系和被邀请用户累计返利',
       rebatesDescription: '查看每一笔产生返利的充值订单',
@@ -492,18 +516,14 @@ export default {
     // Users Management
     users: {
       inviter: {
+        codeLabel: "邀请码",
+        codePlaceholder: "输入推广人的邀请码",
+        codeHint: "同一个邀请码用于注册和返佣归属；换绑不消耗注册次数。",
         title: "邀请码与返佣归属",
         current: "当前推广人",
         unbound: "尚未绑定推广人",
         loading: "正在读取返佣归属…",
         retry: "重新读取",
-        codeType: "邀请码类型",
-        permanent: "永久邀请码",
-        aff: "AFF 邀请码",
-        permanentPlaceholder: "填写永久邀请码",
-        affPlaceholder: "填写推广人的 AFF 邀请码",
-        permanentHint: "使用永久邀请码绑定的归属人，不消耗注册次数。",
-        affHint: "使用该 AFF 邀请码所属的推广人。",
         resolve: "解析归属",
         resolving: "解析中…",
         next: "更新后归属",
@@ -1184,19 +1204,18 @@ export default {
       },
       modelAllowlist: {
         title: '模型白名单',
-        hint: '开启后，不在白名单中的模型会被拒绝（404 model_not_found），模型列表接口也只展示白名单内的模型。条目支持精确模型 ID 与末尾 * 通配。注意：Claude Code 会用 haiku 系小模型做标题/摘要等探测，/messages/count_tokens 同样受白名单控制，请一并勾选所需的小模型。',
+        hint: '开启后，不在白名单中的模型会被拒绝（404 model_not_found），模型列表接口也只展示白名单内的模型。条目支持精确模型 ID 与任意位置的 * 通配（如 gpt-*-codex）。注意：Claude Code 会用 haiku 系小模型做标题/摘要等探测，/messages/count_tokens 同样受白名单控制，请一并勾选所需的小模型。',
         loading: '正在加载候选模型...',
         empty: '暂无候选模型，可在下方手工添加条目',
         selectedSummary: '已选 {selected} / {total}',
         selectAll: '全选',
         invertSelection: '反选',
         wildcardTag: '通配',
-        customPlaceholder: '自定义条目，如 claude-* 或 gpt-5.5-codex',
+        customPlaceholder: '自定义条目，如 gpt-*-codex 或 claude-*',
         addCustom: '添加',
         emptySelectionError: '模型白名单已开启，请至少选择或添加一个模型条目',
         errors: {
           empty: '请输入模型条目',
-          invalidWildcard: '通配符 * 只能出现在条目末尾',
           duplicate: '该条目已存在'
         }
       },
@@ -1362,8 +1381,8 @@ export default {
         title: '支持的模型系列',
         tooltip: '选择此分组支持的模型系列。未勾选的系列将不会被路由到此分组。',
         claude: 'Claude',
-        geminiText: 'Gemini Text',
-        geminiImage: 'Gemini Image',
+        geminiText: 'Gemini 文本',
+        geminiImage: 'Gemini 图像',
         hint: '至少选择一个模型系列'
       }
     },

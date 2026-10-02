@@ -91,6 +91,7 @@ type Config struct {
 	Pricing                 PricingConfig                 `mapstructure:"pricing"`
 	Gateway                 GatewayConfig                 `mapstructure:"gateway"`
 	APIKeyAuth              APIKeyAuthCacheConfig         `mapstructure:"api_key_auth_cache"`
+	APIKeyCreate            APIKeyCreateConfig            `mapstructure:"api_key_create"`
 	SubscriptionCache       SubscriptionCacheConfig       `mapstructure:"subscription_cache"`
 	SubscriptionMaintenance SubscriptionMaintenanceConfig `mapstructure:"subscription_maintenance"`
 	Dashboard               DashboardCacheConfig          `mapstructure:"dashboard_cache"`
@@ -98,6 +99,7 @@ type Config struct {
 	UsageCleanup            UsageCleanupConfig            `mapstructure:"usage_cleanup"`
 	Concurrency             ConcurrencyConfig             `mapstructure:"concurrency"`
 	TokenRefresh            TokenRefreshConfig            `mapstructure:"token_refresh"`
+	SimpleMode              SimpleModeConfig              `mapstructure:"simple_mode" yaml:"simple_mode"`
 	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone                string                        `mapstructure:"timezone"` // e.g. "Asia/Shanghai", "UTC"
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
@@ -108,6 +110,14 @@ type Config struct {
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 	Plugins                 PluginConfig                  `mapstructure:"plugins"`
 	Team                    TeamConfig                    `mapstructure:"team"`
+
+	// Enforce only API-key spending windows in simple mode.
+	SimpleModeKeyRateLimitEnabled bool `mapstructure:"simple_mode_key_rate_limit_enabled" yaml:"simple_mode_key_rate_limit_enabled"`
+}
+
+// SimpleModeConfig controls startup behavior in simple mode.
+type SimpleModeConfig struct {
+	AutoCreateDefaultGroups bool `mapstructure:"auto_create_default_groups" yaml:"auto_create_default_groups"`
 }
 
 // PluginConfig 控制管理员手动上传的本地进程插件。
@@ -119,13 +129,6 @@ type PluginConfig struct {
 	MaxUploadBytes       int64             `mapstructure:"max_upload_bytes"`
 	MaxUncompressedBytes int64             `mapstructure:"max_uncompressed_bytes"`
 	StartTimeoutSeconds  int               `mapstructure:"start_timeout_seconds"`
-}
-
-// TeamConfig controls whether users can create and operate a single-owner team.
-type TeamConfig struct {
-	Enabled            bool `mapstructure:"enabled"`
-	SelfServiceEnabled bool `mapstructure:"self_service_enabled"`
-	DefaultMemberLimit int  `mapstructure:"default_member_limit"`
 }
 
 type LogConfig struct {
@@ -256,49 +259,6 @@ type BatchImageConfig struct {
 	VertexOutputRetentionHours   int    `mapstructure:"vertex_output_retention_hours"`
 	VertexBatchPredictionBaseURL string `mapstructure:"vertex_batch_prediction_base_url"`
 	VertexGCSBaseURL             string `mapstructure:"vertex_gcs_base_url"`
-}
-
-// VideoTaskConfig controls durable polling and terminal billing for
-// OpenAI-compatible asynchronous video tasks.
-type VideoTaskConfig struct {
-	Enabled               bool     `mapstructure:"enabled"`
-	ScanIntervalSeconds   int      `mapstructure:"scan_interval_seconds"`
-	TaskTimeoutSeconds    int      `mapstructure:"task_timeout_seconds"`
-	LeaseSeconds          int      `mapstructure:"lease_seconds"`
-	RequestTimeoutSeconds int      `mapstructure:"request_timeout_seconds"`
-	ClaimBatchSize        int      `mapstructure:"claim_batch_size"`
-	MaxResponseBytes      int64    `mapstructure:"max_response_bytes"`
-	SuccessStatuses       []string `mapstructure:"success_statuses"`
-	FailureStatuses       []string `mapstructure:"failure_statuses"`
-	CancelledStatuses     []string `mapstructure:"cancelled_statuses"`
-}
-
-func validateVideoTaskTerminalStatuses(cfg VideoTaskConfig) error {
-	sets := []struct {
-		name   string
-		values []string
-	}{
-		{name: "success_statuses", values: cfg.SuccessStatuses},
-		{name: "failure_statuses", values: cfg.FailureStatuses},
-		{name: "cancelled_statuses", values: cfg.CancelledStatuses},
-	}
-	seen := make(map[string]string)
-	for _, set := range sets {
-		if len(set.values) == 0 {
-			return fmt.Errorf("video_task.%s must not be empty", set.name)
-		}
-		for _, value := range set.values {
-			normalized := strings.ToLower(strings.TrimSpace(value))
-			if normalized == "" {
-				return fmt.Errorf("video_task.%s must not contain empty status", set.name)
-			}
-			if previous, ok := seen[normalized]; ok {
-				return fmt.Errorf("video_task status %q appears in both %s and %s", normalized, previous, set.name)
-			}
-			seen[normalized] = set.name
-		}
-	}
-	return nil
 }
 
 // ImageStorageConfig 配置异步图片任务结果上传的 S3 兼容对象存储。
@@ -973,6 +933,29 @@ type BillingConfig struct {
 	// UserPlatformQuotaSentinelTTLSeconds sentinel(无 limit 占位)entry 的 TTL,
 	// 显著短于 quota cache 默认 86400s 以控 Redis 内存;默认 3600=1h。
 	UserPlatformQuotaSentinelTTLSeconds int `mapstructure:"user_platform_quota_sentinel_ttl_seconds"`
+	// InflightReservation 余额模式在途请求预留（Redis），防止并发请求在预检时看到同一份余额而集体透支。
+	InflightReservation InflightReservationConfig `mapstructure:"inflight_reservation"`
+}
+
+// InflightReservationConfig 余额模式在途预留配置。
+// 准入时按 输入估算 + 输出单价 × max_tokens 估算单请求费用，在 Redis 中原子地
+// 校验 缓存余额 - 在途预留合计 >= 估算 后登记预留，请求结束（任意路径）释放。
+// 估算失败或 Redis 不可用时 fail-open，退回旧的仅余额 > 阈值检查。
+type InflightReservationConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+	// TTLSeconds 单条预留的最长存活时间；进程崩溃等泄漏的预留到期自动失效。
+	TTLSeconds int `mapstructure:"ttl_seconds"`
+	// DefaultMaxTokens 请求未携带 max_tokens 时用于估算的输出 token 数。
+	DefaultMaxTokens int `mapstructure:"default_max_tokens"`
+	// MaxOutputTokens 估算输出 token 的上限（max_tokens 超出时截断）。
+	MaxOutputTokens int `mapstructure:"max_output_tokens"`
+	// MaxInputTokens 输入 token 估算（请求体字节数 / 4）的上限。
+	MaxInputTokens int `mapstructure:"max_input_tokens"`
+	// MaxReservationUSD 单请求预留金额上限；0 表示不设上限。
+	MaxReservationUSD float64 `mapstructure:"max_reservation_usd"`
+	// FailClosedOnUnpriced 无法为请求估算费用（模型/分组/渠道均无定价）时是否拒绝请求。
+	// 默认 false：放行且不预留（fail-open，节流告警日志）。
+	FailClosedOnUnpriced bool `mapstructure:"fail_closed_on_unpriced"`
 }
 
 type CircuitBreakerConfig struct {
@@ -1735,6 +1718,14 @@ type APIKeyAuthCacheConfig struct {
 	InvalidAbuse       InvalidAuthAbuseConfig `mapstructure:"invalid_abuse"`
 }
 
+// APIKeyCreateConfig 用户创建 API Key 的防滥用限制（0 表示不限制）
+type APIKeyCreateConfig struct {
+	// MaxActivePerUser 单个用户同时存在（未删除）的 API Key 上限
+	MaxActivePerUser int `mapstructure:"max_active_per_user"`
+	// MaxPerUserPerHour 单个用户每小时可创建的 API Key 次数（删除不返还次数）
+	MaxPerUserPerHour int `mapstructure:"max_per_user_per_hour"`
+}
+
 type InvalidAuthAbuseConfig struct {
 	Enabled       bool `mapstructure:"enabled"`
 	Threshold     int  `mapstructure:"threshold"`
@@ -2038,6 +2029,8 @@ func configureConfigSource(setConfigFile, addConfigPath func(string)) {
 
 func setDefaults() {
 	viper.SetDefault("run_mode", RunModeStandard)
+	viper.SetDefault("simple_mode.auto_create_default_groups", true)
+	viper.SetDefault("simple_mode_key_rate_limit_enabled", false)
 
 	// Server
 	viper.SetDefault("server.host", "0.0.0.0")
@@ -2130,6 +2123,13 @@ func setDefaults() {
 	viper.SetDefault("billing.minimum_balance_reserve", 0.000001)
 	viper.SetDefault("billing.user_platform_quota_cache_ttl_seconds", 86400)
 	viper.SetDefault("billing.user_platform_quota_sentinel_ttl_seconds", 3600)
+	viper.SetDefault("billing.inflight_reservation.enabled", true)
+	viper.SetDefault("billing.inflight_reservation.ttl_seconds", 900)
+	viper.SetDefault("billing.inflight_reservation.default_max_tokens", 8192)
+	viper.SetDefault("billing.inflight_reservation.max_output_tokens", 128000)
+	viper.SetDefault("billing.inflight_reservation.max_input_tokens", 200000)
+	viper.SetDefault("billing.inflight_reservation.max_reservation_usd", 0)
+	viper.SetDefault("billing.inflight_reservation.fail_closed_on_unpriced", false)
 
 	// Turnstile
 	viper.SetDefault("turnstile.required", false)
@@ -2389,6 +2389,8 @@ func setDefaults() {
 	viper.SetDefault("api_key_auth_cache.invalid_abuse.window_seconds", 60)
 	viper.SetDefault("api_key_auth_cache.invalid_abuse.block_seconds", 60)
 	viper.SetDefault("api_key_auth_cache.invalid_abuse.capacity", 16384)
+	viper.SetDefault("api_key_create.max_active_per_user", 200)
+	viper.SetDefault("api_key_create.max_per_user_per_hour", 60)
 
 	// Subscription auth L1 cache
 	viper.SetDefault("subscription_cache.l1_size", 16384)
@@ -2772,6 +2774,12 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("server.h2c.max_upload_buffer_per_stream must be positive")
 		}
 	}
+	if c.APIKeyCreate.MaxActivePerUser < 0 {
+		return fmt.Errorf("api_key_create.max_active_per_user must be non-negative")
+	}
+	if c.APIKeyCreate.MaxPerUserPerHour < 0 {
+		return fmt.Errorf("api_key_create.max_per_user_per_hour must be non-negative")
+	}
 	if c.APIKeyAuth.InvalidAbuse.Enabled {
 		if c.APIKeyAuth.InvalidAbuse.Threshold < 10 {
 			return fmt.Errorf("api_key_auth_cache.invalid_abuse.threshold must be at least 10")
@@ -3122,6 +3130,14 @@ func (c *Config) Validate() error {
 	}
 	if c.Billing.MinimumBalanceReserve < 0 {
 		return fmt.Errorf("billing.minimum_balance_reserve must be non-negative")
+	}
+	if c.Billing.InflightReservation.TTLSeconds < 0 || c.Billing.InflightReservation.DefaultMaxTokens < 0 ||
+		c.Billing.InflightReservation.MaxOutputTokens < 0 || c.Billing.InflightReservation.MaxInputTokens < 0 ||
+		c.Billing.InflightReservation.MaxReservationUSD < 0 {
+		return fmt.Errorf("billing.inflight_reservation values must be non-negative")
+	}
+	if math.IsNaN(c.Billing.InflightReservation.MaxReservationUSD) || math.IsInf(c.Billing.InflightReservation.MaxReservationUSD, 0) {
+		return fmt.Errorf("billing.inflight_reservation.max_reservation_usd must be finite")
 	}
 	if c.Database.MaxOpenConns <= 0 {
 		return fmt.Errorf("database.max_open_conns must be positive")

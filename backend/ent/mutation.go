@@ -61,7 +61,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/ent/userplatformquota"
 	"github.com/LuckyKuang/sub2api-plus/ent/usersubscription"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -11555,6 +11555,7 @@ type BatchImageJobMutation struct {
 	op                  Op
 	typ                 string
 	id                  *int64
+	reseller_snapshot   **reseller.Snapshot
 	batch_id            *string
 	user_id             *int64
 	adduser_id          *int64
@@ -11716,6 +11717,55 @@ func (m *BatchImageJobMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) SetResellerSnapshot(r *reseller.Snapshot) {
+	m.reseller_snapshot = &r
+}
+
+// ResellerSnapshot returns the value of the "reseller_snapshot" field in the mutation.
+func (m *BatchImageJobMutation) ResellerSnapshot() (r *reseller.Snapshot, exists bool) {
+	v := m.reseller_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResellerSnapshot returns the old "reseller_snapshot" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldResellerSnapshot(ctx context.Context) (v *reseller.Snapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResellerSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResellerSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResellerSnapshot: %w", err)
+	}
+	return oldValue.ResellerSnapshot, nil
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) ClearResellerSnapshot() {
+	m.reseller_snapshot = nil
+	m.clearedFields[batchimagejob.FieldResellerSnapshot] = struct{}{}
+}
+
+// ResellerSnapshotCleared returns if the "reseller_snapshot" field was cleared in this mutation.
+func (m *BatchImageJobMutation) ResellerSnapshotCleared() bool {
+	_, ok := m.clearedFields[batchimagejob.FieldResellerSnapshot]
+	return ok
+}
+
+// ResetResellerSnapshot resets all changes to the "reseller_snapshot" field.
+func (m *BatchImageJobMutation) ResetResellerSnapshot() {
+	m.reseller_snapshot = nil
+	delete(m.clearedFields, batchimagejob.FieldResellerSnapshot)
 }
 
 // SetBatchID sets the "batch_id" field.
@@ -13994,7 +14044,10 @@ func (m *BatchImageJobMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BatchImageJobMutation) Fields() []string {
-	fields := make([]string, 0, 44)
+	fields := make([]string, 0, 45)
+	if m.reseller_snapshot != nil {
+		fields = append(fields, batchimagejob.FieldResellerSnapshot)
+	}
 	if m.batch_id != nil {
 		fields = append(fields, batchimagejob.FieldBatchID)
 	}
@@ -14135,6 +14188,8 @@ func (m *BatchImageJobMutation) Fields() []string {
 // schema.
 func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		return m.ResellerSnapshot()
 	case batchimagejob.FieldBatchID:
 		return m.BatchID()
 	case batchimagejob.FieldUserID:
@@ -14232,6 +14287,8 @@ func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		return m.OldResellerSnapshot(ctx)
 	case batchimagejob.FieldBatchID:
 		return m.OldBatchID(ctx)
 	case batchimagejob.FieldUserID:
@@ -14329,6 +14386,13 @@ func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.
 // type.
 func (m *BatchImageJobMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		v, ok := value.(*reseller.Snapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResellerSnapshot(v)
+		return nil
 	case batchimagejob.FieldBatchID:
 		v, ok := value.(string)
 		if !ok {
@@ -14850,6 +14914,9 @@ func (m *BatchImageJobMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *BatchImageJobMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(batchimagejob.FieldResellerSnapshot) {
+		fields = append(fields, batchimagejob.FieldResellerSnapshot)
+	}
 	if m.FieldCleared(batchimagejob.FieldBillingUserID) {
 		fields = append(fields, batchimagejob.FieldBillingUserID)
 	}
@@ -14945,6 +15012,9 @@ func (m *BatchImageJobMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *BatchImageJobMutation) ClearField(name string) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		m.ClearResellerSnapshot()
+		return nil
 	case batchimagejob.FieldBillingUserID:
 		m.ClearBillingUserID()
 		return nil
@@ -15034,6 +15104,9 @@ func (m *BatchImageJobMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *BatchImageJobMutation) ResetField(name string) error {
 	switch name {
+	case batchimagejob.FieldResellerSnapshot:
+		m.ResetResellerSnapshot()
+		return nil
 	case batchimagejob.FieldBatchID:
 		m.ResetBatchID()
 		return nil
@@ -22713,7 +22786,6 @@ type GroupMutation struct {
 	peak_end                                *string
 	peak_rate_multiplier                    *float64
 	addpeak_rate_multiplier                 *float64
-	rate_schedule                           *rateschedule.Config
 	is_exclusive                            *bool
 	status                                  *string
 	duplicate_operation_id                  *string
@@ -22760,6 +22832,7 @@ type GroupMutation struct {
 	addvideo_price_720p                     *float64
 	video_price_1080p                       *float64
 	addvideo_price_1080p                    *float64
+	video_models                            *videoprotocol.Models
 	video_model_prices                      *map[string]map[string]float64
 	web_search_price_per_call               *float64
 	addweb_search_price_per_call            *float64
@@ -23353,55 +23426,6 @@ func (m *GroupMutation) AddedPeakRateMultiplier() (r float64, exists bool) {
 func (m *GroupMutation) ResetPeakRateMultiplier() {
 	m.peak_rate_multiplier = nil
 	m.addpeak_rate_multiplier = nil
-}
-
-// SetRateSchedule sets the "rate_schedule" field.
-func (m *GroupMutation) SetRateSchedule(r rateschedule.Config) {
-	m.rate_schedule = &r
-}
-
-// RateSchedule returns the value of the "rate_schedule" field in the mutation.
-func (m *GroupMutation) RateSchedule() (r rateschedule.Config, exists bool) {
-	v := m.rate_schedule
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldRateSchedule returns the old "rate_schedule" field's value of the Group entity.
-// If the Group object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GroupMutation) OldRateSchedule(ctx context.Context) (v rateschedule.Config, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldRateSchedule is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldRateSchedule requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldRateSchedule: %w", err)
-	}
-	return oldValue.RateSchedule, nil
-}
-
-// ClearRateSchedule clears the value of the "rate_schedule" field.
-func (m *GroupMutation) ClearRateSchedule() {
-	m.rate_schedule = nil
-	m.clearedFields[group.FieldRateSchedule] = struct{}{}
-}
-
-// RateScheduleCleared returns if the "rate_schedule" field was cleared in this mutation.
-func (m *GroupMutation) RateScheduleCleared() bool {
-	_, ok := m.clearedFields[group.FieldRateSchedule]
-	return ok
-}
-
-// ResetRateSchedule resets all changes to the "rate_schedule" field.
-func (m *GroupMutation) ResetRateSchedule() {
-	m.rate_schedule = nil
-	delete(m.clearedFields, group.FieldRateSchedule)
 }
 
 // SetIsExclusive sets the "is_exclusive" field.
@@ -24966,6 +24990,42 @@ func (m *GroupMutation) ResetVideoPrice1080p() {
 	m.video_price_1080p = nil
 	m.addvideo_price_1080p = nil
 	delete(m.clearedFields, group.FieldVideoPrice1080p)
+}
+
+// SetVideoModels sets the "video_models" field.
+func (m *GroupMutation) SetVideoModels(v videoprotocol.Models) {
+	m.video_models = &v
+}
+
+// VideoModels returns the value of the "video_models" field in the mutation.
+func (m *GroupMutation) VideoModels() (r videoprotocol.Models, exists bool) {
+	v := m.video_models
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVideoModels returns the old "video_models" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldVideoModels(ctx context.Context) (v videoprotocol.Models, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVideoModels is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVideoModels requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVideoModels: %w", err)
+	}
+	return oldValue.VideoModels, nil
+}
+
+// ResetVideoModels resets all changes to the "video_models" field.
+func (m *GroupMutation) ResetVideoModels() {
+	m.video_models = nil
 }
 
 // SetVideoModelPrices sets the "video_model_prices" field.
@@ -26948,9 +27008,6 @@ func (m *GroupMutation) Fields() []string {
 	if m.peak_rate_multiplier != nil {
 		fields = append(fields, group.FieldPeakRateMultiplier)
 	}
-	if m.rate_schedule != nil {
-		fields = append(fields, group.FieldRateSchedule)
-	}
 	if m.is_exclusive != nil {
 		fields = append(fields, group.FieldIsExclusive)
 	}
@@ -27037,6 +27094,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.video_price_1080p != nil {
 		fields = append(fields, group.FieldVideoPrice1080p)
+	}
+	if m.video_models != nil {
+		fields = append(fields, group.FieldVideoModels)
 	}
 	if m.video_model_prices != nil {
 		fields = append(fields, group.FieldVideoModelPrices)
@@ -27165,8 +27225,6 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.PeakEnd()
 	case group.FieldPeakRateMultiplier:
 		return m.PeakRateMultiplier()
-	case group.FieldRateSchedule:
-		return m.RateSchedule()
 	case group.FieldIsExclusive:
 		return m.IsExclusive()
 	case group.FieldStatus:
@@ -27225,6 +27283,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.VideoPrice720p()
 	case group.FieldVideoPrice1080p:
 		return m.VideoPrice1080p()
+	case group.FieldVideoModels:
+		return m.VideoModels()
 	case group.FieldVideoModelPrices:
 		return m.VideoModelPrices()
 	case group.FieldWebSearchPricePerCall:
@@ -27320,8 +27380,6 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldPeakEnd(ctx)
 	case group.FieldPeakRateMultiplier:
 		return m.OldPeakRateMultiplier(ctx)
-	case group.FieldRateSchedule:
-		return m.OldRateSchedule(ctx)
 	case group.FieldIsExclusive:
 		return m.OldIsExclusive(ctx)
 	case group.FieldStatus:
@@ -27380,6 +27438,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldVideoPrice720p(ctx)
 	case group.FieldVideoPrice1080p:
 		return m.OldVideoPrice1080p(ctx)
+	case group.FieldVideoModels:
+		return m.OldVideoModels(ctx)
 	case group.FieldVideoModelPrices:
 		return m.OldVideoModelPrices(ctx)
 	case group.FieldWebSearchPricePerCall:
@@ -27524,13 +27584,6 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPeakRateMultiplier(v)
-		return nil
-	case group.FieldRateSchedule:
-		v, ok := value.(rateschedule.Config)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetRateSchedule(v)
 		return nil
 	case group.FieldIsExclusive:
 		v, ok := value.(bool)
@@ -27734,6 +27787,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetVideoPrice1080p(v)
+		return nil
+	case group.FieldVideoModels:
+		v, ok := value.(videoprotocol.Models)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVideoModels(v)
 		return nil
 	case group.FieldVideoModelPrices:
 		v, ok := value.(map[string]map[string]float64)
@@ -28365,9 +28425,6 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldDescription) {
 		fields = append(fields, group.FieldDescription)
 	}
-	if m.FieldCleared(group.FieldRateSchedule) {
-		fields = append(fields, group.FieldRateSchedule)
-	}
 	if m.FieldCleared(group.FieldDuplicateOperationID) {
 		fields = append(fields, group.FieldDuplicateOperationID)
 	}
@@ -28456,9 +28513,6 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldDescription:
 		m.ClearDescription()
-		return nil
-	case group.FieldRateSchedule:
-		m.ClearRateSchedule()
 		return nil
 	case group.FieldDuplicateOperationID:
 		m.ClearDuplicateOperationID()
@@ -28567,9 +28621,6 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldPeakRateMultiplier:
 		m.ResetPeakRateMultiplier()
 		return nil
-	case group.FieldRateSchedule:
-		m.ResetRateSchedule()
-		return nil
 	case group.FieldIsExclusive:
 		m.ResetIsExclusive()
 		return nil
@@ -28656,6 +28707,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldVideoPrice1080p:
 		m.ResetVideoPrice1080p()
+		return nil
+	case group.FieldVideoModels:
+		m.ResetVideoModels()
 		return nil
 	case group.FieldVideoModelPrices:
 		m.ResetVideoModelPrices()
@@ -31543,6 +31597,7 @@ type OpenAIVideoTaskMutation struct {
 	op                         Op
 	typ                        string
 	id                         *int64
+	reseller_snapshot          **reseller.Snapshot
 	provider_config            **videoprotocol.Config
 	local_request_id           *string
 	task_id                    *string
@@ -31706,6 +31761,55 @@ func (m *OpenAIVideoTaskMutation) IDs(ctx context.Context) ([]int64, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) SetResellerSnapshot(r *reseller.Snapshot) {
+	m.reseller_snapshot = &r
+}
+
+// ResellerSnapshot returns the value of the "reseller_snapshot" field in the mutation.
+func (m *OpenAIVideoTaskMutation) ResellerSnapshot() (r *reseller.Snapshot, exists bool) {
+	v := m.reseller_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResellerSnapshot returns the old "reseller_snapshot" field's value of the OpenAIVideoTask entity.
+// If the OpenAIVideoTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OpenAIVideoTaskMutation) OldResellerSnapshot(ctx context.Context) (v *reseller.Snapshot, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResellerSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResellerSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResellerSnapshot: %w", err)
+	}
+	return oldValue.ResellerSnapshot, nil
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) ClearResellerSnapshot() {
+	m.reseller_snapshot = nil
+	m.clearedFields[openaivideotask.FieldResellerSnapshot] = struct{}{}
+}
+
+// ResellerSnapshotCleared returns if the "reseller_snapshot" field was cleared in this mutation.
+func (m *OpenAIVideoTaskMutation) ResellerSnapshotCleared() bool {
+	_, ok := m.clearedFields[openaivideotask.FieldResellerSnapshot]
+	return ok
+}
+
+// ResetResellerSnapshot resets all changes to the "reseller_snapshot" field.
+func (m *OpenAIVideoTaskMutation) ResetResellerSnapshot() {
+	m.reseller_snapshot = nil
+	delete(m.clearedFields, openaivideotask.FieldResellerSnapshot)
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -33933,7 +34037,10 @@ func (m *OpenAIVideoTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OpenAIVideoTaskMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
+	if m.reseller_snapshot != nil {
+		fields = append(fields, openaivideotask.FieldResellerSnapshot)
+	}
 	if m.provider_config != nil {
 		fields = append(fields, openaivideotask.FieldProviderConfig)
 	}
@@ -34077,6 +34184,8 @@ func (m *OpenAIVideoTaskMutation) Fields() []string {
 // schema.
 func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		return m.ResellerSnapshot()
 	case openaivideotask.FieldProviderConfig:
 		return m.ProviderConfig()
 	case openaivideotask.FieldLocalRequestID:
@@ -34176,6 +34285,8 @@ func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		return m.OldResellerSnapshot(ctx)
 	case openaivideotask.FieldProviderConfig:
 		return m.OldProviderConfig(ctx)
 	case openaivideotask.FieldLocalRequestID:
@@ -34275,6 +34386,13 @@ func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (en
 // type.
 func (m *OpenAIVideoTaskMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		v, ok := value.(*reseller.Snapshot)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResellerSnapshot(v)
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		v, ok := value.(*videoprotocol.Config)
 		if !ok {
@@ -34815,6 +34933,9 @@ func (m *OpenAIVideoTaskMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *OpenAIVideoTaskMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(openaivideotask.FieldResellerSnapshot) {
+		fields = append(fields, openaivideotask.FieldResellerSnapshot)
+	}
 	if m.FieldCleared(openaivideotask.FieldProviderConfig) {
 		fields = append(fields, openaivideotask.FieldProviderConfig)
 	}
@@ -34886,6 +35007,9 @@ func (m *OpenAIVideoTaskMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *OpenAIVideoTaskMutation) ClearField(name string) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		m.ClearResellerSnapshot()
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		m.ClearProviderConfig()
 		return nil
@@ -34951,6 +35075,9 @@ func (m *OpenAIVideoTaskMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *OpenAIVideoTaskMutation) ResetField(name string) error {
 	switch name {
+	case openaivideotask.FieldResellerSnapshot:
+		m.ResetResellerSnapshot()
+		return nil
 	case openaivideotask.FieldProviderConfig:
 		m.ResetProviderConfig()
 		return nil
@@ -56593,102 +56720,104 @@ func (m *UsageCleanupTaskMutation) ResetEdge(name string) error {
 // UsageLogMutation represents an operation that mutates the UsageLog nodes in the graph.
 type UsageLogMutation struct {
 	config
-	op                           Op
-	typ                          string
-	id                           *int64
-	billing_user_id              *int64
-	addbilling_user_id           *int64
-	request_id                   *string
-	model                        *string
-	requested_model              *string
-	upstream_model               *string
-	upstream_response_model      *string
-	upstream_model_mismatch      *bool
-	channel_id                   *int64
-	addchannel_id                *int64
-	model_mapping_chain          *string
-	billing_tier                 *string
-	billing_mode                 *string
-	input_tokens                 *int
-	addinput_tokens              *int
-	output_tokens                *int
-	addoutput_tokens             *int
-	cache_creation_tokens        *int
-	addcache_creation_tokens     *int
-	cache_read_tokens            *int
-	addcache_read_tokens         *int
-	cache_creation_5m_tokens     *int
-	addcache_creation_5m_tokens  *int
-	cache_creation_1h_tokens     *int
-	addcache_creation_1h_tokens  *int
-	audio_output_tokens          *int
-	addaudio_output_tokens       *int
-	input_cost                   *float64
-	addinput_cost                *float64
-	output_cost                  *float64
-	addoutput_cost               *float64
-	cache_creation_cost          *float64
-	addcache_creation_cost       *float64
-	cache_read_cost              *float64
-	addcache_read_cost           *float64
-	total_cost                   *float64
-	addtotal_cost                *float64
-	actual_cost                  *float64
-	addactual_cost               *float64
-	rate_multiplier              *float64
-	addrate_multiplier           *float64
-	long_context_billing_applied *bool
-	account_rate_multiplier      *float64
-	addaccount_rate_multiplier   *float64
-	billing_type                 *int8
-	addbilling_type              *int8
-	stream                       *bool
-	duration_ms                  *int
-	addduration_ms               *int
-	timing_version               *int
-	addtiming_version            *int
-	first_token_ms               *int
-	addfirst_token_ms            *int
-	last_token_ms                *int
-	addlast_token_ms             *int
-	first_output_ms              *int
-	addfirst_output_ms           *int
-	first_output_kind            *string
-	is_complete                  *bool
-	completion_status            *string
-	usage_source                 *string
-	user_agent                   *string
-	ip_address                   *string
-	image_count                  *int
-	addimage_count               *int
-	image_size                   *string
-	image_input_size             *string
-	image_output_size            *string
-	image_size_source            *string
-	image_size_breakdown         *map[string]int
-	video_count                  *int
-	addvideo_count               *int
-	video_resolution             *string
-	video_duration_seconds       *int
-	addvideo_duration_seconds    *int
-	cache_ttl_overridden         *bool
-	created_at                   *time.Time
-	clearedFields                map[string]struct{}
-	user                         *int64
-	cleareduser                  bool
-	api_key                      *int64
-	clearedapi_key               bool
-	account                      *int64
-	clearedaccount               bool
-	group                        *int64
-	clearedgroup                 bool
-	subscription                 *int64
-	clearedsubscription          bool
-	team                         *int64
-	clearedteam                  bool
-	done                         bool
-	oldValue                     func(context.Context) (*UsageLog, error)
-	predicates                   []predicate.UsageLog
+	op                            Op
+	typ                           string
+	id                            *int64
+	billing_user_id               *int64
+	addbilling_user_id            *int64
+	request_id                    *string
+	model                         *string
+	requested_model               *string
+	upstream_model                *string
+	upstream_response_model       *string
+	upstream_model_mismatch       *bool
+	channel_id                    *int64
+	addchannel_id                 *int64
+	model_mapping_chain           *string
+	billing_tier                  *string
+	billing_mode                  *string
+	input_tokens                  *int
+	addinput_tokens               *int
+	output_tokens                 *int
+	addoutput_tokens              *int
+	cache_creation_tokens         *int
+	addcache_creation_tokens      *int
+	cache_read_tokens             *int
+	addcache_read_tokens          *int
+	cache_creation_5m_tokens      *int
+	addcache_creation_5m_tokens   *int
+	cache_creation_1h_tokens      *int
+	addcache_creation_1h_tokens   *int
+	audio_output_tokens           *int
+	addaudio_output_tokens        *int
+	codex_rollout_budget_units    *float64
+	addcodex_rollout_budget_units *float64
+	input_cost                    *float64
+	addinput_cost                 *float64
+	output_cost                   *float64
+	addoutput_cost                *float64
+	cache_creation_cost           *float64
+	addcache_creation_cost        *float64
+	cache_read_cost               *float64
+	addcache_read_cost            *float64
+	total_cost                    *float64
+	addtotal_cost                 *float64
+	actual_cost                   *float64
+	addactual_cost                *float64
+	rate_multiplier               *float64
+	addrate_multiplier            *float64
+	long_context_billing_applied  *bool
+	account_rate_multiplier       *float64
+	addaccount_rate_multiplier    *float64
+	billing_type                  *int8
+	addbilling_type               *int8
+	stream                        *bool
+	duration_ms                   *int
+	addduration_ms                *int
+	timing_version                *int
+	addtiming_version             *int
+	first_token_ms                *int
+	addfirst_token_ms             *int
+	last_token_ms                 *int
+	addlast_token_ms              *int
+	first_output_ms               *int
+	addfirst_output_ms            *int
+	first_output_kind             *string
+	is_complete                   *bool
+	completion_status             *string
+	usage_source                  *string
+	user_agent                    *string
+	ip_address                    *string
+	image_count                   *int
+	addimage_count                *int
+	image_size                    *string
+	image_input_size              *string
+	image_output_size             *string
+	image_size_source             *string
+	image_size_breakdown          *map[string]int
+	video_count                   *int
+	addvideo_count                *int
+	video_resolution              *string
+	video_duration_seconds        *int
+	addvideo_duration_seconds     *int
+	cache_ttl_overridden          *bool
+	created_at                    *time.Time
+	clearedFields                 map[string]struct{}
+	user                          *int64
+	cleareduser                   bool
+	api_key                       *int64
+	clearedapi_key                bool
+	account                       *int64
+	clearedaccount                bool
+	group                         *int64
+	clearedgroup                  bool
+	subscription                  *int64
+	clearedsubscription           bool
+	team                          *int64
+	clearedteam                   bool
+	done                          bool
+	oldValue                      func(context.Context) (*UsageLog, error)
+	predicates                    []predicate.UsageLog
 }
 
 var _ ent.Mutation = (*UsageLogMutation)(nil)
@@ -57989,6 +58118,76 @@ func (m *UsageLogMutation) AddedAudioOutputTokens() (r int, exists bool) {
 func (m *UsageLogMutation) ResetAudioOutputTokens() {
 	m.audio_output_tokens = nil
 	m.addaudio_output_tokens = nil
+}
+
+// SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
+func (m *UsageLogMutation) SetCodexRolloutBudgetUnits(f float64) {
+	m.codex_rollout_budget_units = &f
+	m.addcodex_rollout_budget_units = nil
+}
+
+// CodexRolloutBudgetUnits returns the value of the "codex_rollout_budget_units" field in the mutation.
+func (m *UsageLogMutation) CodexRolloutBudgetUnits() (r float64, exists bool) {
+	v := m.codex_rollout_budget_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodexRolloutBudgetUnits returns the old "codex_rollout_budget_units" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldCodexRolloutBudgetUnits(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodexRolloutBudgetUnits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodexRolloutBudgetUnits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodexRolloutBudgetUnits: %w", err)
+	}
+	return oldValue.CodexRolloutBudgetUnits, nil
+}
+
+// AddCodexRolloutBudgetUnits adds f to the "codex_rollout_budget_units" field.
+func (m *UsageLogMutation) AddCodexRolloutBudgetUnits(f float64) {
+	if m.addcodex_rollout_budget_units != nil {
+		*m.addcodex_rollout_budget_units += f
+	} else {
+		m.addcodex_rollout_budget_units = &f
+	}
+}
+
+// AddedCodexRolloutBudgetUnits returns the value that was added to the "codex_rollout_budget_units" field in this mutation.
+func (m *UsageLogMutation) AddedCodexRolloutBudgetUnits() (r float64, exists bool) {
+	v := m.addcodex_rollout_budget_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCodexRolloutBudgetUnits clears the value of the "codex_rollout_budget_units" field.
+func (m *UsageLogMutation) ClearCodexRolloutBudgetUnits() {
+	m.codex_rollout_budget_units = nil
+	m.addcodex_rollout_budget_units = nil
+	m.clearedFields[usagelog.FieldCodexRolloutBudgetUnits] = struct{}{}
+}
+
+// CodexRolloutBudgetUnitsCleared returns if the "codex_rollout_budget_units" field was cleared in this mutation.
+func (m *UsageLogMutation) CodexRolloutBudgetUnitsCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldCodexRolloutBudgetUnits]
+	return ok
+}
+
+// ResetCodexRolloutBudgetUnits resets all changes to the "codex_rollout_budget_units" field.
+func (m *UsageLogMutation) ResetCodexRolloutBudgetUnits() {
+	m.codex_rollout_budget_units = nil
+	m.addcodex_rollout_budget_units = nil
+	delete(m.clearedFields, usagelog.FieldCodexRolloutBudgetUnits)
 }
 
 // SetInputCost sets the "input_cost" field.
@@ -59929,7 +60128,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 57)
+	fields := make([]string, 0, 58)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -60001,6 +60200,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.audio_output_tokens != nil {
 		fields = append(fields, usagelog.FieldAudioOutputTokens)
+	}
+	if m.codex_rollout_budget_units != nil {
+		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
 	}
 	if m.input_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
@@ -60157,6 +60359,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.CacheCreation1hTokens()
 	case usagelog.FieldAudioOutputTokens:
 		return m.AudioOutputTokens()
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		return m.CodexRolloutBudgetUnits()
 	case usagelog.FieldInputCost:
 		return m.InputCost()
 	case usagelog.FieldOutputCost:
@@ -60280,6 +60484,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCacheCreation1hTokens(ctx)
 	case usagelog.FieldAudioOutputTokens:
 		return m.OldAudioOutputTokens(ctx)
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		return m.OldCodexRolloutBudgetUnits(ctx)
 	case usagelog.FieldInputCost:
 		return m.OldInputCost(ctx)
 	case usagelog.FieldOutputCost:
@@ -60522,6 +60728,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAudioOutputTokens(v)
+		return nil
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodexRolloutBudgetUnits(v)
 		return nil
 	case usagelog.FieldInputCost:
 		v, ok := value.(float64)
@@ -60789,6 +61002,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addaudio_output_tokens != nil {
 		fields = append(fields, usagelog.FieldAudioOutputTokens)
 	}
+	if m.addcodex_rollout_budget_units != nil {
+		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
+	}
 	if m.addinput_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
 	}
@@ -60866,6 +61082,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCacheCreation1hTokens()
 	case usagelog.FieldAudioOutputTokens:
 		return m.AddedAudioOutputTokens()
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		return m.AddedCodexRolloutBudgetUnits()
 	case usagelog.FieldInputCost:
 		return m.AddedInputCost()
 	case usagelog.FieldOutputCost:
@@ -60971,6 +61189,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAudioOutputTokens(v)
+		return nil
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCodexRolloutBudgetUnits(v)
 		return nil
 	case usagelog.FieldInputCost:
 		v, ok := value.(float64)
@@ -61135,6 +61360,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldSubscriptionID) {
 		fields = append(fields, usagelog.FieldSubscriptionID)
 	}
+	if m.FieldCleared(usagelog.FieldCodexRolloutBudgetUnits) {
+		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
+	}
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
@@ -61232,6 +61460,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldSubscriptionID:
 		m.ClearSubscriptionID()
+		return nil
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		m.ClearCodexRolloutBudgetUnits()
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
@@ -61360,6 +61591,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldAudioOutputTokens:
 		m.ResetAudioOutputTokens()
+		return nil
+	case usagelog.FieldCodexRolloutBudgetUnits:
+		m.ResetCodexRolloutBudgetUnits()
 		return nil
 	case usagelog.FieldInputCost:
 		m.ResetInputCost()

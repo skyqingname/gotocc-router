@@ -13,6 +13,8 @@ const (
 	Label = "open_ai_video_task"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldResellerSnapshot holds the string denoting the reseller_snapshot field in the database.
+	FieldResellerSnapshot = "reseller_snapshot"
 	// FieldProviderConfig holds the string denoting the provider_config field in the database.
 	FieldProviderConfig = "provider_config"
 	// FieldLocalRequestID holds the string denoting the local_request_id field in the database.
@@ -110,6 +112,7 @@ const (
 // Columns holds all SQL columns for openaivideotask fields.
 var Columns = []string{
 	FieldID,
+	FieldResellerSnapshot,
 	FieldProviderConfig,
 	FieldLocalRequestID,
 	FieldTaskID,

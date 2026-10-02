@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/claude"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/openai"
 	"github.com/LuckyKuang/sub2api-plus/internal/pricingmanifest"
@@ -82,6 +83,47 @@ var (
 		Mode:                                "chat",
 		SupportsPromptCaching:               true,
 	}
+	openAIGPT61SolFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   2e-6,
+		InputCostPerTokenPriority:           4e-6,
+		OutputCostPerToken:                  10e-6,
+		OutputCostPerTokenPriority:          20e-6,
+		CacheCreationInputTokenCost:         2.5e-6,
+		CacheCreationInputTokenCostPriority: 5e-6,
+		CacheReadInputTokenCost:             0.1e-6,
+		CacheReadInputTokenCostPriority:     0.2e-6,
+		LongContextInputTokenThreshold:      272_000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
+	// 官方 v0.2.10 新增：Claude Opus/Sonnet 5.5 的内置兜底卡。
+	// GPT-6 Sol/Luna 兜底由 Plus 在下方独立维护（UPSTREAM.md
+	// "Restored Upstream Pricing Branches"），此处不重复声明。
+	claudeOpus55FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken: 4e-6, OutputCostPerToken: 20e-6,
+		CacheCreationInputTokenCost: 5e-6, CacheCreationInputTokenCostAbove1hr: 8e-6,
+		CacheReadInputTokenCost:   0.2e-6,
+		InputCostPerTokenPriority: 8e-6, OutputCostPerTokenPriority: 40e-6,
+		CacheCreationInputTokenCostPriority: 10e-6, CacheReadInputTokenCostPriority: 0.4e-6,
+		SupportsServiceTier: true, LiteLLMProvider: "anthropic", Mode: "chat", SupportsPromptCaching: true,
+	}
+	claudeSonnet5FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken: 2e-6, OutputCostPerToken: 10e-6,
+		CacheCreationInputTokenCost: 2.5e-6, CacheCreationInputTokenCostAbove1hr: 4e-6,
+		CacheReadInputTokenCost: 0.2e-6,
+		LiteLLMProvider:         "anthropic", Mode: "chat", SupportsPromptCaching: true,
+	}
+	claudeSonnet55FallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken: 2e-6, OutputCostPerToken: 10e-6,
+		CacheCreationInputTokenCost: 2.5e-6, CacheCreationInputTokenCostAbove1hr: 4e-6,
+		CacheReadInputTokenCost: 0.2e-6,
+		LiteLLMProvider:         "anthropic", Mode: "chat", SupportsPromptCaching: true,
+	}
+
 	openAIGPT56SolFallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:                   5e-06,
 		InputCostPerTokenPriority:           1e-05,
@@ -140,11 +182,51 @@ var (
 		Mode:                    "chat",
 		SupportsPromptCaching:   true,
 	}
+	// GPT-6 Sol 官方价（USD/token）。远端镜像可能还没有这两个型号；缺条目时
+	// matchOpenAIModel 原本会一路回退到 DefaultTestModel，把 Sol 按 gpt-5.1-codex
+	// 计费（10 倍少收）。这里补同型号静态价，长上下文口径与 GPT-5.6/Astra 一致：
+	// 总输入严格大于 272000 token 时输入与缓存 ×2、输出 ×1.5。
+	openAIGPT6SolFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   2e-06, // $2 per MTok
+		InputCostPerTokenPriority:           4e-06, // Fast：标准价 2 倍
+		OutputCostPerToken:                  1e-05, // $10 per MTok
+		OutputCostPerTokenPriority:          2e-05,
+		CacheCreationInputTokenCost:         2.5e-06, // $2.5 per MTok
+		CacheCreationInputTokenCostPriority: 5e-06,
+		CacheReadInputTokenCost:             2e-07, // $0.20 per MTok
+		CacheReadInputTokenCostPriority:     4e-07,
+		LongContextInputTokenThreshold:      272_000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
+	// GPT-6 Luna 官方价（USD/token），同型号静态兜底，语义与 Luna 5.6 无关。
+	openAIGPT6LunaFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                   1e-07, // $0.10 per MTok
+		InputCostPerTokenPriority:           2e-07,
+		OutputCostPerToken:                  5e-07, // $0.50 per MTok
+		OutputCostPerTokenPriority:          1e-06,
+		CacheCreationInputTokenCost:         1.25e-07, // $0.125 per MTok
+		CacheCreationInputTokenCostPriority: 2.5e-07,
+		CacheReadInputTokenCost:             1e-08, // $0.01 per MTok
+		CacheReadInputTokenCostPriority:     2e-08,
+		LongContextInputTokenThreshold:      272_000,
+		LongContextInputCostMultiplier:      2,
+		LongContextOutputCostMultiplier:     1.5,
+		SupportsServiceTier:                 true,
+		LiteLLMProvider:                     "openai",
+		Mode:                                "chat",
+		SupportsPromptCaching:               true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
 // 只保留我们需要的字段，使用指针来处理可能缺失的值
 type LiteLLMModelPricing struct {
+	PreferBundledPricing                bool    `json:"prefer_bundled_pricing,omitempty"`
 	InputCostPerToken                   float64 `json:"input_cost_per_token"`
 	InputCostPerTokenPriority           float64 `json:"input_cost_per_token_priority"`
 	OutputCostPerToken                  float64 `json:"output_cost_per_token"`
@@ -170,6 +252,10 @@ type LiteLLMModelPricing struct {
 	// 此类条目只可用于图片计费，token 计费必须回退到 fallback 或 fail-closed，
 	// 否则 token 流量会被按 $0 计费。零值（false）表示条目具备 token 价格。
 	TokenPricingAbsent bool `json:"-"`
+
+	// CacheCreationInputTokenCostExplicit preserves source field presence so
+	// an explicit zero is not replaced by a derived cache-write premium.
+	CacheCreationInputTokenCostExplicit bool `json:"-"`
 }
 
 // PricingRemoteClient 远程价格数据获取接口
@@ -624,6 +710,7 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.CacheCreationInputTokenCost != nil {
 			pricing.CacheCreationInputTokenCost = *entry.CacheCreationInputTokenCost
+			pricing.CacheCreationInputTokenCostExplicit = true
 		}
 		if entry.CacheCreationInputTokenCostPriority != nil {
 			pricing.CacheCreationInputTokenCostPriority = *entry.CacheCreationInputTokenCostPriority
@@ -953,7 +1040,7 @@ func (s *PricingService) mergeOverrideOnlyModels(data map[string]*LiteLLMModelPr
 	return data
 }
 
-// buildPricingData 解析目录正文并依次叠加 fallback、override 两层，返回合并结果与
+// buildPricingData 解析目录正文并依次叠加随版默认价、override 两层，返回合并结果与
 // 叠加层文件指纹。指纹在合并读取之前采样：并发改文件只会让存下的指纹落后于实际
 // 合并的数据、不会领先，下一轮定时比对因此会再次重建。
 func (s *PricingService) buildPricingData(body []byte) (map[string]*LiteLLMModelPricing, string, error) {
@@ -1020,6 +1107,13 @@ func (s *PricingService) mergeFallbackPricingData(data map[string]*LiteLLMModelP
 	}
 	merged := 0
 	for modelName, pricing := range fallbackData {
+		// Newly published official cards are maintained in the bundled defaults.
+		// A cached remote catalog can still contain older prices, so the bundled
+		// cards take precedence for default pricing.
+		if pricing.PreferBundledPricing || modelName == "gpt-6-sol" || modelName == "gpt-6-luna" || modelName == "claude-opus-5-5" {
+			data[modelName] = pricing
+			continue
+		}
 		if _, ok := data[modelName]; ok {
 			continue
 		}
@@ -1371,6 +1465,33 @@ func (s *PricingService) GetIdentifiedModelPricing(modelName string) *LiteLLMMod
 	return s.lookupIdentifiedModelPricingLocked(s.buildModelLookupCandidates(modelLower))
 }
 
+// LookupExactCatalogEntry 按归一化后的 key 精确取目录条目：不做别名归一、
+// 不做子串/家族匹配。管理端参考价需要「命中即登记该 key」——若复用
+// GetIdentifiedModelPricing，内部那层归一会让 matched_model 退化成请求名，
+// 运营者看不出价格实际来自哪个 SKU（例如 gemini-3.6-flash-high 的价
+// 实际来自 gemini-3.6-flash）。
+func (s *PricingService) LookupExactCatalogEntry(model string) *LiteLLMModelPricing {
+	if s == nil {
+		return nil
+	}
+	key := strings.ToLower(strings.TrimSpace(model))
+	if key == "" {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if entry, ok := s.pricingData[key]; ok {
+		return entry
+	}
+	// 目录 key 惯例全小写；这里防御历史大小写变体，避免静默漏价。
+	for name, entry := range s.pricingData {
+		if strings.EqualFold(name, key) {
+			return entry
+		}
+	}
+	return nil
+}
+
 func (s *PricingService) buildModelLookupCandidates(modelLower string) []string {
 	rawCandidates := []string{
 		modelLower,
@@ -1428,7 +1549,16 @@ func normalizeModelNameForPricing(model string) string {
 	}
 
 	model = strings.TrimLeft(model, "/")
+	if isClaudeSonnet5Model(model) {
+		return "claude-sonnet-5"
+	}
 	if canonical := canonicalizeOpenAIModelAliasSpelling(model); canonical != "" {
+		if openai.IsGPT61SolModelSpelling(canonical) {
+			return "gpt-6.1-sol"
+		}
+		if base := openai.GPT6SolOrLunaBaseModel(canonical); base != "" {
+			return base
+		}
 		if isOpenAIGPT6AstraModel(canonical) {
 			return "gpt-6-astra"
 		}
@@ -1486,17 +1616,48 @@ func (s *PricingService) extractBaseName(model string) string {
 
 // matchByModelFamily 基于模型系列匹配
 func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
+	if isClaudeSonnet5Model(model) {
+		if pricing, ok := s.pricingData["claude-sonnet-5"]; ok {
+			return pricing
+		}
+		return claudeSonnet5FallbackPricing
+	}
+	// 官方 v0.2.10：Opus/Sonnet 5.5 走独立目录 key + 内置兜底卡，优先于下面的
+	// families 子串匹配。Plus 的 opus-5.5 exact 系列条目与 phase-2 fallbackName
+	// 规则保持原样，作为非 IsOpus55/IsSonnet55 命中路径（例如点号写法、preview 后缀）
+	// 的保护，两者互补而不是互相取代。
+	if claude.IsOpus55(model) {
+		if pricing, ok := s.pricingData["claude-opus-5-5"]; ok {
+			return pricing
+		}
+		return claudeOpus55FallbackPricing
+	}
+	if claude.IsSonnet55(model) {
+		if pricing, ok := s.pricingData["claude-sonnet-5-5"]; ok {
+			return pricing
+		}
+		return claudeSonnet55FallbackPricing
+	}
 	// modelFamily 定义一个模型系列的匹配和定价查找规则。
 	type modelFamily struct {
-		name    string   // 系列名称
-		match   []string // 用于将模型归类到此系列的模式（strings.Contains 匹配）
-		pricing []string // 用于在定价数据中查找价格的模式（nil 则复用 match；可包含低版本 fallback）
+		name  string   // 系列名称
+		match []string // 用于将模型归类到此系列的模式（strings.Contains 匹配）
+		// pricing 用于在定价数据中查找价格的模式（nil 则复用 match；可包含低版本 fallback）
+		pricing []string
+		// exact 为 true 时 pricing 必须与目录 key 全等，不再按子串匹配。
+		// 用于「有独立价卡且不得被相似 SKU 顶替」的型号：claude-opus-5-5-preview
+		// 之类的相似条目不能反过来说成 Opus 5.5 的价格。
+		exact bool
 	}
 
 	// 按特异性降序排列：高版本号在前，避免 "claude-opus-4"（opus-4 系列）
 	// 因子串关系误匹配 "claude-opus-4-7"（opus-4.7 系列）。
 	// 注意：原 map 实现存在 Go map 迭代随机性导致的同类 bug，此处改为有序切片修复。
 	families := []modelFamily{
+		// Opus 5.5 必须排在 opus-5 之前：claude-opus-5-5 同时含有 "claude-opus-5"
+		// 子串，顺序反了会被归到 opus-5 档（$5/$25），造成 1.25 倍超收。
+		// 该型号 pricing 只允许自身 key，不向任何其它 Opus 档回退。
+		{name: "opus-5.5", match: []string{"claude-opus-5-5", "claude-opus-5.5"}, exact: true},
 		// Opus 5 与 Opus 4.8 同价（$5/$25 per MTok）。定价数据缺失 claude-opus-5 时
 		// 必须回退到 4.8，否则会掉进 "opus-4" 系列按 $15/$75 计费（3 倍超收）。
 		{name: "opus-5", match: []string{"claude-opus-5"}, pricing: []string{"claude-opus-5", "claude-opus-4-8"}},
@@ -1534,6 +1695,9 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 		case strings.Contains(model, "opus"):
 			switch {
 			// "opus-5" 必须先判：不能用裸 "5" 匹配，否则 claude-opus-4-5 会被误判。
+			// 同理 "opus-5-5" 必须先于 "opus-5" 判，否则 Opus 5.5 会被误判成 Opus 5。
+			case strings.Contains(model, "opus-5-5") || strings.Contains(model, "opus-5.5"):
+				fallbackName = "opus-5.5"
 			case strings.Contains(model, "opus-5") || strings.Contains(model, "opus5"):
 				fallbackName = "opus-5"
 			case strings.Contains(model, "4.8") || strings.Contains(model, "4-8"):
@@ -1586,6 +1750,14 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 	for _, pattern := range lookups {
 		for key, pricing := range s.pricingData {
 			keyLower := strings.ToLower(key)
+			if matched.exact {
+				// exact 系列只认同型号 key：相似但不相同 SKU 不能顶替。
+				if keyLower != pattern {
+					continue
+				}
+				logger.LegacyPrintf("service.pricing", "[Pricing] Exact family matched %s -> %s", model, key)
+				return pricing
+			}
 			if strings.Contains(keyLower, pattern) {
 				logger.LegacyPrintf("service.pricing", "[Pricing] Fuzzy matched %s -> %s", model, key)
 				return pricing
@@ -1612,6 +1784,27 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 				Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.1-codex"))
 			return pricing
 		}
+	}
+
+	if openai.IsGPT61SolModelSpelling(model) {
+		if pricing, ok := s.pricingData["gpt-6.1-sol"]; ok {
+			return pricing
+		}
+		return openAIGPT61SolFallbackPricing
+	}
+	// GPT-6 Sol/Luna：远端镜像领先发布时这两个型号可能没有精确目录条目，但绝不能
+	// 被下面 variants 的 base-name 变体跨匹配到 gpt-6（目录里若有 gpt-6 会被误用）。
+	// 必须在 variants 兜底前按同型号静态价返回；exact 目录命中已在 GetModelPricing
+	// 的前置识别步骤完成，能走到这里说明没有精确条目。
+	switch openai.GPT6SolOrLunaBaseModel(model) {
+	case "gpt-6-sol":
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-6-sol(static)"))
+		return openAIGPT6SolFallbackPricing
+	case "gpt-6-luna":
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-6-luna(static)"))
+		return openAIGPT6LunaFallbackPricing
 	}
 
 	// 尝试的回退变体

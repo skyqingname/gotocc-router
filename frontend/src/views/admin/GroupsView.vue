@@ -653,12 +653,7 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
-        <RateScheduleEditor
-          v-if="createForm.platform !== 'video'"
-          v-model="createForm.rate_schedule"
-          :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''"
-          :base-multiplier="createForm.rate_multiplier"
-        />
+        <VideoModelsEditor v-if="createForm.platform === 'video'" v-model="createForm.video_models" @validity="createVideoModelsValid = $event" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -923,7 +918,7 @@
                 <span class="min-w-0 flex-1 break-all text-sm text-gray-700 dark:text-gray-300">
                   {{ item.id }}
                   <span
-                    v-if="item.id.endsWith('*')"
+                    v-if="item.id.includes('*')"
                     class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
                   >
                     {{ t("admin.groups.modelAllowlist.wildcardTag") }}
@@ -1253,6 +1248,53 @@
               >
                 {{ item.label }}: {{ item.value }}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
+        <div v-if="createForm.subscription_type === 'subscription'" class="border-t pt-4">
+          <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="createForm.peak_rate_enabled"
+                type="checkbox"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{{ t("admin.groups.peakRate.enable") }}</span>
+            </label>
+          </div>
+          <div
+            v-if="createForm.peak_rate_enabled"
+            class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
+              <input
+                v-model="createForm.peak_start"
+                type="time"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
+              <input
+                v-model="createForm.peak_end"
+                type="time"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
+              <input
+                v-model.number="createForm.peak_rate_multiplier"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="1"
+                :title="t('admin.groups.peakRate.multiplierHint')"
+              />
             </div>
           </div>
         </div>
@@ -2315,7 +2357,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <RateScheduleEditor v-if="editForm.platform !== 'video'" v-model="editForm.rate_schedule" :server-timezone="appStore.cachedPublicSettings?.server_timezone || ''" :base-multiplier="editForm.rate_multiplier" />
+        <VideoModelsEditor v-if="editForm.platform === 'video'" :key="editingGroup?.id" v-model="editForm.video_models" @validity="editVideoModelsValid = $event" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -2612,7 +2654,7 @@
                 <span class="min-w-0 flex-1 break-all text-sm text-gray-700 dark:text-gray-300">
                   {{ item.id }}
                   <span
-                    v-if="item.id.endsWith('*')"
+                    v-if="item.id.includes('*')"
                     class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
                   >
                     {{ t("admin.groups.modelAllowlist.wildcardTag") }}
@@ -2942,6 +2984,53 @@
               >
                 {{ item.label }}: {{ item.value }}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 高峰时段倍率配置（仅订阅类型分组） -->
+        <div v-if="editForm.subscription_type === 'subscription'" class="border-t pt-4">
+          <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                v-model="editForm.peak_rate_enabled"
+                type="checkbox"
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>{{ t("admin.groups.peakRate.enable") }}</span>
+            </label>
+          </div>
+          <div
+            v-if="editForm.peak_rate_enabled"
+            class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakStart") }}</label>
+              <input
+                v-model="editForm.peak_start"
+                type="time"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakEnd") }}</label>
+              <input
+                v-model="editForm.peak_end"
+                type="time"
+                class="input"
+              />
+            </div>
+            <div>
+              <label class="input-label">{{ t("admin.groups.peakRate.peakMultiplier") }}</label>
+              <input
+                v-model.number="editForm.peak_rate_multiplier"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input"
+                placeholder="1"
+                :title="t('admin.groups.peakRate.multiplierHint')"
+              />
             </div>
           </div>
         </div>
@@ -4366,8 +4455,8 @@
 </template>
 
 <script setup lang="ts">
-import RateScheduleEditor from '@/components/groups/RateScheduleEditor.vue'
-import { compileRateSchedule, type RateScheduleConfig } from '@/utils/rate-schedule'
+import VideoModelsEditor from '@/components/admin/channel/VideoModelsEditor.vue'
+import type { VideoModelConfig } from '@/components/admin/channel/video-models'
 import Toggle from '@/components/common/Toggle.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -4415,6 +4504,7 @@ import {
   apiIntervalsToForm,
   createDefaultTimePricingForm,
   formIntervalsToAPI,
+  formReasoningEffortMultipliersToAPI,
   mTokToPerToken,
   perTokenToMTok,
   toNullableNumber,
@@ -4492,6 +4582,7 @@ const emptyGroupPricing = (): PricingFormEntry => ({
   cache_write_price: null,
   cache_write_1h_price: null,
   cache_read_price: null,
+  reasoning_effort_multipliers: null,
   image_input_price: null,
   image_output_price: null,
   per_request_price: null,
@@ -4513,6 +4604,9 @@ const groupPricingFromAPI = (
     cache_write_price: perTokenToMTok(entry.cache_write_price),
     cache_write_1h_price: perTokenToMTok(entry.cache_write_1h_price),
     cache_read_price: perTokenToMTok(entry.cache_read_price),
+    reasoning_effort_multipliers: entry.reasoning_effort_multipliers
+      ? { ...entry.reasoning_effort_multipliers }
+      : null,
     image_input_price: perTokenToMTok(entry.image_input_price),
     image_output_price: perTokenToMTok(entry.image_output_price),
     per_request_price: entry.per_request_price,
@@ -4535,6 +4629,9 @@ const groupPricingToAPI = (
       cache_write_price: mTokToPerToken(entry.cache_write_price),
       cache_write_1h_price: mTokToPerToken(entry.cache_write_1h_price),
       cache_read_price: mTokToPerToken(entry.cache_read_price),
+      reasoning_effort_multipliers: formReasoningEffortMultipliersToAPI(
+        entry.reasoning_effort_multipliers,
+      ),
       image_input_price: mTokToPerToken(entry.image_input_price),
       image_output_price: mTokToPerToken(entry.image_output_price),
       per_request_price: toNullableNumber(entry.per_request_price),
@@ -5070,6 +5167,7 @@ const createForm = reactive({
   video_price_480p: null as number | null,
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
+  video_models: {} as Record<string, VideoModelConfig>,
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
@@ -5078,7 +5176,6 @@ const createForm = reactive({
   audio_tts_price_per_million_chars: null as number | null,
   audio_stt_price_per_hour: null as number | null,
   // 高峰时段倍率配置
-  rate_schedule: { enabled: false, timezone: "", rules: [] } as RateScheduleConfig,
   peak_rate_enabled: false,
   peak_start: "",
   peak_end: "",
@@ -5439,6 +5536,7 @@ const editForm = reactive({
   video_price_480p: null as number | null,
   video_price_720p: null as number | null,
   video_price_1080p: null as number | null,
+  video_models: {} as Record<string, VideoModelConfig>,
   video_model_prices: createVideoModelPricesForm(),
   // Codex 网页搜索按次计费（仅 openai 平台使用）；null = 使用默认价 0.01
   web_search_price_per_call: null as number | null,
@@ -5447,7 +5545,6 @@ const editForm = reactive({
   audio_tts_price_per_million_chars: null as number | null,
   audio_stt_price_per_hour: null as number | null,
   // 高峰时段倍率配置
-  rate_schedule: { enabled: false, timezone: "", rules: [] } as RateScheduleConfig,
   peak_rate_enabled: false,
   peak_start: "",
   peak_end: "",
@@ -6029,6 +6126,7 @@ const closeCreateModal = () => {
   createForm.video_price_480p = null;
   createForm.video_price_720p = null;
   createForm.video_price_1080p = null;
+  createForm.video_models = {};
   createForm.video_model_prices = createVideoModelPricesForm();
   createForm.long_context_pricing_enabled = true;
   createForm.force_openai_fast = false;
@@ -6039,7 +6137,6 @@ const closeCreateModal = () => {
   createForm.audio_realtime_price_per_min = null;
   createForm.audio_tts_price_per_million_chars = null;
   createForm.audio_stt_price_per_hour = null;
-  createForm.rate_schedule = { enabled: false, timezone: "", rules: [] };
   createForm.peak_rate_enabled = false;
   createForm.peak_start = "";
   createForm.peak_end = "";
@@ -6108,9 +6205,9 @@ const validateProfitControlForm = (form: ProfitControlFormState): boolean => {
   return true;
 };
 
+const createVideoModelsValid = ref(true); const editVideoModelsValid = ref(true);
 const handleCreateGroup = async () => {
-  try { compileRateSchedule(createForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
-  catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
+ if (createForm.platform === "video" && !createVideoModelsValid.value) {appStore.showError("请修正视频参数配置");return;}
   if (!createForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));
     return;
@@ -6345,7 +6442,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.audio_realtime_price_per_min = group.audio_realtime_price_per_min ?? null;
   editForm.audio_tts_price_per_million_chars = group.audio_tts_price_per_million_chars ?? null;
   editForm.audio_stt_price_per_hour = group.audio_stt_price_per_hour ?? null;
-  editForm.rate_schedule = JSON.parse(JSON.stringify(group.rate_schedule));
+  editForm.video_models = JSON.parse(JSON.stringify(group.video_models || {}));
   editForm.peak_rate_enabled = group.peak_rate_enabled ?? false;
   editForm.peak_start = group.peak_start ?? "";
   editForm.peak_end = group.peak_end ?? "";
@@ -6474,7 +6571,6 @@ const closeEditModal = () => {
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
-  editForm.rate_schedule = { enabled: false, timezone: "", rules: [] };
   editForm.peak_rate_enabled = false;
   editForm.peak_start = "";
   editForm.peak_end = "";
@@ -6487,6 +6583,7 @@ const closeEditModal = () => {
   editForm.video_price_480p = null;
   editForm.video_price_720p = null;
   editForm.video_price_1080p = null;
+  editForm.video_models = {};
   editForm.video_model_prices = createVideoModelPricesForm();
   editForm.quota_reset_source_account_id = null;
   editForm.quota_reset_include_monthly = false;
@@ -6508,8 +6605,7 @@ const closeEditModal = () => {
 };
 
 const handleUpdateGroup = async () => {
-  try { compileRateSchedule(editForm.rate_schedule, appStore.cachedPublicSettings?.server_timezone || ''); }
-  catch (error) { appStore.showError(error instanceof Error ? error.message : String(error)); return; }
+  if (editForm.platform === "video" && !editVideoModelsValid.value) {appStore.showError("请修正视频参数配置");return;}
   if (!editingGroup.value) return;
   if (!editForm.name.trim()) {
     appStore.showError(t("admin.groups.nameRequired"));

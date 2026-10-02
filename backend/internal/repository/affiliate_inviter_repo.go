@@ -48,20 +48,11 @@ WHERE u.id = $1 AND u.deleted_at IS NULL`, userID)
 }
 
 func (r *affiliateRepository) ResolveInviterCode(ctx context.Context, codeType, code string) (*service.AffiliateInviterUser, error) {
-	var query string
-	switch codeType {
-	case service.AffiliateCodeTypePermanent:
-		query = `SELECT c.owner_user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
+	// The legacy code_type field is accepted by callers but no longer selects a directory.
+	query := `SELECT c.owner_user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
  COALESCE(u.status, ''), u.deleted_at
 FROM reusable_invitation_codes c LEFT JOIN users u ON u.id = c.owner_user_id
 WHERE UPPER(c.code) = $1`
-	case service.AffiliateCodeTypeAFF:
-		query = `SELECT c.user_id, COALESCE(u.email, ''), COALESCE(u.username, ''),
- COALESCE(u.status, ''), u.deleted_at
-FROM user_affiliates c JOIN users u ON u.id = c.user_id WHERE UPPER(c.aff_code) = $1`
-	default:
-		return nil, service.ErrAffiliateCodeInvalid
-	}
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, query, code)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -230,7 +230,6 @@ type CreateGroupRequest struct {
 	PeakStart                       string                        `json:"peak_start"`
 	PeakEnd                         string                        `json:"peak_end"`
 	PeakRateMultiplier              *float64                      `json:"peak_rate_multiplier"`
-	RateSchedule                    *rateschedule.Config          `json:"rate_schedule"`
 	ProfitControlEnabled            bool                          `json:"profit_control_enabled"`
 	ProfitMinMargin                 *float64                      `json:"profit_min_margin"`
 	ProfitSafetyBuffer              *float64                      `json:"profit_safety_buffer"`
@@ -241,6 +240,7 @@ type CreateGroupRequest struct {
 	VideoPrice720P                  *float64                      `json:"video_price_720p"`
 	VideoPrice1080P                 *float64                      `json:"video_price_1080p"`
 	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
+	VideoModels                     videoprotocol.Models          `json:"video_models"`
 	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call"`
 	SearchPricePer1k                *float64                      `json:"search_price_per_1k"`
 	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min"`
@@ -309,7 +309,6 @@ type UpdateGroupRequest struct {
 	PeakStart                       *string                       `json:"peak_start"`
 	PeakEnd                         *string                       `json:"peak_end"`
 	PeakRateMultiplier              *float64                      `json:"peak_rate_multiplier"`
-	RateSchedule                    *rateschedule.Config          `json:"rate_schedule"`
 	ProfitControlEnabled            *bool                         `json:"profit_control_enabled"`
 	ProfitMinMargin                 *float64                      `json:"profit_min_margin"`
 	ProfitSafetyBuffer              *float64                      `json:"profit_safety_buffer"`
@@ -320,6 +319,7 @@ type UpdateGroupRequest struct {
 	VideoPrice720P                  *float64                      `json:"video_price_720p"`
 	VideoPrice1080P                 *float64                      `json:"video_price_1080p"`
 	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
+	VideoModels                     videoprotocol.Models          `json:"video_models"`
 	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call"`
 	SearchPricePer1k                *float64                      `json:"search_price_per_1k"`
 	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min"`
@@ -717,7 +717,6 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		PeakStart:                       req.PeakStart,
 		PeakEnd:                         req.PeakEnd,
 		PeakRateMultiplier:              req.PeakRateMultiplier,
-		RateSchedule:                    req.RateSchedule,
 		ProfitControlEnabled:            req.ProfitControlEnabled,
 		ProfitMinMargin:                 req.ProfitMinMargin,
 		ProfitSafetyBuffer:              req.ProfitSafetyBuffer,
@@ -728,6 +727,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		VideoPrice720P:                  req.VideoPrice720P,
 		VideoPrice1080P:                 req.VideoPrice1080P,
 		VideoModelPrices:                req.VideoModelPrices,
+		VideoModels:                     req.VideoModels.Clone(),
 		WebSearchPricePerCall:           req.WebSearchPricePerCall,
 		SearchPricePer1k:                req.SearchPricePer1k,
 		AudioRealtimePricePerMin:        req.AudioRealtimePricePerMin,
@@ -868,7 +868,6 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		PeakStart:                       req.PeakStart,
 		PeakEnd:                         req.PeakEnd,
 		PeakRateMultiplier:              req.PeakRateMultiplier,
-		RateSchedule:                    req.RateSchedule,
 		ProfitControlEnabled:            req.ProfitControlEnabled,
 		ProfitMinMargin:                 req.ProfitMinMargin,
 		ProfitSafetyBuffer:              req.ProfitSafetyBuffer,
@@ -879,6 +878,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		VideoPrice720P:                  req.VideoPrice720P,
 		VideoPrice1080P:                 req.VideoPrice1080P,
 		VideoModelPrices:                req.VideoModelPrices,
+		VideoModels:                     req.VideoModels.Clone(),
 		WebSearchPricePerCall:           req.WebSearchPricePerCall,
 		SearchPricePer1k:                req.SearchPricePer1k,
 		AudioRealtimePricePerMin:        req.AudioRealtimePricePerMin,
@@ -1184,4 +1184,14 @@ func (h *GroupHandler) UpdateSortOrder(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Sort order updated successfully"})
+}
+
+// VideoProtocols returns the pinned Yingce video catalog used by group configuration.
+func (h *GroupHandler) VideoProtocols(c *gin.Context) {
+	protocols, err := videoprotocol.CatalogViews()
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"source_commit": videoprotocol.Catalog().SourceCommit, "protocols": protocols})
 }

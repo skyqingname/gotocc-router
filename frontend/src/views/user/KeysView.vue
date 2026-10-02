@@ -107,7 +107,7 @@
               </button>
             </div>
           </div>
-          <button @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
+          <button v-support-readonly @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
           </button>
@@ -179,6 +179,7 @@
                 @click="openGroupSelector(row)"
                 class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
                 :title="isAutoRouting(row) ? t('keys.clickToChangeRouting') : t('keys.clickToChangeGroup')"
+                :disabled="changingGroupIds.has(row.id)"
               >
                 <span
                   v-if="isAutoRouting(row)"
@@ -198,7 +199,6 @@
                   :peak-start="row.group.peak_start"
                   :peak-end="row.group.peak_end"
                   :peak-rate-multiplier="row.group.peak_rate_multiplier"
- :rate-schedule="row.group.rate_schedule"
                 />
                 <span v-else-if="!isAutoRouting(row)" class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
@@ -365,7 +365,7 @@
               <!-- Reset button -->
               <button
                 v-if="row.usage_5h > 0 || row.usage_1d > 0 || row.usage_7d > 0"
-                @click.stop="confirmResetRateLimitFromTable(row)"
+                v-support-readonly @click.stop="confirmResetRateLimitFromTable(row)"
                 class="mt-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
                 :title="t('keys.resetRateLimitUsage')"
               >
@@ -438,7 +438,7 @@
                 <span class="text-xs">{{ t('keys.importToCcSwitch') }}</span>
               </button>
               <!-- Toggle Status Button -->
-              <button
+              <button v-support-readonly
                 @click="toggleKeyStatus(row)"
                 :class="[
                   'flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors',
@@ -460,7 +460,7 @@
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
               <!-- Delete Button -->
-              <button
+              <button v-support-readonly
                 @click="confirmDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -471,7 +471,7 @@
           </template>
 
           <template #empty>
-            <EmptyState
+            <EmptyState v-support-readonly
               :title="t('keys.noKeysYet')"
               :description="t('keys.createFirstKey')"
               :action-text="t('keys.createKey')"
@@ -500,7 +500,7 @@
       width="normal"
       @close="closeModals"
     >
-      <form id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
+      <form v-support-readonly id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
         <div>
           <label class="input-label">{{ t('keys.nameLabel') }}</label>
           <input
@@ -636,7 +636,6 @@
                 :peak-start="(option as unknown as GroupOption).peakStart"
                 :peak-end="(option as unknown as GroupOption).peakEnd"
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
- :rate-schedule="(option as unknown as GroupOption).rateSchedule"
               />
               <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
             </template>
@@ -651,7 +650,6 @@
                 :peak-start="(option as unknown as GroupOption).peakStart"
                 :peak-end="(option as unknown as GroupOption).peakEnd"
                 :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
- :rate-schedule="(option as unknown as GroupOption).rateSchedule"
                 :description="(option as unknown as GroupOption).description"
                 :selected="selected"
               />
@@ -764,7 +762,7 @@
                     ${{ selectedKey.quota?.toFixed(2) || '0.00' }}
                   </span>
                 </div>
-                <button
+                <button v-support-readonly
                   type="button"
                   @click="confirmResetQuota"
                   class="btn btn-secondary text-sm"
@@ -928,7 +926,7 @@
 
             <!-- Reset Rate Limit button (edit mode only) -->
             <div v-if="showEditModal && selectedKey && (selectedKey.rate_limit_5h > 0 || selectedKey.rate_limit_1d > 0 || selectedKey.rate_limit_7d > 0)">
-              <button
+              <button v-support-readonly
                 type="button"
                 @click="confirmResetRateLimit"
                 class="btn btn-secondary text-sm"
@@ -1005,7 +1003,7 @@
           <button @click="closeModals" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
-          <button
+          <button v-support-readonly
             form="key-form"
             type="submit"
             :disabled="submitting"
@@ -1139,6 +1137,7 @@
       :api-key-id="selectedKey?.id"
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
+      :claude-code-only="selectedKey?.group?.claude_code_only || false"
       :routing-mode="selectedKey?.routing_mode || 'fixed'"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
       @close="closeUseKeyModal"
@@ -1221,7 +1220,7 @@
         </div>
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
-          <button
+          <button v-support-readonly
             type="button"
             data-test="inline-routing-auto"
             @click="changeRouting(selectedKeyForGroup!, 'auto')"
@@ -1242,7 +1241,7 @@
               :stroke-width="2"
             />
           </button>
-          <button
+          <button v-support-readonly
             v-for="option in filteredGroupOptions"
             :key="option.value ?? 'null'"
             @click="changeRouting(selectedKeyForGroup!, 'fixed', option.value)"
@@ -1267,7 +1266,6 @@
               :peak-start="option.peakStart"
               :peak-end="option.peakEnd"
               :peak-rate-multiplier="option.peakRateMultiplier"
- :rate-schedule="option.rateSchedule"
               :description="option.description"
               :selected="
                 !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
@@ -1287,6 +1285,7 @@
 </template>
 
 <script setup lang="ts">
+import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
 	import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
@@ -1325,6 +1324,7 @@ import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { platformBadgeLightClass } from '@/utils/platformColors'
 import { KEY_GROUP_PROVIDERS, KEY_GROUP_PROVIDER_ICONS, getKeyGroupProvider, type KeyGroupProvider } from '@/utils/keyGroupProviders'
 import {
+  CC_SWITCH_USAGE_SCRIPT,
   buildCcSwitchImportDeeplink,
   type CcSwitchClientType
 } from '@/utils/ccswitchImport'
@@ -1346,7 +1346,6 @@ interface GroupOption {
   peakStart: string
   peakEnd: string
   peakRateMultiplier: number
-  rateSchedule: Group["rate_schedule"]
   subscriptionType: SubscriptionType
   platform: GroupPlatform
 }
@@ -1505,6 +1504,7 @@ const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
+const changingGroupIds = ref(new Set<number>())
 const groupSelectorKeyId = ref<number | null>(null)
 const publicSettings = ref<PublicSettings | null>(null)
 const teamFeatureEnabled = computed(() => publicSettings.value?.team_enabled !== false)
@@ -1580,7 +1580,7 @@ const statusOptions = computed(() => [
 ])
 
 const shouldSubmitEditStatus = (key: ApiKey, status: 'active' | 'inactive') => {
-  if (key.status === 'quota_exhausted' || key.status === 'expired') {
+  if (key.status === 'disabled' || key.status === 'quota_exhausted' || key.status === 'expired') {
     return status === 'active'
   }
   return true
@@ -1603,6 +1603,7 @@ const statusFilterOptions = computed(() => [
   { value: '', label: t('keys.allStatus') },
   { value: 'active', label: t('keys.status.active') },
   { value: 'inactive', label: t('keys.status.inactive') },
+  { value: 'disabled', label: t('keys.status.disabled') },
   { value: 'quota_exhausted', label: t('keys.status.quota_exhausted') },
   { value: 'expired', label: t('keys.status.expired') }
 ])
@@ -1640,7 +1641,6 @@ const groupOptions = computed(() =>
     peakStart: group.peak_start,
     peakEnd: group.peak_end,
     peakRateMultiplier: group.peak_rate_multiplier,
-    rateSchedule: group.rate_schedule,
     subscriptionType: group.subscription_type,
     platform: group.platform
   }))
@@ -1928,8 +1928,9 @@ const changeRouting = async (
   groupSelectorKeyId.value = null
   dropdownPosition.value = null
   const groupID = routingMode === 'auto' ? null : newGroupId
-  if (isAutoRouting(key) === (routingMode === 'auto') && key.group_id === groupID) return
+  if (changingGroupIds.value.has(key.id) || (isAutoRouting(key) === (routingMode === 'auto') && key.group_id === groupID)) return
 
+  changingGroupIds.value.add(key.id)
   try {
     await keysAPI.update(key.id, { routing_mode: routingMode, group_id: groupID })
     clearAutoRoutingCapabilities()
@@ -1937,6 +1938,8 @@ const changeRouting = async (
     loadApiKeys()
   } catch (error) {
     appStore.showError(t('keys.failedToChangeGroup'))
+  } finally {
+    changingGroupIds.value.delete(key.id)
   }
 }
 
@@ -2208,22 +2211,7 @@ const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
   const platform = row.group?.platform || 'anthropic'
 
-  const usageScript = `({
-    request: {
-      url: "{{baseUrl}}/v1/usage",
-      method: "GET",
-      headers: { "Authorization": "Bearer {{apiKey}}" }
-    },
-    extractor: function(response) {
-      const remaining = response?.remaining ?? response?.quota?.remaining ?? response?.balance;
-      const unit = response?.unit ?? response?.quota?.unit ?? "USD";
-      return {
-        isValid: response?.is_active ?? response?.isValid ?? true,
-        remaining,
-        unit
-      };
-    }
-  })`
+  const usageScript = CC_SWITCH_USAGE_SCRIPT
   const providerName = (publicSettings.value?.site_name || 'sub2api').trim() || 'sub2api'
   const deeplink = buildCcSwitchImportDeeplink({
     baseUrl,

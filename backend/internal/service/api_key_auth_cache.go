@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/rateschedule"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"time"
 )
 
@@ -104,6 +104,7 @@ type APIKeyAuthGroupSnapshot struct {
 	VideoPrice720P                  *float64                      `json:"video_price_720p,omitempty"`
 	VideoPrice1080P                 *float64                      `json:"video_price_1080p,omitempty"`
 	VideoModelPrices                map[string]map[string]float64 `json:"video_model_prices,omitempty"`
+	VideoModels                     videoprotocol.Models          `json:"video_models"`
 	WebSearchPricePerCall           *float64                      `json:"web_search_price_per_call,omitempty"`
 	SearchPricePer1k                *float64                      `json:"search_price_per_1k,omitempty"`
 	AudioRealtimePricePerMin        *float64                      `json:"audio_realtime_price_per_min,omitempty"`
@@ -149,11 +150,10 @@ type APIKeyAuthGroupSnapshot struct {
 	// 高峰时段倍率：PeakRateEnabled 为 true 且请求时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier（详见 Group.PeakMultiplierAt）。
 	// 必须随快照缓存，否则扣费路径拿到的 apiKey.Group 缺字段、高峰倍率失效。
-	PeakRateEnabled    bool                `json:"peak_rate_enabled"`
-	PeakStart          string              `json:"peak_start"`
-	PeakEnd            string              `json:"peak_end"`
-	PeakRateMultiplier float64             `json:"peak_rate_multiplier"`
-	RateSchedule       rateschedule.Config `json:"rate_schedule"`
+	PeakRateEnabled    bool    `json:"peak_rate_enabled"`
+	PeakStart          string  `json:"peak_start"`
+	PeakEnd            string  `json:"peak_end"`
+	PeakRateMultiplier float64 `json:"peak_rate_multiplier"`
 
 	// 分组利润控制：调度准入门在直连热路径上读的就是这份快照——门解析
 	// （resolveOpenAIProfitControlGate / resolveProfitControlGroup）优先取

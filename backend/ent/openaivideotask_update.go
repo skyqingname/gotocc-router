@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
 	"github.com/LuckyKuang/sub2api-plus/ent/predicate"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -26,6 +27,18 @@ type OpenAIVideoTaskUpdate struct {
 // Where appends a list predicates to the OpenAIVideoTaskUpdate builder.
 func (_u *OpenAIVideoTaskUpdate) Where(ps ...predicate.OpenAIVideoTask) *OpenAIVideoTaskUpdate {
 	_u.mutation.Where(ps...)
+	return _u
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_u *OpenAIVideoTaskUpdate) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskUpdate {
+	_u.mutation.SetResellerSnapshot(v)
+	return _u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (_u *OpenAIVideoTaskUpdate) ClearResellerSnapshot() *OpenAIVideoTaskUpdate {
+	_u.mutation.ClearResellerSnapshot()
 	return _u
 }
 
@@ -979,6 +992,12 @@ func (_u *OpenAIVideoTaskUpdate) sqlSave(ctx context.Context) (_node int, err er
 			}
 		}
 	}
+	if value, ok := _u.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(openaivideotask.FieldResellerSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.ResellerSnapshotCleared() {
+		_spec.ClearField(openaivideotask.FieldResellerSnapshot, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)
 	}
@@ -1231,6 +1250,18 @@ type OpenAIVideoTaskUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *OpenAIVideoTaskMutation
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_u *OpenAIVideoTaskUpdateOne) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskUpdateOne {
+	_u.mutation.SetResellerSnapshot(v)
+	return _u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (_u *OpenAIVideoTaskUpdateOne) ClearResellerSnapshot() *OpenAIVideoTaskUpdateOne {
+	_u.mutation.ClearResellerSnapshot()
+	return _u
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -2212,6 +2243,12 @@ func (_u *OpenAIVideoTaskUpdateOne) sqlSave(ctx context.Context) (_node *OpenAIV
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(openaivideotask.FieldResellerSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.ResellerSnapshotCleared() {
+		_spec.ClearField(openaivideotask.FieldResellerSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)

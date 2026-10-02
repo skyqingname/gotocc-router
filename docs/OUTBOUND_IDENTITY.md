@@ -17,7 +17,7 @@ versions are distinct from the CLI version.
 | Codex | OpenAI OAuth/setup-token, OpenAI-compatible API keys, Chinese compatible providers | Existing Codex UA/Originator/Version rules, including endpoint-specific omissions |
 | Claude Code | Anthropic OAuth/setup-token/API key, Claude on Bedrock or Vertex | `claude-cli` UA, `X-App: cli`, project-owned `X-Stainless-*` SDK/runtime declarations |
 | Gemini CLI | Gemini OAuth/API key, Gemini on Vertex | `GeminiCLI` UA |
-| Grok | Grok OAuth/API key | `xai-grok-workspace` UA, `x-grok-client-identifier`, `x-grok-client-version` |
+| Grok | Grok OAuth/API key | `grok-shell` UA, `x-grok-client-identifier`, `x-grok-client-version`, `x-grok-client-mode: headless` |
 | Antigravity | Antigravity OAuth/upstream | `antigravity` UA; the two privacy endpoints also declare the pinned `X-Goog-Api-Client` SDK |
 
 Native OAuth and setup-token accounts retain their native client family.
@@ -31,6 +31,13 @@ Built-in declarations reuse existing pins in `internal/pkg/claude`,
 `internal/pkg/geminicli`, `internal/pkg/xai`, `internal/pkg/antigravity` and
 `internal/service/openai_codex_identity.go`. This feature does not upgrade
 those pins. The settings page displays the exact current effective identity.
+
+The exact compiled Grok identity is `grok-shell/1.0.41 (<os>; <arch>)`, with
+identifier `grok-shell`, client version `1.0.41`, and mode `headless`. Runtime
+OS and architecture use the official spellings (`darwin` renders as `macos`
+and Go's `amd64`, `386`, and `arm64` render as `x86_64`, `x86`, and `aarch64`).
+`XAI_GROK_CLI_VERSION` may select a supported newer version while retaining
+that family, platform fingerprint, identifier and mode.
 
 The exact compiled Antigravity identity is
 `antigravity/2.9.1 windows/amd64`, with identifier `antigravity` and client
@@ -48,6 +55,35 @@ to a copy of the trusted request snapshot, without changing the parent snapshot.
 
 Invalid candidates fall through atomically. An explicit account version retains
 its selected source and OS/architecture, and does not update the privacy SDK.
+
+Claude reset-credit status queries and manual redemption use the same identity resolver and snapshot
+as the owning Anthropic OAuth account. The snapshot is captured before token
+acquisition, so refresh, OAuth profile, pre-claim usage, redemption POST and
+fresh post-claim usage cannot select different versions. Retries and account
+revalidation within one operation reuse that owner snapshot even if settings
+change. These requests render only the Claude preset declarations, preserving
+the fixed Stainless SDK/runtime fingerprint and `X-App: cli`.
+
+| Claude reset-credit status / redemption | Identity source priority |
+| --- | --- |
+| Valid explicit account candidate | Account candidate → configured global Claude preset → valid environment / compiled default |
+| Empty or invalid account candidate | Configured global Claude preset → valid environment / compiled default |
+| Empty or invalid global candidate | Valid environment / compiled default |
+
+Its compiled UA remains `claude-cli/2.1.258 (external, cli)`, with client
+identifier `claude-cli` and version `2.1.258`. The identifier/version are
+encoded in the UA; this path does not add Codex `Originator`/`Version` headers.
+The reset-credit status and full redemption transport regressions check source priority, exact defaults,
+companion headers, the token-acquisition snapshot and final-send replacement
+of foreign SDK headers. This integration does not upgrade identity pins.
+
+For Sonnet 5.5, gateway request construction filters
+`fine-grained-tool-streaming-2025-05-14` from `anthropic-beta` when the final
+request contains a stable computer/browser toolset. Filtering runs after trusted
+identity application and the existing beta/header-override decision. It cannot
+restore a beta dropped by policy or change the selected identity. The model
+family check also handles Vertex model suffixes; other models retain their
+existing beta behavior.
 
 ## Selection and persistence
 
@@ -96,8 +132,10 @@ Move intended identity customization to the account/global identity controls and
 remove identity entries from the generic override editor before saving it.
 Channel-monitor and request-template `extra_headers` enforce the same managed
 header registry at save time and ignore previously stored identity overrides at
-runtime. Ordinary custom, authentication and protocol headers retain their
-existing behavior.
+runtime. Ordinary custom headers retain their existing behavior. Authentication,
+request/session fields, and destination-owned Grok protocol declarations are
+also reserved where their owning adapter must derive them from credentials,
+request state, or the final target.
 
 Other global settings live in the existing settings store under
 `outbound_identity`; account selections use the existing credentials JSON.
@@ -170,6 +208,54 @@ Plus-only subscription enrich, the settings PATCH behind `set-privacy`, WHAM
 usage and credit APIs) uses the regular HTTP client without browser TLS
 impersonation and sends the selected User-Agent while omitting
 Originator/Version. Login no longer PATCHes ChatGPT training settings.
+
+The OpenAI OAuth credential plane aligns with the official client's HTTP
+behavior: the shared refresh/revoke/enrich/WHAM client retains a filtering
+cookie jar that stores only the allowlisted ChatGPT Cloudflare infrastructure
+cookies (`__cf_bm`, `__cflb`, `__cfruid`, `__cfseq`, `__cfwaitingroom`,
+`_cfuvid`, `cf_clearance`, `cf_ob_info`, `cf_use_ob`, `cf_chl_*`) plus the
+`__oailb` routing cookie, and only for chatgpt.com hosts; account, session and
+auth cookies are never stored. The jar is pooled per proxy configuration, so
+cookies never cross egress boundaries. Authorization-code exchange and
+device-code start/poll keep the raw client without a jar, matching the
+official raw client. Device-code sessions expire 15 minutes after creation,
+matching the official device-code lifetime, and do not pre-bind an account.
+Browser authorization sessions keep the longer session TTL and may still bind
+an account for re-authorization. The custom-CA policy matches the official
+`CODEX_CA_CERTIFICATE` / `SSL_CERT_FILE` pair: `CODEX_CA_CERTIFICATE` takes
+precedence, empty values are treated as unset, a configured PEM bundle is
+appended to the system roots (including OpenSSL-style `TRUSTED CERTIFICATE`
+labels), and a misconfigured bundle fails client creation early with a precise
+error instead of silently using system roots. Both names are Codex-specific, so
+only OpenAI outbound clients consult them and a bad bundle cannot take down
+other providers. This covers the credential plane (shared pool) and the official
+auth surface (personal access token validation and agent task registration).
+`CODEX_REFRESH_TOKEN_URL_OVERRIDE`
+and `CODEX_REVOKE_TOKEN_URL_OVERRIDE` override the token/revoke endpoints at
+startup; empty or invalid values fall back to the defaults with a warning log.
+When no revoke override is set but a refresh override is, the revoke endpoint is
+derived from it by rewriting the path to `/oauth/revoke`, matching the official
+`derive_revoke_token_endpoint`. Revoke is bounded by the official 10s request
+timeout instead of the 120s credential-plane timeout, so a stuck revoke cannot
+block a logout or account deletion.
+
+The official authentication surface (personal access token validation, agent
+identity task registration, token refresh, revoke) sends the selected User-Agent
+and Originator only. Plus does not add an independent `version` header there,
+matching the official `create_default_auth_client` default headers; `version`
+remains an inference-plane declaration only. The ChatGPT accounts check sends
+`ChatGPT-Account-Id` when the poid is known, matching the official
+backend-client header surface.
+
+`x-openai-internal-codex-residency` is not an identity source. Its only source
+is the global setting `codex_residency` (`off` default, `us` sends the value
+`us`). Account credentials, inbound headers, and generic header overrides
+cannot select it. When the setting is `us`, Codex-protocol inference HTTP/WS,
+refresh, revoke, and chatgpt.com backend-api auxiliary calls send the header.
+Authorization-code exchange and device-code start/poll do not. A configured
+Codex User-Agent may also carry the official trailing ` ({suffix})` group.
+That group is preserved through pairing and version synchronization and is
+never generated by the gateway.
 
 Pre-account Antigravity code exchange / refresh-token validation and Gemini
 code exchange start an independent native OAuth scope before the first provider
@@ -326,9 +412,28 @@ the existing PAT Responses web-search adapter; see
 
 The shared HTTP and TLS transports may add Grok's destination-specific
 authentication hint, but may not select an identity from the destination host.
-The Grok access-denied fallback retains the selected UA and companion headers
-when changing hosts. Repository tests capture both actual transport methods and
-the fallback with inherited/explicit Codex, Grok and Claude identities.
+Every final send, including redirects, adds `X-XAI-Token-Auth: xai-grok-cli`
+only for `cli-chat-proxy.grok.com`; sampling and media-mutation paths on that
+host also add `x-authenticateresponse: authenticate-response`. Both
+declarations are removed from other destinations. The narrowly matched Grok
+access-denied compatibility
+fallback retains the selected UA and companion headers when changing hosts and
+removes proxy authentication declarations. Repository tests capture both actual
+transport methods and the fallback with inherited/explicit Codex, Grok and
+Claude identities. Every account-owned Grok HTTP path also receives the Grok
+transport profile at the shared final preparation boundary unless the owning
+operation explicitly selected a more specialized profile.
+
+Grok inference and media-mutation builders own the sampler declarations
+separately from the identity triple. They issue a fresh `x-grok-req-id`, retain
+one random process-level `x-grok-agent-id`, declare the final model, attach the
+OAuth credential owner's `sub` when available, and reuse the tenant-isolated
+conversation snapshot for conversation/session headers and the official UUIDv5
+conversation-group derivation. Generic overrides cannot set these fields. The
+gateway omits sampler and response-authentication declarations on model,
+billing and media-status lookups, and omits optional turn, retry, deployment,
+and tracing declarations when it does not possess the corresponding
+authoritative value.
 
 The account editor uses the backend's passthrough precedence: a boolean
 `extra.openai_passthrough` wins, including `false`; only when it is absent or
@@ -349,17 +454,3 @@ the outbound behavior tests above remain required to verify implementation.
 
 These references explain adapter boundaries. They do not imply that a generic
 compatible supplier requires or recognizes every preset declaration.
-
-
-## GoToCC local media and Prompt Audit integration
-
-OpenAI-compatible video create, status and content requests resolve the original
-credential-owning account identity before request construction. The resulting
-request context and shared transport carry the same snapshot. The original
-video account, API Key, payer and terminal billing state are unchanged.
-
-Prompt Audit keeps GoToCC's custom system template, explicit Qwen3Guard or
-confidence JSON output and full/latest-turn selection. Each synchronous
-evaluation or asynchronous job retains supplier identities across chunks and
-same-credential retries. Failover resolves the new supplier. Probe invokes the
-actual audit model directly; model-list discovery is not a prerequisite.

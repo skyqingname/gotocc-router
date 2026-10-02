@@ -639,6 +639,8 @@ export interface SystemSettings {
   antigravity_user_agent_version: string;
   openai_codex_user_agent: string;
   openai_codex_environment_timezone: string;
+  openai_codex_egress_country: string;
+  codex_residency: string;
   codex_legacy_client_profile_compatibility_enabled: boolean;
   openai_codex_local_group_quota_enabled: boolean;
   openai_codex_client_version: string;
@@ -665,6 +667,7 @@ export interface SystemSettings {
   global_ip_access_control_enabled: boolean;
 
   // Cyber session block
+  cyber_policy_user_allowlist: string;
   cyber_session_block_enabled: boolean;
   cyber_session_block_ttl_seconds: number;
 
@@ -732,7 +735,7 @@ export interface SystemSettings {
 
   // Channel Monitor feature switch
   channel_monitor_enabled: boolean;
-  channel_monitor_mode?: 'v1' | 'v2';
+  channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;
@@ -971,6 +974,8 @@ export interface UpdateSettingsRequest {
   antigravity_user_agent_version?: string;
   openai_codex_user_agent?: string;
   openai_codex_environment_timezone?: string;
+  openai_codex_egress_country?: string;
+  codex_residency?: string;
   codex_legacy_client_profile_compatibility_enabled?: boolean;
   openai_codex_local_group_quota_enabled?: boolean;
   openai_codex_client_version?: string;
@@ -990,6 +995,7 @@ export interface UpdateSettingsRequest {
   global_ip_access_control_enabled?: boolean;
 
   // Cyber session block
+  cyber_policy_user_allowlist?: string;
   cyber_session_block_enabled?: boolean;
   cyber_session_block_ttl_seconds?: number;
 
@@ -1045,7 +1051,7 @@ export interface UpdateSettingsRequest {
 
   // Channel Monitor feature switch
   channel_monitor_enabled?: boolean;
-  channel_monitor_mode?: 'v1' | 'v2';
+  channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds?: number;
   channel_monitor_hide_throughput?: boolean;
   channel_monitor_show_quota?: boolean;

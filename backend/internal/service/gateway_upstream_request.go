@@ -93,8 +93,8 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	// === 计算最终 anthropic-beta header（先于 body sanitize 与 CCH 签名）===
 	//
 	// 顺序约束：
-	//   1) 算 finalBeta（纯函数，不依赖 req.Header；mimicry 路径会忽略客户端 beta，
-	//      与原“OAuth + mimicClaudeCode 跳过白名单透传”行为对齐）
+	//   1) 算 finalBeta（纯函数，不依赖 req.Header；mimicry 路径仅保留明确支持的
+	//      客户端兼容性 beta，其余使用固定列表）
 	//   2) 按 finalBeta 做能力维度 body sanitize（如 context-management beta 缺失 →
 	//      strip body.context_management，与 Bedrock 路径对称）
 	//   3) CCH 签名（必须使用 strip 后的 body，否则 hash 与最终 body 不一致 →
@@ -112,6 +112,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	if beta, ok := account.HeaderOverrideValue("anthropic-beta"); ok {
 		finalBetaHeader, finalBetaShouldSet = beta, true
 	}
+	finalBetaHeader = filterSonnet55ToolsetBeta(finalBetaHeader, body, modelID)
 
 	// 能力维度 body sanitize：与最终 anthropic-beta header 对称
 	if sanitized, changed := sanitizeAnthropicBodyForBetaTokens(body, finalBetaHeader); changed {
@@ -197,6 +198,10 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	// 放在所有 header 逻辑之后，确保配置值对同名头拥有最终决定权。
 	account.ApplyHeaderOverrides(req.Header)
 	ApplyAccountOutboundIdentity(ctx, account, req)
+
+	// Sonnet 5.5 工具集 beta 过滤：放在 Plus 身份应用与 anthropic-beta 终决逻辑之后，
+	// 只裁剪工具集相关 beta，不改动身份 triple，也不绕过 drop 策略。
+	filterSonnet55ToolsetBetaHeader(req.Header, body, modelID)
 
 	// === DEBUG: 打印上游转发请求（headers + body 摘要），与 CLIENT_ORIGINAL 对比 ===
 	s.debugLogGatewaySnapshot("UPSTREAM_FORWARD", req.Header, body, map[string]string{
@@ -292,7 +297,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicVertex(
 	if policy.blockErr != nil {
 		return nil, policy.blockErr
 	}
-	finalBeta := filterVertexBetaTokens(clientBeta, mergeDropSets(policy.filterSet))
+	finalBeta := filterSonnet55ToolsetBeta(filterVertexBetaTokens(clientBeta, mergeDropSets(policy.filterSet)), vertexBody, modelID)
 
 	// 能力维度 sanitize：基于最终 beta（而非原始 client 值）决定是否保留 body 中的
 	// context_management，与 Anthropic 直连 / Bedrock 路径对称。
@@ -414,6 +419,39 @@ func defaultAPIKeyBetaHeader(body []byte) string {
 	return claude.APIKeyBetaHeader
 }
 
+// The legacy streaming beta is incompatible with the stable computer and
+// browser toolsets. The per-tool eager_input_streaming field remains available.
+func filterSonnet55ToolsetBeta(header string, body []byte, modelID string) string {
+	if at := strings.IndexByte(modelID, '@'); at >= 0 {
+		modelID = modelID[:at] // Vertex's dated model ID
+	}
+	if !claude.IsSonnet55(modelID) {
+		return header
+	}
+	for _, tool := range gjson.GetBytes(body, "tools").Array() {
+		switch tool.Get("type").String() {
+		case "computer_toolset_20260801", "browser_toolset_20260801":
+			if !containsBetaToken(header, claude.BetaFineGrainedToolStreaming) {
+				return header
+			}
+			return stripBetaTokensWithSet(header, map[string]struct{}{claude.BetaFineGrainedToolStreaming: {}})
+		}
+	}
+	return header
+}
+
+func filterSonnet55ToolsetBetaHeader(headers http.Header, body []byte, modelID string) {
+	header := getHeaderRaw(headers, "anthropic-beta")
+	filtered := filterSonnet55ToolsetBeta(header, body, modelID)
+	if filtered == header {
+		return
+	}
+	deleteHeaderAllForms(headers, "anthropic-beta")
+	if filtered != "" {
+		setHeaderRaw(headers, "anthropic-beta", filtered)
+	}
+}
+
 func applyClaudeOAuthHeaderDefaults(req *http.Request) {
 	if req == nil {
 		return
@@ -421,7 +459,7 @@ func applyClaudeOAuthHeaderDefaults(req *http.Request) {
 	if getHeaderRaw(req.Header, "Accept") == "" {
 		setHeaderRaw(req.Header, "Accept", "application/json")
 	}
-	for key, value := range claude.DefaultHeaders {
+	for key, value := range claude.DefaultHeaders() {
 		if value == "" {
 			continue
 		}
@@ -500,7 +538,8 @@ func (s *GatewayService) computeFinalAnthropicBeta(
 	clientHeaders http.Header,
 	body []byte,
 	effectiveDropSet map[string]struct{},
-) (string, bool) {
+) (beta string, shouldSet bool) {
+	defer func() { beta = filterSonnet55ToolsetBeta(beta, body, modelID) }()
 	clientBeta := ""
 	if clientHeaders != nil {
 		clientBeta = getHeaderRaw(clientHeaders, "anthropic-beta")
@@ -508,9 +547,14 @@ func (s *GatewayService) computeFinalAnthropicBeta(
 
 	if tokenType == "oauth" {
 		if mimicClaudeCode {
-			// mimic 路径跳过白名单透传，incomingBeta 始终为空；所有模型都必须
-			// 携带完整 Claude Code beta 集合，避免 Haiku 被识别为第三方客户端。
-			return mergeAnthropicBetaDropping(claude.FullClaudeCodeMimicryBetas(), "", effectiveDropSet), true
+			// Keep the default beta set, with a narrow opt-in for legacy structured
+			// output requests. Unknown client betas remain excluded and policy drops
+			// still take precedence over this compatibility token.
+			incomingBeta := ""
+			if containsBetaToken(clientBeta, claude.BetaStructuredOutputs) {
+				incomingBeta = claude.BetaStructuredOutputs
+			}
+			return mergeAnthropicBetaDropping(claude.FullClaudeCodeMimicryBetas(), incomingBeta, effectiveDropSet), true
 		}
 		// 真 Claude Code 客户端透传路径
 		return stripBetaTokensWithSet(s.getBetaHeader(modelID, clientBeta), effectiveDropSet), true
@@ -535,7 +579,7 @@ func (s *GatewayService) computeFinalAnthropicBeta(
 // 两条特殊规则：
 //
 //   - OAuth mimic：requiredBetas 为 FullClaudeCodeMimicryBetas + BetaTokenCounting；
-//     count_tokens 另外保留客户端 beta，而 messages mimic 会忽略客户端 beta。
+//     count_tokens 另外保留客户端 beta，而 messages mimic 仅保留明确支持的兼容性 token。
 //   - OAuth 透传 + 客户端未传 anthropic-beta：补齐 CountTokensBetaHeader
 //   - OAuth 透传 + 客户端传了：补齐 BetaTokenCounting（如果未含）
 //
@@ -547,7 +591,8 @@ func (s *GatewayService) computeFinalCountTokensAnthropicBeta(
 	clientHeaders http.Header,
 	body []byte,
 	effectiveDropSet map[string]struct{},
-) (string, bool) {
+) (beta string, shouldSet bool) {
+	defer func() { beta = filterSonnet55ToolsetBeta(beta, body, modelID) }()
 	clientBeta := ""
 	if clientHeaders != nil {
 		clientBeta = getHeaderRaw(clientHeaders, "anthropic-beta")
@@ -866,7 +911,7 @@ func applyClaudeCodeMimicHeaders(req *http.Request, isStream bool) {
 	applyClaudeOAuthHeaderDefaults(req)
 	// Then force key headers to match Claude Code fingerprint regardless of what the client sent.
 	// 使用 resolveWireCasing 确保 key 与真实 wire format 一致（如 "x-app" 而非 "X-App"）
-	for key, value := range claude.DefaultHeaders {
+	for key, value := range claude.DefaultHeaders() {
 		if value == "" {
 			continue
 		}

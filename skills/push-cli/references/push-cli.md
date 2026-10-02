@@ -83,10 +83,8 @@ four-CPU container; `--serial` uses four. Every command and lane reports elapsed
 monotonic time. A failure stops new steps and joins already-running commands;
 neither scheduling mode can publish a partial proof.
 
-Docker on macOS/Linux and WSL2 Docker on Windows must parse
-`deploy/docker-compose.dev.yml` successfully using the checked-in
-`deploy/.env.example` for interpolation. This syntax check starts no services
-and does not require a developer or production database password.
+Apple Containers reports Docker Compose parsing as not applicable. WSL2 Docker
+and Linux Docker must parse `deploy/docker-compose.dev.yml` successfully.
 After each validation attempt, successful or failed, validation containers use
 `--rm`, so their writable VM/container snapshots are removed. The launcher
 retains the `sub2api-validation:<toolchain-digest>` image matching the resolved
@@ -95,6 +93,23 @@ separate generation derived from that image plus the current Go and pnpm lock
 inputs. Cleanup removes only stale Sub2API validation image and cache
 generations and does not run a global container, image, builder, volume, or
 system prune.
+
+Every validation container is launched with the label `sub2api-validation=<generation>`.
+Before `check`, `submit-pr`, and `ensure` build or ensure the platform image,
+the launcher runs an idempotent cleanup so a run always starts clean after a
+previous crash. Automatic cleanup also removes stopped project containers
+(`status=exited` and `status=created`) matching that label, which is how a
+hard-killed `--rm` container is reclaimed without a forbidden global prune.
+Apple Containers has no label-filtered container listing here, so it is not
+swept automatically and keeps relying on `--rm`.
+
+`push-cli clean --yes` is the explicit, manual full purge: it deletes every
+`sub2api-validation` image, every dependency-cache generation, and all project
+containers, on macOS only images and caches (containers rely on `--rm`) and
+never touching the cross-project Apple Builder cache (`deploy/APPLE_CONTAINER.md`).
+It is never run automatically because deleting the current generation forces
+the next validation to rebuild the whole toolchain and re-download every
+dependency.
 
 ## Recovery
 

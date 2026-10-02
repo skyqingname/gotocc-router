@@ -55,6 +55,8 @@ func buildBatchImageHoldCommand(job *BatchImageJob, requestID string, actualAmou
 		actualAmount = 0
 	}
 	cmd := &BatchImageBalanceHoldCommand{
+		ResellerSnapshot:   job.ResellerSnapshot,
+		Model:              job.Model,
 		RequestID:          requestID,
 		APIKeyID:           *job.APIKeyID,
 		UserID:             batchImageBillingUserID(job),

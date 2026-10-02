@@ -229,10 +229,18 @@
             <PlatformIcon platform="opencode_go" size="sm" />
             OpenCode
           </button>
+          <button type="button" @click="form.platform = 'video'" :class="['flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all', form.platform === 'video' ? 'bg-white text-cyan-600 shadow-sm dark:bg-dark-600 dark:text-cyan-400' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400']">
+            <PlatformIcon platform="video" size="sm" />
+            <span>Video</span>
+          </button>
         </div>
       </div>
 
       <!-- Account Type Selection (Anthropic) -->
+      <div v-if="form.platform === 'video'" class="rounded-lg border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-800 dark:bg-cyan-950/30">
+        <p class="font-medium">Video · API Key</p>
+        <p class="input-hint">{{ t('admin.accounts.videoAccountHint') }}</p>
+      </div>
       <div v-if="form.platform === 'anthropic'">
         <label class="input-label">{{ t('admin.accounts.accountType') }}</label>
         <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="account-form-type">
@@ -1406,6 +1414,7 @@
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
         </div>
 
+        <div v-if="form.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="videoSecretKey" type="password" autocomplete="new-password" class="input font-mono" placeholder="腾讯混元、火山即梦等签名协议填写；普通 API Key 协议留空" /><p class="input-hint">上方 API Key 填写 SecretId / Access Key，下方填写对应 Secret Key。</p></div>
         <!-- Gemini API Key tier selection -->
         <div v-if="form.platform === 'gemini'">
           <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
@@ -1488,6 +1497,7 @@
             <div v-if="modelRestrictionMode === 'whitelist'">
               <ModelWhitelistSelector
                 v-model="allowedModels"
+                :model-mappings="modelMappings"
                 :platform="form.platform"
                 :sync-credentials="syncPreviewCredentials"
                 @upstream-synced="upstreamModelsPreviewed = true"
@@ -1939,6 +1949,7 @@
           <div v-if="modelRestrictionMode === 'whitelist'">
             <ModelWhitelistSelector
               v-model="allowedModels"
+              :model-mappings="modelMappings"
               platform="anthropic"
               :sync-credentials="syncPreviewCredentials"
               @upstream-synced="upstreamModelsPreviewed = true"
@@ -2244,6 +2255,7 @@
           <div v-if="modelRestrictionMode === 'whitelist'">
             <ModelWhitelistSelector
               v-model="allowedModels"
+              :model-mappings="modelMappings"
               :platform="form.platform"
               :sync-credentials="syncPreviewCredentials"
               @upstream-synced="upstreamModelsPreviewed = true"
@@ -3059,12 +3071,23 @@
               {{ t('admin.accounts.openai.codexEnvironmentTimezoneDesc') }}
             </p>
           </div>
-          <input
+          <Select
             v-model="codexEnvironmentTimezone"
             data-testid="create-codex-environment-timezone-input"
-            type="text"
-            :placeholder="t('admin.accounts.openai.codexEnvironmentTimezonePlaceholder')"
-            class="input w-full"
+            :options="codexTimezoneOptions"
+            searchable
+          />
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.codexEgressCountry') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.codexEgressCountryDesc') }}
+            </p>
+          </div>
+          <Select
+            v-model="codexEgressCountry"
+            data-testid="create-codex-egress-country-input"
+            :options="codexEgressCountryOptions"
+            searchable
           />
         </div>
       </div>
@@ -3655,6 +3678,8 @@ import type {
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
+import { getTimezoneOptions } from '@/utils/timezones'
+import { getCountryOptions } from '@/utils/countries'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
@@ -3724,7 +3749,7 @@ interface OAuthFlowExposed {
   reset: () => void
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const browserTimeZone = getBrowserTimeZone()
 
 const oauthStepTitle = computed(() => {
@@ -3737,6 +3762,7 @@ const oauthStepTitle = computed(() => {
 
 // Platform-specific hints for API Key type
 const baseUrlHint = computed(() => {
+  if (form.platform === 'video') return t('admin.accounts.videoBaseUrlHint')
   if (form.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (form.platform === 'grok') return ''
@@ -3744,6 +3770,7 @@ const baseUrlHint = computed(() => {
 })
 
 const apiKeyHint = computed(() => {
+  if (form.platform === 'video') return ''
   if (form.platform === 'openai') return t('admin.accounts.openai.apiKeyHint')
   if (form.platform === 'gemini') return t('admin.accounts.gemini.apiKeyHint')
   if (form.platform === 'grok') return ''
@@ -3757,6 +3784,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
     return defaultCNBaseUrl(form.platform, mode, apiProtocol.value) || 'https://api.example.com'
   }
   switch (form.platform) {
+    case 'video':
+      return t('admin.accounts.videoBaseUrlPlaceholder')
     case 'openai':
       return 'https://api.openai.com'
     case 'gemini':
@@ -3770,6 +3799,8 @@ const apiKeyBaseUrlPlaceholder = computed(() => {
 
 const apiKeyValuePlaceholder = computed(() => {
   switch (form.platform) {
+    case 'video':
+      return 'API Key'
     case 'openai':
       return 'sk-proj-...'
     case 'gemini':
@@ -3878,6 +3909,7 @@ const submitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_account'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
+const videoSecretKey = ref('')
 const apiKeyValue = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
@@ -4170,6 +4202,15 @@ const codexCLIOnlyEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const codexFingerprintMode = ref<CodexFingerprintMode>('device')
 const codexEnvironmentTimezone = ref('')
+const codexEgressCountry = ref('')
+const codexTimezoneOptions = computed(() => [
+  { label: t('admin.accounts.openai.codexEnvironmentTimezoneNone'), value: '' },
+  ...getTimezoneOptions(),
+])
+const codexEgressCountryOptions = computed(() => [
+  { label: t('admin.accounts.openai.codexEgressCountryNone'), value: '' },
+  ...getCountryOptions(locale?.value || 'en'),
+])
 const codexFingerprintModeOptions = computed(() => [
   { value: 'off' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintOff') },
   { value: 'device' as CodexFingerprintMode, label: t('admin.accounts.openai.codexFingerprintDevice') },
@@ -4254,16 +4295,17 @@ const openAITextEndpointCapabilityLabel = computed(() => {
 })
 const openAIEndpointCapabilityOptions = computed<{ value: OpenAIEndpointCapability; label: string }[]>(() => [
   { value: 'chat_completions', label: openAITextEndpointCapabilityLabel.value },
-  { value: 'embeddings', label: t('admin.accounts.openai.capabilityEmbeddings') }
+  { value: 'embeddings', label: t('admin.accounts.openai.capabilityEmbeddings') },
+  { value: 'seedance', label: 'Seedance (Ark)' }
 ])
 const openAITextGenerationCapabilityEnabled = computed(() =>
   openAIEndpointCapabilities.value.includes('chat_completions')
 )
 
 const normalizeOpenAIEndpointCapabilities = (values: OpenAIEndpointCapability[]) => {
-  const allowed: OpenAIEndpointCapability[] = ['chat_completions', 'embeddings']
+  const allowed: OpenAIEndpointCapability[] = ['chat_completions', 'embeddings', 'seedance']
   const selected = allowed.filter((value) => values.includes(value))
-  return selected.length > 0 ? selected : allowed
+  return selected.length > 0 ? selected : ['chat_completions', 'embeddings'] as OpenAIEndpointCapability[]
 }
 
 const toggleOpenAIEndpointCapability = (capability: OpenAIEndpointCapability, event?: Event) => {
@@ -4289,7 +4331,7 @@ const toggleOpenAIEndpointCapability = (capability: OpenAIEndpointCapability, ev
 
 const applyOpenAIEndpointCapabilities = (credentials: Record<string, unknown>) => {
   const capabilities = normalizeOpenAIEndpointCapabilities(openAIEndpointCapabilities.value)
-  if (capabilities.length === 2) {
+  if (capabilities.length === 2 && !capabilities.includes('seedance')) {
     delete credentials.openai_capabilities
     return
   }
@@ -4562,7 +4604,10 @@ watch(
   () => form.platform,
   (newPlatform) => {
     // Reset base URL based on platform
-    if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
+    if (newPlatform === 'video') {
+      apiKeyBaseUrl.value = ''
+      accountCategory.value = 'apikey'
+    } else if (isCNProviderPlatform(newPlatform) || newPlatform === 'opencode_go') {
       const mode = newPlatform === 'opencode_go' ? openCodeAccountMode.value : accountMode.value
       apiKeyBaseUrl.value = defaultCNBaseUrl(newPlatform, mode, apiProtocol.value)
     } else {
@@ -5039,6 +5084,7 @@ const resetForm = () => {
   openCodeGoProtocolRules.value = cloneOpenCodeGoProtocolRules(defaultOpenCodeProtocolRules('zen'))
   adaptiveBaseUrls.value = { chat_completions: '', anthropic: '', responses: '' }
   apiKeyBaseUrl.value = 'https://api.anthropic.com'
+  videoSecretKey.value = ''
   apiKeyValue.value = ''
   upstreamRequestIdHeader.value = ''
   editQuotaLimit.value = null
@@ -5088,6 +5134,7 @@ const resetForm = () => {
   codexCLIOnlyEnabled.value = false
   codexFingerprintMode.value = 'device'
   codexEnvironmentTimezone.value = ''
+  codexEgressCountry.value = ''
   anthropicPassthroughEnabled.value = false
   anthropicAPIKeyAuthScheme.value = 'x_api_key'
   webSearchEmulationMode.value = 'default'
@@ -5200,9 +5247,17 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
       // Empty means "follow the global default"; do not persist the key.
       delete extra.codex_environment_timezone
     }
+    const egressCountry = codexEgressCountry.value.trim().toUpperCase()
+    if (egressCountry) {
+      extra.egress_country = egressCountry
+    } else {
+      // Empty means "follow the global default"; do not persist the key.
+      delete extra.egress_country
+    }
   } else {
     delete extra.codex_fingerprint_mode
     delete extra.codex_environment_timezone
+    delete extra.egress_country
   }
   if (openAICompactMode.value !== 'auto') {
     extra.openai_compact_mode = openAICompactMode.value
@@ -5512,6 +5567,11 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.platform === 'video' && !apiKeyBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.videoBaseUrlRequired'))
+    return
+  }
+
   // Determine default base URL based on platform
   const defaultBaseUrl =
     form.platform === 'openai'
@@ -5524,8 +5584,9 @@ const handleSubmit = async () => {
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
-    base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
-    api_key: apiKeyValue.value.trim()
+    base_url: form.platform === 'video' ? apiKeyBaseUrl.value.trim() : apiKeyBaseUrl.value.trim() || defaultBaseUrl,
+    api_key: apiKeyValue.value.trim(),
+ ...(form.platform === 'video' && videoSecretKey.value.trim() ? {secret_key:videoSecretKey.value.trim()} : {})
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

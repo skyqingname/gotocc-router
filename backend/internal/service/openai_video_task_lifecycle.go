@@ -113,6 +113,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 		AccountID:             input.Account.ID,
 		SubscriptionID:        subscriptionID,
 		ProviderConfig:        input.ProviderConfig,
+		ResellerSnapshot:      input.APIKey.ResellerPrice(),
 		RequestedModel:        strings.TrimSpace(input.RequestedModel),
 		UpstreamModel:         strings.TrimSpace(input.UpstreamModel),
 		RequestSeconds:        seconds,
@@ -286,7 +287,9 @@ func (s *OpenAIGatewayService) openAIVideoHoldCommand(task *OpenAIVideoTask, acc
 		accountType = account.Type
 	}
 	return &OpenAIVideoBalanceHoldCommand{
-		TaskID: task.ID, LocalRequestID: task.LocalRequestID,
+		ResellerSnapshot: task.ResellerSnapshot,
+		Model:            task.RequestedModel,
+		TaskID:           task.ID, LocalRequestID: task.LocalRequestID,
 		APIKeyID: task.APIKeyID, UserID: task.BillingUserID,
 		ActorUserID: task.ActorUserID, TeamID: task.TeamID,
 		HoldAmount: task.HoldAmount, ActualAmount: actual,

@@ -72,15 +72,13 @@ usable; replace its immutable tag with another value returned by
 `list-versions` when needed:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.5+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.11+custom.002'
 ```
 
 Roll back an existing binary installation to an earlier published version:
 
-This inherited rollback example illustrates command syntax. Choose an available, database-compatible release from the owned repository before running it.
-
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.4+custom.006'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.11+custom.001'
 ```
 
 Remove the service and binary while preserving `/etc/sub2api`:

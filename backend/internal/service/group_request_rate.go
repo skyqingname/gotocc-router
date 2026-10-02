@@ -6,9 +6,13 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 )
 
-type requestGroupRate struct{ Base, Factor float64 }
+type requestGroupRate struct {
+	Base, Factor float64
+	Reseller     *reseller.Snapshot
+}
 
 func (g *Group) requestRateAt(at time.Time) (requestGroupRate, bool) {
 	if g == nil || g.requestRates == nil {
@@ -37,8 +41,9 @@ func freezeRequestGroupRate(ctx context.Context, at time.Time, resolve func(cont
 		return
 	}
 	group.requestRates.Store(at, requestGroupRate{
-		Base:   resolve(ctx, userID, group.ID, group.RateMultiplier),
-		Factor: group.PeakMultiplierAt(at),
+		Base:     resolve(ctx, userID, group.ID, group.RateMultiplier),
+		Factor:   group.PeakMultiplierAt(at),
+		Reseller: ResellerPriceFromContext(ctx, userID, group.ID),
 	})
 }
 

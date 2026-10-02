@@ -74,7 +74,9 @@ func (s *SettingService) GetGrokDefaultBaseURL(ctx context.Context) string {
 
 func (s *SettingService) ResolveGrokBaseURL(ctx context.Context, account *Account) string {
 	def := xai.DefaultCLIBaseURL
-	if s != nil {
+	if account != nil && account.Type == AccountTypeAPIKey {
+		def = xai.DefaultBaseURL
+	} else if s != nil {
 		def = s.GetGrokDefaultBaseURL(ctx)
 	}
 	if account == nil {
@@ -134,13 +136,20 @@ type SettingService struct {
 	// openAICodexEnvironmentTimezoneCache 全局 environment_context 时区设置缓存。
 	openAICodexEnvironmentTimezoneCache atomic.Value // *cachedOpenAICodexEnvironmentTimezone
 	openAICodexEnvironmentTimezoneSF    singleflight.Group
+	openAICodexEgressCountryCache       atomic.Value // *cachedOpenAICodexEgressCountry
+	openAICodexEgressCountrySF          singleflight.Group
+	openAICodexResidencyCache           atomic.Value // *cachedOpenAICodexResidency
+	openAICodexResidencySF              singleflight.Group
 	openAICodexLocalQuotaCache          atomic.Value // *cachedOpenAICodexLocalGroupQuota
 	openAICodexLocalQuotaSF             singleflight.Group
 	openAICodexVersionCache             atomic.Value // *cachedOpenAICodexClientVersion
 	openAICodexVersionSF                singleflight.Group
+	claudeCodeVersionCache              atomic.Value // *cachedClaudeCodeClientVersion
+	claudeCodeVersionSF                 singleflight.Group
 	codexRestrictionPolicyCache         atomic.Value // *cachedCodexRestrictionPolicy
 	codexRestrictionPolicySF            singleflight.Group
 
+	cyberSessionBlockRuntimeMu    sync.Mutex
 	cyberSessionBlockRuntimeCache atomic.Value // *cachedCyberSessionBlockRuntime
 	cyberSessionBlockRuntimeSF    singleflight.Group
 

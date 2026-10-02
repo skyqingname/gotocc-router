@@ -5,7 +5,7 @@
 
 import { apiClient } from '../client'
 import type { ApiKeyRoutingCapabilities, ApiKeyRoutingMode } from '@/types'
-import type { AdminSupportAPIKey } from './supportView'
+import type { AdminAPIKeySummary } from './apiKeySummary'
 
 export interface AutoGroupRoutingPolicy {
   default_group_order: number[]
@@ -22,7 +22,7 @@ export async function updateAutoRoutingPolicy(policy: AutoGroupRoutingPolicy): P
 }
 
 export interface UpdateApiKeyGroupResult {
-  api_key: AdminSupportAPIKey
+  api_key: AdminAPIKeySummary
   auto_granted_group_access: boolean
   granted_group_id?: number
   granted_group_name?: string

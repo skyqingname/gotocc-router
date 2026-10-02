@@ -1,4 +1,3 @@
-import type { RateScheduleConfig } from '@/utils/rate-schedule'
 /**
  * User Channels API endpoints (non-admin)
  * 用户侧「可用渠道」聚合查询：渠道 + 用户可访问的分组 + 支持模型（含定价）。
@@ -6,6 +5,8 @@ import type { RateScheduleConfig } from '@/utils/rate-schedule'
 
 import { apiClient } from './client'
 import type { BillingMode } from '@/constants/channel'
+import type { ModelPlazaGroup, PlazaModel } from './modelPlaza'
+import type { GroupPlatform } from '@/types'
 
 export interface UserAvailableGroup {
   id: number
@@ -19,7 +20,6 @@ export interface UserAvailableGroup {
   peak_start: string
   peak_end: string
   peak_rate_multiplier: number
-  rate_schedule: RateScheduleConfig
   /** true = 专属分组（小范围授权）；false = 公开分组。 */
   is_exclusive: boolean
 }
@@ -47,7 +47,7 @@ export interface UserSupportedModelPricing {
   cache_write_price: number | null
   cache_write_1h_price?: number | null
   cache_read_price: number | null
-  max_reasoning_effort_multiplier?: number | null
+  reasoning_effort_multipliers?: Record<string, number> | null
   image_input_price: number | null
   image_output_price: number | null
   per_request_price: number | null
@@ -85,6 +85,38 @@ export async function getAvailable(options?: { signal?: AbortSignal }): Promise<
   return data
 }
 
-export const userChannelsAPI = { getAvailable }
+export type CatalogBillingUnit = 'token' | 'image' | 'request' | 'video' | 'second' | 'unknown'
+
+export interface CatalogOffer extends PlazaModel {
+  platform: GroupPlatform
+  offer_key: string
+  billing_mode: BillingMode | null
+  billing_unit: CatalogBillingUnit
+  price_status: 'resolved' | 'unknown'
+  price_reason?: 'pricing_unavailable' | 'request_dependent' | 'unsupported_unit'
+  source: { name: string; description: string }
+  media_tiers?: { label: string; unit: CatalogBillingUnit; price: number | null }[]
+  service_tier_pricing?: { name: string; pricing: UserSupportedModelPricing }[]
+}
+
+export interface CatalogGroup extends Omit<ModelPlazaGroup, 'models'> {
+  peak_timezone: string
+  models: CatalogOffer[]
+}
+
+export interface ChannelCatalog {
+  groups: CatalogGroup[]
+  user_rate_status: 'loaded' | 'unavailable' | 'not_requested'
+}
+
+export async function getCatalog(options?: { signal?: AbortSignal }): Promise<ChannelCatalog> {
+  const { data } = await apiClient.get<ChannelCatalog>('/channels/available', {
+    params: { view: 'catalog' },
+    signal: options?.signal
+  })
+  return data
+}
+
+export const userChannelsAPI = { getAvailable, getCatalog }
 
 export default userChannelsAPI

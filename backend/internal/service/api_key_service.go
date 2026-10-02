@@ -30,6 +30,8 @@ var (
 	ErrAPIKeyTooShort       = infraerrors.BadRequest("API_KEY_TOO_SHORT", "api key must be at least 16 characters")
 	ErrAPIKeyInvalidChars   = infraerrors.BadRequest("API_KEY_INVALID_CHARS", "api key can only contain letters, numbers, underscores, and hyphens")
 	ErrAPIKeyRateLimited    = infraerrors.TooManyRequests("API_KEY_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrAPIKeyCreateLimited  = infraerrors.TooManyRequests("API_KEY_CREATE_RATE_LIMITED", "too many api keys created recently, please try again later")
+	ErrAPIKeyCountExceeded  = infraerrors.Forbidden("API_KEY_COUNT_EXCEEDED", "api key count limit reached, please delete unused keys first")
 	ErrAPIKeyAuthOverloaded = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
 	ErrInvalidIPPattern     = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
@@ -50,6 +52,7 @@ const (
 	defaultAuthLookupConcurrency = 64
 	defaultNegativeAuthCacheSize = 16384
 	apiKeyMaxErrorsPerHour       = 20
+	apiKeyCreateCountWindow      = time.Hour
 	apiKeyLastUsedMinTouch       = 30 * time.Second
 	apiKeySortCurrentConcurrency = "current_concurrency"
 	// DB 写失败后的短退避，避免请求路径持续同步重试造成写风暴与高延迟。
@@ -175,7 +178,7 @@ type APIKeyQuotaUsageState struct {
 type APIKeyCache interface {
 	GetCreateAttemptCount(ctx context.Context, userID int64) (int, error)
 	IncrementCreateAttemptCount(ctx context.Context, userID int64) error
-	DeleteCreateAttemptCount(ctx context.Context, userID int64) error
+	IncrementCreateCount(ctx context.Context, userID int64, window time.Duration) (int64, error)
 
 	IncrementDailyUsage(ctx context.Context, apiKey string) error
 	SetDailyUsageExpiry(ctx context.Context, apiKey string, ttl time.Duration) error
@@ -387,10 +390,6 @@ func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencySer
 	s.concurrencyService = concurrencyService
 }
 
-func (s *APIKeyService) SetTeamRepository(repo TeamRepository) {
-	s.teamRepo = repo
-}
-
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {
 	if apiKey == nil {
 		return
@@ -454,6 +453,34 @@ func (s *APIKeyService) checkAPIKeyRateLimit(ctx context.Context, userID int64) 
 		return ErrAPIKeyRateLimited
 	}
 
+	return nil
+}
+
+// checkAPIKeyCreateLimits 校验创建 API Key 的防滥用限制（对自定义与自动生成的 Key 一视同仁）。
+// 数量上限按未删除的 Key 计；创建次数按固定窗口累计，删除 Key 不返还次数，
+// 以阻断"删除后反复新建"的循环。Redis 出错时与自定义 Key 限流一致，不阻止用户操作。
+func (s *APIKeyService) checkAPIKeyCreateLimits(ctx context.Context, userID int64) error {
+	if s.cfg == nil {
+		return nil
+	}
+	if maxActive := s.cfg.APIKeyCreate.MaxActivePerUser; maxActive > 0 {
+		count, err := s.apiKeyRepo.CountByUserID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("count api keys: %w", err)
+		}
+		if count >= int64(maxActive) {
+			return ErrAPIKeyCountExceeded
+		}
+	}
+	if maxPerHour := s.cfg.APIKeyCreate.MaxPerUserPerHour; maxPerHour > 0 && s.cache != nil {
+		count, err := s.cache.IncrementCreateCount(ctx, userID, apiKeyCreateCountWindow)
+		if err != nil {
+			return nil
+		}
+		if count > int64(maxPerHour) {
+			return ErrAPIKeyCreateLimited
+		}
+	}
 	return nil
 }
 
@@ -585,6 +612,10 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		if err != nil {
 			return nil, fmt.Errorf("generate key: %w", err)
 		}
+	}
+
+	if err := s.checkAPIKeyCreateLimits(ctx, userID); err != nil {
+		return nil, err
 	}
 
 	// 创建API Key记录
@@ -915,10 +946,6 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	if req.Status != nil {
 		apiKey.Status = *req.Status
 		fields.Status = true
-		// 如果状态改变，清除Redis缓存
-		if s.cache != nil {
-			_ = s.cache.DeleteCreateAttemptCount(ctx, apiKey.UserID)
-		}
 	}
 
 	// Update quota fields
@@ -1026,9 +1053,7 @@ func (s *APIKeyService) Delete(ctx context.Context, id int64, userID int64) erro
 	}
 
 	// 删除成功后再清理缓存,避免"缓存已清但删除失败"的竞态。
-	if s.cache != nil {
-		_ = s.cache.DeleteCreateAttemptCount(ctx, userID)
-	}
+	// 注意:不清零创建相关计数,否则"删除后反复新建"即可绕过创建限流。
 	s.InvalidateAuthCacheByKey(ctx, key)
 	s.lastUsedTouchL1.Delete(id)
 
@@ -1070,38 +1095,6 @@ func (s *APIKeyService) ValidateKey(ctx context.Context, key string) (*APIKey, *
 	}
 
 	return apiKey, user, nil
-}
-
-func (s *APIKeyService) ValidateTeamKeyLifecycle(apiKey *APIKey) error {
-	if apiKey == nil || apiKey.TeamID == nil {
-		return nil
-	}
-	if s != nil && s.cfg != nil && !s.cfg.Team.Enabled {
-		return ErrTeamFeatureDisabled
-	}
-	if apiKey.Team == nil || apiKey.TeamMembership == nil || apiKey.Team.ID != *apiKey.TeamID || apiKey.TeamMembership.TeamID != *apiKey.TeamID {
-		return ErrTeamMembershipRequired
-	}
-	if apiKey.TeamMembership.UserID != apiKey.UserID || apiKey.TeamMembership.JoinedAt.After(apiKey.CreatedAt) {
-		return ErrTeamMembershipRequired
-	}
-	if apiKey.Team.Status != TeamStatusActive {
-		return ErrTeamSuspended
-	}
-	if apiKey.ActorUser == nil || !apiKey.ActorUser.IsActive() {
-		return ErrTeamActorInactive
-	}
-	if apiKey.User == nil || !apiKey.User.IsActive() {
-		return ErrTeamBillingOwnerInactive
-	}
-	return nil
-}
-
-func (s *APIKeyService) CheckTeamMemberLimits(apiKey *APIKey) error {
-	if err := s.ValidateTeamKeyLifecycle(apiKey); err != nil {
-		return err
-	}
-	return checkTeamMemberLimitSnapshot(apiKey.TeamMembership)
 }
 
 // TouchLastUsed 通过防抖更新 api_keys.last_used_at，减少高频写放大。
@@ -1183,28 +1176,12 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 	availableGroups := make([]Group, 0)
 	for _, group := range allGroups {
 		if s.canUserBindGroupInternal(user, &group, subscribedGroupIDs) {
+			ApplyResellerGroupPricing(ctx, userID, &group)
 			availableGroups = append(availableGroups, group)
 		}
 	}
 
 	return availableGroups, nil
-}
-
-func (s *APIKeyService) GetAvailableGroupsForScope(ctx context.Context, userID int64, scope string) ([]Group, error) {
-	if strings.EqualFold(strings.TrimSpace(scope), "team") {
-		if s.cfg != nil && !s.cfg.Team.Enabled {
-			return nil, ErrTeamFeatureDisabled
-		}
-		if s.teamRepo == nil {
-			return nil, ErrTeamFeatureDisabled
-		}
-		teamCtx, err := s.teamRepo.GetContextByUserID(ctx, userID)
-		if err != nil || teamCtx == nil || teamCtx.Owner == nil {
-			return nil, ErrTeamMembershipRequired
-		}
-		return s.GetAvailableGroups(ctx, teamCtx.Owner.UserID)
-	}
-	return s.GetAvailableGroups(ctx, userID)
 }
 
 // canUserBindGroupInternal 内部方法，检查用户是否可以绑定分组（使用预加载的订阅数据）
@@ -1260,23 +1237,6 @@ func (s *APIKeyService) GetUserGroupRates(ctx context.Context, userID int64) (ma
 		return nil, fmt.Errorf("get user group rates: %w", err)
 	}
 	return rates, nil
-}
-
-func (s *APIKeyService) GetUserGroupRatesForScope(ctx context.Context, userID int64, scope string) (map[int64]float64, error) {
-	if !strings.EqualFold(strings.TrimSpace(scope), "team") {
-		return s.GetUserGroupRates(ctx, userID)
-	}
-	if s.cfg != nil && !s.cfg.Team.Enabled {
-		return nil, ErrTeamFeatureDisabled
-	}
-	if s.teamRepo == nil {
-		return nil, ErrTeamFeatureDisabled
-	}
-	teamCtx, err := s.teamRepo.GetContextByUserID(ctx, userID)
-	if err != nil || teamCtx == nil || teamCtx.Owner == nil {
-		return nil, ErrTeamMembershipRequired
-	}
-	return s.GetUserGroupRates(ctx, teamCtx.Owner.UserID)
 }
 
 // CheckAPIKeyQuotaAndExpiry checks if the API key is valid for use (not expired, quota not exhausted)

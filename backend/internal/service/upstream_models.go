@@ -626,7 +626,7 @@ func upstreamModelRegistryBaseURL(account *Account) string {
 		return ""
 	}
 	switch {
-	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo():
+	case account.IsOpenAI() || account.Platform == PlatformVideo || account.IsCNProvider() || account.IsOpenCodeGo():
 		return account.GetOpenAIFormatBaseURL()
 	case account.IsGrok():
 		return account.GetGrokBaseURL()
@@ -799,7 +799,7 @@ func (s *AccountTestService) buildUpstreamModelsRequest(ctx context.Context, acc
 		return s.buildAntigravityAPIKeyModelsRequest(ctx, account)
 	case account.IsGrok():
 		return s.buildGrokUpstreamModelsRequest(ctx, account)
-	case account.IsOpenAI() || account.IsCNProvider() || account.IsOpenCodeGo():
+	case account.IsOpenAI() || account.Platform == PlatformVideo || account.IsCNProvider() || account.IsOpenCodeGo():
 		// 国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）与 OpenCode Go
 		// 复用 OpenAI /v1/models 探测。
 		return s.buildOpenAIUpstreamModelsRequest(ctx, account)
@@ -949,7 +949,7 @@ func (s *AccountTestService) buildAnthropicUpstreamModelsRequest(ctx context.Con
 	if err != nil {
 		return nil, newUpstreamModelSyncConfigError("Invalid Anthropic model list URL", err)
 	}
-	for key, value := range claude.DefaultHeaders {
+	for key, value := range claude.DefaultHeaders() {
 		req.Header.Set(key, value)
 	}
 	req.Header.Set("Accept", "application/json")
@@ -997,7 +997,7 @@ func (s *AccountTestService) buildAntigravityAPIKeyModelsRequest(ctx context.Con
 	if err != nil {
 		return nil, newUpstreamModelSyncConfigError("Invalid Antigravity model list URL", err)
 	}
-	for key, value := range claude.DefaultHeaders {
+	for key, value := range claude.DefaultHeaders() {
 		req.Header.Set(key, value)
 	}
 	req.Header.Set("Accept", "application/json")

@@ -264,12 +264,12 @@ func (_q *OpenAIVideoTaskQuery) Clone() *OpenAIVideoTaskQuery {
 // Example:
 //
 //	var v []struct {
-//		ProviderConfig *videoprotocol.Config `json:"provider_config,omitempty"`
+//		ResellerSnapshot *reseller.Snapshot `json:"reseller_snapshot,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.OpenAIVideoTask.Query().
-//		GroupBy(openaivideotask.FieldProviderConfig).
+//		GroupBy(openaivideotask.FieldResellerSnapshot).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *OpenAIVideoTaskQuery) GroupBy(field string, fields ...string) *OpenAIVideoTaskGroupBy {
@@ -287,11 +287,11 @@ func (_q *OpenAIVideoTaskQuery) GroupBy(field string, fields ...string) *OpenAIV
 // Example:
 //
 //	var v []struct {
-//		ProviderConfig *videoprotocol.Config `json:"provider_config,omitempty"`
+//		ResellerSnapshot *reseller.Snapshot `json:"reseller_snapshot,omitempty"`
 //	}
 //
 //	client.OpenAIVideoTask.Query().
-//		Select(openaivideotask.FieldProviderConfig).
+//		Select(openaivideotask.FieldResellerSnapshot).
 //		Scan(ctx, &v)
 func (_q *OpenAIVideoTaskQuery) Select(fields ...string) *OpenAIVideoTaskSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

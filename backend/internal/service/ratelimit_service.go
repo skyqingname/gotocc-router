@@ -992,6 +992,14 @@ func (s *RateLimitService) handle403(ctx context.Context, account *Account, upst
 		s.handleCNProviderConcurrencyLimit403(ctx, account)
 		return true
 	}
+	// Kimi 等 CN 供应商把 Coding Plan 配额窗口耗尽打成 403
+	// （error.type=access_terminated_error），这是窗口到期后自动恢复的限流
+	// 信号而非封禁：按 429 口径冷却到真实窗口重置点，避免落入下方通用 403
+	// 升级计数后被永久 SetError。
+	if isCNProviderQuotaExhausted403(account, responseBody, upstreamMsg) {
+		s.handleCNProviderQuotaExhausted403(ctx, account, upstreamMsg)
+		return true
+	}
 	// 国产供应商与 openai 同口径:HTML 403(CDN/代理拦截页)不构成账号失效证据,
 	// 且 403 在 failover 状态集里会被逐账号重放——直接 SetError 会让一个坏请求/
 	// 一层坏代理连环永久禁用整组账号。走 HTML 豁免 + N 次累计 + 临时冷却。
@@ -1027,6 +1035,15 @@ func (s *RateLimitService) handleOpenAI403(ctx context.Context, account *Account
 		slog.Warn(
 			"openai_403_html_body_skips_account_penalty",
 			"account_id", account.ID,
+			"upstream_message", upstreamMsg,
+		)
+		return false
+	}
+	if isCloudflareBotBlockResponse(responseBody) {
+		slog.Warn(
+			"openai_403_cloudflare_bot_block_skips_account_penalty",
+			"account_id", account.ID,
+			"platform", account.Platform,
 			"upstream_message", upstreamMsg,
 		)
 		return false
@@ -1074,6 +1091,14 @@ func (s *RateLimitService) handleOpenAI403(ctx context.Context, account *Account
 		"threshold", openAI403DisableThreshold,
 	)
 	return true
+}
+
+// isCloudflareBotBlockResponse reports Cloudflare's WAF bot-signature response
+// (error code 1010). The upstream never reached the account API, so this is a
+// request/edge-level failure and must not consume the account 403 strike budget.
+func isCloudflareBotBlockResponse(body []byte) bool {
+	normalized := strings.ToLower(strings.TrimSpace(string(body)))
+	return strings.Contains(normalized, "error code: 1010")
 }
 
 // handleAntigravity403 处理 Antigravity 平台的 403 错误
@@ -1753,6 +1778,55 @@ func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, accou
 //	    "resets_in_seconds": 133107
 //	  }
 //	}
+//
+// openAITerminalQuotaErrorTypes 是官方终态配额/额度错误类（api_bridge.rs 的
+// QuotaExceeded / UsageNotIncluded）：账号预算或额度已经用尽，同账号重试与窗口内
+// 换号都只是放大无收益请求，官方客户端同样视为终态。
+var openAITerminalQuotaErrorTypes = map[string]struct{}{
+	"insufficient_quota":       {},
+	"credit_balance_exhausted": {},
+	"usage_not_included":       {},
+	"spend_limit_exceeded":     {},
+}
+
+// isOpenAITerminalQuotaErrorType 识别终态配额错误类；接受 `*_spend_limit_exceeded`
+// 变体（例如 daily_spend_limit_exceeded），type 与 code 两种字段位置都覆盖。
+func isOpenAITerminalQuotaErrorType(errType string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(errType))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	if normalized == "" {
+		return false
+	}
+	if _, ok := openAITerminalQuotaErrorTypes[normalized]; ok {
+		return true
+	}
+	return strings.HasSuffix(normalized, "_spend_limit_exceeded")
+}
+
+// isOpenAITerminalQuotaErrorBody  reports whether an upstream 429 body declares a
+// terminal account-quota or credit condition rather than a rate window.
+func isOpenAITerminalQuotaErrorBody(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return false
+	}
+	errObj, ok := parsed["error"].(map[string]any)
+	if !ok {
+		return false
+	}
+	if errType, _ := errObj["type"].(string); isOpenAITerminalQuotaErrorType(errType) {
+		return true
+	}
+	// 部分上游把错误类放在 code 而不是 type。
+	if code, _ := errObj["code"].(string); isOpenAITerminalQuotaErrorType(code) {
+		return true
+	}
+	return false
+}
+
 func parseOpenAIRateLimitResetTime(body []byte) *int64 {
 	var parsed map[string]any
 	if err := json.Unmarshal(body, &parsed); err != nil {
@@ -2448,6 +2522,7 @@ func parseOpenAIImageTryAgainCooldown(body []byte) time.Duration {
 
 const upstreamModelNotFoundCooldown = 30 * time.Minute
 const upstreamModelNotFoundReason = "upstream_404_model_not_found"
+const upstreamModelNotFound401Reason = "upstream_401_model_not_found"
 const upstreamCodexPlanGatedModelCooldown = 30 * time.Minute
 const upstreamCodexPlanGatedModelReason = "upstream_400_codex_plan_gated_model"
 const tempUnschedBodyMaxBytes = 64 << 10
@@ -2473,6 +2548,8 @@ func (s *RateLimitService) HandleUpstreamModelNotFound(ctx context.Context, acco
 	switch {
 	case isUpstreamModelNotFoundError(statusCode, responseBody):
 		cooldown, reason = upstreamModelNotFoundCooldown, upstreamModelNotFoundReason
+	case statusCode == http.StatusUnauthorized && account.Type == AccountTypeAPIKey && account.IsOpenAICompatible() && isOpenAICompatibleModelNotFoundBody(responseBody):
+		cooldown, reason = upstreamModelNotFoundCooldown, upstreamModelNotFound401Reason
 	case isOpenAIOAuthAccount(account) && isOpenAICodexPlanGatedModelError(statusCode, responseBody):
 		cooldown, reason = upstreamCodexPlanGatedModelCooldown, upstreamCodexPlanGatedModelReason
 	default:

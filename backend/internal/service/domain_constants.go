@@ -228,9 +228,9 @@ const (
 	// 默认 false：非白名单域名直接拒绝（白名单严格模式）。
 	SettingKeyRegistrationEmailDomainQuotaEnabled      = "registration_email_domain_quota_enabled"
 	SettingKeyPromoCodeEnabled                         = "promo_code_enabled"      // 是否启用优惠码功能
-	SettingKeyPasswordResetEnabled                     = "password_reset_enabled"  // 是否启用忘记密码功能（需要先开启邮件验证）
+	SettingKeyPasswordResetEnabled                     = "password_reset_enabled"  // 是否开启忘记密码功能（需要先开启邮件验证）
 	SettingKeyFrontendURL                              = "frontend_url"            // 前端基础URL，用于生成邮件中的重置密码链接
-	SettingKeyInvitationCodeEnabled                    = "invitation_code_enabled" // 是否启用邀请码注册
+	SettingKeyInvitationCodeEnabled                    = "invitation_code_enabled" // 是否开启邀请码注册
 	SettingKeyAffiliateEnabled                         = "affiliate_enabled"       // 邀请返利功能总开关
 	SettingKeyAffiliateRebateRateL2                    = "affiliate_rebate_rate_l2"
 	SettingKeyAffiliateRebateRateL3                    = "affiliate_rebate_rate_l3"
@@ -247,13 +247,16 @@ const (
 	// 且即使 IP 页 enforcement_enabled 已开也不拦截。勿与 SettingKeyIPAccessControlEnabled
 	// （即 enforcement_enabled 的存盘名）混淆。
 	SettingKeyGlobalIPAccessControlEnabled = "global_ip_access_control_enabled"
-	SettingKeyContentModerationConfig      = "content_moderation_config"       // 内容审计配置（JSON）
-	SettingKeyCyberSessionBlockEnabled     = "cyber_session_block_enabled"     // cyber 命中后会话级自动屏蔽总开关(默认关)
-	SettingKeyCyberSessionBlockTTLSeconds  = "cyber_session_block_ttl_seconds" // 会话屏蔽 TTL 秒数(默认 3600)
-	SettingKeyLoginAgreementEnabled        = "login_agreement_enabled"         // 登录前是否要求同意条款
-	SettingKeyLoginAgreementMode           = "login_agreement_mode"            // 条款确认展示模式：modal / checkbox
-	SettingKeyLoginAgreementUpdatedAt      = "login_agreement_updated_at"      // 条款更新日期（展示用）
-	SettingKeyLoginAgreementDocuments      = "login_agreement_documents"       // 条款文档列表（JSON，Markdown 内容）
+	SettingKeyContentModerationConfig      = "content_moderation_config"   // 内容审计配置（JSON）
+	SettingKeyCyberSessionBlockEnabled     = "cyber_session_block_enabled" // cyber 命中后会话级自动屏蔽总开关(默认关)
+	// SettingKeyCyberPolicyUserAllowlist 为 Platform user ID 列表；命中的用户按 log-only
+	// 处理 cyber 命中，不进入硬阻断链路。Plus 侧仍保留 session_block/shadow 动作语义。
+	SettingKeyCyberPolicyUserAllowlist    = "cyber_policy_user_allowlist"     // Platform user IDs with log-only cyber handling
+	SettingKeyCyberSessionBlockTTLSeconds = "cyber_session_block_ttl_seconds" // 会话屏蔽 TTL 秒数(默认 3600)
+	SettingKeyLoginAgreementEnabled       = "login_agreement_enabled"         // 登录前是否要求同意条款
+	SettingKeyLoginAgreementMode          = "login_agreement_mode"            // 条款确认展示模式：modal / checkbox
+	SettingKeyLoginAgreementUpdatedAt     = "login_agreement_updated_at"      // 条款更新日期（展示用）
+	SettingKeyLoginAgreementDocuments     = "login_agreement_documents"       // 条款文档列表（JSON，Markdown 内容）
 
 	// 邮件服务设置
 	SettingKeySMTPHost     = "smtp_host"      // SMTP服务器地址
@@ -506,6 +509,7 @@ const (
 	// ChannelMonitorModeV1/V2 are the only accepted mode values.
 	ChannelMonitorModeV1 = "v1"
 	ChannelMonitorModeV2 = "v2"
+	ChannelMonitorModeV3 = "v3"
 
 	// SettingKeyChannelMonitorDefaultIntervalSeconds controls the default interval (seconds)
 	// pre-filled when creating a new channel monitor from the admin UI. Range: [15, 3600].
@@ -575,6 +579,9 @@ const (
 
 	// SettingKeyOllamaCloudUsageSettings stores the opt-in global runner switch and interval.
 	SettingKeyOllamaCloudUsageSettings = "ollama_cloud_usage_settings"
+
+	// SettingKeyOpenCodeGoUsageSettings stores the opt-in global runner switch and interval.
+	SettingKeyOpenCodeGoUsageSettings = "opencode_go_usage_settings"
 
 	// =========================
 	// Overload Cooldown (529)
@@ -698,6 +705,12 @@ const (
 	// SettingKeyOpenAICodexEnvironmentTimezone 模型可见 environment_context 的
 	// 目标 IANA 时区（全局默认；账号级 extra 优先）。空值 = 功能关闭，不改写。
 	SettingKeyOpenAICodexEnvironmentTimezone = "openai_codex_environment_timezone"
+	// SettingKeyOpenAICodexEgressCountry 出口国家代码（ISO 3166-1 alpha-2，
+	// 全局默认；账号级 extra 优先）。空值 = 不声明。
+	SettingKeyOpenAICodexEgressCountry = "openai_codex_egress_country"
+	// SettingKeyOpenAICodexResidency 全局 Codex residency（off / us）。
+	// 仅 us 时出站附加 x-openai-internal-codex-residency。无账号级覆盖。
+	SettingKeyOpenAICodexResidency = "codex_residency"
 	// SettingKeyCodexLegacyClientProfileCompatibilityEnabled temporarily allows
 	// only the reviewed historical Codex wire identities. It is disabled by
 	// default and never changes their status to an official profile.
@@ -721,6 +734,15 @@ const (
 	SettingKeyOpenAICodexClientVersionSyncError = "openai_codex_client_version_sync_error"
 	// SettingKeyOpenAICodexVersionAutoSyncEnabled 是否启用 Codex 客户端版本号自动同步（默认 true）。
 	SettingKeyOpenAICodexVersionAutoSyncEnabled = "openai_codex_version_auto_sync_enabled"
+	// SettingKeyClaudeCodeClientVersion 网关对 Anthropic 上游声明的 Claude Code CLI 客户端版本号（管理员覆写）。
+	// 空值表示跟随自动同步值；自动同步也没有结果时回退到 claude.CLIVersion()（环境变量覆盖 + 内置基线）。
+	// 版本太旧会被 Anthropic 拒绝（claude_code_version_too_old），故该值需保持跟随官方发布。
+	SettingKeyClaudeCodeClientVersion = "claude_code_client_version"
+	// SettingKeyClaudeCodeClientVersionSynced 自动同步任务写入的官方 Claude Code CLI 最新版本号。
+	// 由同步任务独占写入，面板只读展示；管理员覆写请用 SettingKeyClaudeCodeClientVersion。
+	SettingKeyClaudeCodeClientVersionSynced = "claude_code_client_version_synced"
+	// SettingKeyClaudeCodeVersionAutoSyncEnabled 是否启用 Claude Code 客户端版本号自动同步（默认 true）。
+	SettingKeyClaudeCodeVersionAutoSyncEnabled = "claude_code_version_auto_sync_enabled"
 	// SettingKeyOpenAIAllowClaudeCodeCodexPlugin 已废弃：历史全局开关只作为升级迁移输入读取。
 	// 迁移后等价规则写入 SettingKeyCodexCLIOnlyWhitelist，不再参与运行时判定。
 	SettingKeyOpenAIAllowClaudeCodeCodexPlugin = "openai_allow_claude_code_codex_plugin"

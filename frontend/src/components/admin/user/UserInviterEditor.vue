@@ -3,9 +3,7 @@
     <div class="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-dark-600 dark:bg-dark-800">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ t('admin.users.inviter.title') }}</h3>
-        <span v-if="state?.code_type" class="rounded-md px-2 py-0.5 text-xs font-medium" :class="badgeClass(state.code_type)">
-          {{ typeLabel(state.code_type) }}
-        </span>
+
       </div>
       <p v-if="loading" class="mt-2 text-sm text-gray-500">{{ t('admin.users.inviter.loading') }}</p>
       <div v-else-if="loadError" class="mt-2 flex items-center justify-between gap-3 text-sm text-red-600 dark:text-red-400">
@@ -24,24 +22,16 @@
     </div>
 
     <div v-if="state && !loading" class="space-y-3 p-4">
-      <div class="grid grid-cols-2 gap-2" role="group" :aria-label="t('admin.users.inviter.codeType')">
-        <button v-for="type in codeTypes" :key="type" type="button" :aria-pressed="codeType === type" :disabled="disabled"
-          class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-60"
-          :class="codeType === type ? selectedClass(type) : 'border-gray-200 text-gray-500 hover:bg-gray-50 dark:border-dark-600 dark:hover:bg-dark-700'"
-          @click="codeType = type">
-          {{ typeLabel(type) }}
-        </button>
-      </div>
       <div>
-        <label for="user-inviter-code" class="input-label">{{ typeLabel(codeType) }}</label>
+        <label for="user-inviter-code" class="input-label">{{ t('admin.users.inviter.codeLabel') }}</label>
         <div class="flex gap-2">
           <input id="user-inviter-code" v-model="code" class="input min-w-0 flex-1 font-mono" type="text" autocomplete="off"
-            :disabled="disabled" :placeholder="t(`admin.users.inviter.${codeType}Placeholder`)" @keydown.enter.prevent="resolve" />
+            :disabled="disabled" :placeholder="t('admin.users.inviter.codePlaceholder')" @keydown.enter.prevent="resolve" />
           <button type="button" class="btn btn-secondary shrink-0" :disabled="disabled || resolving || !code.trim()" @click="resolve">
             {{ resolving ? t('admin.users.inviter.resolving') : t('admin.users.inviter.resolve') }}
           </button>
         </div>
-        <p class="input-hint">{{ t(`admin.users.inviter.${codeType}Hint`) }}</p>
+        <p class="input-hint">{{ t('admin.users.inviter.codeHint') }}</p>
       </div>
       <p v-if="resolveError" role="alert" class="text-sm text-red-600 dark:text-red-400">{{ resolveError }}</p>
       <div v-if="resolved" class="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2.5 dark:border-primary-800 dark:bg-primary-950/30" aria-live="polite">
@@ -62,14 +52,12 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
-import type { AffiliateInviterChange, AffiliateInviterCodeType, AffiliateInviterState, AffiliateInviterUser } from '@/api/admin/affiliates'
+import type { AffiliateInviterChange, AffiliateInviterState, AffiliateInviterUser } from '@/api/admin/affiliates'
 
 const props = defineProps<{ userId: number, active: boolean, disabled: boolean }>()
 const emit = defineEmits<{ 'update:change': [value: AffiliateInviterChange | null], validity: [valid: boolean] }>()
 const { t } = useI18n()
-const codeTypes: AffiliateInviterCodeType[] = ['permanent', 'aff']
 const state = ref<AffiliateInviterState | null>(null)
-const codeType = ref<AffiliateInviterCodeType>('aff')
 const code = ref('')
 const loading = ref(false)
 const resolving = ref(false)
@@ -81,17 +69,9 @@ let resolveSequence = 0
 
 const normalizedCode = computed(() => code.value.trim().toUpperCase())
 const dirty = computed(() => state.value !== null && (
-  normalizedCode.value !== state.value.code.toUpperCase() || codeType.value !== (state.value.code_type || 'aff')
+  normalizedCode.value !== state.value.code.toUpperCase()
 ))
 const hasChange = computed(() => dirty.value || (resolved.value !== null && resolved.value.id !== state.value?.inviter?.id))
-const typeLabel = (type: AffiliateInviterCodeType) => t(`admin.users.inviter.${type}`)
-const badgeClass = (type: AffiliateInviterCodeType) => type === 'permanent'
-  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
-  : 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-200'
-const selectedClass = (type: AffiliateInviterCodeType) => type === 'permanent'
-  ? 'border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-200'
-  : 'border-teal-400 bg-teal-50 text-teal-900 dark:border-teal-600 dark:bg-teal-900/20 dark:text-teal-200'
-
 const load = async () => {
   const sequence = ++loadSequence
   ++resolveSequence
@@ -108,7 +88,6 @@ const load = async () => {
     const result = await adminAPI.affiliates.getInviter(props.userId)
     if (sequence !== loadSequence) return
     state.value = result
-    codeType.value = result.code_type || 'aff'
     code.value = result.code
   } catch (error: any) {
     if (sequence === loadSequence) loadError.value = error.message
@@ -117,7 +96,7 @@ const load = async () => {
   }
 }
 
-watch([codeType, code], () => {
+watch(code, () => {
   ++resolveSequence
   resolved.value = null
   resolveError.value = ''
@@ -130,7 +109,6 @@ const resolve = async () => {
   if (!state.value || !normalizedCode.value || props.disabled || resolving.value) return
   const sequence = ++resolveSequence
   const ownerVersion = state.value.version
-  const type = codeType.value
   const value = normalizedCode.value
   resolving.value = true
   resolveError.value = ''
@@ -138,7 +116,7 @@ const resolve = async () => {
   emit('update:change', null)
   emit('validity', !dirty.value)
   try {
-    const result = await adminAPI.affiliates.resolveInviterCode(type, value)
+    const result = await adminAPI.affiliates.resolveInviterCode(value)
     if (sequence !== resolveSequence) return
     if (result.id === props.userId) {
       resolveError.value = t('admin.users.inviter.self')
@@ -146,7 +124,7 @@ const resolve = async () => {
       return
     }
     resolved.value = result
-    emit('update:change', hasChange.value ? { code_type: type, code: value, resolved_user_id: result.id, expected_version: ownerVersion } : null)
+    emit('update:change', hasChange.value ? { code: value, resolved_user_id: result.id, expected_version: ownerVersion } : null)
     emit('validity', true)
   } catch (error: any) {
     if (sequence !== resolveSequence) return

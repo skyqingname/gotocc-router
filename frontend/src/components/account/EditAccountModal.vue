@@ -36,7 +36,9 @@
             type="text"
             class="input"
             :placeholder="
-              account.platform === 'openai'
+              account.platform === 'video'
+                ? t('admin.accounts.videoBaseUrlPlaceholder')
+                : account.platform === 'openai'
                 ? 'https://api.openai.com'
                 : account.platform === 'gemini'
                   ? 'https://generativelanguage.googleapis.com'
@@ -229,6 +231,7 @@
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
         </div>
+        <div v-if="account.platform === 'video'"><label class="input-label">Secret Key（签名协议）</label><input v-model="editVideoSecretKey" type="password" autocomplete="new-password" class="input font-mono" :placeholder="account?.credentials_status?.has_secret_key ? '已配置；留空保持不变' : '签名协议所需的 Secret Key'" /></div>
 
         <!-- Model Restriction Section (不适用于 Antigravity) -->
         <div v-if="account.platform !== 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
@@ -300,7 +303,7 @@
 
             <!-- Whitelist Mode -->
             <div v-if="modelRestrictionMode === 'whitelist'">
-              <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+              <ModelWhitelistSelector v-model="allowedModels" :model-mappings="modelMappings" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
               <p class="text-xs text-gray-500 dark:text-gray-400">
                 {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
                 <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -732,7 +735,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+            <ModelWhitelistSelector v-model="allowedModels" :model-mappings="modelMappings" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -944,7 +947,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
+            <ModelWhitelistSelector v-model="allowedModels" :model-mappings="modelMappings" :platform="account?.platform || 'anthropic'" :account-id="account?.id" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{
@@ -1166,7 +1169,7 @@
 
           <!-- Whitelist Mode -->
           <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" platform="anthropic" />
+            <ModelWhitelistSelector v-model="allowedModels" :model-mappings="modelMappings" platform="anthropic" />
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
               <span v-if="allowedModels.length === 0 && modelMappings.length === 0">{{ t('admin.accounts.supportsAllModels') }}</span>
@@ -2082,12 +2085,23 @@
               {{ t('admin.accounts.openai.codexEnvironmentTimezoneDesc') }}
             </p>
           </div>
-          <input
+          <Select
             v-model="codexEnvironmentTimezone"
             data-testid="edit-codex-environment-timezone-input"
-            type="text"
-            :placeholder="t('admin.accounts.openai.codexEnvironmentTimezonePlaceholder')"
-            class="input w-full"
+            :options="codexTimezoneOptions"
+            searchable
+          />
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.openai.codexEgressCountry') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.codexEgressCountryDesc') }}
+            </p>
+          </div>
+          <Select
+            v-model="codexEgressCountry"
+            data-testid="edit-codex-egress-country-input"
+            :options="codexEgressCountryOptions"
+            searchable
           />
         </div>
       </div>
@@ -2734,6 +2748,8 @@ import type {
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
+import { getTimezoneOptions } from '@/utils/timezones'
+import { getCountryOptions } from '@/utils/countries'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import UpstreamRequestIdHeaderField from '@/components/account/UpstreamRequestIdHeaderField.vue'
 import Toggle from '@/components/common/Toggle.vue'
@@ -2818,7 +2834,7 @@ const emit = defineEmits<{
   updated: [account: Account]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const browserTimeZone = getBrowserTimeZone()
 
@@ -2848,6 +2864,7 @@ const handleOllamaCloudUsageUpdated = (state: OllamaCloudUsageState) => {
 // Platform-specific hint for Base URL
 const baseUrlHint = computed(() => {
   if (!props.account) return t('admin.accounts.baseUrlHint')
+  if (props.account.platform === 'video') return t('admin.accounts.videoBaseUrlHint')
   if (props.account.platform === 'openai') return t('admin.accounts.openai.baseUrlHint')
   if (props.account.platform === 'gemini') return t('admin.accounts.gemini.baseUrlHint')
   if (props.account.platform === 'grok') return ''
@@ -2873,6 +2890,7 @@ interface TempUnschedRuleForm {
 // State
 const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
+const editVideoSecretKey = ref('')
 const editApiKey = ref('')
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）account_mode / api_protocol 编辑 ──
@@ -3216,6 +3234,15 @@ const codexCLIOnlyEnabled = ref(false)
 type CodexFingerprintMode = 'off' | 'device' | 'session' | 'full'
 const codexFingerprintMode = ref<CodexFingerprintMode>('device')
 const codexEnvironmentTimezone = ref('')
+const codexEgressCountry = ref('')
+const codexTimezoneOptions = computed(() => [
+  { label: t('admin.accounts.openai.codexEnvironmentTimezoneNone'), value: '' },
+  ...getTimezoneOptions(),
+])
+const codexEgressCountryOptions = computed(() => [
+  { label: t('admin.accounts.openai.codexEgressCountryNone'), value: '' },
+  ...getCountryOptions(locale?.value || 'en'),
+])
 type CodexImageToolMode = 'inherit' | 'enabled' | 'disabled' | 'block'
 const codexImageToolMode = ref<CodexImageToolMode>('inherit')
 type AnthropicAPIKeyAuthScheme = 'x_api_key' | 'authorization_bearer'
@@ -3370,16 +3397,17 @@ const openAITextEndpointCapabilityLabel = computed(() => {
 })
 const openAIEndpointCapabilityOptions = computed<{ value: OpenAIEndpointCapability; label: string }[]>(() => [
   { value: 'chat_completions', label: openAITextEndpointCapabilityLabel.value },
-  { value: 'embeddings', label: t('admin.accounts.openai.capabilityEmbeddings') }
+  { value: 'embeddings', label: t('admin.accounts.openai.capabilityEmbeddings') },
+  { value: 'seedance', label: 'Seedance (Ark)' }
 ])
 const openAITextGenerationCapabilityEnabled = computed(() =>
   openAIEndpointCapabilities.value.includes('chat_completions')
 )
 
 const normalizeOpenAIEndpointCapabilities = (values: OpenAIEndpointCapability[]) => {
-  const allowed: OpenAIEndpointCapability[] = ['chat_completions', 'embeddings']
+  const allowed: OpenAIEndpointCapability[] = ['chat_completions', 'embeddings', 'seedance']
   const selected = allowed.filter((value) => values.includes(value))
-  return selected.length > 0 ? selected : allowed
+  return selected.length > 0 ? selected : ['chat_completions', 'embeddings'] as OpenAIEndpointCapability[]
 }
 
 const readOpenAIEndpointCapabilities = (credentials?: Record<string, unknown>): OpenAIEndpointCapability[] => {
@@ -3387,7 +3415,7 @@ const readOpenAIEndpointCapabilities = (credentials?: Record<string, unknown>): 
   if (Array.isArray(raw)) {
     return normalizeOpenAIEndpointCapabilities(
       raw.filter((value): value is OpenAIEndpointCapability =>
-        value === 'chat_completions' || value === 'embeddings'
+        value === 'chat_completions' || value === 'embeddings' || value === 'seedance'
       )
     )
   }
@@ -3425,7 +3453,7 @@ const toggleOpenAIEndpointCapability = (capability: OpenAIEndpointCapability, ev
 
 const applyOpenAIEndpointCapabilities = (credentials: Record<string, unknown>) => {
   const capabilities = normalizeOpenAIEndpointCapabilities(openAIEndpointCapabilities.value)
-  if (capabilities.length === 2) {
+  if (capabilities.length === 2 && !capabilities.includes('seedance')) {
     delete credentials.openai_capabilities
     return
   }
@@ -3504,6 +3532,7 @@ const tempUnschedPresets = computed(() => [
 
 // Computed: default base URL based on platform
 const defaultBaseUrl = computed(() => {
+  if (props.account?.platform === 'video') return ''
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
@@ -3756,6 +3785,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         : 'device')
       const envTz = extra?.codex_environment_timezone as string | undefined
       codexEnvironmentTimezone.value = typeof envTz === 'string' ? envTz.trim() : ''
+      const egressCountry = extra?.egress_country as string | undefined
+      codexEgressCountry.value = typeof egressCountry === 'string' ? egressCountry.trim() : ''
     }
     const credentials = newAccount.credentials as Record<string, unknown> | undefined
 		openaiAccountUserAgent.value = !isSparkShadow.value && typeof credentials?.user_agent === 'string'
@@ -4056,6 +4087,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     customErrorCodesEnabled.value = false
     selectedErrorCodes.value = []
   }
+  editVideoSecretKey.value = ''
   editApiKey.value = ''
 }
 
@@ -4655,6 +4687,10 @@ const handleSubmit = async () => {
 		}
 	}
 
+  if (props.account?.platform === 'video' && !editBaseUrl.value.trim()) {
+    appStore.showError(t('admin.accounts.videoBaseUrlRequired'))
+    return
+  }
   const updatePayload: Record<string, unknown> = { ...form }
   try {
     // 后端期望 proxy_id: 0 表示清除代理，而不是 null
@@ -4722,6 +4758,7 @@ const handleSubmit = async () => {
       // 两者都无才报错。
       const hasExistingApiKey =
         props.account.credentials_status?.has_api_key ?? Boolean(currentCredentials.api_key)
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       } else if (!hasExistingApiKey) {
@@ -4801,6 +4838,7 @@ const handleSubmit = async () => {
 
       newCredentials.base_url = editBaseUrl.value.trim()
 
+      if (props.account.platform === 'video' && editVideoSecretKey.value.trim()) newCredentials.secret_key = editVideoSecretKey.value.trim()
       if (editApiKey.value.trim()) {
         newCredentials.api_key = editApiKey.value.trim()
       }
@@ -5296,9 +5334,17 @@ const handleSubmit = async () => {
           // Empty means "follow the global default"; drop the stale key.
           delete newExtra.codex_environment_timezone
         }
+        const egressCountry = codexEgressCountry.value.trim().toUpperCase()
+        if (egressCountry) {
+          newExtra.egress_country = egressCountry
+        } else {
+          // Empty means "follow the global default"; drop the stale key.
+          delete newExtra.egress_country
+        }
       } else {
         delete newExtra.codex_fingerprint_mode
         delete newExtra.codex_environment_timezone
+        delete newExtra.egress_country
       }
 
       updatePayload.extra = newExtra

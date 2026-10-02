@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -687,7 +688,28 @@ func validatePricingEntries(pricing []ChannelModelPricing) error {
 	if err := validatePricingBillingMode(pricing); err != nil {
 		return err
 	}
+	if err := validateReasoningEffortMultipliers(pricing); err != nil {
+		return err
+	}
 	return validatePricingTimePricing(pricing)
+}
+
+func validateReasoningEffortMultipliers(pricing []ChannelModelPricing) error {
+	for _, p := range pricing {
+		for effort, multiplier := range p.ReasoningEffortMultipliers {
+			switch effort {
+			case "none", "minimal", "low", "medium", "high", "xhigh", "max":
+			default:
+				return infraerrors.BadRequest("INVALID_REASONING_EFFORT_MULTIPLIER",
+					fmt.Sprintf("unsupported reasoning effort %q for models %v", effort, p.Models))
+			}
+			if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) || multiplier <= 0 {
+				return infraerrors.BadRequest("INVALID_REASONING_EFFORT_MULTIPLIER",
+					fmt.Sprintf("reasoning_effort_multipliers.%s must be a finite number > 0", effort))
+			}
+		}
+	}
+	return nil
 }
 
 func validatePricingTimePricing(pricing []ChannelModelPricing) error {
@@ -816,9 +838,6 @@ func formatMaxTokens(max *int) string {
 
 // Create 创建渠道
 func (s *ChannelService) Create(ctx context.Context, input *CreateChannelInput) (*Channel, error) {
-	if _, err := channelVideoModels(input.FeaturesConfig); err != nil {
-		return nil, err
-	}
 	exists, err := s.repo.ExistsByName(ctx, input.Name)
 	if err != nil {
 		return nil, fmt.Errorf("check channel exists: %w", err)
@@ -953,9 +972,6 @@ func (s *ChannelService) applyUpdateInput(ctx context.Context, channel *Channel,
 		channel.BillingModelSource = input.BillingModelSource
 	}
 	if input.FeaturesConfig != nil {
-		if _, err := channelVideoModels(input.FeaturesConfig); err != nil {
-			return err
-		}
 		channel.FeaturesConfig = input.FeaturesConfig
 	}
 	if input.ApplyPricingToAccountStats != nil {

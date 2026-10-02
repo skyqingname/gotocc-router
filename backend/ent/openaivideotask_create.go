@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/LuckyKuang/sub2api-plus/ent/openaivideotask"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -21,6 +22,12 @@ type OpenAIVideoTaskCreate struct {
 	mutation *OpenAIVideoTaskMutation
 	hooks    []Hook
 	conflict []sql.ConflictOption
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (_c *OpenAIVideoTaskCreate) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskCreate {
+	_c.mutation.SetResellerSnapshot(v)
+	return _c
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -798,6 +805,10 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 		_spec = sqlgraph.NewCreateSpec(openaivideotask.Table, sqlgraph.NewFieldSpec(openaivideotask.FieldID, field.TypeInt64))
 	)
 	_spec.OnConflict = _c.conflict
+	if value, ok := _c.mutation.ResellerSnapshot(); ok {
+		_spec.SetField(openaivideotask.FieldResellerSnapshot, field.TypeJSON, value)
+		_node.ResellerSnapshot = value
+	}
 	if value, ok := _c.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)
 		_node.ProviderConfig = value
@@ -985,7 +996,7 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 // of the `INSERT` statement. For example:
 //
 //	client.OpenAIVideoTask.Create().
-//		SetProviderConfig(v).
+//		SetResellerSnapshot(v).
 //		OnConflict(
 //			// Update the row with the new values
 //			// the was proposed for insertion.
@@ -994,7 +1005,7 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.OpenAIVideoTaskUpsert) {
-//			SetProviderConfig(v+v).
+//			SetResellerSnapshot(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *OpenAIVideoTaskCreate) OnConflict(opts ...sql.ConflictOption) *OpenAIVideoTaskUpsertOne {
@@ -1029,6 +1040,24 @@ type (
 		*sql.UpdateSet
 	}
 )
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsert) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskUpsert {
+	u.Set(openaivideotask.FieldResellerSnapshot, v)
+	return u
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsert) UpdateResellerSnapshot() *OpenAIVideoTaskUpsert {
+	u.SetExcluded(openaivideotask.FieldResellerSnapshot)
+	return u
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsert) ClearResellerSnapshot() *OpenAIVideoTaskUpsert {
+	u.SetNull(openaivideotask.FieldResellerSnapshot)
+	return u
+}
 
 // SetProviderConfig sets the "provider_config" field.
 func (u *OpenAIVideoTaskUpsert) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskUpsert {
@@ -1802,6 +1831,27 @@ func (u *OpenAIVideoTaskUpsertOne) Update(set func(*OpenAIVideoTaskUpsert)) *Ope
 		set(&OpenAIVideoTaskUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsertOne) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetResellerSnapshot(v)
+	})
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertOne) UpdateResellerSnapshot() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateResellerSnapshot()
+	})
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsertOne) ClearResellerSnapshot() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.ClearResellerSnapshot()
+	})
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -2786,7 +2836,7 @@ func (_c *OpenAIVideoTaskCreateBulk) ExecX(ctx context.Context) {
 //		// Override some of the fields with custom
 //		// update values.
 //		Update(func(u *ent.OpenAIVideoTaskUpsert) {
-//			SetProviderConfig(v+v).
+//			SetResellerSnapshot(v+v).
 //		}).
 //		Exec(ctx)
 func (_c *OpenAIVideoTaskCreateBulk) OnConflict(opts ...sql.ConflictOption) *OpenAIVideoTaskUpsertBulk {
@@ -2863,6 +2913,27 @@ func (u *OpenAIVideoTaskUpsertBulk) Update(set func(*OpenAIVideoTaskUpsert)) *Op
 		set(&OpenAIVideoTaskUpsert{UpdateSet: update})
 	}))
 	return u
+}
+
+// SetResellerSnapshot sets the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsertBulk) SetResellerSnapshot(v *reseller.Snapshot) *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetResellerSnapshot(v)
+	})
+}
+
+// UpdateResellerSnapshot sets the "reseller_snapshot" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertBulk) UpdateResellerSnapshot() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateResellerSnapshot()
+	})
+}
+
+// ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
+func (u *OpenAIVideoTaskUpsertBulk) ClearResellerSnapshot() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.ClearResellerSnapshot()
+	})
 }
 
 // SetProviderConfig sets the "provider_config" field.

@@ -179,6 +179,13 @@ func (s *AccountTestService) resolveOpenAIOutboundIdentity(ctx context.Context, 
 
 func (s *AccountTestService) applyOpenAIOutboundIdentity(ctx context.Context, account *Account, headers http.Header, useCodexIdentity bool) {
 	applyResolvedOpenAIOutboundIdentity(headers, s.resolveOpenAIOutboundIdentity(ctx, account), useCodexIdentity)
+	var settings *SettingService
+	if s != nil && s.openAIIdentityResolver != nil && s.openAIIdentityResolver.settingService != nil {
+		settings = s.openAIIdentityResolver.settingService
+	} else if s != nil {
+		settings = s.settingService
+	}
+	applyOpenAICodexResidencyFromSettings(ctx, settings, headers, useCodexIdentity)
 }
 
 func (s *AccountTestService) ensureOpenAIAgentIdentityTask(ctx context.Context, account *Account, expectedTaskID string) error {
@@ -307,7 +314,7 @@ func generateSessionString() (string, error) {
 	}
 	hex64 := hex.EncodeToString(b)
 	sessionUUID := uuid.New().String()
-	uaVersion := ExtractCLIVersion(claude.DefaultHeaders["User-Agent"])
+	uaVersion := ExtractCLIVersion(claude.DefaultHeaders()["User-Agent"])
 	return FormatMetadataUserID(hex64, "", sessionUUID, uaVersion), nil
 }
 
@@ -379,6 +386,10 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		s.sendEvent(c, TestEvent{Type: "content", Text: "Synthetic Anthropic OAuth account is healthy and interactive."})
 		s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
 		return nil
+	}
+
+	if account.Platform == PlatformVideo {
+		return s.sendErrorAndEnd(c, "Video generation requires the channel model protocol and parameters; use the Videos API")
 	}
 
 	// Route to platform-specific test method
@@ -561,7 +572,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	// Apply Claude Code client headers
-	for key, value := range claude.DefaultHeaders {
+	for key, value := range claude.DefaultHeaders() {
 		req.Header.Set(key, value)
 	}
 
@@ -1237,6 +1248,7 @@ func (s *AccountTestService) testGrokResponsesConnection(c *gin.Context, ctx con
 		return s.sendErrorAndEnd(c, "Failed to create Grok request")
 	}
 	s.applyGrokTestRequestHeaders(req, account, authToken, "application/json, text/event-stream")
+	applyGrokRequestMetadata(req.Header, payloadBytes, "", account.GetCredential("sub"))
 
 	resp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(req, account), s.grokTestProxyURL(account), account.ID, account.Concurrency)
 	if err != nil {
@@ -1308,6 +1320,7 @@ func (s *AccountTestService) testGrokImageGeneration(c *gin.Context, ctx context
 		return s.sendErrorAndEnd(c, "Failed to create Grok image request")
 	}
 	s.applyGrokTestRequestHeaders(req, account, authToken, "application/json")
+	applyGrokRequestMetadata(req.Header, payloadBytes, "", account.GetCredential("sub"))
 	req.ContentLength = int64(len(payloadBytes))
 	req.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(payloadBytes)), nil
@@ -1324,6 +1337,7 @@ func (s *AccountTestService) testGrokImageGeneration(c *gin.Context, ctx context
 				return s.sendErrorAndEnd(c, "Failed to create Grok image retry request")
 			}
 			s.applyGrokTestRequestHeaders(req, account, authToken, "application/json")
+			applyGrokRequestMetadata(req.Header, payloadBytes, "", account.GetCredential("sub"))
 			req.ContentLength = int64(len(payloadBytes))
 		}
 		resp, doErr = s.httpUpstream.Do(prepareAccountOutboundRequest(req, account), s.grokTestProxyURL(account), account.ID, account.Concurrency)
@@ -1416,6 +1430,7 @@ func (s *AccountTestService) testGrokVideoGeneration(c *gin.Context, ctx context
 		return s.sendErrorAndEnd(c, "Failed to create Grok video request")
 	}
 	s.applyGrokTestRequestHeaders(req, account, authToken, "application/json")
+	applyGrokRequestMetadata(req.Header, payloadBytes, "", account.GetCredential("sub"))
 
 	resp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(req, account), s.grokTestProxyURL(account), account.ID, account.Concurrency)
 	if err != nil {
@@ -1586,6 +1601,7 @@ User query:
 		return s.sendErrorAndEnd(c, "Failed to create standalone web_search probe request")
 	}
 	s.applyGrokTestRequestHeaders(req, account, authToken, "application/json")
+	applyGrokRequestMetadata(req.Header, payloadBytes, "", account.GetCredential("sub"))
 
 	resp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(req, account), s.grokTestProxyURL(account), account.ID, account.Concurrency)
 	if err != nil {
@@ -2238,9 +2254,6 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	}
 	probeSessionID := compactProbeSessionID(account.ID)
 	req.Header.Set(codexSessionIDHeader, probeSessionID)
-	if accountEmitsCodexConvergedSessionAliases(credentialAccount) {
-		req.Header.Set("session_id", probeSessionID)
-	}
 
 	if isOAuth {
 		req.Host = "chatgpt.com"
@@ -2249,7 +2262,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 		setOpenAIChatGPTAccountHeaders(req.Header, credentialAccount)
 		// Native compact probe 与真实 /responses 转发使用同一指纹策略。
 		// 指纹层先写 installation/thread carriers；下方再恢复 probe cache
-		// session 作为两种 session header alias 的最终权威。off 返回 nil。
+		// session 作为官方 session-id 头的最终权威。off 返回 nil。
 		if fpIDs := resolveCodexFingerprintIDsForPolicy(credentialAccount, req.Header, codexFingerprintPolicyNativeCompact); fpIDs != nil {
 			applyCodexFingerprintHeaders(req.Header, fpIDs)
 		}
@@ -2258,7 +2271,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	credentialAccount.applyOpenAIHeaderOverrides(req.Header)
 	// Native compact probes follow the same layered contract as live traffic:
 	// fingerprinting owns installation/thread carriers, while the probe cache
-	// identity is final for both upstream session aliases.
+	// identity is final for the official session-id header.
 	setOpenAIUpstreamSessionIdentityForAccount(req.Header, credentialAccount, probeSessionID)
 	clearOpenAICodexLegacySessionAliases(req.Header, credentialAccount)
 	s.applyOpenAIOutboundIdentity(ctx, credentialAccount, req.Header, isOAuth)

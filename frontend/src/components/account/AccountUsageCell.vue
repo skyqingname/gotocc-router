@@ -77,8 +77,19 @@
           color="amber"
         />
 
-        <!-- Passive sampling label + active query button -->
-        <div class="flex items-center gap-1.5 mt-0.5">
+      </div>
+
+      <!-- No data yet -->
+      <div v-else class="space-y-1">
+        <div class="text-xs text-gray-400">-</div>
+      </div>
+      <!--
+        One stable instance for every usage state, so a reset-credit query started
+        while usage is still loading survives the usage response. The local query
+        button shares its row once usage data exists.
+      -->
+      <ClaudeResetCreditsCell :account="account" class="mt-1" @redeemed="loadActiveUsage">
+        <template v-if="usageInfo" #pre-actions>
           <span
             v-if="usageInfo.source === 'passive'"
             class="text-[9px] text-gray-400 dark:text-gray-500 italic"
@@ -87,7 +98,7 @@
           </span>
           <button
             type="button"
-            class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+            class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             :disabled="activeQueryLoading"
             @click="loadActiveUsage"
           >
@@ -107,13 +118,8 @@
             </svg>
             {{ t('admin.accounts.usageWindow.activeQuery') }}
           </button>
-        </div>
-      </div>
-
-      <!-- No data yet -->
-      <div v-else class="space-y-1">
-        <div class="text-xs text-gray-400">-</div>
-      </div>
+        </template>
+      </ClaudeResetCreditsCell>
     </template>
 
     <!-- OpenAI OAuth accounts: single source from /usage API -->
@@ -656,6 +662,7 @@ import { enqueueUsageRequest } from '@/utils/usageLoadQueue'
 import { formatCompactNumber } from '@/utils/format'
 import UsageProgressBar from './UsageProgressBar.vue'
 import AccountQuotaInfo from './AccountQuotaInfo.vue'
+import ClaudeResetCreditsCell from './ClaudeResetCreditsCell.vue'
 import OpenAIQuotaResetCell from './OpenAIQuotaResetCell.vue'
 import GrokQuotaProbeCell from './GrokQuotaProbeCell.vue'
 import CNProviderQuotaCell from './CNProviderQuotaCell.vue'
@@ -1471,14 +1478,23 @@ const attachVisibilityObserver = () => {
   visibilityObserver.observe(rootRef.value)
 }
 
+let activeUsageRequestID = 0
+watch(() => [props.account.id, props.account.platform, props.account.type], () => {
+  activeUsageRequestID++
+  activeQueryLoading.value = false
+})
+
 const loadActiveUsage = async () => {
+  const requestID = ++activeUsageRequestID
+  const accountID = props.account.id
   activeQueryLoading.value = true
   try {
-    usageInfo.value = await adminAPI.accounts.getUsage(props.account.id, 'active', true)
+    const result = await adminAPI.accounts.getUsage(accountID, 'active', true)
+    if (!unmounted.value && requestID === activeUsageRequestID) usageInfo.value = result
   } catch (e: any) {
-    console.error('Failed to load active usage:', e)
+    if (!unmounted.value && requestID === activeUsageRequestID) console.error('Failed to load active usage:', e)
   } finally {
-    activeQueryLoading.value = false
+    if (!unmounted.value && requestID === activeUsageRequestID) activeQueryLoading.value = false
   }
 }
 

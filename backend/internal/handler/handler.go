@@ -50,6 +50,8 @@ type AdminHandlers struct {
 
 // Handlers contains all HTTP handlers
 type Handlers struct {
+	Agent            *AgentHandler
+	Reseller         *ResellerHandler
 	Auth             *AuthHandler
 	User             *UserHandler
 	APIKey           *APIKeyHandler
@@ -59,6 +61,7 @@ type Handlers struct {
 	Announcement     *AnnouncementHandler
 	ChannelMonitor   *ChannelMonitorUserHandler
 	ChannelMonitorV2 *ChannelMonitorV2Handler
+	ChannelMonitorV3 *ChannelMonitorV3Handler
 	MarketplaceStats *MarketplaceStatsHandler
 	Admin            *AdminHandlers
 	Gateway          *GatewayHandler

@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "check:i18n": "vitest run src/i18n/__tests__/localeKeyCompleteness.spec.ts",
+    "check:i18n": "vitest run src/i18n/__tests__",
     "build": "pnpm run check:i18n && vue-tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
@@ -25,7 +25,7 @@
     "@stripe/stripe-js": "^9.0.1",
     "@tanstack/vue-virtual": "^3.13.23",
     "@vueuse/core": "^10.7.0",
-    "axios": "^1.18.0",
+    "axios": "^1.20.0",
     "chart.js": "^4.4.1",
     "dompurify": "^3.4.14",
     "driver.js": "^1.4.0",
@@ -78,6 +78,12 @@
       "flatted@3.3.3": "3.4.2",
       "dompurify@<3.4.14": ">=3.4.14",
       "colord@<2.9.4": ">=2.9.4"
+    },
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2023-30533",
+        "CVE-2024-22363"
+      ]
     }
   }
 }

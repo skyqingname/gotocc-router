@@ -259,6 +259,8 @@ type UpdateSettingsRequest struct {
 	AntigravityUserAgentVersion                  *string `json:"antigravity_user_agent_version"`
 	OpenAICodexUserAgent                         *string `json:"openai_codex_user_agent"`
 	OpenAICodexEnvironmentTimezone               *string `json:"openai_codex_environment_timezone"`
+	OpenAICodexEgressCountry                     *string `json:"openai_codex_egress_country"`
+	OpenAICodexResidency                         *string `json:"codex_residency"`
 	CodexLegacyClientProfileCompatibilityEnabled *bool   `json:"codex_legacy_client_profile_compatibility_enabled"`
 	OpenAICodexLocalGroupQuotaEnabled            *bool   `json:"openai_codex_local_group_quota_enabled"`
 	OpenAICodexClientVersion                     *string `json:"openai_codex_client_version"`
@@ -373,8 +375,9 @@ type UpdateSettingsRequest struct {
 	GlobalIPAccessControlEnabled *bool `json:"global_ip_access_control_enabled"`
 
 	// cyber 会话屏蔽开关 + TTL
-	CyberSessionBlockEnabled    *bool `json:"cyber_session_block_enabled"`
-	CyberSessionBlockTTLSeconds *int  `json:"cyber_session_block_ttl_seconds"`
+	CyberSessionBlockEnabled    *bool   `json:"cyber_session_block_enabled"`
+	CyberPolicyUserAllowlist    *string `json:"cyber_policy_user_allowlist"`
+	CyberSessionBlockTTLSeconds *int    `json:"cyber_session_block_ttl_seconds"`
 
 	// OpenAI fast/flex policy (optional, only updated when provided)
 	OpenAIFastPolicySettings *dto.OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
@@ -1527,11 +1530,27 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 		req.OpenAICodexEnvironmentTimezone = &normalized
 	}
+	if req.OpenAICodexEgressCountry != nil {
+		normalized, err := service.NormalizeOpenAICodexEgressCountry(*req.OpenAICodexEgressCountry)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "openai_codex_egress_country "+err.Error())
+			return
+		}
+		req.OpenAICodexEgressCountry = &normalized
+	}
+	if req.OpenAICodexResidency != nil {
+		normalized, err := service.NormalizeOpenAICodexResidency(*req.OpenAICodexResidency)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "codex_residency "+err.Error())
+			return
+		}
+		req.OpenAICodexResidency = &normalized
+	}
 	if req.OpenAICodexClientVersion != nil {
 		// 该值会被拼进出站 User-Agent 与 version 头，必须是合法版本号；空串表示跟随自动同步。
 		normalized := strings.TrimSpace(*req.OpenAICodexClientVersion)
 		if normalized != "" && service.NormalizeCodexClientVersion(normalized) == "" {
-			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.147.0)")
+			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.158.0)")
 			return
 		}
 		if normalized != "" && service.CompareVersions(normalized, service.OpenAICodexUpstreamMinVersion) < 0 {
@@ -1587,6 +1606,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if req.CodexCLIOnlyEngineFingerprintSignals != nil {
 		if err := service.ValidateEngineFingerprintSignalsJSON(*req.CodexCLIOnlyEngineFingerprintSignals); err != nil {
 			response.Error(c, http.StatusBadRequest, "codex_cli_only_engine_fingerprint_signals "+err.Error())
+			return
+		}
+	}
+
+	// 风控用户白名单：提供时必须可解析（官方 v0.2.10 新增，Plus 侧同样先校验再落盘）。
+	if req.CyberPolicyUserAllowlist != nil {
+		if _, err := service.ParseCyberPolicyUserAllowlist(*req.CyberPolicyUserAllowlist); err != nil {
+			response.BadRequest(c, err.Error())
 			return
 		}
 	}
@@ -1860,6 +1887,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAICodexEnvironmentTimezone
 		}(),
+		OpenAICodexEgressCountry: func() string {
+			if req.OpenAICodexEgressCountry != nil {
+				return *req.OpenAICodexEgressCountry
+			}
+			return previousSettings.OpenAICodexEgressCountry
+		}(),
+		OpenAICodexResidency: func() string {
+			if req.OpenAICodexResidency != nil {
+				return *req.OpenAICodexResidency
+			}
+			return previousSettings.OpenAICodexResidency
+		}(),
 		CodexLegacyClientProfileCompatibilityEnabled: func() bool {
 			if req.CodexLegacyClientProfileCompatibilityEnabled != nil {
 				return *req.CodexLegacyClientProfileCompatibilityEnabled
@@ -2123,6 +2162,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.GlobalIPAccessControlEnabled
 			}
 			return previousSettings.GlobalIPAccessControlEnabled
+		}(),
+		CyberPolicyUserAllowlist: func() string {
+			if req.CyberPolicyUserAllowlist != nil {
+				return *req.CyberPolicyUserAllowlist
+			}
+			return previousSettings.CyberPolicyUserAllowlist
 		}(),
 		CyberSessionBlockEnabled: func() bool {
 			if req.CyberSessionBlockEnabled != nil {
@@ -2451,6 +2496,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AntigravityUserAgentVersion:                            updatedSettings.AntigravityUserAgentVersion,
 		OpenAICodexUserAgent:                                   updatedSettings.OpenAICodexUserAgent,
 		OpenAICodexEnvironmentTimezone:                         updatedSettings.OpenAICodexEnvironmentTimezone,
+		OpenAICodexEgressCountry:                               updatedSettings.OpenAICodexEgressCountry,
+		OpenAICodexResidency:                                   updatedSettings.OpenAICodexResidency,
 		CodexLegacyClientProfileCompatibilityEnabled:           updatedSettings.CodexLegacyClientProfileCompatibilityEnabled,
 		OpenAICodexLocalGroupQuotaEnabled:                      updatedSettings.OpenAICodexLocalGroupQuotaEnabled,
 		OpenAICodexClientVersion:                               updatedSettings.OpenAICodexClientVersion,
@@ -2549,6 +2596,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ClientDisconnectConsecutiveBanThreshold: updatedSettings.ClientDisconnectConsecutiveBanThreshold,
 		GlobalIPAccessControlEnabled:            updatedSettings.GlobalIPAccessControlEnabled,
 		CyberSessionBlockEnabled:                updatedSettings.CyberSessionBlockEnabled,
+		CyberPolicyUserAllowlist:                updatedSettings.CyberPolicyUserAllowlist,
 		CyberSessionBlockTTLSeconds:             updatedSettings.CyberSessionBlockTTLSeconds,
 		AccountSchedulingThresholds:             updatedSettings.AccountSchedulingThresholds,
 		AllowUserViewErrorRequests:              updatedSettings.AllowUserViewErrorRequests,

@@ -163,6 +163,7 @@ export default {
 
   // Navigation
   nav: {
+    reseller: 'Reseller Center',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
@@ -172,8 +173,9 @@ export default {
     asyncImage: 'Async Images',
     usage: 'Usage',
     redeem: 'Redeem',
-    affiliate: 'Affiliate Rebates',
-    affiliateManagement: 'Affiliate Rebates',
+    affiliate: 'Agent Center',
+    affiliateManagement: 'Agent Center',
+    agentApplications: 'Agents',
     affiliateInviteRecords: 'Invite Records',
     affiliateRebateRecords: 'Rebate Records',
     affiliateTransferRecords: 'Transfer Records',
@@ -190,7 +192,7 @@ export default {
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
     promoCodes: 'Promo Codes',
-    reusableInvitationCodes: 'Permanent Invites',
+    reusableInvitationCodes: 'Invitation Codes',
     settings: 'Settings',
     myAccount: 'My Account',
     lightMode: 'Light Mode',

@@ -71,6 +71,7 @@ func ProvideAuthService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	resellerService *ResellerService,
 ) *AuthService {
 	svc := NewAuthService(
 		entClient,
@@ -89,6 +90,7 @@ func ProvideAuthService(
 	)
 	svc.SetTencentCaptchaService(tencentCaptchaService)
 	svc.SetAliyunCaptchaService(aliyunCaptchaService)
+	svc.resellerService = resellerService
 	svc.SetReusableInvitationCodeRepository(reusableInvitationRepo)
 	return svc
 }
@@ -259,6 +261,19 @@ func ProvideAccountUsageService(
 	service.agentIdentityWS = openAIGatewayService
 	service.openAIIdentityResolver = openAIGatewayService
 	return service
+}
+
+func ProvidePluginManager(
+	repo PluginRepository,
+	encryptor SecretEncryptor,
+	cfg *config.Config,
+	hostInfo PluginHostInfo,
+	kvStore PluginKVStore,
+	openAIGatewayService *OpenAIGatewayService,
+) *PluginManager {
+	manager := NewPluginManager(repo, encryptor, cfg, hostInfo, kvStore)
+	manager.SetAccountDirectory(openAIGatewayService)
+	return manager
 }
 
 func ProvideAccountTestService(
@@ -863,6 +878,12 @@ func ProvideAPIKeyService(
 	return svc
 }
 
+func ProvideAffiliateService(repo AffiliateRepository, settings *SettingService, authCache APIKeyAuthCacheInvalidator, billingCache *BillingCacheService, agents AgentEligibility) *AffiliateService {
+	s := NewAffiliateService(repo, settings, authCache, billingCache)
+	s.agents = agents
+	return s
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -901,6 +922,8 @@ var ProviderSet = wire.NewSet(
 	ProvideOpenAIVideoTaskRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
 	NewOAuthService,
+	ProvideClaudeResetCreditService,
+	ProvideOpenCodeGoUsageService,
 	ProvideOpenAIOAuthService,
 	ProvideGrokOAuthService,
 	wire.Bind(new(GrokOAuthTokenService), new(*GrokOAuthService)),
@@ -975,7 +998,7 @@ var ProviderSet = wire.NewSet(
 	NewTotpService,
 	NewErrorPassthroughService,
 	NewTLSFingerprintProfileService,
-	NewPluginManager,
+	ProvidePluginManager,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,
 	ProvideSystemOperationLockService,
@@ -988,7 +1011,10 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewModelPlazaService,
 	ProvideContentModerationService,
-	NewAffiliateService,
+	ProvideAffiliateService,
+	NewAgentService,
+	ProvideAgentEligibility,
+	NewResellerService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -997,6 +1023,7 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorQuotaFetcher,
 	ProvideChannelMonitorV2Service,
+	ProvideChannelMonitorV3Service,
 	ProvideChannelMonitorV2Aggregator,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
@@ -1081,6 +1108,12 @@ func ProvideChannelMonitorV2Service(repo ChannelMonitorV2Repository, settingServ
 	return svc
 }
 
+func ProvideChannelMonitorV3Service(repo ChannelMonitorV3Repository, settings *SettingService) *ChannelMonitorV3Service {
+	svc := NewChannelMonitorV3Service(repo, settings)
+	svc.Start()
+	return svc
+}
+
 // ProvideChannelMonitorV2Aggregator starts the passive minute-rollup worker.
 // Aggregation only runs when channel_monitor_enabled=true and mode=v2 (and V2 config enabled).
 // Set CHANNEL_MONITOR_V2_DISABLE_AGGREGATOR=1 to skip Start (local demo with seeded facts).
@@ -1091,4 +1124,12 @@ func ProvideChannelMonitorV2Aggregator(repo ChannelMonitorV2Repository, db *sql.
 	}
 	aggregator.Start()
 	return aggregator
+}
+
+// ProvideClaudeResetCreditService wires the Claude reset query and, with the
+// idempotency store and Redis leases, manual redemption.
+func ProvideClaudeResetCreditService(accounts AccountRepository, tokens *ClaudeTokenProvider, proxies ProxyRepository, idem *IdempotencyCoordinator, locks LeaderLockCache) *ClaudeResetCreditService {
+	s := NewClaudeResetCreditService(accounts, tokens, proxies)
+	s.ConfigureRedemption(idem, locks)
+	return s
 }

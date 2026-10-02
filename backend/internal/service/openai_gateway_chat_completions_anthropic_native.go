@@ -23,6 +23,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -54,7 +55,6 @@ func (s *OpenAIGatewayService) forwardChatCompletionsViaNativeAnthropic(
 		return nil, fmt.Errorf("missing model in request")
 	}
 	clientStream := ccReq.Stream
-	includeUsage := ccReq.StreamOptions != nil && ccReq.StreamOptions.IncludeUsage
 
 	// 2. Convert CC → Responses → Anthropic (chained conversion)
 	responsesReq, err := apicompat.ChatCompletionsToResponses(&ccReq)
@@ -62,15 +62,23 @@ func (s *OpenAIGatewayService) forwardChatCompletionsViaNativeAnthropic(
 		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", "Failed to convert request")
 		return nil, fmt.Errorf("convert chat completions to responses: %w", err)
 	}
+	// 2.1 先解析映射后的上游模型，再选择 thinking/工具协议（Claude 5.5 校验与
+	// Responses → Anthropic 的协议决策都必须看到最终上游模型）。映射语义沿用 Plus
+	// 的 OpenAI 网关统一入口规则，见下方步骤 3。
+	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
+	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	if err := validateClaude55Request(body, upstreamModel); err != nil {
+		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
+	responsesReq.Model = upstreamModel
 	anthropicReq, err := apicompat.ResponsesToAnthropicRequest(responsesReq)
 	if err != nil {
 		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", "Failed to convert request")
 		return nil, fmt.Errorf("convert responses to anthropic: %w", err)
 	}
 
-	// 3. Model mapping（OpenAI 网关统一入口的映射语义）
-	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
-	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	// 3. Model mapping（OpenAI 网关统一入口的映射语义；变量已在步骤 2.1 解析）
 	anthropicReq.Model = upstreamModel
 
 	// 4. Force upstream streaming（客户端原始终决定响应格式；
@@ -112,7 +120,7 @@ func (s *OpenAIGatewayService) forwardChatCompletionsViaNativeAnthropic(
 
 	upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, reqStream)
 	defer releaseUpstreamCtx()
-	upstreamReq, _, err := s.buildNativeAnthropicUpstreamRequest(upstreamCtx, c, account, anthropicBody, apiKey, targetURL, body)
+	upstreamReq, forwardedBody, err := s.buildNativeAnthropicUpstreamRequest(upstreamCtx, c, account, anthropicBody, apiKey, targetURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("build upstream request: %w", err)
 	}
@@ -132,11 +140,13 @@ func (s *OpenAIGatewayService) forwardChatCompletionsViaNativeAnthropic(
 		return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
 	}
 
-	reasoningEffort := extractCCReasoningEffortFromBody(body, upstreamModel, billingModel, originalModel)
-	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, billingModel)
+	// 按最终转发到上游的 effort 计费（如 OpenAI xhigh 会以 output_config.effort=max
+	// 转发给 Anthropic）；国产 passback-required 模型在缺失 effort 时按 thinking 补默认值。
+	reasoningEffort := NormalizeClaudeOutputEffort(gjson.GetBytes(forwardedBody, "output_config.effort").String())
+	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, forwardedBody, billingModel)
 
 	if clientStream {
-		return s.handleCCStreamingFromNativeAnthropic(resp, c, originalModel, billingModel, upstreamModel, reasoningEffort, startTime, includeUsage)
+		return s.handleCCStreamingFromNativeAnthropic(resp, c, originalModel, billingModel, upstreamModel, reasoningEffort, startTime)
 	}
 	return s.handleCCBufferedFromNativeAnthropic(resp, c, originalModel, billingModel, upstreamModel, reasoningEffort, startTime)
 }
@@ -303,7 +313,6 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 	upstreamModel string,
 	reasoningEffort *string,
 	startTime time.Time,
-	includeUsage bool,
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
@@ -320,7 +329,6 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 	anthState.Model = originalModel
 	ccState := apicompat.NewResponsesEventToChatState()
 	ccState.Model = originalModel
-	ccState.IncludeUsage = includeUsage
 
 	var usage ClaudeUsage
 	var timing streamOutputTiming
@@ -412,6 +420,11 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 			mergeAnthropicUsage(&usage, event.Message.Usage)
 		}
 
+		// Keep the outward Responses/Chat usage on the same normalized buckets used
+		// for billing, including converter handlers that consume event usage.
+		syncAnthropicResponsesUsage(anthState, usage)
+		normalizeAnthropicEventUsageForResponses(event, usage)
+
 		// 客户端已断开：跳过转换与写出，继续读上游直到流结束（usage 完整、
 		// 连接及时归还），不再提前 return。
 		if clientDisconnected {
@@ -462,6 +475,10 @@ func (s *OpenAIGatewayService) handleCCStreamingFromNativeAnthropic(
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
 			continue
 		}
+
+		// Forward received usage regardless of the client stream_options.
+		// The intermediate Responses converter synthesizes usage even when absent.
+		ccState.IncludeUsage = ccState.IncludeUsage || anthropicChatStreamHasUsage(&event, payload)
 
 		if processAnthropicEvent(&event) {
 			return resultWithUsage(), nil

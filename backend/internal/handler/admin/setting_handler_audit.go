@@ -485,6 +485,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAICodexEnvironmentTimezone != after.OpenAICodexEnvironmentTimezone {
 		changed = append(changed, "openai_codex_environment_timezone")
 	}
+	if before.OpenAICodexEgressCountry != after.OpenAICodexEgressCountry {
+		changed = append(changed, "openai_codex_egress_country")
+	}
+	if before.OpenAICodexResidency != after.OpenAICodexResidency {
+		changed = append(changed, "codex_residency")
+	}
 	if before.CodexLegacyClientProfileCompatibilityEnabled != after.CodexLegacyClientProfileCompatibilityEnabled {
 		changed = append(changed, "codex_legacy_client_profile_compatibility_enabled")
 	}
@@ -496,6 +502,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.OpenAICodexVersionAutoSyncEnabled != after.OpenAICodexVersionAutoSyncEnabled {
 		changed = append(changed, "openai_codex_version_auto_sync_enabled")
+	}
+	if before.ClaudeCodeClientVersion != after.ClaudeCodeClientVersion {
+		changed = append(changed, "claude_code_client_version")
+	}
+	if before.ClaudeCodeVersionAutoSyncEnabled != after.ClaudeCodeVersionAutoSyncEnabled {
+		changed = append(changed, "claude_code_version_auto_sync_enabled")
 	}
 	if before.PaymentVisibleMethodAlipaySource != after.PaymentVisibleMethodAlipaySource {
 		changed = append(changed, "payment_visible_method_alipay_source")
@@ -611,6 +623,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.GlobalIPAccessControlEnabled != after.GlobalIPAccessControlEnabled {
 		changed = append(changed, "global_ip_access_control_enabled")
+	}
+	if before.CyberPolicyUserAllowlist != after.CyberPolicyUserAllowlist {
+		changed = append(changed, "cyber_policy_user_allowlist")
 	}
 	if before.CyberSessionBlockEnabled != after.CyberSessionBlockEnabled {
 		changed = append(changed, "cyber_session_block_enabled")

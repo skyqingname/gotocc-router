@@ -531,6 +531,7 @@ var (
 	// BatchImageJobsColumns holds the columns for the "batch_image_jobs" table.
 	BatchImageJobsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "reseller_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "batch_id", Type: field.TypeString, Size: 64},
 		{Name: "user_id", Type: field.TypeInt64},
 		{Name: "billing_user_id", Type: field.TypeInt64, Nullable: true},
@@ -585,37 +586,37 @@ var (
 			{
 				Name:    "batchimagejob_batch_id",
 				Unique:  true,
-				Columns: []*schema.Column{BatchImageJobsColumns[1]},
+				Columns: []*schema.Column{BatchImageJobsColumns[2]},
 			},
 			{
 				Name:    "batchimagejob_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[2], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[3], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_billing_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[3], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[4], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_team_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[4], BatchImageJobsColumns[39]},
+				Columns: []*schema.Column{BatchImageJobsColumns[5], BatchImageJobsColumns[40]},
 			},
 			{
 				Name:    "batchimagejob_status",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[11]},
+				Columns: []*schema.Column{BatchImageJobsColumns[12]},
 			},
 			{
 				Name:    "batchimagejob_provider_status",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[8], BatchImageJobsColumns[11]},
+				Columns: []*schema.Column{BatchImageJobsColumns[9], BatchImageJobsColumns[12]},
 			},
 			{
 				Name:    "batchimagejob_idempotency_key",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[27]},
+				Columns: []*schema.Column{BatchImageJobsColumns[28]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "idempotency_key IS NOT NULL AND idempotency_key <> ''",
 				},
@@ -623,7 +624,7 @@ var (
 			{
 				Name:    "batchimagejob_manifest_hash",
 				Unique:  true,
-				Columns: []*schema.Column{BatchImageJobsColumns[29]},
+				Columns: []*schema.Column{BatchImageJobsColumns[30]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "manifest_hash IS NOT NULL AND manifest_hash <> ''",
 				},
@@ -631,17 +632,17 @@ var (
 			{
 				Name:    "batchimagejob_output_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[32]},
+				Columns: []*schema.Column{BatchImageJobsColumns[33]},
 			},
 			{
 				Name:    "batchimagejob_downloaded_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[35]},
+				Columns: []*schema.Column{BatchImageJobsColumns[36]},
 			},
 			{
 				Name:    "batchimagejob_user_deleted_at",
 				Unique:  false,
-				Columns: []*schema.Column{BatchImageJobsColumns[36]},
+				Columns: []*schema.Column{BatchImageJobsColumns[37]},
 			},
 		},
 	}
@@ -941,7 +942,6 @@ var (
 		{Name: "peak_start", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_end", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "peak_rate_multiplier", Type: field.TypeFloat64, Default: 1, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
-		{Name: "rate_schedule", Type: field.TypeJSON, Nullable: true},
 		{Name: "is_exclusive", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "duplicate_operation_id", Type: field.TypeString, Nullable: true, Size: 64},
@@ -971,6 +971,7 @@ var (
 		{Name: "video_price_480p", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "video_price_720p", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "video_price_1080p", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
+		{Name: "video_models", Type: field.TypeJSON},
 		{Name: "video_model_prices", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "web_search_price_per_call", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "search_price_per_1k", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
@@ -1014,22 +1015,22 @@ var (
 			{
 				Name:    "group_status",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[13]},
+				Columns: []*schema.Column{GroupsColumns[12]},
 			},
 			{
 				Name:    "group_platform",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[15]},
+				Columns: []*schema.Column{GroupsColumns[14]},
 			},
 			{
 				Name:    "group_subscription_type",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[16]},
+				Columns: []*schema.Column{GroupsColumns[15]},
 			},
 			{
 				Name:    "group_is_exclusive",
 				Unique:  false,
-				Columns: []*schema.Column{GroupsColumns[12]},
+				Columns: []*schema.Column{GroupsColumns[11]},
 			},
 			{
 				Name:    "group_deleted_at",
@@ -1044,7 +1045,7 @@ var (
 			{
 				Name:    "idx_groups_duplicate_operation_id_active",
 				Unique:  true,
-				Columns: []*schema.Column{GroupsColumns[14]},
+				Columns: []*schema.Column{GroupsColumns[13]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "duplicate_operation_id IS NOT NULL AND deleted_at IS NULL",
 				},
@@ -1170,6 +1171,7 @@ var (
 	// OpenaiVideoTasksColumns holds the columns for the "openai_video_tasks" table.
 	OpenaiVideoTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "reseller_snapshot", Type: field.TypeJSON, Nullable: true},
 		{Name: "provider_config", Type: field.TypeJSON, Nullable: true},
 		{Name: "local_request_id", Type: field.TypeString, Size: 128},
 		{Name: "task_id", Type: field.TypeString, Nullable: true, Size: 255},
@@ -1225,12 +1227,12 @@ var (
 			{
 				Name:    "openaivideotask_local_request_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[2]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[3]},
 			},
 			{
 				Name:    "openaivideotask_task_id",
 				Unique:  true,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[3]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[4]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "task_id IS NOT NULL",
 				},
@@ -1238,12 +1240,12 @@ var (
 			{
 				Name:    "openaivideotask_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[7], OpenaiVideoTasksColumns[40]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[8], OpenaiVideoTasksColumns[41]},
 			},
 			{
 				Name:    "openaivideotask_billing_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{OpenaiVideoTasksColumns[20], OpenaiVideoTasksColumns[41]},
+				Columns: []*schema.Column{OpenaiVideoTasksColumns[21], OpenaiVideoTasksColumns[42]},
 			},
 		},
 	}
@@ -2055,6 +2057,7 @@ var (
 		{Name: "cache_creation_5m_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_1h_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "audio_output_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "codex_rollout_budget_units", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "input_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "output_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "cache_creation_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
@@ -2103,37 +2106,37 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[52]},
+				Columns:    []*schema.Column{UsageLogsColumns[53]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[53]},
+				Columns:    []*schema.Column{UsageLogsColumns[54]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[54]},
+				Columns:    []*schema.Column{UsageLogsColumns[55]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_teams_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[55]},
+				Columns:    []*schema.Column{UsageLogsColumns[56]},
 				RefColumns: []*schema.Column{TeamsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[56]},
+				Columns:    []*schema.Column{UsageLogsColumns[57]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[57]},
+				Columns:    []*schema.Column{UsageLogsColumns[58]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2142,7 +2145,7 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[56]},
+				Columns: []*schema.Column{UsageLogsColumns[57]},
 			},
 			{
 				Name:    "usagelog_billing_user_id",
@@ -2152,32 +2155,32 @@ var (
 			{
 				Name:    "usagelog_team_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[55]},
+				Columns: []*schema.Column{UsageLogsColumns[56]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[52]},
+				Columns: []*schema.Column{UsageLogsColumns[53]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[53]},
+				Columns: []*schema.Column{UsageLogsColumns[54]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[54]},
+				Columns: []*schema.Column{UsageLogsColumns[55]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[57]},
+				Columns: []*schema.Column{UsageLogsColumns[58]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[51]},
+				Columns: []*schema.Column{UsageLogsColumns[52]},
 			},
 			{
 				Name:    "usagelog_model",
@@ -2197,17 +2200,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[56], UsageLogsColumns[51]},
+				Columns: []*schema.Column{UsageLogsColumns[57], UsageLogsColumns[52]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[52], UsageLogsColumns[51]},
+				Columns: []*schema.Column{UsageLogsColumns[53], UsageLogsColumns[52]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[54], UsageLogsColumns[51]},
+				Columns: []*schema.Column{UsageLogsColumns[55], UsageLogsColumns[52]},
 			},
 		},
 	}

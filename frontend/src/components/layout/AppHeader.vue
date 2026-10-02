@@ -38,11 +38,13 @@
           <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
         </a>
 
-        <!-- Model Plaza Entry -->
+        <!-- Model Plaza Entry (icon only below sm) -->
         <router-link
           v-if="user && modelPlazaEnabled"
           :to="{ path: '/model-plaza', query: { embedded: '1' } }"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white sm:flex"
+          :title="t('nav.modelPlaza')"
+          :aria-label="t('nav.modelPlaza')"
+          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
         >
           <Icon name="grid" size="sm" />
           <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
@@ -164,7 +166,7 @@
                 </router-link>
 
                 <a
-                  v-if="authStore.isAdmin"
+                  v-if="view.isAdmin"
                   href="https://github.com/skyqingname/gotocc-router"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -250,6 +252,8 @@
 </template>
 
 <script setup lang="ts">
+import { adminSupportContext } from '@/utils/adminSupportContext'
+import { useUserView } from '@/composables/useUserView'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -272,7 +276,8 @@ const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 const onboardingStore = useOnboardingStore()
 
-const user = computed(() => authStore.user)
+const view = useUserView()
+const user = computed(() => view.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
@@ -289,7 +294,7 @@ const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHe
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
-  return !authStore.isSimpleMode && user.value?.role === 'admin'
+  return !authStore.isSimpleMode && !adminSupportContext.value && user.value?.role === 'admin'
 })
 
 const userInitials = computed(() => {
@@ -321,7 +326,7 @@ const routeMetaKeys = computed(() => resolveRouteMetaKeys(route, {
 
 const pageTitle = computed(() => {
   // For custom pages, use the menu item's label instead of generic "自定义页面"
-  if (route.name === 'CustomPage') {
+  if (route.name === 'CustomPage' || route.meta.adminSupportResource === 'custom') {
     const id = route.params.id as string
     const publicItems = appStore.cachedPublicSettings?.custom_menu_items ?? []
     const menuItem = publicItems.find((item) => item.id === id)

@@ -108,9 +108,9 @@ func (h *GatewayHandler) UserRoutingCapabilities(c *gin.Context) {
 }
 
 // UserRoutingPriorities is a read-only settings preview, including before a key
-// exists. Only the authenticated user's personal/team candidates are returned.
+// exists. Only the read subject's personal/team candidates are returned.
 func (h *GatewayHandler) UserRoutingPriorities(c *gin.Context) {
-	subject, authenticated := middleware.GetAuthSubjectFromContext(c)
+	subject, authenticated := middleware.GetReadSubjectFromContext(c)
 	if !authenticated {
 		response.Unauthorized(c, "User not authenticated")
 		return
@@ -133,7 +133,7 @@ func (h *GatewayHandler) AdminRoutingCapabilities(c *gin.Context) {
 }
 
 func (h *GatewayHandler) routingCapabilities(c *gin.Context, admin bool) {
-	subject, authenticated := middleware.GetAuthSubjectFromContext(c)
+	subject, authenticated := middleware.GetReadSubjectFromContext(c)
 	if !admin && !authenticated {
 		response.Unauthorized(c, "User not authenticated")
 		return

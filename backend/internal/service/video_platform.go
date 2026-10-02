@@ -20,41 +20,29 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func channelVideoModels(features map[string]any) (map[string]videoprotocol.Config, error) {
-	models := map[string]videoprotocol.Config{}
-	raw, exists := features["video_models"]
-	if !exists {
-		return models, nil
+func validateGroupVideoModels(platform string, models videoprotocol.Models) error {
+	if len(models) > 0 && platform != PlatformVideo {
+		return infraerrors.BadRequest("INVALID_VIDEO_PLATFORM", "视频协议只能配置在 Video 分组")
 	}
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(data, &models); err != nil {
-		return nil, infraerrors.BadRequest("INVALID_VIDEO_MODELS", "视频模型配置格式错误")
-	}
-	for model, config := range models {
-		if strings.TrimSpace(model) == "" {
-			return nil, infraerrors.BadRequest("INVALID_VIDEO_MODEL", "视频模型名称不能为空")
+	for name, config := range models {
+		if strings.TrimSpace(name) == "" {
+			return infraerrors.BadRequest("INVALID_VIDEO_MODEL", "模型名不能为空")
 		}
 		if err := config.Validate(); err != nil {
-			return nil, infraerrors.BadRequest("INVALID_VIDEO_MODEL", model+": "+err.Error())
+			return infraerrors.BadRequest("INVALID_VIDEO_MODEL", name+": "+err.Error())
 		}
 	}
-	return models, nil
+	return nil
 }
 
 func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]string, error) {
 	ids := []string{}
-	channel, err := s.channelService.GetChannelForGroup(ctx, groupID)
-	if err != nil || channel == nil {
-		return ids, err
-	}
-	models, err := channelVideoModels(channel.FeaturesConfig)
+	group, err := s.groupRepo.GetByID(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
-	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, groupID, PlatformOpenAI)
+	models := group.VideoModels
+	accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, groupID, []string{PlatformVideo, PlatformOpenAI})
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +52,7 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 		}
 		for i := range accounts {
 			account := &accounts[i]
-			if account.IsOpenAIApiKey() && account.IsSchedulableForModelWithContext(ctx, config.UpstreamModel) && gatewayAccountSupportsModel(ctx, account, config.UpstreamModel) {
+			if account.IsVideoAPIKey() && account.IsSchedulableForModelWithContext(ctx, config.UpstreamModel) && gatewayAccountSupportsModel(ctx, account, config.UpstreamModel) {
 				ids = append(ids, model)
 				break
 			}
@@ -74,7 +62,15 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 	return ids, nil
 }
 
-func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *int64, sessionHash, model string) (*AccountSelectionResult, error) {
+func (s *OpenAIGatewayService) listVideoAccounts(ctx context.Context, groupID *int64) ([]Account, error) {
+	platforms := []string{PlatformVideo, PlatformOpenAI}
+	if groupID == nil {
+		return s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, platforms)
+	}
+	return s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, platforms)
+}
+
+func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *int64, sessionHash, model, platform string) (*AccountSelectionResult, error) {
 	var accounts []Account
 	var err error
 	if groupID == nil {
@@ -87,11 +83,11 @@ func (s *OpenAIGatewayService) SelectVideoAccount(ctx context.Context, groupID *
 	}
 	excluded := make(map[int64]struct{})
 	for i := range accounts {
-		if !accounts[i].IsOpenAIApiKey() {
+		if !accounts[i].IsVideoAPIKey() {
 			excluded[accounts[i].ID] = struct{}{}
 		}
 	}
-	selected, _, err := s.SelectAccountWithScheduler(ctx, groupID, "", sessionHash, model, excluded, OpenAIUpstreamTransportHTTPSSE, false)
+	selected, _, err := s.SelectAccountWithSchedulerForCapability(ctx, groupID, "", sessionHash, model, excluded, OpenAIUpstreamTransportHTTPSSE, "", false, false, false, platform)
 	return selected, err
 }
 
@@ -102,20 +98,12 @@ func (s *OpenAIGatewayService) ResolveVideoModel(ctx context.Context, key *APIKe
 	if !s.OpenAIVideoTaskLifecycleEnabled() {
 		return nil, fmt.Errorf("Video platform requires the video task worker")
 	}
-	channel, err := s.channelService.GetChannelForGroup(ctx, key.Group.ID)
-	if err != nil {
-		return nil, err
-	}
-	if channel == nil {
-		return nil, fmt.Errorf("Video group must be assigned to an active channel")
-	}
-	models, err := channelVideoModels(channel.FeaturesConfig)
-	if err != nil {
-		return nil, err
-	}
-	config, exists := models[model]
+	config, exists := key.Group.VideoModels[model]
 	if !exists || !config.Enabled {
-		return nil, fmt.Errorf("video model %s is not configured or enabled in this channel", model)
+		return nil, fmt.Errorf("video model %s is not configured or enabled in this group", model)
+	}
+	if err := config.FreezeCatalog(); err != nil {
+		return nil, err
 	}
 	return &config, nil
 }
@@ -124,6 +112,12 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 	parameters, err := OpenAIVideoRequestParameters(body, contentType)
 	if err != nil {
 		return nil, "", err
+	}
+	if config.Protocol == "yingce" {
+		parameters, err = normalizeYingceVideoParameters(parameters)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
@@ -161,6 +155,12 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 	if err != nil {
 		return nil, "", err
 	}
+	if config.Protocol == "yingce" {
+		if err := prepareYingceGeneration(config, prepared, body, contentType); err != nil {
+			return nil, "", err
+		}
+		return prepared, "application/json", nil
+	}
 	if mediaType == "application/json" {
 		return prepared, contentType, nil
 	}
@@ -190,7 +190,7 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 		part.Close()
 	}
 	for field := range config.Defaults {
-		if present[field] {
+		if present[field] || !gjson.GetBytes(prepared, field).Exists() {
 			continue
 		}
 		if err := writer.WriteField(field, gjson.GetBytes(prepared, field).String()); err != nil {
@@ -274,4 +274,9 @@ func (s *OpenAIGatewayService) videoProviderResultURL(ctx context.Context, accou
 	// Result URLs may belong to provider storage; account credentials stay on
 	// the API origin and are never attached to the storage request.
 	return s.validateUpstreamBaseURL(target)
+}
+
+// Only the local ID is exposed for declarative providers whose task names may contain paths.
+func SetVideoPublicTaskID(body []byte, id string) ([]byte, error) {
+	return sjson.SetBytes(body, "id", id)
 }

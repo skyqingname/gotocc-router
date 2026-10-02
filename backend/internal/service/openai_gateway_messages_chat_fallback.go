@@ -11,9 +11,9 @@ import (
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/apicompat"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/openai"
 	"github.com/LuckyKuang/sub2api-plus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
-	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 )
 
@@ -61,6 +61,15 @@ func (s *OpenAIGatewayService) forwardAnthropicViaRawChatCompletions(
 
 	billingModel := resolveOpenAIForwardModel(account, anthropicReq.Model, defaultMappedModel)
 	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	if err := validateGPT61SolCompatRequest(body, upstreamModel); err != nil {
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
+	if openai.IsGPT61SolModelSpelling(upstreamModel) && len(anthropicReq.Tools) > 0 {
+		err := fmt.Errorf("gpt-6.1-sol requires Responses for tool calls; this account only supports Chat Completions")
+		writeAnthropicError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
 	chatReq.Model = upstreamModel
 	chatReq.ReasoningEffort = openAICompatAnthropicReasoningEffort(&anthropicReq, upstreamModel, chatReq.ReasoningEffort)
 	chatReq.Stream = clientStream
@@ -68,9 +77,6 @@ func (s *OpenAIGatewayService) forwardAnthropicViaRawChatCompletions(
 		chatReq.StreamOptions = &apicompat.ChatStreamOptions{IncludeUsage: true}
 	}
 
-	convertedEffort := chatReq.ReasoningEffort
-	reasoningEffort := &convertedEffort
-	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, billingModel)
 	serviceTier := extractOpenAIServiceTierFromBody(body)
 
 	chatBody, err := json.Marshal(chatReq)
@@ -91,11 +97,12 @@ func (s *OpenAIGatewayService) forwardAnthropicViaRawChatCompletions(
 		}
 		if changed {
 			chatBody = policyBody
-			if effectiveEffort := strings.TrimSpace(gjson.GetBytes(chatBody, "reasoning_effort").String()); effectiveEffort != "" {
-				reasoningEffort = &effectiveEffort
-			}
 		}
 	}
+	// Provider normalization and policy caps can both change the converted effort.
+	// Use the final outbound value for usage logs and billing.
+	reasoningEffort := extractOpenAIReasoningEffortFromBody(chatBody, upstreamModel, billingModel, originalModel)
+	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, chatBody, upstreamModel)
 	// Unlike forwardResponsesViaRawChatCompletions, applyOpenAIFastPolicyToBody
 	// is intentionally skipped: Anthropic Messages bodies carry no service_tier,
 	// so the converted Chat Completions body never contains one and the policy

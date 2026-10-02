@@ -1,6 +1,7 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { keysAPI } from '@/api/keys'
-import { useAuthStore } from '@/stores/auth'
+import { useUserView as useAuthStore } from '@/composables/useUserView'
+import { adminSupportContext, supportRequestGeneration } from '@/utils/adminSupportContext'
 import type { ApiKey, ApiKeyRoutingCapabilities } from '@/types'
 import { getAutoRoutingCapabilities, isAutoRoutingKey } from './useAsyncImageAccess'
 
@@ -40,6 +41,7 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
     return pendingLoad
   }
 
+  const scope = supportRequestGeneration()
   loading.value = true
   pendingLoad = (async () => {
     let page = 1
@@ -50,6 +52,7 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
         sort_order: 'desc'
       })
 
+      if (scope !== supportRequestGeneration()) return false
       for (const key of response.items || []) {
         if (!isAutoRoutingKey(key) && keyAllowsBatchImage(key)) {
           hasAllowedBatchImageKey.value = true
@@ -58,6 +61,7 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
         }
         if (isAutoRoutingKey(key)) {
           const capabilities = await getAutoRoutingCapabilities(key)
+          if (scope !== supportRequestGeneration()) return false
           if (keyAllowsBatchImage(key, capabilities || undefined)) {
             hasAllowedBatchImageKey.value = true
             loaded.value = true
@@ -76,11 +80,13 @@ async function loadBatchImageAccess(force = false): Promise<boolean> {
     }
   })()
     .catch(() => {
+      if (scope !== supportRequestGeneration()) return false
       hasAllowedBatchImageKey.value = false
       loaded.value = true
       return false
     })
     .finally(() => {
+      if (scope !== supportRequestGeneration()) return
       loading.value = false
       pendingLoad = null
     })
@@ -98,3 +104,10 @@ export function useBatchImageAccess() {
     refreshBatchImageAccess: loadBatchImageAccess,
   }
 }
+
+watch(adminSupportContext, () => {
+  loaded.value = false
+  loading.value = false
+  pendingLoad = null
+  hasAllowedBatchImageKey.value = false
+}, { flush: 'sync' })

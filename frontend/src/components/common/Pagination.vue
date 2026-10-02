@@ -230,7 +230,7 @@ const handlePageSizeChange = (value: string | number | boolean | null) => {
 }
 
 const submitJump = () => {
-  const value = jumpPage.value.trim()
+  const value = String(jumpPage.value).trim()
   if (!value) return
   const pageNum = Number.parseInt(value, 10)
   if (Number.isNaN(pageNum)) return
@@ -241,6 +241,10 @@ const submitJump = () => {
 </script>
 
 <style scoped>
+.page-size-select :deep(select) {
+  @apply py-1.5 text-sm;
+}
+
 .page-size-select :deep(.select-trigger) {
   @apply px-3 py-1.5 text-sm;
 }

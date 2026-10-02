@@ -150,6 +150,11 @@ var duplicateAccountDiscardedExtraKeys = map[string]struct{}{
 	"codex_7d_reset_after_seconds":           {},
 	"codex_7d_window_minutes":                {},
 	"codex_7d_reset_at":                      {},
+	"codex_limit_name":                       {},
+	"codex_credits_has_credits":              {},
+	"codex_credits_unlimited":                {},
+	"codex_credits_balance":                  {},
+	"codex_rate_limit_families":              {},
 }
 
 func duplicateAccountExtra(value map[string]any) (map[string]any, error) {
@@ -412,6 +417,15 @@ func normalizeOpenAILongContextBillingUpdateExtra(account *Account, input *Updat
 // Grok media eligibility helpers live in account_grok_media_eligibility.go.
 
 func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]any) (*Account, error) {
+	if input.Platform == PlatformVideo {
+		if input.Type != AccountTypeAPIKey {
+			return nil, infraerrors.BadRequest("VIDEO_API_KEY_REQUIRED", "Video 账号使用 API Key")
+		}
+		base, _ := input.Credentials["base_url"].(string)
+		if strings.TrimSpace(base) == "" {
+			return nil, infraerrors.BadRequest("VIDEO_BASE_URL_REQUIRED", "请填写视频供应商地址")
+		}
+	}
 	// Probe/session state is system-managed. New accounts always start with automatic refresh disabled.
 	delete(accountExtra, "upstream_billing_probe_enabled")
 	delete(accountExtra, "upstream_billing_rate_sync_enabled")
@@ -481,6 +495,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		return nil, err
 	}
 	if err := ValidateUpstreamRequestIDHeaderExtra(accountExtra); err != nil {
+		return nil, err
+	}
+	if err := ValidateEgressCountryExtra(accountExtra); err != nil {
 		return nil, err
 	}
 
@@ -610,6 +627,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			return nil, err
 		}
 		if err := ValidateUpstreamRequestIDHeaderExtra(normalizedExtra); err != nil {
+			return nil, err
+		}
+		if err := ValidateEgressCountryExtra(normalizedExtra); err != nil {
 			return nil, err
 		}
 	} else {
@@ -931,6 +951,9 @@ func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, upd
 	if err := normalizeCodexFingerprintModeUpdateExtra(updates); err != nil {
 		return err
 	}
+	if err := ValidateEgressCountryExtra(updates); err != nil {
+		return err
+	}
 	if _, exists := updates[openAILongContextBillingEnabledKey]; exists {
 		account, err := s.accountRepo.GetByID(ctx, id)
 		if err != nil {
@@ -962,6 +985,9 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	delete(input.Extra, OllamaCloudUsageAutoRefreshExtraKey)
 	delete(input.Extra, OllamaCloudUsageSnapshotExtraKey)
 	if err := normalizeCodexFingerprintModeUpdateExtra(input.Extra); err != nil {
+		return nil, err
+	}
+	if err := ValidateEgressCountryExtra(input.Extra); err != nil {
 		return nil, err
 	}
 
@@ -1110,21 +1136,8 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	if input.Credentials != nil {
 		input.Credentials = SanitizeStoredCredentials("", input.Credentials)
 	}
-	if raw, supplied := input.Credentials[outboundIdentityCredential]; supplied {
-		var normalized any
-		for _, account := range cachedTargets {
-			if account == nil {
-				continue
-			}
-			candidate := map[string]any{outboundIdentityCredential: raw}
-			if err := NormalizeAccountOutboundIdentity(account.Platform, account.Type, candidate); err != nil {
-				return nil, err
-			}
-			normalized = candidate[outboundIdentityCredential]
-		}
-		// Bulk persistence merges top-level JSONB keys. An explicit null must
-		// replace the stored candidate so clearing restores inheritance.
-		input.Credentials[outboundIdentityCredential] = normalized
+	if err := normalizeBulkAccountOutboundIdentity(input.Credentials, cachedTargets); err != nil {
+		return nil, err
 	}
 	if raw, supplied := input.Credentials["user_agent"]; supplied {
 		for _, account := range cachedTargets {
@@ -1784,6 +1797,11 @@ func (s *adminServiceImpl) ForceOpenAIPrivacy(ctx context.Context, account *Acco
 	}
 
 	chatGPTAccountID, _ := account.Credentials["chatgpt_account_id"].(string)
+	var settings *SettingService
+	if s != nil {
+		settings = s.settingService
+	}
+	ctx = withManagedOpenAICodexResidency(ctx, settings)
 	mode := disableOpenAITraining(ctx, s.privacyClientFactory, token, proxyURL, chatGPTAccountID, s.resolveOpenAIOutboundIdentity(ctx, account))
 	if mode == "" {
 		return ""

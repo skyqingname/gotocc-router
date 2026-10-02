@@ -6895,38 +6895,33 @@
                 <label class="input-label">
                   {{ t('admin.settings.features.channelMonitor.mode') }}
                 </label>
-                <div class="mt-1.5 inline-flex w-full max-w-md rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/40">
+                <div
+                  class="mt-1.5 inline-flex w-full max-w-lg rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/40"
+                  role="group"
+                  :aria-label="t('admin.settings.features.channelMonitor.mode')"
+                  data-testid="channel-monitor-mode"
+                >
                   <button
+                    v-for="mode in channelMonitorModes"
+                    :key="mode"
                     type="button"
                     class="inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
-                    :class="
-                      form.channel_monitor_mode === 'v2'
-                        ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                    "
-                    @click="form.channel_monitor_mode = 'v2'"
+                    :class="form.channel_monitor_mode === mode
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'"
+                    :data-mode="mode"
+                    :aria-pressed="form.channel_monitor_mode === mode"
+                    @click="form.channel_monitor_mode = mode"
                   >
-                    {{ t('admin.settings.features.channelMonitor.modeV2') }}
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
-                    :class="
-                      form.channel_monitor_mode === 'v1'
-                        ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                    "
-                    @click="form.channel_monitor_mode = 'v1'"
-                  >
-                    {{ t('admin.settings.features.channelMonitor.modeV1') }}
+                    {{ t(`admin.settings.features.channelMonitor.mode${mode.toUpperCase()}`) }}
                   </button>
                 </div>
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{
-                    form.channel_monitor_mode === 'v1'
-                      ? t('admin.settings.features.channelMonitor.modeV1Hint')
-                      : t('admin.settings.features.channelMonitor.modeV2Hint')
-                  }}
+                  {{ form.channel_monitor_mode === 'v3'
+                    ? t('admin.settings.features.channelMonitor.modeV3Hint')
+                    : form.channel_monitor_mode === 'v2'
+                      ? t('admin.settings.features.channelMonitor.modeV2Hint')
+                      : t('admin.settings.features.channelMonitor.modeV1Hint') }}
                 </p>
                 <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
                   {{ t('admin.settings.features.channelMonitor.modeHint') }}
@@ -7164,6 +7159,18 @@
                 </p>
               </div>
               <Toggle v-model="form.risk_control_enabled" />
+            </div>
+
+            <div>
+              <label class="input-label">
+                {{ t('admin.settings.features.riskControl.riskControlUserAllowlist') }}
+              </label>
+              <OpenAIFastPolicyUserSelector
+                v-model="riskControlAllowlistedUserIds"
+              />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.features.riskControl.riskControlUserAllowlistHint') }}
+              </p>
             </div>
 
             <div class="flex items-center justify-between">
@@ -8430,15 +8437,10 @@
                     )
                   }}
                 </label>
-                <input
+                <Select
                   v-model="form.openai_codex_environment_timezone"
-                  type="text"
-                  class="input w-full font-mono text-sm"
-                  :placeholder="
-                    t(
-                      'admin.settings.gatewayForwarding.openaiCodexEnvironmentTimezonePlaceholder',
-                    )
-                  "
+                  :options="codexTimezoneOptions"
+                  searchable
                 />
                 <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
                   {{
@@ -8446,6 +8448,39 @@
                       "admin.settings.gatewayForwarding.openaiCodexEnvironmentTimezoneHint",
                     )
                   }}
+                </p>
+              </div>
+
+              <!-- Codex 出口国家代码 -->
+              <div>
+                <label
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.gatewayForwarding.openaiCodexEgressCountry") }}
+                </label>
+                <Select
+                  v-model="form.openai_codex_egress_country"
+                  :options="codexEgressCountryOptions"
+                  searchable
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.openaiCodexEgressCountryHint") }}
+                </p>
+              </div>
+
+              <!-- Codex residency -->
+              <div>
+                <label
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.gatewayForwarding.codexResidency") }}
+                </label>
+                <Select
+                  v-model="form.codex_residency"
+                  :options="codexResidencyOptions"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.gatewayForwarding.codexResidencyHint") }}
                 </p>
               </div>
 
@@ -8665,6 +8700,8 @@ import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
 import Select, { type SelectOption } from "@/components/common/Select.vue";
+import { getTimezoneOptions } from "@/utils/timezones";
+import { getCountryOptions } from "@/utils/countries";
 import {
   SITE_BILLING_MODES,
   SITE_BILLING_MODE_I18N_KEYS,
@@ -8715,7 +8752,22 @@ const appStore = useAppStore();
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
 const adminSettingsStore = useAdminSettingsStore();
+const channelMonitorModes = ['v1', 'v2', 'v3'] as const;
 const isZhLocale = computed(() => locale.value.startsWith("zh"));
+
+// Codex 全局出口时区/国家下拉选项：首项为空值（关闭/不声明）。
+const codexTimezoneOptions = computed(() => [
+  { label: t("admin.settings.gatewayForwarding.openaiCodexEnvironmentTimezoneNone"), value: "" },
+  ...getTimezoneOptions(),
+]);
+const codexEgressCountryOptions = computed(() => [
+  { label: t("admin.settings.gatewayForwarding.openaiCodexEgressCountryNone"), value: "" },
+  ...getCountryOptions(locale.value),
+]);
+const codexResidencyOptions = computed(() => [
+  { label: t("admin.settings.gatewayForwarding.codexResidencyOff"), value: "off" },
+  { label: t("admin.settings.gatewayForwarding.codexResidencyUS"), value: "us" },
+]);
 
 function localText(zh: string, en: string): string {
   return isZhLocale.value ? zh : en;
@@ -9445,6 +9497,7 @@ const form = reactive<SettingsForm>({
   client_disconnect_consecutive_ban_enabled: false,
   client_disconnect_consecutive_ban_threshold: 10,
   global_ip_access_control_enabled: false,
+  cyber_policy_user_allowlist: "",
   cyber_session_block_enabled: false,
   cyber_session_block_ttl_seconds: 3600,
   payment_min_amount: 1,
@@ -9649,6 +9702,8 @@ const form = reactive<SettingsForm>({
   antigravity_user_agent_version: "",
   openai_codex_user_agent: "",
   openai_codex_environment_timezone: "",
+  openai_codex_egress_country: "",
+  codex_residency: "off",
   codex_legacy_client_profile_compatibility_enabled: false,
   openai_codex_local_group_quota_enabled: false,
   openai_codex_client_version: "",
@@ -9675,7 +9730,7 @@ const form = reactive<SettingsForm>({
   account_quota_notify_emails: [] as NotifyEmailEntry[],
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
-  channel_monitor_mode: 'v1' as 'v1' | 'v2',
+  channel_monitor_mode: 'v1' as 'v1' | 'v2' | 'v3',
   channel_monitor_default_interval_seconds: 60,
   channel_monitor_hide_throughput: false,
   channel_monitor_show_quota: false,
@@ -9707,6 +9762,19 @@ function applyCaptchaSelection(provider: CaptchaProviderSelection | null): void 
   form.tencent_captcha_enabled = provider === "tencent";
   form.aliyun_captcha_enabled = provider === "aliyun";
 }
+
+// Keep the settings API representation as user IDs; the selector displays emails.
+const riskControlAllowlistedUserIds = computed<number[]>({
+  get: () => Array.from(new Set(
+    form.cyber_policy_user_allowlist
+      .split(/[,\s]+/)
+      .map(Number)
+      .filter((id) => Number.isSafeInteger(id) && id > 0),
+  )),
+  set: (ids) => {
+    form.cyber_policy_user_allowlist = ids.join(",");
+  },
+});
 
 const captchaMasterEnabled = computed({
   get: () =>
@@ -10780,7 +10848,8 @@ async function loadSettings() {
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
     form.channel_monitor_mode =
-      settings.channel_monitor_mode === "v2" ? "v2" : "v1";
+      settings.channel_monitor_mode === "v2" || settings.channel_monitor_mode === "v3"
+        ? settings.channel_monitor_mode : "v1";
     form.channel_monitor_hide_throughput = Boolean(
       settings.channel_monitor_hide_throughput
     );
@@ -11364,6 +11433,9 @@ async function saveSettings() {
         form.openai_codex_user_agent?.trim() || "",
       openai_codex_environment_timezone:
         form.openai_codex_environment_timezone?.trim() || "",
+      openai_codex_egress_country:
+        form.openai_codex_egress_country?.trim() || "",
+      codex_residency: form.codex_residency === "us" ? "us" : "off",
       codex_legacy_client_profile_compatibility_enabled:
         form.codex_legacy_client_profile_compatibility_enabled,
       openai_codex_local_group_quota_enabled:
@@ -11395,6 +11467,7 @@ async function saveSettings() {
         Math.max(1, Number(form.client_disconnect_consecutive_ban_threshold) || 10),
       ),
       global_ip_access_control_enabled: form.global_ip_access_control_enabled,
+      cyber_policy_user_allowlist: form.cyber_policy_user_allowlist,
       cyber_session_block_enabled: form.cyber_session_block_enabled,
       cyber_session_block_ttl_seconds:
         Number(form.cyber_session_block_ttl_seconds) || 3600,
@@ -11472,7 +11545,7 @@ async function saveSettings() {
       ).filter((e) => e.email.trim() !== ""),
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
-      channel_monitor_mode: form.channel_monitor_mode === 'v1' ? 'v1' : 'v2',
+      channel_monitor_mode: form.channel_monitor_mode,
       channel_monitor_default_interval_seconds:
         Number(form.channel_monitor_default_interval_seconds) || 60,
       channel_monitor_hide_throughput: Boolean(form.channel_monitor_hide_throughput),
@@ -11619,6 +11692,7 @@ async function saveSettings() {
       await syncCodexVersionNow({ silentSuccess: true });
     }
     // Refresh cached settings so sidebar/header update immediately
+    appStore.clearPublicSettingsCache();
     await appStore.fetchPublicSettings(true);
     await adminSettingsStore.fetch(true);
     if (wsOk) {
@@ -12882,11 +12956,11 @@ watch(
 
 @media (min-width: 768px) {
   .settings-tabs {
-    @apply min-w-full;
+    @apply min-w-max;
   }
 
   .settings-tab {
-    @apply min-w-0 flex-1 basis-0 overflow-hidden px-2 text-[13px];
+    @apply shrink-0 px-2 text-[13px];
   }
 
   .settings-tab-icon {

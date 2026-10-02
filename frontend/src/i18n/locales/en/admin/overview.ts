@@ -50,6 +50,7 @@ export default {
       accountCost: 'Cost',
       noDataAvailable: 'No data available',
       recentUsage: 'Recent Usage',
+      actualSpending: 'Actual spending ($)',
       viewModelDistribution: 'Model Distribution',
       viewSpendingRanking: 'User Spending Ranking',
       spendingRankingTitle: 'User Spending Ranking',
@@ -441,6 +442,29 @@ export default {
       }
     },
 
+    agents: {
+      "description": "View self-enrolled and existing agents. No manual review is required.",
+      "columns": {
+            "user": "User",
+            "registeredAt": "Registered",
+            "appliedAt": "Applied",
+            "status": "Status",
+            "source": "Source",
+            "activatedAt": "Activated"
+      },
+      "searchPlaceholder": "Email, username, user ID",
+      "status": {
+            "approved": "Active"
+      },
+      "source": {
+            "applied": "Self-enrolled",
+            "grandfathered": "Existing member"
+      },
+      "empty": "No agents yet",
+      "errors": {
+            "loadFailed": "Failed to load agents"
+      }
+},
     affiliates: {
       invitesDescription: 'View site-wide inviter and invitee relationships',
       rebatesDescription: 'View recharge orders that generated affiliate rebates',
@@ -492,18 +516,14 @@ export default {
     // Users
     users: {
       inviter: {
+        codeLabel: "Invitation code",
+        codePlaceholder: "Enter the referrer’s invitation code",
+        codeHint: "One code identifies registration and referral ownership. Reassignment does not consume a registration use.",
         title: "Invitation code and rebate attribution",
         current: "Current referrer",
         unbound: "No referrer assigned",
         loading: "Loading referrer…",
         retry: "Reload",
-        codeType: "Invitation code type",
-        permanent: "Permanent invitation code",
-        aff: "AFF invitation code",
-        permanentPlaceholder: "Enter a permanent invitation code",
-        affPlaceholder: "Enter the referrer’s AFF code",
-        permanentHint: "Uses the owner assigned to this permanent code without consuming a registration use.",
-        affHint: "Uses the referrer who owns this AFF code.",
         resolve: "Find referrer",
         resolving: "Looking up…",
         next: "Referrer after update",
@@ -1187,19 +1207,18 @@ export default {
       },
       modelAllowlist: {
         title: 'Model Allowlist',
-        hint: 'When enabled, models outside the allowlist are rejected with 404 model_not_found, and model listing endpoints only show allowlisted models. Entries support exact model IDs and trailing * wildcards. Note: Claude Code probes with haiku-family models for titles/summaries and /messages/count_tokens is also allowlist-controlled, so make sure the small models you need are selected too.',
+        hint: 'When enabled, models outside the allowlist are rejected with 404 model_not_found, and model listing endpoints only show allowlisted models. Entries support exact model IDs and * wildcards anywhere (e.g., gpt-*-codex). Note: Claude Code probes with haiku-family models for titles/summaries and /messages/count_tokens is also allowlist-controlled, so make sure the small models you need are selected too.',
         loading: 'Loading candidate models...',
         empty: 'No candidate models; add custom entries below',
         selectedSummary: 'Selected {selected} / {total}',
         selectAll: 'Select all',
         invertSelection: 'Invert',
         wildcardTag: 'wildcard',
-        customPlaceholder: 'Custom entry, e.g. claude-* or gpt-5.5-codex',
+        customPlaceholder: 'Custom entry, e.g. gpt-*-codex or claude-*',
         addCustom: 'Add',
         emptySelectionError: 'The model allowlist is enabled; select or add at least one model entry',
         errors: {
           empty: 'Please enter a model entry',
-          invalidWildcard: 'Wildcard * is only allowed at the end of an entry',
           duplicate: 'This entry already exists'
         }
       },

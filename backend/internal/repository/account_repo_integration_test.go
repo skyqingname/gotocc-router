@@ -137,6 +137,11 @@ func (s *schedulerCacheRecorder) SetOutboxWatermark(ctx context.Context, id int6
 
 func (s *AccountRepoSuite) SetupTest() {
 	s.ctx = context.Background()
+	// scheduler_outbox has no FK to accounts, so the accounts truncate cannot
+	// cascade into it. Its rows are committed outside the per-test tx, and
+	// account IDs restart at 1 every test, so stale rows would collide with the
+	// recycled ID of the next test.
+	truncateIntegrationTables(s.T(), "accounts", "scheduler_outbox")
 	tx := testEntTx(s.T())
 	s.client = tx.Client()
 	s.repo = newAccountRepositoryWithSQL(s.client, tx, nil)
@@ -327,14 +332,16 @@ func (s *AccountRepoSuite) TestListOAuthRefreshCandidatePage_GrokCursorAndExclus
 			"expires_at":    now.Add(30 * time.Minute).Format(time.RFC3339),
 		},
 	})
-	unschedulable := mustCreateAccount(s.T(), s.client, &service.Account{
-		Name:        "grok-oauth-unschedulable-excluded",
+	// Paused but active OAuth accounts (schedulable=false) must remain refresh
+	// candidates so their stored access_token does not silently expire.
+	paused := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "grok-oauth-paused-included",
 		Platform:    service.PlatformGrok,
 		Type:        service.AccountTypeOAuth,
 		Status:      service.StatusActive,
-		Credentials: map[string]any{"refresh_token": "refresh-unschedulable"},
+		Credentials: map[string]any{"refresh_token": "refresh-paused"},
 	})
-	s.Require().NoError(s.client.Account.UpdateOneID(unschedulable.ID).SetSchedulable(false).Exec(s.ctx))
+	s.Require().NoError(s.client.Account.UpdateOneID(paused.ID).SetSchedulable(false).Exec(s.ctx))
 	mustCreateAccount(s.T(), s.client, &service.Account{
 		Name:     "grok-api-key-excluded",
 		Platform: service.PlatformGrok,
@@ -393,15 +400,14 @@ func (s *AccountRepoSuite) TestListOAuthRefreshCandidatePage_GrokCursorAndExclus
 	s.Require().NoError(err)
 	first := firstPage.Accounts
 	s.Require().Len(first, 2)
-	s.Require().Equal([]int64{valid1.ID, valid2.ID}, []int64{first[0].ID, first[1].ID})
-	s.Require().NotContains([]int64{first[0].ID, first[1].ID}, unschedulable.ID)
+	s.Require().Equal([]int64{valid1.ID, paused.ID}, []int64{first[0].ID, first[1].ID})
 
 	options.AfterID = first[len(first)-1].ID
 	secondPage, err := s.repo.ListOAuthRefreshCandidatePage(s.ctx, options)
 	s.Require().NoError(err)
 	second := secondPage.Accounts
-	s.Require().Len(second, 1)
-	s.Require().Equal(valid3.ID, second[0].ID)
+	s.Require().Len(second, 2)
+	s.Require().Equal([]int64{valid2.ID, valid3.ID}, []int64{second[0].ID, second[1].ID})
 	s.Require().NotContains([]int64{first[0].ID, first[1].ID}, second[0].ID)
 }
 
@@ -1413,6 +1419,10 @@ func TestGrokOAuthConditionalMutationRollsBackWhenOutboxInsertFails(t *testing.T
 		_, _ = integrationDB.ExecContext(context.Background(), "DELETE FROM scheduler_outbox WHERE account_id = $1", account.ID)
 		_ = client.Account.DeleteOneID(account.ID).Exec(context.Background())
 	})
+	// This test runs after AccountRepoSuite and account IDs keep advancing, so a
+	// stale row for the same ID would already satisfy the zero-count assertion.
+	_, err := integrationDB.ExecContext(context.Background(), "DELETE FROM scheduler_outbox WHERE account_id = $1", account.ID)
+	require.NoError(t, err)
 	repo := newAccountRepositoryWithSQL(client, &failAtomicSchedulerOutboxSQLExecutor{sqlExecutor: integrationDB}, nil)
 
 	applied, err := repo.SetGrokOAuthErrorIfCredentialsUnchanged(

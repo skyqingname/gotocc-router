@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 	"time"
 
@@ -24,6 +25,7 @@ func (OpenAIVideoTask) Fields() []ent.Field {
 	decimal := map[string]string{dialect.Postgres: "decimal(20,10)"}
 	timestamptz := map[string]string{dialect.Postgres: "timestamptz"}
 	return []ent.Field{
+		field.JSON("reseller_snapshot", &reseller.Snapshot{}).Optional(),
 		field.JSON("provider_config", &videoprotocol.Config{}).Optional(),
 		field.String("local_request_id").MaxLen(128).Immutable(),
 		field.String("task_id").MaxLen(255).Optional().Nillable(),

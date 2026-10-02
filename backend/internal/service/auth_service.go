@@ -71,6 +71,7 @@ type JWTClaims struct {
 
 // AuthService 认证服务
 type AuthService struct {
+	resellerService        *ResellerService
 	entClient              *dbent.Client
 	userRepo               UserRepository
 	redeemRepo             RedeemCodeRepository
@@ -105,12 +106,6 @@ type signupGrantPlan struct {
 	Concurrency    int
 	Subscriptions  []DefaultSubscriptionSetting
 	PlatformQuotas map[string]*DefaultPlatformQuotaSetting
-}
-
-type registrationInvitation struct {
-	affiliate *AffiliateSummary
-	redeem    *RedeemCode
-	reusable  *ReusableInvitationCode
 }
 
 // NewAuthService 创建认证服务实例
@@ -153,12 +148,6 @@ func (s *AuthService) EntClient() *dbent.Client {
 	return s.entClient
 }
 
-func (s *AuthService) SetReusableInvitationCodeRepository(repo ReusableInvitationCodeRepository) {
-	if s != nil {
-		s.reusableInvitationRepo = repo
-	}
-}
-
 func (s *AuthService) SetTencentCaptchaService(tencentCaptchaService *TencentCaptchaService) {
 	s.tencentCaptchaService = tencentCaptchaService
 }
@@ -172,85 +161,6 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (str
 	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
 }
 
-func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
-	invitationCode = strings.TrimSpace(invitationCode)
-	if invitationCode == "" {
-		if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-			return nil, missingErr
-		}
-		return nil, nil
-	}
-	if s.redeemRepo != nil {
-		redeemCode, err := s.redeemRepo.GetByCode(ctx, invitationCode)
-		if err == nil && redeemCode.Type == RedeemTypeInvitation && redeemCode.CanUse() {
-			return &registrationInvitation{redeem: redeemCode}, nil
-		}
-	}
-	if s.reusableInvitationRepo != nil {
-		reusableCode, err := s.reusableInvitationRepo.GetByCode(ctx, invitationCode)
-		if err == nil {
-			if !reusableCode.IsUsableAt(time.Now()) {
-				return nil, ErrInvitationCodeInvalid
-			}
-			return &registrationInvitation{reusable: reusableCode}, nil
-		}
-		if !errors.Is(err, ErrReusableInvitationCodeNotFound) {
-			return nil, err
-		}
-	}
-	// AFF attribution does not grant admission when registration requires a code.
-	if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
-		return nil, ErrInvitationCodeInvalid
-	}
-	if s.affiliateService != nil {
-		affiliate, err := s.affiliateService.repo.GetAffiliateByCode(ctx, strings.ToUpper(invitationCode))
-		if err == nil {
-			return &registrationInvitation{affiliate: affiliate}, nil
-		}
-		if !errors.Is(err, ErrAffiliateProfileNotFound) {
-			return nil, err
-		}
-	}
-	return nil, ErrInvitationCodeInvalid
-}
-
-func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation *registrationInvitation, user *User, authSource string, failOpenOneTime bool) error {
-	if invitation == nil || user == nil {
-		return nil
-	}
-	if invitation.affiliate != nil {
-		_, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.affiliate.UserID, invitation.affiliate.AffCode)
-		return err
-	}
-	if invitation.redeem != nil {
-		if s.redeemRepo == nil {
-			return ErrInvitationCodeInvalid
-		}
-		err := s.redeemRepo.Use(ctx, invitation.redeem.ID, user.ID)
-		if err != nil && failOpenOneTime {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to mark one-time invitation as used for user %d: %v", user.ID, err)
-			return nil
-		}
-		return err
-	}
-	if invitation.reusable != nil {
-		if s.reusableInvitationRepo == nil {
-			return ErrInvitationCodeInvalid
-		}
-		return s.reusableInvitationRepo.Use(ctx, invitation.reusable.ID, user.ID, user.Email, authSource)
-	}
-	return nil
-}
-
-func (s *AuthService) cleanupCreatedUserAfterInvitationFailure(ctx context.Context, user *User) {
-	if s == nil || s.userRepo == nil || user == nil || user.ID <= 0 {
-		return
-	}
-	if err := s.userRepo.Delete(ctx, user.ID); err != nil {
-		logger.LegacyPrintf("service.auth", "[Auth] Failed to delete user %d after invitation consumption failure: %v", user.ID, err)
-	}
-}
-
 // RegisterWithVerification 用户注册（支持邮件验证、优惠码、邀请码和邀请返利码），返回token和用户。
 func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode, affiliateCode string) (string, *User, error) {
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
@@ -262,7 +172,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
-	if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+	if strings.TrimSpace(invitationCode) == "" {
 		invitationCode = affiliateCode
 	}
 	registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrInvitationCodeRequired)
@@ -343,7 +253,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-	s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+	s.ensureSignupInvitation(ctx, user.ID)
 
 	// 一次性邀请码和可复用邀请码都已在用户创建事务内原子消费，
 	// 此处不得再次标记或采用 fail-open 语义。
@@ -367,42 +277,6 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	}
 
 	return token, user, nil
-}
-
-func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, user *User, invitation *registrationInvitation, authSource string) error {
-	if invitation == nil {
-		return s.createUserAndClaimInvitation(ctx, user, nil)
-	}
-	if invitation.redeem != nil {
-		return s.createUserAndClaimInvitation(ctx, user, invitation.redeem)
-	}
-	if invitation.reusable == nil && invitation.affiliate == nil {
-		return ErrInvitationCodeInvalid
-	}
-	if s.entClient == nil {
-		if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
-			return err
-		}
-		if err := s.useRegistrationInvitation(ctx, invitation, user, authSource, false); err != nil {
-			s.cleanupCreatedUserAfterInvitationFailure(ctx, user)
-			return ErrInvitationCodeInvalid
-		}
-		return nil
-	}
-
-	tx, err := s.entClient.Tx(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-	txCtx := dbent.NewTxContext(ctx, tx)
-	if err := s.createUserWithRegistrationEmailGuard(txCtx, user); err != nil {
-		return err
-	}
-	if err := s.useRegistrationInvitation(txCtx, invitation, user, authSource, false); err != nil {
-		return ErrInvitationCodeInvalid
-	}
-	return tx.Commit()
 }
 
 // SendVerifyCodeResult 发送验证码返回结果
@@ -826,7 +700,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				return nil, nil, ErrRegDisabled
 			}
 
-			if strings.TrimSpace(invitationCode) == "" && !s.settingService.IsInvitationCodeEnabled(ctx) {
+			if strings.TrimSpace(invitationCode) == "" {
 				invitationCode = affiliateCode
 			}
 			registrationInvitation, err := s.resolveRegistrationInvitation(ctx, invitationCode, ErrOAuthInvitationRequired)
@@ -901,7 +775,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 					// snapshot user × platform quota（fail-open）
 					_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
-					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+					s.ensureSignupInvitation(ctx, user.ID)
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -930,7 +804,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 							return nil, nil, ErrInvitationCodeInvalid
 						}
 					}
-					s.bindSignupAffiliate(ctx, user.ID, affiliateCode)
+					s.ensureSignupInvitation(ctx, user.ID)
 				}
 			}
 		} else {
@@ -1070,43 +944,6 @@ func authSourceSignupSettings(defaults *AuthSourceDefaultSettings, signupSource 
 	default:
 		return ProviderDefaultGrantSettings{}, false
 	}
-}
-
-// bindSignupAffiliate records the optional secondary referral after the primary
-// registration code. An existing primary relationship always wins.
-func (s *AuthService) bindSignupAffiliate(ctx context.Context, userID int64, affiliateCode string) {
-	if s.affiliateService == nil || userID <= 0 {
-		return
-	}
-	summary, err := s.affiliateService.EnsureUserAffiliate(ctx, userID)
-	if err != nil {
-		logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", userID, err)
-		return
-	}
-	code := strings.TrimSpace(affiliateCode)
-	if code == "" || summary.InviterID != nil {
-		return
-	}
-	// Permanent codes also work through the existing aff_code referral field.
-	// Use is atomic and idempotent for this signup, so a code provided in both
-	// fields is neither consumed nor counted twice.
-	if s.reusableInvitationRepo != nil {
-		reusable, err := s.reusableInvitationRepo.GetByCode(ctx, code)
-		if err == nil {
-			if err := s.reusableInvitationRepo.Use(ctx, reusable.ID, userID, "", ""); err != nil {
-				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind reusable inviter for user %d: %v", userID, err)
-			}
-			return
-		}
-		if !errors.Is(err, ErrReusableInvitationCodeNotFound) {
-			logger.LegacyPrintf("service.auth", "[Auth] Failed to resolve inviter for user %d: %v", userID, err)
-			return
-		}
-	}
-	if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
-		logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
-	}
-
 }
 
 func (s *AuthService) postAuthUserBootstrap(ctx context.Context, user *User, signupSource string, touchLogin bool) {
@@ -2086,10 +1923,4 @@ func (s *AuthService) snapshotPlatformQuotaDefaults(ctx context.Context, userID 
 		return nil // fail-open：返回 nil，让调用方继续
 	}
 	return nil
-}
-
-// ValidateRegistrationInvitation shares code resolution with email and OAuth signup.
-func (s *AuthService) ValidateRegistrationInvitation(ctx context.Context, code string) error {
-	_, err := s.resolveRegistrationInvitation(ctx, code, ErrInvitationCodeRequired)
-	return err
 }

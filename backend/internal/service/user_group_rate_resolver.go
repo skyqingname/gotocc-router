@@ -42,6 +42,9 @@ func newUserGroupRateResolver(repo UserGroupRateRepository, cache *gocache.Cache
 }
 
 func (r *userGroupRateResolver) Resolve(ctx context.Context, userID, groupID int64, groupDefaultMultiplier float64) float64 {
+	if quote := ResellerPriceFromContext(ctx, userID, groupID); quote != nil {
+		return quote.TextRate
+	}
 	if r == nil || userID <= 0 || groupID <= 0 {
 		return groupDefaultMultiplier
 	}

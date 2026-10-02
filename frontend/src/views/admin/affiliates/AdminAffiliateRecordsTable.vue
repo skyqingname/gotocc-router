@@ -37,12 +37,14 @@
           </template>
           <template #cell-invitee="{ row }">
             <UserCell
+              v-if="row.invitee_id != null"
               :id="row.invitee_id"
               :email="row.invitee_email"
               :username="row.invitee_username"
               :clickable="props.type !== 'transfers'"
               @open="openUserOverview"
             />
+            <span v-else>—</span>
           </template>
           <template #cell-user="{ row }">
             <UserCell

@@ -5,16 +5,16 @@ client-facing WebSocket ingress. Account routing can use an upstream WebSocket
 or bridge the client WebSocket to an HTTP/SSE upstream.
 
 Usage timing follows the shared [first-token/total-duration/TPS contract](../USAGE_TIMING.md)
-(TPS is decode rate over last-token minus first-token), including HTTP
-passthrough, individual WS turns, and remote compaction. Aggregate
+(Average TPS uses non-media output tokens over total forwarding/turn duration),
+including HTTP passthrough, individual WS turns, and remote compaction. Aggregate
 compact output does not create a token clock. The obsolete `openai_ttft_mode`
 admin setting has been removed; `timing_version` identifies verified usage data.
 
 ## GPT-6 Astra
 
-The gateway uses OpenAI's canonical `gpt-6-astra` model ID. For Plus client
-compatibility, the legacy `gpt-6` spelling is accepted only as an alias and is
-canonicalized to `gpt-6-astra`; it is not a separate model or billing identity.
+The gateway uses OpenAI's canonical `gpt-6-astra` model ID. Bare `gpt-6`
+remains an independent, unknown model spelling and does not inherit Astra
+compatibility, catalog capabilities, cache identity, or billing policy.
 Reasoning-level suffixes are never treated as model IDs.
 Astra accepts `low`, `medium`, `high`, `xhigh`, and `max` reasoning effort;
 it does not accept `none` or `minimal`. Configured Codex catalogs default it
@@ -34,7 +34,11 @@ catalog presentation order does not silently change the connectivity probe.
 
 Default API cost accounting uses $10 input, $1 cached input, $12.50 cache
 write, and $50 output per million tokens. Flex is half of Standard and Fast is
-twice Standard. OpenAI publishes Batch at half of Standard through its separate
+twice Standard. Astra Ultrafast costs six times Standard independently of a
+channel's Fast multiplier. Official Platform API-key catalogs advertise it;
+OAuth catalogs require an explicit upstream account capability rather than a
+subscription-plan label. Native account-provided service tiers remain authoritative.
+OpenAI publishes Batch at half of Standard through its separate
 Batch API; this Responses gateway does not infer Batch from `service_tier`.
 When total input is 272,001 tokens or more, the whole-request long-context
 policy multiplies all ordinary input, cache-read input, and cache-write input
@@ -51,6 +55,35 @@ not available with EU data residency and does not carry a latency SLA.
 Responses features such as async tool calls, `configuration_update`, and
 mid-turn WebSocket steering pass through the gateway without Astra-specific
 rewriting.
+
+## GPT-6.1 Sol and GPT-6 Sol/Luna
+
+`gpt-6.1-sol`, `gpt-6-sol`, and `gpt-6-luna` retain separate model and billing
+identities. Registered effort suffixes and provider-qualified spellings resolve
+to the same SKU; preview names and unknown suffixes do not inherit these rules.
+Live account metadata remains authoritative. Offline Sol/Luna catalogs use the
+existing GPT-5.6 context template; GPT-6.1 Sol uses its bundled Codex metadata,
+with a 272,000 active context and 872,000 maximum configuration override.
+
+GPT-6.1 Sol defaults to `low` and accepts `max` separately from `xhigh`.
+Its catalog `ultra` level delegates with `xhigh` and is not an upstream effort.
+Explicit `none`/`minimal` or disabled thinking is rejected after model mapping
+and before protocol conversion. Tool calls require Responses; Chat-only
+fallbacks return a client error before sending upstream. GPT-6 Sol/Luna allow
+Chat tool calls only with `reasoning_effort=none`. With reasoning enabled, these
+families drop incompatible sampling and logprob fields in Responses conversion.
+Chat Completions and Messages bridges use the final mapped upstream model for
+model-specific conversion, including removal of unsupported sampling fields.
+The inbound model and content remain available for cache identity and the
+pre-conversion canonical audit.
+
+All three families share the supported Responses prompt-cache contract. The
+fallback Standard input/output/cache-write/cache-read prices per million tokens
+are respectively $2/$10/$2.50/$0.10 for GPT-6.1 Sol, $2/$10/$2.50/$0.20 for
+GPT-6 Sol, and $0.10/$0.50/$0.125/$0.01 for GPT-6 Luna. Fast is 2x and Flex is
+0.5x. At more than 272,000 total input tokens, whole-request input/cache rates
+are 2x and output rates 1.5x. Explicit channel prices, including zero cache
+write, retain precedence; one SKU cannot fall back to another family's card.
 
 ## Prompt Cache Identity and Usage
 
@@ -73,13 +106,44 @@ tenant-isolated cache identity from an explicit `prompt_cache_key`, a supported
 session header, or a stable content prefix with a meaningful user/input anchor.
 It writes the finalized UUID to both the upstream `prompt_cache_key` and the
 canonical `session-id` header. Official Codex never sends a `conversation_id`
-header, so Codex-protocol outbound requests never carry one. The legacy
-`session_id` alias is a Plus compatibility header: OAuth accounts emit it only
-when the fingerprint mode converges session identity (`session` or `full`),
-while API-key accounts keep emitting it. `off` and `device` OAuth accounts keep
-the official `session-id` + `thread-id` spelling. A model-only request does not receive a content-derived key. API-key
+header, so Codex-protocol outbound requests never carry one, and the official
+wire format spells the session header `session-id` only: every Codex-protocol
+outbound path (HTTP forward, passthrough, Messages bridge, WebSocket
+handshake, compact probe, alpha search) drops the legacy `session_id` alias
+regardless of fingerprint mode, matching the official `build_session_headers`.
+Non-Codex compatible-supplier paths (OpenAI API-key accounts) keep the Plus
+`session-id` + `session_id` dual spelling, and inbound `session_id` remains
+accepted for sticky routing. A model-only request does not receive a content-derived key. API-key
 Chat Completions requests converted to Responses use the same behavior, while
 raw Chat Completions forwarding does not receive Responses-only cache fields.
+
+Codex-protocol outbound request bodies always carry
+`include: ["reasoning.encrypted_content"]`, matching the official client's
+unconditional declaration: the gateway merges and deduplicates the item with
+any client-provided `include` values and preserves other client-declared
+items. HTTP passthrough and WebSocket compatibility bodies receive the same
+merge. The only exception is the HTTP `/responses/compact` endpoint, whose
+request shape differs and is handled separately. Remote Compact v2
+(`compaction_trigger` on `/responses`) still carries the include declaration,
+matching the official Responses client. Client-owned
+`client_metadata` keys — `turn_id`, `parent_turn_id`,
+`root_turn_id`, `mcp_attribution`, and unknown future keys — pass through the
+proxy verbatim; `mcp_attribution` is the official client's own responsibility
+and the gateway never generates, parses, or trims it.
+
+The declaration never depends on the transport or the attempt number: WebSocket
+reconnects replay the request payload unchanged, so a retried turn still carries
+`include: ["reasoning.encrypted_content"]`.
+
+Codex-protocol requests are normalized with one unsupported-field set across the
+HTTP forward, HTTP passthrough, Messages bridge, and WebSocket compatibility
+paths: `max_output_tokens`, `max_completion_tokens`, `temperature`, `top_p`,
+`frequency_penalty`, `presence_penalty`, `chat_template_kwargs`, `user`,
+`metadata`, `prompt_cache_options`, `prompt_cache_retention`,
+`safety_identifier`, `stream_options`, `truncation`, and `stop_sequences` are
+removed before the upstream request. A passthrough account therefore produces
+the same body as a non-passthrough account instead of relying on a rejected-field
+retry to recover from a first-request 400.
 
 Under the default hard-affinity mode, account priority changes do not replace a
 valid active session route. The optional sticky-weighted scheduler mode remains
@@ -105,7 +169,8 @@ over to another account and removes the old account's response ID before
 forwarding. Tool-output continuations without complete call context remain on
 the response owner and keep the existing fail-closed OAuth ownership checks.
 
-`prompt_cache_options` is forwarded only for GPT-6 Astra and GPT-5.6-family
+`prompt_cache_options` is forwarded only for GPT-6 Astra, GPT-6.1 Sol,
+GPT-6 Sol/Luna, and GPT-5.6-family
 OpenAI Platform API-key Responses/Compact traffic. ChatGPT OAuth and older or
 unknown model families have that field removed. Deprecated
 `prompt_cache_retention` is removed on every path. Current callers should use
@@ -196,6 +261,60 @@ pass it through for an automatic-passthrough account, or suppress it. Named
 model-specific limit families remain independent. HTTP and SSE headers are
 finalized before their response bodies are written.
 
+Beyond the default `codex` family, the gateway parses the official
+supplementary declarations on every successful response:
+
+- `X-Codex-Limit-Name` names the default metered limit (typically the metered
+  model slug).
+- `X-Codex-Credits-Has-Credits`, `X-Codex-Credits-Unlimited`, and
+  `X-Codex-Credits-Balance` form a realtime credits snapshot supplement and
+  are persisted on the account Extra (`codex_credits_*`); the WHAM
+  usage/credit pull remains the authoritative source. In-band
+  `codex.rate_limits` events may carry credits without windows and still
+  refresh that snapshot.
+- Additional metered limit families are discovered by scanning the
+  `x-{limit}-primary-used-percent` suffix the way the official client does:
+  `x-codex-secondary-primary-*` belongs to the `codex_secondary` family (not
+  the default 5-hour window), together with its `x-{limit}-limit-name` and
+  secondary-window variants. Additional families and the default
+  `X-Codex-Limit-Name` are persisted on the account Extra for diagnostics;
+  the default 5h/7d quota windows and the auto-pause thresholds continue to
+  come from the default family only.
+- `x-codex-promo-message` and `x-codex-rate-limit-reached-type` are official
+  display-only declarations and are relayed to the downstream client verbatim
+  after generic response-header filtering; the gateway never derives quota or
+  billing decisions from them.
+
+On an upstream `429`, the gateway classifies the condition before deciding how
+to schedule:
+
+- `x-codex-active-limit` names the metered family the upstream actually hit. When
+  it names a family other than the default `codex` family, that family's window
+  and reset time drive the cooldown; the default family's healthy 5h/7d windows
+  cannot override the named family's exhausted window.
+- A 429 whose error type declares an exhausted account quota or credit —
+  `insufficient_quota`, `credit_balance_exhausted`, any
+  `*_spend_limit_exceeded` variant, or `usage_not_included` — is terminal. The
+  gateway opens no same-account retry window for it and parks the account so
+  scheduling selects a different one, instead of re-firing a request that cannot
+  succeed.
+- `openai-model` names the model that actually served the request. It joins
+  the response-model observer before body events (terminal body declarations
+  still win, and a disagreement raises the conflict flag). In-band events
+  follow the official `response_model()` order: nested `response.headers`,
+  then top-level `headers` on WebSocket metadata events; `response.model` is
+  a Plus fallback when neither header is present. For Codex-protocol
+  accounts a server-declared model that differs from the baseline billing
+  model and has identified pricing corrects the recorded billing model; the
+  downstream response body is never rewritten. The `x-openai-model` spelling is
+  accepted as well.
+- `x-models-etag` marks the upstream model-catalog revision and is recorded
+  as a structured log signal for the future pinned-models integration.
+- The `codex_rollout_budget_units` declaration in `response.completed` usage
+  is a fractional JSON number; the gateway parses and records it per usage
+  log as a reserved billing dimension and does not use it in cost calculation
+  yet.
+
 The dedicated `/backend-api/wham/usage` route remains a local-only view. It
 returns the API key subscription quota when the local setting is enabled and
 returns 404 otherwise; it does not select an account or proxy upstream quota.
@@ -231,7 +350,7 @@ baseline. While an off-schedule window is awaiting confirmation, new bindings ke
 Disabling clears the baseline and advances the configuration generation, making
 old pending events inapplicable. Upgrades preserve continuously enabled bindings
 and existing subscription counters; the migration performs no quota resets.
-Migration `270_openai_weekly_reset_observations.sql` changes the event uniqueness
+Migration `265_openai_weekly_reset_observations.sql` changes the event uniqueness
 key to include the reset sequence. Deploy it together with the updated backend;
 backend instances sharing this database must not mix old and new event writers.
 Ordinary group edits, including copying members while retaining
@@ -314,6 +433,15 @@ This response-header compatibility does not make Codex App API-key calls to
 `account/rateLimits/read` available; that App Server authentication behavior is
 outside this gateway's request path.
 
+## Codex Residency
+
+The global setting `codex_residency` is `off` or `us`. `us` adds
+`x-openai-internal-codex-residency: us` to Codex-protocol Responses forwarding,
+including HTTP passthrough and the Responses WebSocket handshake, and to
+refresh, revoke, and chatgpt.com backend-api calls. `off` sends nothing and
+strips a client-supplied copy. Authorization-code exchange and device-code do
+not send the header. See `docs/OUTBOUND_IDENTITY.md` for the source rule.
+
 ## Codex Fingerprint Convergence
 
 OpenAI OAuth accounts may rewrite outbound Codex installation, session, and
@@ -334,9 +462,10 @@ cancel, and other non-create subpaths are not session turns and receive no
 fingerprint mutation.
 
 Fingerprint preparation runs before final request construction. Plus
-prompt-cache/session isolation is authoritative for the final `session-id` and
-`session_id` headers, while fingerprint convergence remains authoritative for
-installation and thread/turn metadata. `off` disables only fingerprint-owned
+prompt-cache/session isolation is authoritative for the final `session-id`
+header on Codex-protocol outbound (the legacy `session_id` alias is removed
+for every Codex account), while fingerprint convergence remains authoritative
+for installation and thread/turn metadata. `off` disables only fingerprint-owned
 header and body mutation; it does not disable Plus cache isolation, security,
 session sharing, or compact policy. WebSocket connection reuse compares final
 stable handshake carriers even when `off` or `device` leaves those values
@@ -486,28 +615,3 @@ gateway:
 The environment equivalent is
 `GATEWAY_OPENAI_WS_MODE_ROUTER_V2_ENABLED=true`. Use `http_bridge` when the
 client keeps a WebSocket while the selected upstream uses HTTP/SSE.
-
-
-### Downstream disconnect attribution (GoToCC)
-
-A failed write to the caller is distinct from an upstream HTTP or terminal
-response failure. Positively identified client disconnects return the typed
-`ErrOpenAIClientDisconnected` result, retain collected usage for settlement,
-and mark a `client_disconnect` network event. No generic 502 SSE frame is
-appended to the closed connection. Ops retains the actual wire HTTP status
-(often 200), assigns the event to the downstream/client side and excludes it
-from provider-error counters and account health failure observations.
-
-This classification identifies the direction of the failed connection, not
-whether the user, a proxy, an SSH tunnel or the network initiated closure.
-Existing upstream terminal failures keep their original classification.
-
-
-### Client access defaults
-
-The one-click Codex configuration and CCS import defaults share
-`client-access-defaults.json` (`openai_model: gpt-6-astra`). HTTP and WS configs
-use this preference for both `model` and `review_model`. When an administrator
-explicitly fetches a restricted account model catalog, the existing catalog
-selection rules still apply. Personal/team Key scope and authentication remain
-unchanged; this setting does not rewrite users' existing local client files.

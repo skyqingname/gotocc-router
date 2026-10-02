@@ -64,19 +64,24 @@ func (s *OpenAIGatewayService) forwardResponsesViaNativeAnthropic(
 	clientStream := responsesReq.Stream
 
 	// 3. Convert Responses → Anthropic
+	// 3.1 先解析映射后的上游模型，再选择 thinking/工具协议（Claude 5.5 校验与
+	// Responses → Anthropic 的协议决策都必须看到最终上游模型）。映射语义沿用 Plus
+	// 的 OpenAI 网关统一入口规则，见下方步骤 4。
+	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
+	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	if err := validateClaude55Request(body, upstreamModel); err != nil {
+		writeResponsesError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		return nil, err
+	}
+	responsesReq.Model = upstreamModel
 	anthropicReq, err := apicompat.ResponsesToAnthropicRequest(&responsesReq)
 	if err != nil {
 		writeResponsesError(c, http.StatusBadRequest, "invalid_request_error", "Failed to convert request")
 		return nil, fmt.Errorf("convert responses to anthropic: %w", err)
 	}
 
-	// 4. Model mapping（OpenAI 网关统一入口的映射语义）
-	billingModel := resolveOpenAIForwardModel(account, originalModel, defaultMappedModel)
-	upstreamModel := normalizeOpenAIModelForUpstream(account, billingModel)
+	// 4. Model mapping（OpenAI 网关统一入口的映射语义；变量已在步骤 3.1 解析）
 	anthropicReq.Model = upstreamModel
-
-	reasoningEffort := ExtractResponsesReasoningEffortFromBody(body, upstreamModel, billingModel, originalModel)
-	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, billingModel)
 
 	// 5. Force upstream streaming（客户端原始终决定响应格式；
 	// 上游恒为流式，非流式由缓冲路径组装）。
@@ -117,7 +122,7 @@ func (s *OpenAIGatewayService) forwardResponsesViaNativeAnthropic(
 
 	upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, reqStream)
 	defer releaseUpstreamCtx()
-	upstreamReq, _, err := s.buildNativeAnthropicUpstreamRequest(upstreamCtx, c, account, anthropicBody, apiKey, targetURL, body)
+	upstreamReq, forwardedBody, err := s.buildNativeAnthropicUpstreamRequest(upstreamCtx, c, account, anthropicBody, apiKey, targetURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("build upstream request: %w", err)
 	}
@@ -136,6 +141,11 @@ func (s *OpenAIGatewayService) forwardResponsesViaNativeAnthropic(
 		writeResponsesError(c, mapUpstreamStatusCode(resp.StatusCode), "server_error", upstreamMsg)
 		return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
 	}
+
+	// 按最终转发到上游的 effort 计费（如 OpenAI xhigh 会以 output_config.effort=max
+	// 转发给 Anthropic）；国产 passback-required 模型在缺失 effort 时按 thinking 补默认值。
+	reasoningEffort := NormalizeClaudeOutputEffort(gjson.GetBytes(forwardedBody, "output_config.effort").String())
+	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, forwardedBody, billingModel)
 
 	if clientStream {
 		return s.handleResponsesStreamingFromNativeAnthropic(resp, c, originalModel, billingModel, upstreamModel, reasoningEffort, startTime, clientToolMapping)
@@ -245,6 +255,10 @@ func (s *OpenAIGatewayService) handleResponsesBufferedFromNativeAnthropic(
 					finalResp.Content[idx].Text += event.Delta.Text
 				case "thinking_delta":
 					finalResp.Content[idx].Thinking += event.Delta.Thinking
+				case "signature_delta":
+					// 上游 v0.2.10 新增：与 handleResponsesBufferedStreamingResponse
+					// 同款，缓冲路径必须累积签名分片。
+					finalResp.Content[idx].Signature += event.Delta.Signature
 				case "input_json_delta":
 					finalResp.Content[idx].Input = appendRawJSON(finalResp.Content[idx].Input, event.Delta.PartialJSON)
 				}
@@ -266,6 +280,11 @@ func (s *OpenAIGatewayService) handleResponsesBufferedFromNativeAnthropic(
 		}
 	}
 
+	// Claude 5.5 signed-thinking 模型在缓冲路径也要回显真实上游模型，
+	// 否则客户端拿到的仍是原始公共模型。
+	if isClaude55SignedThinkingModel(upstreamModel) {
+		finalResp.Model = upstreamModel
+	}
 	responsesResp := apicompat.AnthropicToResponsesResponse(finalResp)
 	responsesResp.Model = originalModel
 
@@ -324,6 +343,9 @@ func (s *OpenAIGatewayService) handleResponsesStreamingFromNativeAnthropic(
 
 	state := apicompat.NewAnthropicEventToResponsesState()
 	state.Model = originalModel
+	// Claude 5.5 signed-thinking：流式路径保留签名，交由上游续接；
+	// 与 Plus 的 responseCommitted/真实终态判定互不替代。
+	state.PreserveThinkingSignatures = isClaude55SignedThinkingModel(upstreamModel)
 	clientToolRestorer := apicompat.NewResponsesClientToolStreamRestorer(clientToolMapping)
 
 	var usage ClaudeUsage
@@ -398,6 +420,12 @@ func (s *OpenAIGatewayService) handleResponsesStreamingFromNativeAnthropic(
 		if event.Type == "message_start" && event.Message != nil {
 			mergeAnthropicUsage(&usage, event.Message.Usage)
 		}
+
+		// Keep terminal Responses usage aligned with the normalized billing
+		// buckets. Normalize converter input too so raw overlapping totals cannot
+		// overwrite the state when message_start/message_delta handlers run.
+		syncAnthropicResponsesUsage(state, usage)
+		normalizeAnthropicEventUsageForResponses(event, usage)
 
 		events := apicompat.AnthropicEventToResponsesEvents(event, state)
 		if clientDisconnected {

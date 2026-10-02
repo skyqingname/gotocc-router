@@ -217,6 +217,8 @@ type SystemSettings struct {
 	AntigravityUserAgentVersion                  string `json:"antigravity_user_agent_version"`
 	OpenAICodexUserAgent                         string `json:"openai_codex_user_agent"`
 	OpenAICodexEnvironmentTimezone               string `json:"openai_codex_environment_timezone"`
+	OpenAICodexEgressCountry                     string `json:"openai_codex_egress_country"`
+	OpenAICodexResidency                         string `json:"codex_residency"`
 	CodexLegacyClientProfileCompatibilityEnabled bool   `json:"codex_legacy_client_profile_compatibility_enabled"`
 	OpenAICodexLocalGroupQuotaEnabled            bool   `json:"openai_codex_local_group_quota_enabled"`
 	OpenAICodexClientVersion                     string `json:"openai_codex_client_version"`
@@ -226,6 +228,9 @@ type SystemSettings struct {
 	OpenAICodexClientVersionEffective            string `json:"openai_codex_client_version_effective"`
 	OpenAICodexClientVersionSource               string `json:"openai_codex_client_version_source"`
 	OpenAICodexVersionAutoSyncEnabled            bool   `json:"openai_codex_version_auto_sync_enabled"`
+	ClaudeCodeClientVersion                      string `json:"claude_code_client_version"`
+	ClaudeCodeClientVersionSynced                string `json:"claude_code_client_version_synced"`
+	ClaudeCodeVersionAutoSyncEnabled             bool   `json:"claude_code_version_auto_sync_enabled"`
 
 	// codex_cli_only profile policy
 	MinCodexVersion                      string `json:"min_codex_version"`
@@ -346,8 +351,9 @@ type SystemSettings struct {
 	GlobalIPAccessControlEnabled bool `json:"global_ip_access_control_enabled"`
 
 	// cyber 会话屏蔽开关 + TTL
-	CyberSessionBlockEnabled    bool `json:"cyber_session_block_enabled"`
-	CyberSessionBlockTTLSeconds int  `json:"cyber_session_block_ttl_seconds"`
+	CyberSessionBlockEnabled    bool   `json:"cyber_session_block_enabled"`
+	CyberPolicyUserAllowlist    string `json:"cyber_policy_user_allowlist"`
+	CyberSessionBlockTTLSeconds int    `json:"cyber_session_block_ttl_seconds"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`
@@ -426,9 +432,9 @@ type PublicSettings struct {
 	// user shell can derive the site billing mode (recharge & subscription / recharge only /
 	// subscription only) before any authenticated checkout call.
 	PaymentBalanceDisabled bool   `json:"payment_balance_disabled"`
-	TeamEnabled                         bool                     `json:"team_enabled"`
-	TeamSelfServiceEnabled              bool                     `json:"team_self_service_enabled"`
-	Version                             string                   `json:"version"`
+	TeamEnabled            bool   `json:"team_enabled"`
+	TeamSelfServiceEnabled bool   `json:"team_self_service_enabled"`
+	Version                string `json:"version"`
 	// 服务器全局时区（IANA 名称与当前 UTC 偏移，如 "Asia/Shanghai" / "+08:00"）。
 	// 高峰时段等按服务器本地时间判定的窗口，前端展示时据此标注，避免用户按浏览器本地时间误读。
 	ServerTimezone              string  `json:"server_timezone"`

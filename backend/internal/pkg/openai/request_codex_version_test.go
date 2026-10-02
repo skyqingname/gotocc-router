@@ -12,7 +12,7 @@ func TestCodexUserAgentVersion(t *testing.T) {
 	require.Equal(t, "0.146.0", CodexUserAgentVersion("codex_cli_rs/0.146.0 (Ubuntu 22.4.0; x86_64) xterm-256color"))
 	require.Equal(t, "0.146.0", CodexUserAgentVersion("  codex_cli_rs/0.146.0  "))
 	// 预发布后缀原样保留：出站 version 头必须与 UA 版本段逐字一致。
-	require.Equal(t, "0.147.0-alpha.4", CodexUserAgentVersion("codex-tui/0.147.0-alpha.4 (Mac OS X 14.0; arm64) iTerm"))
+	require.Equal(t, "0.158.0-alpha.4", CodexUserAgentVersion("codex-tui/0.158.0-alpha.4 (Mac OS X 14.0; arm64) iTerm"))
 	// 非 `{client}/{version}` 形态取不到版本段。
 	require.Empty(t, CodexUserAgentVersion("curl 8.7.1"))
 	require.Empty(t, CodexUserAgentVersion("/0.146.0"))
@@ -37,6 +37,16 @@ func TestSetCodexUserAgentVersion(t *testing.T) {
 	require.Equal(t,
 		"codex_cli_rs/0.146.0 (Ubuntu 22.4.0; x86_64)",
 		SetCodexUserAgentVersion("codex_cli_rs/0.125.0 (Ubuntu 22.4.0; x86_64)", "0.146.0"),
+	)
+	// 官方 ` ({suffix})` 后缀原样保留，版本同步只改首段。
+	require.Equal(t,
+		"codex_cli_rs/0.146.0 (Ubuntu 24.04; x86_64) xterm-256color (mcp: server-a)",
+		SetCodexUserAgentVersion("codex_cli_rs/0.125.0 (Ubuntu 24.04; x86_64) xterm-256color (mcp: server-a)", "0.146.0"),
+	)
+	// 身份尾组仍同步，后缀留在它后面。
+	require.Equal(t,
+		"codex_cli_rs/0.146.0 (Ubuntu 24.04; x86_64) xterm-256color (codex_cli_rs; 0.146.0) (mcp: server-a)",
+		SetCodexUserAgentVersion("codex_cli_rs/0.125.0 (Ubuntu 24.04; x86_64) xterm-256color (codex_cli_rs; 0.125.0) (mcp: server-a)", "0.146.0"),
 	)
 
 	// 无法重建时返回空串，由调用方决定整体回退，绝不拼出畸形身份。

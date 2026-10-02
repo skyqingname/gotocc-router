@@ -118,6 +118,11 @@ type cachedOpenAICodexEnvironmentTimezone struct {
 	expiresAt int64 // unix nano
 }
 
+type cachedOpenAICodexEgressCountry struct {
+	value     string
+	expiresAt int64 // unix nano
+}
+
 // cachedOpenAICodexLocalGroupQuota keeps the local Codex quota switch on the
 // request hot path without a database lookup per request.
 type cachedOpenAICodexLocalGroupQuota struct {
@@ -150,6 +155,20 @@ const openAICodexUserAgentDBTimeout = 5 * time.Second
 const openAICodexEnvironmentTimezoneCacheTTL = 60 * time.Second
 const openAICodexEnvironmentTimezoneErrorTTL = 5 * time.Second
 const openAICodexEnvironmentTimezoneDBTimeout = 5 * time.Second
+
+const openAICodexEgressCountryCacheTTL = 60 * time.Second
+const openAICodexEgressCountryErrorTTL = 5 * time.Second
+const openAICodexEgressCountryDBTimeout = 5 * time.Second
+
+const openAICodexResidencyCacheTTL = 60 * time.Second
+const openAICodexResidencyErrorTTL = 5 * time.Second
+const openAICodexResidencyDBTimeout = 5 * time.Second
+
+type cachedOpenAICodexResidency struct {
+	value     string
+	expiresAt int64
+}
+
 const openAICodexLocalGroupQuotaCacheTTL = 60 * time.Second
 const openAICodexLocalGroupQuotaErrorTTL = 5 * time.Second
 const openAICodexLocalGroupQuotaDBTimeout = 5 * time.Second
@@ -164,12 +183,13 @@ type cachedCodexRestrictionPolicy struct {
 	expiresAt int64 // unix nano
 }
 
-// cachedCyberSessionBlockRuntime cyber 会话屏蔽开关+TTL 进程内缓存（60s TTL）。
+// cachedCyberSessionBlockRuntime cyber 会话屏蔽开关、TTL 与用户白名单缓存（60s TTL）。
 // GetCyberSessionBlockRuntime 在网关请求热路径上被调用，避免每次访问 DB。
 type cachedCyberSessionBlockRuntime struct {
-	enabled   bool
-	ttl       time.Duration
-	expiresAt int64 // unix nano
+	allowlistedUsers map[int64]struct{}
+	enabled          bool
+	ttl              time.Duration
+	expiresAt        int64 // unix nano
 }
 
 const cyberSessionBlockRuntimeCacheTTL = 60 * time.Second
@@ -184,7 +204,7 @@ const openAIQuotaAutoPauseSettingsRefreshKey = "openai_quota_auto_pause_settings
 
 // GetCyberSessionBlockRuntime 返回 (开关, TTL)，进程内缓存 ~60s，
 // 供网关热路径读取时避免 DB 往返。
-// 两个 setting key 在单次 singleflight 里一起读取，减少 DB 往返。
+// 屏蔽设置与用户白名单在单次 singleflight 中一起读取。
 // 默认值：开关 false，TTL 1h（与粘性会话对齐）。
 func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool, time.Duration) {
 	if cached, ok := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime); ok && cached != nil {
@@ -193,6 +213,8 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 		}
 	}
 	result, _, _ := s.cyberSessionBlockRuntimeSF.Do("cyber_session_block_runtime", func() (any, error) {
+		s.cyberSessionBlockRuntimeMu.Lock()
+		defer s.cyberSessionBlockRuntimeMu.Unlock()
 		if cached, ok := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime); ok && cached != nil {
 			if time.Now().UnixNano() < cached.expiresAt {
 				return cached, nil
@@ -204,15 +226,11 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 		enabledVal, enabledErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberSessionBlockEnabled)
 		ttlVal, ttlErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberSessionBlockTTLSeconds)
 
+		previous, _ := s.cyberSessionBlockRuntimeCache.Load().(*cachedCyberSessionBlockRuntime)
+		cacheTTL := cyberSessionBlockRuntimeCacheTTL
 		if enabledErr != nil && !errors.Is(enabledErr, ErrSettingNotFound) {
 			slog.Warn("failed to get cyber_session_block_enabled setting", "error", enabledErr)
-			entry := &cachedCyberSessionBlockRuntime{
-				enabled:   false,
-				ttl:       time.Hour,
-				expiresAt: time.Now().Add(cyberSessionBlockRuntimeErrorTTL).UnixNano(),
-			}
-			s.cyberSessionBlockRuntimeCache.Store(entry)
-			return entry, nil
+			cacheTTL = cyberSessionBlockRuntimeErrorTTL
 		}
 
 		enabled := enabledErr == nil && strings.TrimSpace(enabledVal) == "true"
@@ -224,10 +242,23 @@ func (s *SettingService) GetCyberSessionBlockRuntime(ctx context.Context) (bool,
 			}
 		}
 
+		allowlistVal, allowlistErr := s.settingRepo.GetValue(dbCtx, SettingKeyCyberPolicyUserAllowlist)
+		var allowlistedUsers map[int64]struct{}
+		if allowlistErr == nil {
+			allowlistedUsers, allowlistErr = ParseCyberPolicyUserAllowlist(allowlistVal)
+		}
+		if allowlistErr != nil && !errors.Is(allowlistErr, ErrSettingNotFound) {
+			slog.Warn("failed to load risk control user allowlist", "error", allowlistErr)
+			cacheTTL = cyberSessionBlockRuntimeErrorTTL
+			if previous != nil {
+				allowlistedUsers = previous.allowlistedUsers
+			}
+		}
 		entry := &cachedCyberSessionBlockRuntime{
-			enabled:   enabled,
-			ttl:       ttl,
-			expiresAt: time.Now().Add(cyberSessionBlockRuntimeCacheTTL).UnixNano(),
+			allowlistedUsers: allowlistedUsers,
+			enabled:          enabled,
+			ttl:              ttl,
+			expiresAt:        time.Now().Add(cacheTTL).UnixNano(),
 		}
 		s.cyberSessionBlockRuntimeCache.Store(entry)
 		return entry, nil
@@ -362,7 +393,12 @@ func (s *SettingService) GetOpenAICodexEnvironmentTimezone(ctx context.Context) 
 		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), openAICodexEnvironmentTimezoneDBTimeout)
 		defer cancel()
 		value, err := s.settingRepo.GetValue(dbCtx, SettingKeyOpenAICodexEnvironmentTimezone)
-		if err != nil && !errors.Is(err, ErrSettingNotFound) {
+		if errors.Is(err, ErrSettingNotFound) {
+			// Key absent (deployment that never saved settings): apply the
+			// documented global default. An explicitly stored empty value
+			// keeps the "feature off" semantics.
+			value = DefaultOpenAICodexEnvironmentTimezone
+		} else if err != nil {
 			slog.Warn("failed to get openai codex environment timezone setting", "error", err)
 			entry := &cachedOpenAICodexEnvironmentTimezone{expiresAt: time.Now().Add(openAICodexEnvironmentTimezoneErrorTTL).UnixNano()}
 			if cached, ok := s.openAICodexEnvironmentTimezoneCache.Load().(*cachedOpenAICodexEnvironmentTimezone); ok && cached != nil {
@@ -384,6 +420,107 @@ func (s *SettingService) GetOpenAICodexEnvironmentTimezone(ctx context.Context) 
 		}
 	}
 	return ""
+}
+
+// GetOpenAICodexEgressCountry returns the global egress country code
+// (ISO 3166-1 alpha-2) for Codex accounts. An empty result means "not
+// declared". A missing key falls back to the documented default; an
+// explicitly stored empty value means "not declared". The stored value is
+// validated here so callers receive "" instead of a misconfigured string.
+func (s *SettingService) GetOpenAICodexEgressCountry(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return ""
+	}
+	if cached, ok := s.openAICodexEgressCountryCache.Load().(*cachedOpenAICodexEgressCountry); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+		return cached.value
+	}
+	result, _, _ := s.openAICodexEgressCountrySF.Do("openai_codex_egress_country", func() (any, error) {
+		if cached, ok := s.openAICodexEgressCountryCache.Load().(*cachedOpenAICodexEgressCountry); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+			return cached, nil
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), openAICodexEgressCountryDBTimeout)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, SettingKeyOpenAICodexEgressCountry)
+		if errors.Is(err, ErrSettingNotFound) {
+			value = DefaultOpenAICodexEgressCountry
+		} else if err != nil {
+			slog.Warn("failed to get openai codex egress country setting", "error", err)
+			entry := &cachedOpenAICodexEgressCountry{expiresAt: time.Now().Add(openAICodexEgressCountryErrorTTL).UnixNano()}
+			if cached, ok := s.openAICodexEgressCountryCache.Load().(*cachedOpenAICodexEgressCountry); ok && cached != nil {
+				entry.value = cached.value
+			}
+			s.openAICodexEgressCountryCache.Store(entry)
+			return entry, nil
+		}
+		entry := &cachedOpenAICodexEgressCountry{
+			value:     strings.TrimSpace(value),
+			expiresAt: time.Now().Add(openAICodexEgressCountryCacheTTL).UnixNano(),
+		}
+		s.openAICodexEgressCountryCache.Store(entry)
+		return entry, nil
+	})
+	if entry, ok := result.(*cachedOpenAICodexEgressCountry); ok && entry != nil {
+		if normalized, err := NormalizeOpenAICodexEgressCountry(entry.value); err == nil {
+			return normalized
+		}
+	}
+	return ""
+}
+
+// GetOpenAICodexResidency returns the global Codex residency, "off" or "us".
+// A missing key and any invalid stored value fail closed to off.
+func (s *SettingService) GetOpenAICodexResidency(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return DefaultOpenAICodexResidency
+	}
+	if cached, ok := s.openAICodexResidencyCache.Load().(*cachedOpenAICodexResidency); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+		return cached.value
+	}
+	result, _, _ := s.openAICodexResidencySF.Do("codex_residency", func() (any, error) {
+		if cached, ok := s.openAICodexResidencyCache.Load().(*cachedOpenAICodexResidency); ok && cached != nil && time.Now().UnixNano() < cached.expiresAt {
+			return cached, nil
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), openAICodexResidencyDBTimeout)
+		defer cancel()
+		value, err := s.settingRepo.GetValue(dbCtx, SettingKeyOpenAICodexResidency)
+		if errors.Is(err, ErrSettingNotFound) {
+			value = DefaultOpenAICodexResidency
+		} else if err != nil {
+			slog.Warn("failed to get openai codex residency setting", "error", err)
+			entry := &cachedOpenAICodexResidency{value: DefaultOpenAICodexResidency, expiresAt: time.Now().Add(openAICodexResidencyErrorTTL).UnixNano()}
+			if cached, ok := s.openAICodexResidencyCache.Load().(*cachedOpenAICodexResidency); ok && cached != nil && cached.value != "" {
+				entry.value = cached.value
+			}
+			s.openAICodexResidencyCache.Store(entry)
+			return entry, nil
+		}
+		normalized, normErr := NormalizeOpenAICodexResidency(value)
+		if normErr != nil {
+			normalized = DefaultOpenAICodexResidency
+		}
+		entry := &cachedOpenAICodexResidency{
+			value:     normalized,
+			expiresAt: time.Now().Add(openAICodexResidencyCacheTTL).UnixNano(),
+		}
+		s.openAICodexResidencyCache.Store(entry)
+		return entry, nil
+	})
+	if entry, ok := result.(*cachedOpenAICodexResidency); ok && entry != nil && entry.value != "" {
+		return entry.value
+	}
+	return DefaultOpenAICodexResidency
+}
+
+// OpenAICodexResidencyUS reports whether Codex-protocol outbound requests
+// should send x-openai-internal-codex-residency: us.
+func (s *SettingService) OpenAICodexResidencyUS(ctx context.Context) bool {
+	return s.GetOpenAICodexResidency(ctx) == openai.CodexResidencyUS
 }
 
 // IsOpenAICodexLocalGroupQuotaEnabled reports whether Codex clients should

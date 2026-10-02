@@ -388,22 +388,18 @@ func (s *AutoGroupResolver) catalogSourcesForGroup(ctx context.Context, group *G
 		}
 	}
 
+	if group.Platform == PlatformVideo {
+		for model, config := range group.VideoModels {
+			if config.Enabled {
+				sources.addExact(model)
+			}
+		}
+	}
 	lookup, err := s.channels.lookupGroupChannel(ctx, group.ID)
 	if err != nil {
 		return nil, ErrAutoRouteUnavailable.WithCause(err)
 	}
 	if lookup != nil && lookup.channel != nil {
-		if group.Platform == PlatformVideo {
-			models, err := channelVideoModels(lookup.channel.FeaturesConfig)
-			if err != nil {
-				return nil, ErrAutoRouteUnavailable.WithCause(err)
-			}
-			for model, config := range models {
-				if config.Enabled {
-					sources.addExact(model)
-				}
-			}
-		}
 		for _, platform := range matchingPlatforms(group.Platform) {
 			for model := range lookup.channel.ModelMapping[platform] {
 				if strings.ContainsAny(model, "*?") {

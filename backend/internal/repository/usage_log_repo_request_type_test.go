@@ -117,6 +117,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.NativeCompactionV2,
 			log.TimingVersion,
 			createdAt,
+			sqlmock.AnyArg(), // codex_rollout_budget_units
 			log.UserID,       // billing_user_id defaults to the actor for personal keys
 			sqlmock.AnyArg(), // team_id
 		).
@@ -222,6 +223,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.NativeCompactionV2,
 			log.TimingVersion,
 			createdAt,
+			sqlmock.AnyArg(), // codex_rollout_budget_units
 			log.UserID,       // billing_user_id defaults to the actor for personal keys
 			sqlmock.AnyArg(), // team_id
 		).
@@ -305,7 +307,7 @@ func TestPrepareUsageLogInsert_PersistsTPSMetadata(t *testing.T) {
 
 	require.Equal(t, 17, prepared.args[18])
 	require.Equal(t, false, prepared.args[39])
-	require.Equal(t, 1, prepared.args[len(prepared.args)-2])
+	require.Equal(t, 1, prepared.args[len(prepared.args)-3])
 	require.NotNil(t, log.IsComplete)
 	require.False(t, *log.IsComplete)
 
@@ -319,7 +321,7 @@ func TestPrepareUsageLogInsert_PersistsTPSMetadata(t *testing.T) {
 	}
 	defaultPrepared := prepareUsageLogInsert(defaultLog)
 	require.Nil(t, defaultPrepared.args[39])
-	require.Equal(t, 0, defaultPrepared.args[len(defaultPrepared.args)-2])
+	require.Equal(t, 0, defaultPrepared.args[len(defaultPrepared.args)-3])
 	require.Nil(t, defaultLog.IsComplete)
 }
 
@@ -339,8 +341,8 @@ func TestPrepareUsageLogInsert_PersistsNativeCompactionV2WithoutChangingRequestT
 	prepared := prepareUsageLogInsert(log)
 
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
-	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-5])
-	require.Equal(t, true, prepared.args[len(prepared.args)-5])
+	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-6])
+	require.Equal(t, true, prepared.args[len(prepared.args)-6])
 	require.Equal(t, int16(service.RequestTypeStream), prepared.args[31])
 	require.Equal(t, service.RequestTypeStream, log.RequestType)
 	require.True(t, log.Stream)
@@ -1029,6 +1031,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false, // native_compaction_v2
 			0,     // timing_version
 			now,
+			sql.NullFloat64{}, // codex_rollout_budget_units
 			int64(13),
 			sql.NullInt64{},
 		}})
@@ -1130,6 +1133,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false, // native_compaction_v2
 			0,     // timing_version
 			now,
+			sql.NullFloat64{}, // codex_rollout_budget_units
 			int64(10),
 			sql.NullInt64{},
 		}})
@@ -1202,6 +1206,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			true, // native_compaction_v2
 			0,    // timing_version
 			now,
+			sql.NullFloat64{}, // codex_rollout_budget_units
 			int64(11),
 			sql.NullInt64{},
 		}})
@@ -1275,6 +1280,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			false, // native_compaction_v2
 			0,     // timing_version
 			now,
+			sql.NullFloat64{}, // codex_rollout_budget_units
 			int64(12),
 			sql.NullInt64{},
 		}})

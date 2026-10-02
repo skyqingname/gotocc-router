@@ -1,5 +1,10 @@
 export default {
     accounts: {
+      videoAccountHint: 'Enter the video provider URL and API key, then bind a Video group. Configure model protocols, parameters and pricing in Channels.',
+      videoBaseUrlHint: 'Use the video provider API origin. Request paths come from the channel model protocol.',
+      videoBaseUrlRequired: 'Enter the video provider URL',
+      videoBaseUrlPlaceholder: 'Video provider API URL',
+
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
       createAccount: 'Create Account',
@@ -201,6 +206,7 @@ export default {
       status: {
         active: 'Active',
         inactive: 'Inactive',
+        disabled: 'Disabled',
         expired: 'Expired',
         error: 'Error',
         cooldown: 'Cooldown',
@@ -628,9 +634,13 @@ export default {
         codexFingerprintMode: 'Codex fingerprint convergence',
         codexFingerprintModeDesc: 'For OpenAI OAuth Responses sessions, converge fingerprint-owned client identifiers to account-level stable values. Device-only is the default. Native Compact v2 follows the selected mode; the ChatGPT Codex OAuth legacy compact compatibility path uses only the stable installation identifier. Off disables fingerprint mutation but does not disable Plus cache, security, or session policy.',
         codexEnvironmentTimezone: 'Codex environment_context timezone',
+        codexEnvironmentTimezoneNone: 'Not set (follow proxy/global)',
         codexEnvironmentTimezoneDesc:
           'Overrides the model-visible <timezone> / <current_date> pair inside <environment_context> with this IANA timezone and its current date, so the visible time matches the egress location. Takes precedence over the proxy annotation and the global default; leave empty to follow them.',
-        codexEnvironmentTimezonePlaceholder: 'e.g. America/New_York (empty = follow proxy/global default)',
+        codexEgressCountry: 'Codex egress country code',
+        codexEgressCountryNone: 'Not set (follow proxy/global)',
+        codexEgressCountryDesc:
+          'Egress country declared for this account (ISO 3166-1 alpha-2, e.g. US). Takes precedence over the proxy annotation and the global default; leave empty to follow them.',
         codexFingerprintOff: 'Off (no fingerprint rewrite)',
         codexFingerprintDevice: 'Device only (default)',
         codexFingerprintSession: 'Device + Session',
@@ -771,6 +781,7 @@ export default {
       enterCustomModelName: 'Enter custom model name',
       addModel: 'Add',
       modelExists: 'Model already exists',
+      modelMappingConflict: 'A mapping already exists for {from} → {to}. Modify or remove it under Model Mapping before adding this whitelist model',
       modelCount: '{count} models',
       poolMode: 'Pool Mode',
       poolModeHint: 'Enable when upstream is an account pool; errors won\'t mark local account status',
@@ -868,7 +879,47 @@ export default {
 	  autoPause5hDisabled: 'Disable 5h auto-pause',
 	  autoPause7dDisabled: 'Disable 7d auto-pause',
 	  autoPauseDisabledHint: 'When enabled, this account is never auto-paused (even if a global default threshold is configured).',
-	  autoResetCredit: {
+	  claudeResetCredits: {
+	    count: 'Resets',
+	    countTooltipLoad: 'Check remaining Claude resets (read-only, never consumes one)',
+	    countTooltipRefresh: 'Refresh remaining Claude resets (read-only, never consumes one)',
+	    fetched: 'Checked at {time}',
+	    error: 'Could not check reset credits',
+	    ineligible: 'This account cannot use resets right now',
+	    cooldown: 'Cooldown until {time}',
+	    expiresAt: 'Expires {time}',
+	    expiresAtFull: 'Reset credit expires at: {time}',
+	    clears: 'Clears windows: {windows}',
+	    notUsableNow: 'Not usable now',
+	    requiresLimit: 'Usable only after hitting a limit',
+	    reset: 'Reset',
+	    resetTooltipNeedQuery: 'Check the count first; reset is available once a usable credit is found',
+	    resetTooltipNone: 'No reset can be used right now',
+	    resetTooltipReady: 'Consume 1 reset to clear limit windows (asks for confirmation)',
+	    confirmTitle: 'Confirm Claude Reset',
+	    confirmMessage: 'This will consume 1 reset credit to immediately restore the {windows} window(s) ({count} remaining). This action cannot be undone. Continue?',
+	    windows: {
+	      fiveHour: '5h',
+	      sevenDay: '7d',
+	      sevenDayOverage: '7d overage'
+	    },
+	    outcome: {
+	      reset: 'Reset applied; cleared: {windows}',
+	      alreadyUsed: 'This reset was already used; refreshing to confirm',
+	      cooldown: 'Resets are cooling down; try again later',
+	      cooldownUntil: 'Resets are cooling down until {time}',
+	      notLimited: 'Not at a limit, so nothing was reset and no credit was used',
+	      ineligible: 'This account cannot use resets right now',
+	      unknown: 'Result unconfirmed; further redemption is blocked for now. Check again later',
+	      unavailable: 'Reset service is temporarily unavailable; retry after a while',
+	      inProgress: 'This reset request is still processing; check again shortly',
+	      retryBackoff: 'This reset request just failed; retry after a moment',
+	      busy: 'Another reset is in progress; try again later',
+	      notAvailable: 'No reset can be used right now; no credit was used',
+	      failed: 'Reset request failed'
+	    }
+	  },
+      autoResetCredit: {
 	    title: 'Automatically use reset credits',
 	    hint: 'Uses the earliest-expiring available credit only when actual usage reaches a threshold. Off by default; the account remains paused if no credit is available or reset fails.',
 	    threshold5h: '5h auto-reset threshold (%)',

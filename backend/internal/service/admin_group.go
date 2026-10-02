@@ -431,6 +431,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
+	if err := validateGroupVideoModels(platform, input.VideoModels); err != nil {
+		return nil, err
+	}
 	// 固定账号 manifest 配置：账号绑定发生在创建之后，创建时无法校验成员关系，
 	// 拒绝开启并在创建后的编辑里配置。
 	if normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig).Enabled {
@@ -525,11 +528,6 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	peakRateEnabled, peakStart, peakEnd, peakRateMultiplier := NormalizePeakRateConfig(subscriptionType, input.PeakRateEnabled, input.PeakStart, input.PeakEnd, peakRateMultiplier)
 	if err := ValidatePeakRateConfig(subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
-	}
-
-	rateSchedule, err := normalizeGroupRateSchedule(input.RateSchedule, subscriptionType, peakRateEnabled, peakStart, peakEnd, peakRateMultiplier)
-	if err != nil {
-		return nil, err
 	}
 
 	profitMinMargin := 0.0
@@ -640,7 +638,6 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		PeakStart:                       peakStart,
 		PeakEnd:                         peakEnd,
 		PeakRateMultiplier:              peakRateMultiplier,
-		RateSchedule:                    rateSchedule,
 		ProfitControlEnabled:            profitControlEnabled,
 		ProfitMinMargin:                 profitMinMargin,
 		ProfitSafetyBuffer:              profitSafetyBuffer,
@@ -651,6 +648,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		VideoPrice720P:                  videoPrice720P,
 		VideoPrice1080P:                 videoPrice1080P,
 		VideoModelPrices:                NormalizeVideoModelPrices(input.VideoModelPrices),
+		VideoModels:                     input.VideoModels.Clone(),
 		WebSearchPricePerCall:           webSearchPricePerCall,
 		SearchPricePer1k:                searchPricePer1k,
 		AudioRealtimePricePerMin:        audioRealtimePricePerMin,
@@ -832,6 +830,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.Platform != "" {
 		group.Platform = input.Platform
 	}
+	if input.VideoModels != nil {
+		if err := validateGroupVideoModels(group.Platform, input.VideoModels); err != nil {
+			return nil, err
+		}
+		group.VideoModels = input.VideoModels.Clone()
+	}
 	if input.RateMultiplier != nil {
 		if *input.RateMultiplier <= 0 {
 			return nil, errors.New("rate_multiplier must be > 0")
@@ -996,13 +1000,6 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err := ValidatePeakRateConfig(group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_PEAK_RATE_CONFIG", err.Error())
 	}
-	if input.RateSchedule != nil || input.PeakRateEnabled != nil || input.PeakStart != nil || input.PeakEnd != nil || input.PeakRateMultiplier != nil {
-		group.RateSchedule, err = normalizeGroupRateSchedule(input.RateSchedule, group.SubscriptionType, group.PeakRateEnabled, group.PeakStart, group.PeakEnd, group.PeakRateMultiplier)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if input.ProfitControlEnabled != nil {
 		group.ProfitControlEnabled = *input.ProfitControlEnabled
 	}
@@ -1456,134 +1453,6 @@ func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []
 // groupID: nil=不修改, 指向0=解绑, 指向正整数=绑定到目标分组
 func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
 	return s.AdminUpdateAPIKeyRouting(ctx, keyID, APIKeyRoutingUpdate{GroupID: groupID, GroupIDSet: groupID != nil})
-}
-
-func (s *adminServiceImpl) AdminUpdateAPIKeyRouting(ctx context.Context, keyID int64, input APIKeyRoutingUpdate) (*AdminUpdateAPIKeyGroupIDResult, error) {
-	groupID := input.GroupID
-	validationGroupID := groupID
-	if groupID != nil && *groupID == 0 && (input.RoutingMode == nil || *input.RoutingMode == APIKeyRoutingFixed) {
-		validationGroupID = nil
-	}
-	if err := ValidateAPIKeyRoutingInput(input.RoutingMode, input.RoutingMode != nil, validationGroupID); err != nil {
-		return nil, err
-	}
-	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingAuto &&
-		s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.RunMode == config.RunModeSimple {
-		return nil, infraerrors.Forbidden("AUTO_ROUTING_UNSUPPORTED_RUN_MODE", "automatic routing requires standard run mode")
-	}
-	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
-	if err != nil {
-		return nil, err
-	}
-
-	if input.RoutingMode == nil && groupID == nil {
-		// nil 表示不修改，直接返回
-		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
-	}
-	if apiKey.IsAutoRouting() && input.RoutingMode == nil && groupID != nil && *groupID > 0 {
-		return nil, infraerrors.BadRequest("ROUTING_MODE_CONFLICT", "select fixed routing before assigning a group")
-	}
-	if input.RoutingMode != nil && *input.RoutingMode == APIKeyRoutingFixed && groupID == nil && !input.GroupIDSet {
-		if apiKey.IsAutoRouting() {
-			return nil, infraerrors.BadRequest("ROUTING_GROUP_REQUIRED", "specify a group or explicitly unassign this key")
-		}
-		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
-	}
-	apiKey.RoutingMode = APIKeyRoutingFixed
-	if input.RoutingMode != nil {
-		apiKey.RoutingMode = *input.RoutingMode
-	}
-	if apiKey.IsAutoRouting() || groupID == nil {
-		unassigned := int64(0)
-		groupID = &unassigned
-	}
-
-	result := &AdminUpdateAPIKeyGroupIDResult{}
-
-	if *groupID == 0 {
-		// 0 表示解绑分组（不修改 user_allowed_groups，避免影响用户其他 Key）
-		apiKey.GroupID = nil
-		apiKey.Group = nil
-	} else {
-		// 验证目标分组存在且状态为 active
-		group, err := s.groupRepo.GetByID(ctx, *groupID)
-		if err != nil {
-			return nil, err
-		}
-		if group.Status != StatusActive {
-			return nil, infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active")
-		}
-		// 订阅类型分组：用户须持有该分组的有效订阅才可绑定
-		if group.IsSubscriptionType() {
-			if s.userSubRepo == nil {
-				return nil, infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
-			}
-			if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, *groupID); err != nil {
-				if errors.Is(err, ErrSubscriptionNotFound) {
-					return nil, infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group")
-				}
-				return nil, err
-			}
-		}
-
-		gid := *groupID
-		apiKey.GroupID = &gid
-		apiKey.Group = group
-
-		// 专属标准分组：使用事务保证「添加分组权限」与「更新 API Key」的原子性
-		if group.IsExclusive && !group.IsSubscriptionType() {
-			opCtx := ctx
-			var tx *dbent.Tx
-			if s.entClient == nil {
-				logger.LegacyPrintf("service.admin", "Warning: entClient is nil, skipping transaction protection for exclusive group binding")
-			} else {
-				var txErr error
-				tx, txErr = s.entClient.Tx(ctx)
-				if txErr != nil {
-					return nil, fmt.Errorf("begin transaction: %w", txErr)
-				}
-				defer func() { _ = tx.Rollback() }()
-				opCtx = dbent.NewTxContext(ctx, tx)
-			}
-
-			if addErr := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, gid); addErr != nil {
-				return nil, fmt.Errorf("add group to user allowed groups: %w", addErr)
-			}
-			if err := s.apiKeyRepo.Update(opCtx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
-				return nil, fmt.Errorf("update api key: %w", err)
-			}
-			if tx != nil {
-				if err := tx.Commit(); err != nil {
-					return nil, fmt.Errorf("commit transaction: %w", err)
-				}
-			}
-
-			result.AutoGrantedGroupAccess = true
-			result.GrantedGroupID = &gid
-			result.GrantedGroupName = group.Name
-
-			// 失效认证缓存（在事务提交后执行）
-			if s.authCacheInvalidator != nil {
-				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
-			}
-
-			result.APIKey = apiKey
-			return result, nil
-		}
-	}
-
-	// 非专属分组 / 解绑：无需事务，单步更新即可
-	if err := s.apiKeyRepo.Update(ctx, apiKey, APIKeyUpdateFields{GroupID: true, RoutingMode: true}); err != nil {
-		return nil, fmt.Errorf("update api key: %w", err)
-	}
-
-	// 失效认证缓存
-	if s.authCacheInvalidator != nil {
-		s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
-	}
-
-	result.APIKey = apiKey
-	return result, nil
 }
 
 // AdminResetAPIKeyRateLimitUsage resets all API key rate-limit usage windows.

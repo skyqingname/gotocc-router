@@ -274,6 +274,16 @@ func SettledAt(v time.Time) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldEQ(FieldSettledAt, v))
 }
 
+// ResellerSnapshotIsNil applies the IsNil predicate on the "reseller_snapshot" field.
+func ResellerSnapshotIsNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldIsNull(FieldResellerSnapshot))
+}
+
+// ResellerSnapshotNotNil applies the NotNil predicate on the "reseller_snapshot" field.
+func ResellerSnapshotNotNil() predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNotNull(FieldResellerSnapshot))
+}
+
 // BatchIDEQ applies the EQ predicate on the "batch_id" field.
 func BatchIDEQ(v string) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldEQ(FieldBatchID, v))
