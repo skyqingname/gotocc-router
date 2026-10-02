@@ -1,7 +1,5 @@
 # Payment System Configuration Guide
 
-Owned invitation commissions are based on credited site USD tokens, not cash currency conversion. See [three-generation commissions](AFFILIATE.md) for eligible recharge paths, settings and migration behavior.
-
 Sub2API Plus has a built-in payment system that enables user self-service top-up without deploying a separate payment service.
 
 ---

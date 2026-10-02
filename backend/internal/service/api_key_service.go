@@ -390,10 +390,6 @@ func (s *APIKeyService) SetConcurrencyService(concurrencyService *ConcurrencySer
 	s.concurrencyService = concurrencyService
 }
 
-func (s *APIKeyService) SetTeamRepository(repo TeamRepository) {
-	s.teamRepo = repo
-}
-
 func (s *APIKeyService) compileAPIKeyIPRules(apiKey *APIKey) {
 	if apiKey == nil {
 		return
@@ -1101,38 +1097,6 @@ func (s *APIKeyService) ValidateKey(ctx context.Context, key string) (*APIKey, *
 	return apiKey, user, nil
 }
 
-func (s *APIKeyService) ValidateTeamKeyLifecycle(apiKey *APIKey) error {
-	if apiKey == nil || apiKey.TeamID == nil {
-		return nil
-	}
-	if s != nil && s.cfg != nil && !s.cfg.Team.Enabled {
-		return ErrTeamFeatureDisabled
-	}
-	if apiKey.Team == nil || apiKey.TeamMembership == nil || apiKey.Team.ID != *apiKey.TeamID || apiKey.TeamMembership.TeamID != *apiKey.TeamID {
-		return ErrTeamMembershipRequired
-	}
-	if apiKey.TeamMembership.UserID != apiKey.UserID || apiKey.TeamMembership.JoinedAt.After(apiKey.CreatedAt) {
-		return ErrTeamMembershipRequired
-	}
-	if apiKey.Team.Status != TeamStatusActive {
-		return ErrTeamSuspended
-	}
-	if apiKey.ActorUser == nil || !apiKey.ActorUser.IsActive() {
-		return ErrTeamActorInactive
-	}
-	if apiKey.User == nil || !apiKey.User.IsActive() {
-		return ErrTeamBillingOwnerInactive
-	}
-	return nil
-}
-
-func (s *APIKeyService) CheckTeamMemberLimits(apiKey *APIKey) error {
-	if err := s.ValidateTeamKeyLifecycle(apiKey); err != nil {
-		return err
-	}
-	return checkTeamMemberLimitSnapshot(apiKey.TeamMembership)
-}
-
 // TouchLastUsed 通过防抖更新 api_keys.last_used_at，减少高频写放大。
 // 该操作为尽力而为，不应阻塞主请求链路。
 func (s *APIKeyService) TouchLastUsed(ctx context.Context, keyID int64) error {
@@ -1220,23 +1184,6 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 	return availableGroups, nil
 }
 
-func (s *APIKeyService) GetAvailableGroupsForScope(ctx context.Context, userID int64, scope string) ([]Group, error) {
-	if strings.EqualFold(strings.TrimSpace(scope), "team") {
-		if s.cfg != nil && !s.cfg.Team.Enabled {
-			return nil, ErrTeamFeatureDisabled
-		}
-		if s.teamRepo == nil {
-			return nil, ErrTeamFeatureDisabled
-		}
-		teamCtx, err := s.teamRepo.GetContextByUserID(ctx, userID)
-		if err != nil || teamCtx == nil || teamCtx.Owner == nil {
-			return nil, ErrTeamMembershipRequired
-		}
-		return s.GetAvailableGroups(ctx, teamCtx.Owner.UserID)
-	}
-	return s.GetAvailableGroups(ctx, userID)
-}
-
 // canUserBindGroupInternal 内部方法，检查用户是否可以绑定分组（使用预加载的订阅数据）
 func (s *APIKeyService) canUserBindGroupInternal(user *User, group *Group, subscribedGroupIDs map[int64]bool) bool {
 	// 订阅类型分组：需要有效订阅
@@ -1290,23 +1237,6 @@ func (s *APIKeyService) GetUserGroupRates(ctx context.Context, userID int64) (ma
 		return nil, fmt.Errorf("get user group rates: %w", err)
 	}
 	return rates, nil
-}
-
-func (s *APIKeyService) GetUserGroupRatesForScope(ctx context.Context, userID int64, scope string) (map[int64]float64, error) {
-	if !strings.EqualFold(strings.TrimSpace(scope), "team") {
-		return s.GetUserGroupRates(ctx, userID)
-	}
-	if s.cfg != nil && !s.cfg.Team.Enabled {
-		return nil, ErrTeamFeatureDisabled
-	}
-	if s.teamRepo == nil {
-		return nil, ErrTeamFeatureDisabled
-	}
-	teamCtx, err := s.teamRepo.GetContextByUserID(ctx, userID)
-	if err != nil || teamCtx == nil || teamCtx.Owner == nil {
-		return nil, ErrTeamMembershipRequired
-	}
-	return s.GetUserGroupRates(ctx, teamCtx.Owner.UserID)
 }
 
 // CheckAPIKeyQuotaAndExpiry checks if the API key is valid for use (not expired, quota not exhausted)

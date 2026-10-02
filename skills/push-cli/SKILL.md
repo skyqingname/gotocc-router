@@ -1,8 +1,6 @@
 ---
 name: push-cli
 description: >-
-  Legacy mode only: invoke solely when the owner explicitly requests this CLI.
-  Ordinary GoToCC local publication follows docs/RELEASING.md instead.
   Safely push Sub2API Plus working branches and submit the final locally
   validated pull request. Use when the user asks to push code, publish the
   current branch, run the repository validation matrix, create or update a
@@ -15,9 +13,6 @@ description: >-
   release-cli and requires a verified tag plus an exactly regenerated metadata
   tree. Never push the repository default branch.
 ---
-
-> Legacy workflow, outside GoToCC local publication. Use only when the owner explicitly requests this legacy CLI mode. Ordinary upgrade/push/release requests follow `docs/RELEASING.md`; do not start the full matrix or PR/finalization chain.
-
 
 # Push CLI
 
@@ -82,7 +77,7 @@ Git transfers only `HEAD:<current-branch>`. Never use `--force`, `--all`,
 
 Only `check`, `submit-pr`, `ensure`, and `clean` access the validation runtime.
 
-- macOS: directly reachable Docker Engine and Compose plugin.
+- macOS: Apple Containers only; no Docker, Colima, or host-toolchain fallback.
 - Windows: Docker inside a running WSL2 Debian or Ubuntu distribution only.
 - Linux: directly reachable Docker Engine and Compose plugin.
 
