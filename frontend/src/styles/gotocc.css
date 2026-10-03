@@ -158,6 +158,13 @@ html .theme-tour-popover .driver-popover-next-btn:hover {
   transform-origin: 13px 12px;
 }
 
+.gc-i-sparkles .gc-a {
+  transition: fill 300ms var(--motion-ease);
+}
+
+.gc-i-team .gc-side0 { --gc-join-x: 4px; }
+.gc-i-team .gc-side1 { --gc-join-x: -4px; }
+
 .gc-i-images .gc-a,
 .gc-i-images .gc-back {
   transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -196,6 +203,11 @@ html .theme-tour-popover .driver-popover-next-btn:hover {
   .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a3 { animation-delay: 180ms; }
   .sidebar-link:is(:hover, :focus-visible) .gc-i-user .gc-a { animation: gc-draw 400ms var(--motion-ease) backwards, gc-grow 400ms var(--motion-ease) backwards; }
   .sidebar-link:is(:hover, :focus-visible) .gc-i-users .gc-a { animation: gc-slide-in 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-side { animation: gc-join 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-store .gc-a { animation: gc-bob 500ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-a { fill: currentColor; animation: gc-float 1000ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-star { animation: gc-twinkle 1200ms ease-in-out 300ms; }
   .sidebar-link:is(:hover, :focus-visible) .gc-i-gift .gc-a { animation: gc-lid 550ms ease-in-out; }
   .sidebar-link:is(:hover, :focus-visible) .gc-i-folder .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
   .sidebar-link:is(:hover, :focus-visible) .gc-i-layers .gc-a0 { animation: gc-lift-5 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
@@ -236,6 +248,26 @@ html .theme-tour-popover .driver-popover-next-btn:hover {
 
 @keyframes gc-slide-in {
   from { transform: translateX(-6px); }
+}
+
+@keyframes gc-join {
+  from { transform: translateX(var(--gc-join-x)); opacity: 0; }
+}
+
+@keyframes gc-bob {
+  40% { transform: translateY(-2px); }
+  70% { transform: translateY(0.5px); }
+}
+
+@keyframes gc-float {
+  33% { transform: translateY(-1px); }
+  66% { transform: translateY(0); }
+}
+
+@keyframes gc-twinkle {
+  0% { opacity: 0; }
+  17% { opacity: 1; }
+  33%, 83% { opacity: 0; }
 }
 
 @keyframes gc-lid {

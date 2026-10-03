@@ -195,9 +195,10 @@ import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useTheme } from '@/composables/useTheme'
 // 侧栏图标用 GoToCC 的 Lucide 图形，悬停时播放动效。
 import {
-  BatchImageIcon, BellIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon, CreditCardIcon,
-  DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, MoonIcon, OrderIcon, OrderListIcon, PluginIcon, PriceTagIcon,
-  RechargeSubscriptionIcon, ServerIcon, ShieldIcon, SignalIcon, SunIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
+  BatchImageIcon, BellIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
+  CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, ModelPlazaIcon, MoonIcon, OrderIcon,
+  OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, ServerIcon, ShieldIcon, SignalIcon,
+  SunIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
 } from '@/components/gotocc/navIcons'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
@@ -306,6 +307,7 @@ const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
+const flagModelPlaza = makeSidebarFlag(FeatureFlags.modelPlaza)
 
 // 购买入口文案随站点计费模式切换：仅充值 → 「充值」，仅订阅 → 「订阅」，否则「充值/订阅」。
 const purchaseNavLabel = computed(() => {
@@ -339,8 +341,10 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
   }
   items.push(
+    // 带 embedded=1 在后台布局内打开，与页眉入口一致。
+    { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, featureFlag: flagModelPlaza },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
-    { path: '/team', label: t('nav.team'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagTeam },
+    { path: '/team', label: t('nav.team'), icon: TeamIcon, hideInSimpleMode: true, featureFlag: flagTeam },
     { path: '/async-image', label: t('nav.asyncImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
@@ -351,7 +355,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
-    ...(resellerAccess.enabled.value ? [{ path: '/reseller', label: t('nav.reseller'), icon: UsersIcon, hideInSimpleMode: true }] : []),
+    ...(resellerAccess.enabled.value ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, hideInSimpleMode: true }] : []),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
@@ -518,13 +522,19 @@ function handleMenuItemClick(itemPath: string) {
   }
 }
 
+// 导航 path 可带查询串（模型广场），选中态只比较路径部分。
+function routePathOf(path: string): string {
+  return path.split('?')[0]
+}
+
 function isActive(path: string): boolean {
-  return route.path === path || route.path.startsWith(path + '/')
+  const target = routePathOf(path)
+  return route.path === target || route.path.startsWith(target + '/')
 }
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
-  return item.children.some(child => route.path === child.path)
+  return item.children.some(child => route.path === routePathOf(child.path))
 }
 
 function isGroupExpanded(item: NavItem): boolean {
