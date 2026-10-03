@@ -11,6 +11,9 @@ func applyResellerSitePublicSettings(ctx context.Context, settings *PublicSettin
 	if !resellersite.IsCustomer(ctx) {
 		return settings, nil
 	}
+	settings.ResellerInvitationRequired = true
+	settings.InvitationCodeEnabled = true
+	settings.PromoCodeEnabled = false
 	apiURL, err := customerSiteAPIURL(ctx, settings.APIBaseURL)
 	if err != nil {
 		return nil, err

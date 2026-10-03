@@ -585,6 +585,7 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 // A unit test diffs this struct's JSON keys against dto.PublicSettings to catch
 // drift automatically (see setting_service_injection_test.go).
 type PublicSettingsInjectionPayload struct {
+	ResellerInvitationRequired          bool                     `json:"reseller_invitation_required"`
 	RegistrationEnabled                 bool                     `json:"registration_enabled"`
 	EmailVerifyEnabled                  bool                     `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist    []string                 `json:"registration_email_suffix_whitelist"`
@@ -689,6 +690,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PromoCodeEnabled:                    settings.PromoCodeEnabled,
 		PasswordResetEnabled:                settings.PasswordResetEnabled,
 		InvitationCodeEnabled:               settings.InvitationCodeEnabled,
+		ResellerInvitationRequired:          settings.ResellerInvitationRequired,
 		TotpEnabled:                         settings.TotpEnabled,
 		PasskeyEnabled:                      settings.PasskeyEnabled,
 		LoginAgreementEnabled:               settings.LoginAgreementEnabled,

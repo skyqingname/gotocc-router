@@ -1,9 +1,9 @@
 {
   "sites": [
     {
-      "enabled": false,
+      "enabled": true,
       "primary_origin": "https://gotocc.xyz",
-      "customer_origin": ""
+      "customer_origin": "https://ai.gotocc.xyz"
     },
     {
       "enabled": true,

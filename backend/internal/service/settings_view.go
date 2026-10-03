@@ -342,6 +342,7 @@ type DefaultSubscriptionSetting struct {
 }
 
 type PublicSettings struct {
+	ResellerInvitationRequired          bool
 	RegistrationEnabled                 bool
 	EmailVerifyEnabled                  bool
 	ForceEmailOnThirdPartySignup        bool

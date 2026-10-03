@@ -8,6 +8,7 @@ import (
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 )
 
 type registrationInvitation struct {
@@ -30,6 +31,12 @@ func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitat
 			return nil, err
 		}
 		return &registrationInvitation{reseller: profile}, nil
+	}
+	if resellersite.IsCustomer(ctx) {
+		if invitationCode == "" {
+			return nil, missingErr
+		}
+		return nil, ErrInvitationCodeInvalid
 	}
 	if invitationCode == "" {
 		if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
@@ -63,13 +70,6 @@ func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation 
 		return nil
 	}
 	if invitation.reseller != nil {
-		bound, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.reseller.UserID, invitation.reseller.InvitationCode)
-		if err != nil {
-			return err
-		}
-		if !bound {
-			return ErrInvitationCodeInvalid
-		}
 		return s.resellerService.BindRegistration(ctx, user.ID, invitation.reseller.UserID)
 	}
 	if invitation.redeem != nil {
@@ -158,4 +158,13 @@ func (s *AuthService) ensureSignupInvitation(ctx context.Context, userID int64) 
 func (s *AuthService) ValidateRegistrationInvitation(ctx context.Context, code string) error {
 	_, err := s.resolveRegistrationInvitation(ctx, code, ErrInvitationCodeRequired)
 	return err
+}
+
+// resellerSignupGrantPlan keeps platform signup gifts separate from station credits.
+func resellerSignupGrantPlan(plan signupGrantPlan, invitation *registrationInvitation) signupGrantPlan {
+	if invitation != nil && invitation.reseller != nil {
+		plan.Balance = 0
+		plan.Subscriptions = nil
+	}
+	return plan
 }

@@ -2,6 +2,6 @@
 package resellersite
 
 var configuredSites = []Site{
-	{Enabled: false, PrimaryOrigin: "https://gotocc.xyz", CustomerOrigin: ""},
+	{Enabled: true, PrimaryOrigin: "https://gotocc.xyz", CustomerOrigin: "https://ai.gotocc.xyz"},
 	{Enabled: true, PrimaryOrigin: "http://127.0.0.1:18080", CustomerOrigin: "http://localhost:18080"},
 }
