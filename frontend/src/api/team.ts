@@ -107,6 +107,15 @@ export interface TeamUsageLog {
   created_at: string
 }
 
+// 团队用量按模型的汇总，按消费从高到低排列。
+export interface TeamUsageModel {
+  model: string
+  request_count: number
+  input_tokens: number
+  output_tokens: number
+  actual_cost: number
+}
+
 export interface TeamUsagePage {
   items: TeamUsageLog[]
   total: number
@@ -211,6 +220,10 @@ export const teamAPI = {
   },
   async usageLogs(query: TeamUsageQuery = {}): Promise<TeamUsagePage> {
     const { data } = await apiClient.get<TeamUsagePage>('/team/usage/logs', { params: query })
+    return data
+  },
+  async usageModels(query: Pick<TeamUsageQuery, 'from' | 'to' | 'member_id' | 'api_key_id'> = {}): Promise<TeamUsageModel[]> {
+    const { data } = await apiClient.get<TeamUsageModel[]>('/team/usage/models', { params: query })
     return data
   },
   async keys(): Promise<TeamAPIKey[]> {

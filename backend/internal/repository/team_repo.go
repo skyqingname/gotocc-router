@@ -847,6 +847,28 @@ func (r *teamRepository) ListMemberUsageSeries(ctx context.Context, teamID int64
 	return items, rows.Err()
 }
 
+func (r *teamRepository) ListUsageModels(ctx context.Context, teamID int64, query service.TeamUsageQuery) ([]service.TeamUsageModel, error) {
+	where, args := teamUsageWhere(teamID, query)
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT ul.model, COUNT(*), COALESCE(SUM(ul.input_tokens), 0), COALESCE(SUM(ul.output_tokens), 0), COALESCE(SUM(ul.actual_cost), 0)
+		FROM usage_logs ul WHERE `+where+`
+		GROUP BY ul.model ORDER BY 5 DESC, 1`, args...)
+	if err != nil {
+		return nil, err
+	}
+	// 查询结束时关闭结果集，读取阶段的错误统一通过 rows.Err 返回。
+	defer func() { _ = rows.Close() }()
+	items := make([]service.TeamUsageModel, 0)
+	for rows.Next() {
+		var item service.TeamUsageModel
+		if err := rows.Scan(&item.Model, &item.RequestCount, &item.InputTokens, &item.OutputTokens, &item.ActualCost); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (r *teamRepository) ListUsageLogs(ctx context.Context, teamID int64, query service.TeamUsageQuery) ([]service.TeamUsageLogItem, int64, error) {
 	where, args := teamUsageWhere(teamID, query)
 	var total int64

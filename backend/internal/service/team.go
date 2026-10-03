@@ -218,6 +218,15 @@ type TeamUsageLogItem struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// TeamUsageModel 是团队用量按模型的汇总，按消费从高到低排列。
+type TeamUsageModel struct {
+	Model        string  `json:"model"`
+	RequestCount int64   `json:"request_count"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	ActualCost   float64 `json:"actual_cost"`
+}
+
 // TeamUsagePage 返回团队用量明细及分页总数。
 type TeamUsagePage struct {
 	Items  []TeamUsageLogItem `json:"items"`
@@ -274,6 +283,7 @@ type TeamRepository interface {
 	GetUsageSummary(ctx context.Context, teamID int64, query TeamUsageQuery) (*TeamUsageSummary, error)
 	ListMemberUsageSeries(ctx context.Context, teamID int64, query TeamUsageQuery) ([]TeamMemberUsageSeries, error)
 	ListUsageLogs(ctx context.Context, teamID int64, query TeamUsageQuery) ([]TeamUsageLogItem, int64, error)
+	ListUsageModels(ctx context.Context, teamID int64, query TeamUsageQuery) ([]TeamUsageModel, error)
 	ListTeamKeys(ctx context.Context, teamID int64, actorUserID *int64) ([]TeamAPIKeyItem, error)
 	DisableTeamKey(ctx context.Context, teamID, keyID int64, actorUserID *int64) (string, error)
 	EnableTeamKey(ctx context.Context, teamID, keyID int64, actorUserID *int64) (string, error)
@@ -456,6 +466,19 @@ func (s *TeamService) ListUsageLogs(ctx context.Context, userID int64, query Tea
 		return nil, err
 	}
 	return &TeamUsagePage{Items: items, Total: total, Limit: query.Limit, Offset: query.Offset}, nil
+}
+
+// ListUsageModels 按模型汇总当前成员有权查看的团队用量，Member 只能读取自己。
+func (s *TeamService) ListUsageModels(ctx context.Context, userID int64, query TeamUsageQuery) ([]TeamUsageModel, error) {
+	teamCtx, err := s.requireMembership(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	query = normalizeTeamUsageQuery(query)
+	if teamCtx.Membership.Role != TeamRoleOwner {
+		query.ActorUserID = &userID
+	}
+	return s.repo.ListUsageModels(ctx, teamCtx.Team.ID, query)
 }
 
 // ListTeamKeys 返回角色允许查看的团队 Key，并统一生成脱敏展示值。
