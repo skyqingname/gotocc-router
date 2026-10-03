@@ -82,16 +82,6 @@
         </nav>
 
         <section v-if="activeTab === 'overview'" class="space-y-5">
-          <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div v-for="metric in usageMetrics" :key="metric.label" class="card min-w-0 p-4">
-              <p class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-dark-400">
-                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="[METRIC_TONES[metric.tone].tile, METRIC_TONES[metric.tone].icon]"><Icon :name="metric.icon" size="sm" /></span>
-                {{ metric.label }}
-              </p>
-              <p class="mt-3 truncate text-2xl font-semibold tracking-tight tabular-nums text-gray-900 dark:text-white">{{ metric.value }}</p>
-            </div>
-          </div>
-
           <div v-if="!isOwner" class="card p-5" data-tour="team-limit-progress">
             <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.limitProgress') }}</h2>
             <div class="mt-5 grid gap-5 md:grid-cols-3">
@@ -107,9 +97,7 @@
             </div>
           </div>
 
-          <TeamMemberUsageCharts v-if="isOwner" :series="memberSeriesForChart" :loading="usageLoading" data-tour="team-member-usage-charts" />
-
-          <TeamUsageScope :range="range" :members="members" :keys="teamKeys" :is-owner="isOwner" data-tour="team-usage-records" />
+          <TeamOverview :range="range" :members="members" :keys="teamKeys" :is-owner="isOwner" data-tour="team-member-usage-charts" @open-member="detailMemberId = $event" />
         </section>
 
         <!-- 成员：搜索、排序，每位成员一行，展开看限额与本期用量，详情在侧边抽屉 -->
@@ -234,22 +222,17 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TeamInvitationDialog from '@/components/team/TeamInvitationDialog.vue'
-import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import TeamMemberDrawer from '@/components/gotocc/team/TeamMemberDrawer.vue'
 import TeamMemberRow from '@/components/gotocc/team/TeamMemberRow.vue'
-import TeamUsageScope from '@/components/gotocc/team/TeamUsageScope.vue'
-import { formatTeamCost } from '@/components/gotocc/team/teamFormat'
-import { COUNT_UP_MS } from '@/components/gotocc/dashboard/motion'
-import { METRIC_TONES, type MetricTone } from '@/components/gotocc/dashboard/tones'
-import { useCountUp } from '@/components/gotocc/dashboard/useCountUp'
+import TeamOverview from '@/components/gotocc/team/TeamOverview.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
-import { teamAPI, type TeamAPIKey, type TeamContext, type TeamInvitation, type TeamInvitationPreview, type TeamMembership, type TeamMemberUsageSeries, type TeamUsageSummary } from '@/api/team'
+import { teamAPI, type TeamAPIKey, type TeamContext, type TeamInvitation, type TeamInvitationPreview, type TeamMembership, type TeamMemberUsageSeries } from '@/api/team'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { useStepUp, isStepUpCancelled } from '@/composables/useStepUp'
-import { formatDateLocalInput, formatDateTime, formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
+import { formatDateLocalInput, formatDateTime } from '@/utils/format'
 
 type TeamTab = 'overview' | 'members' | 'keys' | 'invitations' | 'settings'
 type LimitKey = 'daily_limit_usd' | 'weekly_limit_usd' | 'monthly_limit_usd'
@@ -265,12 +248,10 @@ const loading = ref(true)
 const refreshing = ref(false)
 const submitting = ref(false)
 const resolvingToken = ref(false)
-const usageLoading = ref(false)
 const teamContext = ref<TeamContext | null>(null)
 const members = ref<TeamMembership[]>([])
 const invitations = ref<TeamInvitation[]>([])
 const teamKeys = ref<TeamAPIKey[]>([])
-const usageSummary = ref<TeamUsageSummary | null>(null)
 const memberSeries = ref<TeamMemberUsageSeries[]>([])
 const invitationPreview = ref<TeamInvitationPreview | null>(null)
 const invitationPreviewLoading = ref(false)
@@ -324,17 +305,6 @@ const teamTabTourMarkers: Partial<Record<TeamTab, string>> = {
 const teamTabTourMarker = (tab: TeamTab) => teamTabTourMarkers[tab]
 const formatMoney = (value: number, digits = 2) => `$${Number(value || 0).toFixed(digits)}`
 const formatLimit = (used: number, limit: number) => limit > 0 ? `${formatMoney(used)} / ${formatMoney(limit)}` : `${formatMoney(used)} / ${t('team.unlimited')}`
-const animatedCost = useCountUp(() => usageSummary.value?.actual_cost ?? 0, COUNT_UP_MS)
-const animatedRequests = useCountUp(() => usageSummary.value?.request_count ?? 0, COUNT_UP_MS)
-const animatedInput = useCountUp(() => usageSummary.value?.input_tokens ?? 0, COUNT_UP_MS)
-const animatedOutput = useCountUp(() => usageSummary.value?.output_tokens ?? 0, COUNT_UP_MS)
-type MetricIcon = 'dollar' | 'swap' | 'cube'
-const usageMetrics = computed(() => [
-  { label: t('team.totalCost'), value: formatTeamCost(animatedCost.value), tone: 'cost' as MetricTone, icon: 'dollar' as MetricIcon },
-  { label: t('team.requests'), value: formatNumber(Math.round(animatedRequests.value)), tone: 'requests' as MetricTone, icon: 'swap' as MetricIcon },
-  { label: t('team.inputTokens'), value: formatTokensK(animatedInput.value), tone: 'tokens' as MetricTone, icon: 'cube' as MetricIcon },
-  { label: t('team.outputTokens'), value: formatTokensK(animatedOutput.value), tone: 'cacheHitRate' as MetricTone, icon: 'cube' as MetricIcon },
-])
 const seriesByMember = computed(() => new Map(memberSeries.value.map((item) => [item.actor_user_id, item.summary])))
 const memberSortOptions = computed<SelectOption[]>(() => [
   { value: 'cost', label: t('team.sortByCost') },
@@ -360,7 +330,6 @@ const visibleMembers = computed(() => {
 })
 // 抽屉按 ID 取当前成员对象，限额更新后显示随之刷新。
 const detailMember = computed(() => members.value.find((member) => member.user_id === detailMemberId.value) ?? null)
-const memberSeriesForChart = computed(() => memberSeries.value.map((item) => ({ userID: item.actor_user_id, label: item.display_name, summary: item.summary })))
 const memberLimits = computed(() => {
   const membership = teamContext.value?.membership
   if (!membership) return []
@@ -385,35 +354,26 @@ const loadContext = async () => {
 }
 const loadTeamData = async () => {
   if (!teamContext.value) return
-  usageLoading.value = true
-  try {
-    const requests = [teamAPI.keys().then((value) => { teamKeys.value = value })]
-    if (!isTeamActive.value) {
-      members.value = []
-      invitations.value = []
-      usageSummary.value = null
-      memberSeries.value = []
-      await Promise.all(requests)
-      return
-    }
-
-    requests.push(loadRangeUsage())
-    requests.push(teamAPI.members().then((value) => { members.value = value }))
-    if (isOwner.value) requests.push(teamAPI.invitations().then((value) => { invitations.value = value }))
+  const requests = [teamAPI.keys().then((value) => { teamKeys.value = value })]
+  if (!isTeamActive.value) {
+    members.value = []
+    invitations.value = []
+    memberSeries.value = []
     await Promise.all(requests)
-  } finally { usageLoading.value = false }
+    return
+  }
+  requests.push(loadRangeUsage())
+  requests.push(teamAPI.members().then((value) => { members.value = value }))
+  if (isOwner.value) requests.push(teamAPI.invitations().then((value) => { invitations.value = value }))
+  await Promise.all(requests)
 }
-// 统计范围内的团队汇总和成员序列；明细由用量明细卡片按同一范围自行取数。
+// 成员页每行的本期用量；概览按同一范围和自己的筛选自行取数。
 const loadRangeUsage = async () => {
-  const query = { from: range.value.from, to: range.value.to }
-  const [summary, series] = await Promise.all([teamAPI.usage(query), teamAPI.memberUsage(query)])
-  usageSummary.value = summary
-  memberSeries.value = series
+  memberSeries.value = await teamAPI.memberUsage({ from: range.value.from, to: range.value.to })
 }
 const onRangeChange = async (value: { startDate: string; endDate: string }) => {
   range.value = { from: value.startDate, to: value.endDate }
-  usageLoading.value = true
-  await loadRangeUsage().finally(() => { usageLoading.value = false })
+  await loadRangeUsage()
 }
 const refreshAll = async () => { refreshing.value = true; try { await loadContext(); await loadTeamData() } catch (error: any) { appStore.showError(error?.message || t('team.loadFailed')) } finally { refreshing.value = false } }
 const createTeam = async () => { submitting.value = true; try { applyContext(await teamAPI.create(createName.value)); await loadTeamData(); appStore.showSuccess(t('team.created')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { submitting.value = false } }

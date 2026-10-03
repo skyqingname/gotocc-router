@@ -179,20 +179,25 @@ type TeamUsageQuery struct {
 	Offset      int
 }
 
-// TeamUsageDaily 是团队用量趋势中的单个自然日。
+// TeamUsageDaily 是团队用量趋势中的单个自然日；ActiveMembers 是当天有用量的成员数。
 type TeamUsageDaily struct {
-	Date         string  `json:"date"`
-	ActualCost   float64 `json:"actual_cost"`
-	RequestCount int64   `json:"request_count"`
+	Date          string  `json:"date"`
+	ActualCost    float64 `json:"actual_cost"`
+	RequestCount  int64   `json:"request_count"`
+	InputTokens   int64   `json:"input_tokens"`
+	OutputTokens  int64   `json:"output_tokens"`
+	ActiveMembers int64   `json:"active_members"`
 }
 
 // TeamUsageSummary 汇总团队 Key 在指定时间范围内的消费与令牌数。
 type TeamUsageSummary struct {
-	ActualCost   float64          `json:"actual_cost"`
-	RequestCount int64            `json:"request_count"`
-	InputTokens  int64            `json:"input_tokens"`
-	OutputTokens int64            `json:"output_tokens"`
-	Daily        []TeamUsageDaily `json:"daily"`
+	ActualCost   float64 `json:"actual_cost"`
+	RequestCount int64   `json:"request_count"`
+	InputTokens  int64   `json:"input_tokens"`
+	OutputTokens int64   `json:"output_tokens"`
+	// ActiveMembers 是范围内有用量的成员数。
+	ActiveMembers int64            `json:"active_members"`
+	Daily         []TeamUsageDaily `json:"daily"`
 }
 
 // TeamMemberUsageSeries 同时覆盖当前成员和查询范围内存在历史消费的离队成员。

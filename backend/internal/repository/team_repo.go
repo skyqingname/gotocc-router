@@ -741,14 +741,15 @@ func teamUsageWhere(teamID int64, query service.TeamUsageQuery) (string, []any) 
 func (r *teamRepository) GetUsageSummary(ctx context.Context, teamID int64, query service.TeamUsageQuery) (*service.TeamUsageSummary, error) {
 	where, args := teamUsageWhere(teamID, query)
 	summary := &service.TeamUsageSummary{Daily: make([]service.TeamUsageDaily, 0)}
-	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(ul.actual_cost), 0), COUNT(*), COALESCE(SUM(ul.input_tokens), 0), COALESCE(SUM(ul.output_tokens), 0) FROM usage_logs ul WHERE `+where, args...).
-		Scan(&summary.ActualCost, &summary.RequestCount, &summary.InputTokens, &summary.OutputTokens)
+	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(ul.actual_cost), 0), COUNT(*), COALESCE(SUM(ul.input_tokens), 0), COALESCE(SUM(ul.output_tokens), 0), COUNT(DISTINCT ul.user_id) FROM usage_logs ul WHERE `+where, args...).
+		Scan(&summary.ActualCost, &summary.RequestCount, &summary.InputTokens, &summary.OutputTokens, &summary.ActiveMembers)
 	if err != nil {
 		return nil, err
 	}
 	args = append(args, timezone.Name())
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT TO_CHAR(ul.created_at AT TIME ZONE $%d, 'YYYY-MM-DD'), COALESCE(SUM(ul.actual_cost), 0), COUNT(*)
+		SELECT TO_CHAR(ul.created_at AT TIME ZONE $%d, 'YYYY-MM-DD'), COALESCE(SUM(ul.actual_cost), 0), COUNT(*),
+		       COALESCE(SUM(ul.input_tokens), 0), COALESCE(SUM(ul.output_tokens), 0), COUNT(DISTINCT ul.user_id)
 		FROM usage_logs ul WHERE %s
 		GROUP BY 1 ORDER BY 1`, len(args), where), args...)
 	if err != nil {
@@ -758,7 +759,7 @@ func (r *teamRepository) GetUsageSummary(ctx context.Context, teamID int64, quer
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var item service.TeamUsageDaily
-		if err := rows.Scan(&item.Date, &item.ActualCost, &item.RequestCount); err != nil {
+		if err := rows.Scan(&item.Date, &item.ActualCost, &item.RequestCount, &item.InputTokens, &item.OutputTokens, &item.ActiveMembers); err != nil {
 			return nil, err
 		}
 		summary.Daily = append(summary.Daily, item)
@@ -775,6 +776,11 @@ func (r *teamRepository) ListMemberUsageSeries(ctx context.Context, teamID int64
 		position := len(args)
 		membershipActorFilter = fmt.Sprintf(" AND m.user_id = $%d", position)
 		usageActorFilter = fmt.Sprintf(" AND ul.user_id = $%d", position)
+	}
+	// 按 Key 筛选时只统计该 Key 的用量；成员行仍全部返回，无用量的成员合计为 0。
+	if query.APIKeyID != nil && *query.APIKeyID > 0 {
+		args = append(args, *query.APIKeyID)
+		usageActorFilter += fmt.Sprintf(" AND ul.api_key_id = $%d", len(args))
 	}
 	rows, err := r.db.QueryContext(ctx, `
 		WITH actors AS (
@@ -837,7 +843,8 @@ func (r *teamRepository) ListMemberUsageSeries(ctx context.Context, teamID int64
 		}
 		item := &items[index]
 		if date.Valid {
-			item.Summary.Daily = append(item.Summary.Daily, service.TeamUsageDaily{Date: date.String, ActualCost: actualCost, RequestCount: requestCount})
+			item.Summary.Daily = append(item.Summary.Daily, service.TeamUsageDaily{Date: date.String, ActualCost: actualCost, RequestCount: requestCount, InputTokens: inputTokens, OutputTokens: outputTokens, ActiveMembers: 1})
+			item.Summary.ActiveMembers = 1
 			item.Summary.ActualCost += actualCost
 			item.Summary.RequestCount += requestCount
 			item.Summary.InputTokens += inputTokens

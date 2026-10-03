@@ -150,5 +150,10 @@ export default {
     sortByName: '按名称',
     noMembersMatch: '没有匹配的成员',
     limitUsage: '限额用量',
+    tokens: 'Token',
+    activeMembers: '活跃成员',
+    memberTrendTitle: '成员{metric}走势',
+    memberRanking: '成员排行',
+    leftMember: '已离队',
   },
 }

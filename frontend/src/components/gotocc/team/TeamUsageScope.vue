@@ -7,8 +7,6 @@
         <span class="text-xs font-normal text-gray-500 dark:text-dark-400">{{ t('team.recordCount', { count: total }) }}</span>
       </h2>
       <div class="flex flex-wrap items-center gap-2">
-        <div v-if="isOwner" class="w-40"><Select v-model="memberId" :options="memberOptions" searchable /></div>
-        <div class="w-40"><Select v-model="keyId" :options="keyOptions" searchable /></div>
         <button type="button" class="btn btn-secondary btn-sm" :disabled="exporting || total === 0" @click="exportCsv">
           <Icon name="download" size="sm" :class="{ 'animate-pulse': exporting }" />
           {{ exporting ? t('team.exporting') : t('team.exportCsv') }}
@@ -60,32 +58,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Skeleton from '@/components/common/Skeleton.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { teamAPI, type TeamAPIKey, type TeamMembership, type TeamUsageLog, type TeamUsageQuery } from '@/api/team'
+import { teamAPI, type TeamUsageLog, type TeamUsageQuery } from '@/api/team'
 import { formatDateTime, formatTokensK } from '@/utils/format'
 import { formatTeamCost } from './teamFormat'
 
-// 团队用量明细：Owner 可按成员和 Key 筛选，成员只看到自己的记录；导出当前筛选下的全部记录。
+// 团队用量明细：成员和 Key 筛选来自概览顶部，成员只看到自己的记录；导出当前筛选下的全部记录。
 const PAGE_SIZE = 10
 // 导出时每次取的条数，与接口单页上限一致。
 const EXPORT_BATCH = 100
 
 const props = defineProps<{
   range: { from: string; to: string }
-  members: TeamMembership[]
-  keys: TeamAPIKey[]
+  memberId: number | null
+  keyId: number | null
   isOwner: boolean
 }>()
 
 const { t } = useI18n()
-const memberId = ref<number | null>(null)
-const keyId = ref<number | null>(null)
 const page = ref(1)
 const pageSize = PAGE_SIZE
 const items = ref<TeamUsageLog[]>([])
@@ -93,20 +88,10 @@ const total = ref(0)
 const loading = ref(false)
 const exporting = ref(false)
 
-const memberOptions = computed<SelectOption[]>(() => [
-  { value: null, label: t('team.allMembers') },
-  ...props.members.map((member) => ({ value: member.user_id, label: member.username || member.email })),
-])
-// 选了成员时只列该成员的 Key。
-const keyOptions = computed<SelectOption[]>(() => [
-  { value: null, label: t('team.allKeys') },
-  ...props.keys.filter((key) => memberId.value === null || key.user_id === memberId.value).map((key) => ({ value: key.id, label: key.name })),
-])
-
 const query = (offset: number, limit: number): TeamUsageQuery => {
   const result: TeamUsageQuery = { from: props.range.from, to: props.range.to, limit, offset }
-  if (memberId.value !== null) result.member_id = memberId.value
-  if (keyId.value !== null) result.api_key_id = keyId.value
+  if (props.memberId !== null) result.member_id = props.memberId
+  if (props.keyId !== null) result.api_key_id = props.keyId
   return result
 }
 
@@ -119,10 +104,7 @@ const load = async () => {
   total.value = result.total
 }
 
-watch(memberId, () => {
-  keyId.value = null
-})
-watch([() => props.range.from, () => props.range.to, memberId, keyId], () => {
+watch([() => props.range.from, () => props.range.to, () => props.memberId, () => props.keyId], () => {
   page.value = 1
   void load()
 }, { immediate: true })

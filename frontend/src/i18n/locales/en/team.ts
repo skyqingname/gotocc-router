@@ -150,5 +150,10 @@ export default {
     sortByName: 'Name',
     noMembersMatch: 'No matching members',
     limitUsage: 'Limit usage',
+    tokens: 'Tokens',
+    activeMembers: 'Active members',
+    memberTrendTitle: 'Member {metric}',
+    memberRanking: 'Member ranking',
+    leftMember: 'Left',
   },
 }
