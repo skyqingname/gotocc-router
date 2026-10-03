@@ -36,9 +36,10 @@
       <div v-else-if="isTokenModel(model)" class="grid grid-cols-3 gap-2">
         <div v-for="column in tokenColumns" :key="column.key" class="min-w-0 rounded-lg bg-white px-2.5 py-2 dark:bg-dark-800">
           <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ column.label }}</p>
-          <p v-for="line in column.lines" :key="line.label" class="mt-0.5 flex items-baseline justify-between gap-1 text-xs">
-            <span class="shrink-0 text-gray-400 dark:text-dark-500">{{ line.label }}</span>
-            <span class="truncate font-semibold tabular-nums text-gray-900 dark:text-white">{{ line.value }}</span>
+          <!-- 窄卡片放不下时价格换到档位下方，不截断 -->
+          <p v-for="line in column.lines" :key="line.label" class="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-1 text-xs">
+            <span class="text-gray-400 dark:text-dark-500">{{ line.label }}</span>
+            <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ line.value }}</span>
           </p>
         </div>
       </div>
@@ -55,9 +56,9 @@
     </section>
 
     <!-- 官方价格（不乘倍率，取基础档） -->
-    <p v-if="officialLine" class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400">
-      <Icon name="infoCircle" size="xs" class="shrink-0" />
-      <span class="truncate">{{ t('modelPlaza.table.officialPrice') }} · {{ t('modelPlaza.table.unitPerMillion') }} · {{ officialLine }}</span>
+    <p v-if="officialLine" class="flex items-start gap-1.5 text-xs text-gray-500 dark:text-dark-400">
+      <Icon name="infoCircle" size="xs" class="mt-0.5 shrink-0" />
+      <span>{{ t('modelPlaza.table.officialPrice') }} · {{ t('modelPlaza.table.unitPerMillion') }} · {{ officialLine }}</span>
     </p>
 
     <footer class="mt-auto flex items-center justify-between gap-2 pt-1 text-xs">

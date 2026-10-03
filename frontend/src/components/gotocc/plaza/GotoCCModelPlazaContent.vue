@@ -14,7 +14,7 @@
       {{ t('modelPlaza.anonymousHint') }}
     </p>
 
-    <div v-if="loading" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+    <div v-if="loading" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3" aria-busy="true">
       <div v-for="item in 6" :key="item" class="card space-y-3 p-4">
         <Skeleton width="60%" :height="20" />
         <Skeleton width="90%" :height="14" />
@@ -73,7 +73,7 @@
         </div>
         <div class="plaza-collapse" :inert="collapsed.has(group.id)">
           <div class="plaza-collapse-inner">
-            <div class="grid gap-4 pt-4 md:grid-cols-2 xl:grid-cols-3">
+            <div class="grid gap-4 pt-4 md:grid-cols-2 2xl:grid-cols-3">
               <PlazaModelCard
                 v-for="(model, index) in group.models"
                 :key="`${model.platform}:${model.name}`"
