@@ -149,5 +149,6 @@ export default {
     sortByJoined: '按加入时间',
     sortByName: '按名称',
     noMembersMatch: '没有匹配的成员',
+    limitUsage: '限额用量',
   },
 }

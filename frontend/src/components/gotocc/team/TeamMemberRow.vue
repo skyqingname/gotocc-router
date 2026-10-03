@@ -59,7 +59,7 @@
       <div class="collapse-inner">
         <div class="grid gap-4 border-t border-gray-100 bg-gray-50/60 px-4 py-4 dark:border-dark-700 dark:bg-dark-900/40 sm:px-5 md:grid-cols-3">
           <div class="space-y-3">
-            <p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('team.limitProgress') }}</p>
+            <p class="text-xs font-medium text-gray-500 dark:text-dark-400">{{ t('team.limitUsage') }}</p>
             <p v-if="member.role === 'owner'" class="text-xs text-gray-500 dark:text-dark-400">{{ t('team.ownerNoLimit') }}</p>
             <div v-for="limit in limits" v-else :key="limit.key">
               <div class="flex items-center justify-between text-xs">

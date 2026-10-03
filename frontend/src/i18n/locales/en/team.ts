@@ -149,5 +149,6 @@ export default {
     sortByJoined: 'Joined',
     sortByName: 'Name',
     noMembersMatch: 'No matching members',
+    limitUsage: 'Limit usage',
   },
 }
