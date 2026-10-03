@@ -259,6 +259,25 @@ func (h *TeamHandler) ListUsageLogs(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// ListUsageModels 返回团队作用域按模型的用量汇总。
+func (h *TeamHandler) ListUsageModels(c *gin.Context) {
+	subject, ok := teamSubject(c)
+	if !ok {
+		return
+	}
+	query, err := parseTeamUsageQuery(c)
+	if err != nil {
+		response.BadRequest(c, "Invalid team usage query")
+		return
+	}
+	result, err := h.service.ListUsageModels(c.Request.Context(), subject.UserID, query)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // ListTeamKeys 返回当前成员可见的团队 Key 元数据。
 func (h *TeamHandler) ListTeamKeys(c *gin.Context) {
 	subject, ok := middleware.GetReadSubjectFromContext(c)

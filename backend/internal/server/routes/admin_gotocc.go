@@ -41,3 +41,9 @@ func registerAgentRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		agents.GET("", h.Agent.List)
 	}
 }
+
+// registerModelPlazaOverrideRoutes 注册模型广场按模型展示信息（简介、厂商、用途）的管理路由。
+func registerModelPlazaOverrideRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	admin.GET("/model-plaza/overrides", h.Admin.Setting.GetModelPlazaOverrides)
+	admin.PUT("/model-plaza/overrides", h.Admin.Setting.UpdateModelPlazaOverrides)
+}

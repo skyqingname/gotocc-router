@@ -7073,6 +7073,8 @@
                 class="input font-mono text-sm"
               ></textarea>
             </div>
+            <!-- GoToCC：按模型填写的展示信息，独立保存 -->
+            <AdminModelPlazaOverrides v-if="form.model_plaza_enabled" />
           </div>
         </div>
 
@@ -8659,6 +8661,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminModelPlazaOverrides from '@/components/gotocc/plaza/AdminModelPlazaOverrides.vue'
 import affiliateDefaults from "../../../../affiliate-defaults.json";
 const affiliateRateKeys = ["affiliate_rebate_rate", "affiliate_rebate_rate_l2", "affiliate_rebate_rate_l3"] as const;
 import { ref, reactive, computed, onMounted, watch } from "vue";

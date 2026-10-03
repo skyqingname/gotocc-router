@@ -56,6 +56,7 @@
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
+            <DateRangePicker v-if="activeTab === 'overview' || activeTab === 'members'" :start-date="range.from" :end-date="range.to" @change="onRangeChange" />
             <button class="btn btn-secondary" type="button" @click="startTeamGuide">
               <Icon name="questionCircle" size="sm" />
               {{ t('team.guideButton') }}
@@ -81,13 +82,6 @@
         </nav>
 
         <section v-if="activeTab === 'overview'" class="space-y-5">
-          <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div v-for="metric in usageMetrics" :key="metric.label" class="card min-w-0 p-4">
-              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ metric.label }}</p>
-              <p class="mt-2 truncate text-xl font-semibold text-gray-900 dark:text-white">{{ metric.value }}</p>
-            </div>
-          </div>
-
           <div v-if="!isOwner" class="card p-5" data-tour="team-limit-progress">
             <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.limitProgress') }}</h2>
             <div class="mt-5 grid gap-5 md:grid-cols-3">
@@ -103,58 +97,33 @@
             </div>
           </div>
 
-          <TeamMemberUsageCharts v-if="isOwner" :series="memberSeriesForChart" :loading="usageLoading" data-tour="team-member-usage-charts" />
-
-          <div class="card overflow-hidden" data-tour="team-usage-records">
-            <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-4 dark:border-dark-700">
-              <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.recentUsage') }}</h2>
-              <span class="text-xs text-gray-500">{{ t('team.last30DaysStatistics') }}</span>
-            </div>
-            <div v-if="usageLogs.length === 0" class="py-12 text-center text-sm text-gray-500">{{ t('team.noUsage') }}</div>
-            <div v-else class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-                <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">
-                  <tr><th class="px-4 py-3">{{ t('team.keyOwner') }}</th><th class="px-4 py-3">{{ t('team.keys') }}</th><th class="px-4 py-3">{{ t('team.model') }}</th><th class="px-4 py-3 text-right">{{ t('team.cost') }}</th><th class="px-4 py-3">{{ t('team.time') }}</th></tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-                  <tr v-for="item in usageLogs" :key="item.id">
-                    <td class="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-300">{{ item.actor_email }}</td>
-                    <td class="whitespace-nowrap px-4 py-3 text-gray-700 dark:text-gray-300">{{ item.api_key_name }}</td>
-                    <td class="max-w-64 truncate px-4 py-3 font-medium text-gray-900 dark:text-white" :title="item.model">{{ item.model }}</td>
-                    <td class="whitespace-nowrap px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatMoney(item.actual_cost, 4) }}</td>
-                    <td class="whitespace-nowrap px-4 py-3 text-gray-500">{{ formatDateTime(item.created_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TeamOverview :range="range" :members="members" :keys="teamKeys" :is-owner="isOwner" data-tour="team-member-usage-charts" @open-member="detailMemberId = $event" />
         </section>
 
-        <section v-else-if="activeTab === 'members'" class="card overflow-hidden">
-          <div class="flex items-center justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-dark-700">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.members') }}</h2>
-            <span class="text-sm text-gray-500">{{ members.length }}</span>
-          </div>
-          <div class="divide-y divide-gray-100 dark:divide-dark-700">
-            <div v-for="member in members" :key="member.user_id" class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <p class="truncate font-medium text-gray-900 dark:text-white">{{ member.username || member.email }}</p>
-                  <span class="badge" :class="member.role === 'owner' ? 'badge-primary' : 'badge-gray'">{{ member.role === 'owner' ? t('team.owner') : t('team.member') }}</span>
-                </div>
-                <p class="mt-1 truncate text-sm text-gray-500">{{ member.email }}</p>
-                <p v-if="member.role === 'member'" class="mt-2 text-xs text-gray-500">
-                  {{ t('team.daily') }} {{ formatLimit(member.daily_usage_usd, member.daily_limit_usd) }} ·
-                  {{ t('team.weekly') }} {{ formatLimit(member.weekly_usage_usd, member.weekly_limit_usd) }} ·
-                  {{ t('team.monthly') }} {{ formatLimit(member.monthly_usage_usd, member.monthly_limit_usd) }}
-                </p>
-              </div>
-              <div v-if="isOwner && member.role === 'member'" class="flex flex-wrap gap-2">
-                <button class="btn btn-secondary btn-sm" @click="openLimitEditor(member)"><Icon name="edit" size="sm" />{{ t('team.editLimits') }}</button>
-                <button class="btn btn-secondary btn-sm" @click="askTransfer(member)"><Icon name="swap" size="sm" />{{ t('team.transfer') }}</button>
-                <button class="btn btn-danger btn-sm" @click="askRemove(member)"><Icon name="trash" size="sm" />{{ t('team.remove') }}</button>
-              </div>
+        <!-- 成员：搜索、排序，每位成员一行，展开看限额与本期用量，详情在侧边抽屉 -->
+        <section v-else-if="activeTab === 'members'" class="space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative w-full sm:w-72">
+              <Icon name="search" size="sm" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input v-model.trim="memberSearch" type="search" class="input pl-9" :placeholder="t('team.searchMembers')" />
             </div>
+            <div class="w-44"><Select v-model="memberSort" :options="memberSortOptions" /></div>
+            <span class="ml-auto text-sm text-gray-500 dark:text-dark-400">{{ t('team.memberCount', { count: visibleMembers.length }) }}</span>
+          </div>
+          <div class="card divide-y divide-gray-100 dark:divide-dark-700">
+            <p v-if="visibleMembers.length === 0" class="py-12 text-center text-sm text-gray-500 dark:text-dark-400">{{ t('team.noMembersMatch') }}</p>
+            <TeamMemberRow
+              v-for="member in visibleMembers"
+              :key="member.user_id"
+              :member="member"
+              :summary="seriesByMember.get(member.user_id)"
+              :days="rangeDays"
+              :manageable="isOwner && member.role === 'member'"
+              @details="detailMemberId = member.user_id"
+              @edit-limits="openLimitEditor(member)"
+              @transfer="askTransfer(member)"
+              @remove="askRemove(member)"
+            />
           </div>
         </section>
 
@@ -228,6 +197,8 @@
 
     <TeamInvitationDialog :show="Boolean(invitationToken)" :loading="invitationPreviewLoading" :resolving="resolvingToken" :preview="invitationPreview" :error="invitationPreviewError" @close="closeInvitationDialog" @resolve="resolveInvitation" />
 
+    <TeamMemberDrawer :member="detailMember" :keys="teamKeys" :initial-range="range" :manageable="isOwner && detailMember?.role === 'member'" @close="detailMemberId = null" @edit-limits="openLimitEditor(detailMember!)" />
+
     <BaseDialog :show="Boolean(limitTarget)" :title="t('team.editLimits')" width="narrow" @close="limitTarget = null">
       <form id="team-limit-form" class="space-y-4" @submit.prevent="saveLimits">
         <div v-for="field in limitFields" :key="field.key"><label class="input-label">{{ field.label }}</label><input v-model.number="limitForm[field.key]" type="number" min="0" step="0.01" class="input" /></div>
@@ -251,13 +222,17 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TeamInvitationDialog from '@/components/team/TeamInvitationDialog.vue'
-import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
+import TeamMemberDrawer from '@/components/gotocc/team/TeamMemberDrawer.vue'
+import TeamMemberRow from '@/components/gotocc/team/TeamMemberRow.vue'
+import TeamOverview from '@/components/gotocc/team/TeamOverview.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
-import { teamAPI, type TeamAPIKey, type TeamContext, type TeamInvitation, type TeamInvitationPreview, type TeamMembership, type TeamMemberUsageSeries, type TeamUsageLog, type TeamUsageSummary } from '@/api/team'
+import { teamAPI, type TeamAPIKey, type TeamContext, type TeamInvitation, type TeamInvitationPreview, type TeamMembership, type TeamMemberUsageSeries } from '@/api/team'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { useStepUp, isStepUpCancelled } from '@/composables/useStepUp'
-import { formatDateTime } from '@/utils/format'
+import { formatDateLocalInput, formatDateTime } from '@/utils/format'
 
 type TeamTab = 'overview' | 'members' | 'keys' | 'invitations' | 'settings'
 type LimitKey = 'daily_limit_usd' | 'weekly_limit_usd' | 'monthly_limit_usd'
@@ -273,14 +248,11 @@ const loading = ref(true)
 const refreshing = ref(false)
 const submitting = ref(false)
 const resolvingToken = ref(false)
-const usageLoading = ref(false)
 const teamContext = ref<TeamContext | null>(null)
 const members = ref<TeamMembership[]>([])
 const invitations = ref<TeamInvitation[]>([])
 const teamKeys = ref<TeamAPIKey[]>([])
-const usageSummary = ref<TeamUsageSummary | null>(null)
 const memberSeries = ref<TeamMemberUsageSeries[]>([])
-const usageLogs = ref<TeamUsageLog[]>([])
 const invitationPreview = ref<TeamInvitationPreview | null>(null)
 const invitationPreviewLoading = ref(false)
 const invitationPreviewError = ref('')
@@ -288,6 +260,28 @@ const activeTab = ref<TeamTab>('overview')
 const createName = ref('')
 const renameName = ref('')
 const inviteEmail = ref('')
+// 概览和成员页共用的统计范围，默认近 30 天（含今天），与接口默认范围一致。
+const STATS_DAYS = 30
+const defaultRange = () => {
+  const start = new Date()
+  start.setDate(start.getDate() - (STATS_DAYS - 1))
+  return { from: formatDateLocalInput(start), to: formatDateLocalInput(new Date()) }
+}
+const range = ref(defaultRange())
+const rangeDays = computed(() => {
+  const days: string[] = []
+  const cursor = new Date(`${range.value.from}T00:00:00`)
+  const end = new Date(`${range.value.to}T00:00:00`)
+  while (cursor <= end) {
+    days.push(formatDateLocalInput(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
+})
+type MemberSort = 'cost' | 'name' | 'joined' | 'active'
+const memberSearch = ref('')
+const memberSort = ref<MemberSort>('cost')
+const detailMemberId = ref<number | null>(null)
 const defaultLimitForm = reactive<Record<LimitKey, number>>({ daily_limit_usd: 0, weekly_limit_usd: 0, monthly_limit_usd: 0 })
 const invitationToken = computed(() => typeof route.query.invitation === 'string' ? route.query.invitation : '')
 const transferToken = computed(() => typeof route.query.transfer === 'string' ? route.query.transfer : '')
@@ -311,13 +305,31 @@ const teamTabTourMarkers: Partial<Record<TeamTab, string>> = {
 const teamTabTourMarker = (tab: TeamTab) => teamTabTourMarkers[tab]
 const formatMoney = (value: number, digits = 2) => `$${Number(value || 0).toFixed(digits)}`
 const formatLimit = (used: number, limit: number) => limit > 0 ? `${formatMoney(used)} / ${formatMoney(limit)}` : `${formatMoney(used)} / ${t('team.unlimited')}`
-const usageMetrics = computed(() => [
-  { label: t('team.totalCost'), value: formatMoney(usageSummary.value?.actual_cost || 0, 4) },
-  { label: t('team.requests'), value: Number(usageSummary.value?.request_count || 0).toLocaleString() },
-  { label: t('team.inputTokens'), value: Number(usageSummary.value?.input_tokens || 0).toLocaleString() },
-  { label: t('team.outputTokens'), value: Number(usageSummary.value?.output_tokens || 0).toLocaleString() },
+const seriesByMember = computed(() => new Map(memberSeries.value.map((item) => [item.actor_user_id, item.summary])))
+const memberSortOptions = computed<SelectOption[]>(() => [
+  { value: 'cost', label: t('team.sortByCost') },
+  { value: 'active', label: t('team.sortByActive') },
+  { value: 'joined', label: t('team.sortByJoined') },
+  { value: 'name', label: t('team.sortByName') },
 ])
-const memberSeriesForChart = computed(() => memberSeries.value.map((item) => ({ userID: item.actor_user_id, label: item.display_name, summary: item.summary })))
+const memberName = (member: TeamMembership) => member.username || member.email
+// 所有者固定在最前，其余成员按所选方式排序。
+const visibleMembers = computed(() => {
+  const keyword = memberSearch.value.toLowerCase()
+  const costOf = (member: TeamMembership) => seriesByMember.value.get(member.user_id)?.actual_cost ?? 0
+  const timeOf = (value: string | null) => (value ? Date.parse(value) : 0)
+  const compare: Record<MemberSort, (a: TeamMembership, b: TeamMembership) => number> = {
+    cost: (a, b) => costOf(b) - costOf(a),
+    active: (a, b) => timeOf(b.last_active_at) - timeOf(a.last_active_at),
+    joined: (a, b) => timeOf(b.joined_at) - timeOf(a.joined_at),
+    name: (a, b) => memberName(a).localeCompare(memberName(b)),
+  }
+  return members.value
+    .filter((member) => !keyword || memberName(member).toLowerCase().includes(keyword) || member.email.toLowerCase().includes(keyword))
+    .sort((a, b) => Number(b.role === 'owner') - Number(a.role === 'owner') || compare[memberSort.value](a, b))
+})
+// 抽屉按 ID 取当前成员对象，限额更新后显示随之刷新。
+const detailMember = computed(() => members.value.find((member) => member.user_id === detailMemberId.value) ?? null)
 const memberLimits = computed(() => {
   const membership = teamContext.value?.membership
   if (!membership) return []
@@ -342,26 +354,26 @@ const loadContext = async () => {
 }
 const loadTeamData = async () => {
   if (!teamContext.value) return
-  usageLoading.value = true
-  try {
-    const requests = [teamAPI.keys().then((value) => { teamKeys.value = value })]
-    if (!isTeamActive.value) {
-      members.value = []
-      invitations.value = []
-      usageSummary.value = null
-      memberSeries.value = []
-      usageLogs.value = []
-      await Promise.all(requests)
-      return
-    }
-
-    requests.push(teamAPI.usage().then((value) => { usageSummary.value = value }))
-    requests.push(teamAPI.usageLogs({ limit: 10 }).then((value) => { usageLogs.value = value.items }))
-    requests.push(teamAPI.memberUsage().then((value) => { memberSeries.value = value }))
-    requests.push(teamAPI.members().then((value) => { members.value = value }))
-    if (isOwner.value) requests.push(teamAPI.invitations().then((value) => { invitations.value = value }))
+  const requests = [teamAPI.keys().then((value) => { teamKeys.value = value })]
+  if (!isTeamActive.value) {
+    members.value = []
+    invitations.value = []
+    memberSeries.value = []
     await Promise.all(requests)
-  } finally { usageLoading.value = false }
+    return
+  }
+  requests.push(loadRangeUsage())
+  requests.push(teamAPI.members().then((value) => { members.value = value }))
+  if (isOwner.value) requests.push(teamAPI.invitations().then((value) => { invitations.value = value }))
+  await Promise.all(requests)
+}
+// 成员页每行的本期用量；概览按同一范围和自己的筛选自行取数。
+const loadRangeUsage = async () => {
+  memberSeries.value = await teamAPI.memberUsage({ from: range.value.from, to: range.value.to })
+}
+const onRangeChange = async (value: { startDate: string; endDate: string }) => {
+  range.value = { from: value.startDate, to: value.endDate }
+  await loadRangeUsage()
 }
 const refreshAll = async () => { refreshing.value = true; try { await loadContext(); await loadTeamData() } catch (error: any) { appStore.showError(error?.message || t('team.loadFailed')) } finally { refreshing.value = false } }
 const createTeam = async () => { submitting.value = true; try { applyContext(await teamAPI.create(createName.value)); await loadTeamData(); appStore.showSuccess(t('team.created')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { submitting.value = false } }

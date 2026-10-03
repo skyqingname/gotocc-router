@@ -6,10 +6,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     class="model-icon"
+    :class="{ 'model-icon-mono': isMono }"
     fill="currentColor"
     fill-rule="evenodd"
   >
-    <path v-for="(p, idx) in iconInfo.paths" :key="idx" :d="p" :fill="iconInfo.color" />
+    <path v-for="(p, idx) in iconInfo.paths" :key="idx" :d="p" :fill="isMono ? 'currentColor' : iconInfo.color" />
   </svg>
   <span v-else class="model-icon-fallback" :style="{ width: size, height: size, fontSize: `calc(${size} * 0.5)` }">
     {{ fallbackText }}
@@ -259,11 +260,21 @@ const iconKey = computed(() => {
 })
 
 const iconInfo = computed(() => iconKey.value ? iconData[iconKey.value] : null)
+
+// 黑色单色图标（OpenAI、xAI 等）随主题取色：浅色为黑，深色为白，避免与深色底几乎同色。
+const MONO_COLORS = new Set(['#000000', '#16191E'])
+const isMono = computed(() => iconInfo.value !== null && MONO_COLORS.has(iconInfo.value.color))
 </script>
 
 <style scoped>
 .model-icon {
   flex-shrink: 0;
+}
+.model-icon-mono {
+  color: #000000;
+}
+.dark .model-icon-mono {
+  color: #ffffff;
 }
 .model-icon-fallback {
   display: inline-flex;

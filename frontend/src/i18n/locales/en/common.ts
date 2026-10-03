@@ -197,6 +197,8 @@ export default {
     myAccount: 'My Account',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
+    systemTheme: 'System',
+    theme: 'Theme',
     collapse: 'Collapse',
     expand: 'Expand',
     logout: 'Logout',

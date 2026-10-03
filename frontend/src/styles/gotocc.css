@@ -1,0 +1,339 @@
+/* GoToCC 设计令牌与自有组件样式，在 style.css 之后加载。
+   动效参数与菜单、分段控件样式移植自 TokenRouter（LGPL-3.0，https://github.com/TokenFlux/TokenRouter）。 */
+
+/* 动效时长只在这里定义；系统开启「减少动态效果」时全部压到 1ms，位移归零。 */
+:root {
+  --motion-fast: 150ms;
+  --motion-normal: 200ms;
+  --motion-layout: 220ms;
+  --motion-exit: var(--motion-fast);
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-shift: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-normal: 1ms;
+    --motion-layout: 1ms;
+    --motion-shift: 0px;
+  }
+}
+
+/* 主按钮：靛 600 底白字（对比度 6.3:1），悬停加深。 */
+.btn-primary {
+  @apply bg-primary-600 text-white;
+}
+
+.btn-primary:hover {
+  @apply bg-primary-700;
+}
+
+/* 新手引导：继承样式写死了青绿色，提高优先级后改用品牌主色。 */
+html .driver-active-element {
+  outline-color: rgb(99 102 241 / 0.25) !important;
+}
+
+html .theme-tour-popover .driver-popover-next-btn {
+  background-color: theme('colors.primary.600') !important;
+  color: #ffffff !important;
+}
+
+html .theme-tour-popover .driver-popover-next-btn:hover {
+  background-color: theme('colors.primary.700') !important;
+}
+
+/* 下拉面板：从锚点方向淡入并位移 --motion-shift，退出更快且不再接收鼠标。 */
+.dropdown-fade-enter-active {
+  transition:
+    opacity var(--motion-normal) var(--motion-ease),
+    transform var(--motion-normal) var(--motion-ease);
+}
+
+.dropdown-fade-leave-active {
+  transition:
+    opacity var(--motion-exit) var(--motion-ease-exit),
+    transform var(--motion-exit) var(--motion-ease-exit);
+  pointer-events: none;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--motion-shift)));
+}
+
+/* 内缩菜单：面板内容按 .menu-section 分区，相邻分区自动加分隔线；菜单项悬停显示圆角品牌底色。 */
+.menu-section {
+  @apply p-1.5;
+}
+
+.menu-section + .menu-section {
+  @apply border-t border-gray-100 dark:border-dark-700;
+}
+
+.menu-item {
+  @apply flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm font-medium;
+  @apply text-gray-700 hover:bg-primary-50 hover:text-primary-700;
+  @apply dark:text-dark-100 dark:hover:bg-dark-700 dark:hover:text-primary-300;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.menu-item-danger {
+  @apply text-red-600 hover:bg-red-50 hover:text-red-700;
+  @apply dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-300;
+}
+
+/* 分段控件：选中背景是一块共用的底板，由 vSegmented 定位并在选项间连续滑动。 */
+.segmented {
+  @apply relative rounded-lg border border-gray-200 bg-gray-50 p-0.5;
+  @apply dark:border-dark-600 dark:bg-dark-900;
+}
+
+.segmented-item {
+  @apply relative rounded-md text-gray-500 hover:text-gray-800;
+  @apply dark:text-dark-400 dark:hover:text-dark-100;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.segmented-item-active {
+  @apply bg-white text-primary-700 shadow-sm ring-1 ring-gray-200;
+  @apply dark:bg-dark-700 dark:text-white dark:ring-dark-600;
+}
+
+.segmented[data-segmented-ready]::before {
+  content: '';
+  @apply pointer-events-none absolute left-0 top-0 rounded-md bg-white shadow-sm ring-1 ring-gray-200;
+  @apply dark:bg-dark-700 dark:ring-dark-600;
+  width: var(--segmented-width);
+  height: var(--segmented-height);
+  transform: translate(var(--segmented-x), var(--segmented-y));
+  transition:
+    transform var(--motion-normal) var(--motion-ease),
+    width var(--motion-normal) var(--motion-ease),
+    height var(--motion-normal) var(--motion-ease);
+}
+
+.segmented[data-segmented-ready] > .segmented-item-active {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+/* ============ 侧栏图标动效 ============
+   图形与部件见 components/gotocc/navIcons.ts；悬停或键盘聚焦菜单项时播放，参照 Lucide Animated。
+   停留型动作（钥匙转动、齿轮旋转、票据撕开、图片展开）用过渡，移开后回弹；一次性动作用关键帧，结束即复位。
+   系统开启「减少动态效果」时不播放。 */
+.gc-nav-icon .gc-a,
+.gc-nav-icon .gc-back {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+
+/* 描线部件：pathLength=1，虚线长度 1 时完整显示，偏移 1 时隐藏。 */
+.gc-nav-icon .gc-d {
+  stroke-dasharray: 1;
+}
+
+.gc-nav-icon .gc-d1 { --gc-draw-delay: 120ms; }
+.gc-nav-icon .gc-d2 { --gc-draw-delay: 240ms; }
+.gc-nav-icon .gc-d3 { --gc-draw-delay: 500ms; }
+
+.gc-i-key .gc-a {
+  transform-origin: 7.2px 16.8px;
+  transition: transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gc-i-settings .gc-a {
+  transition: transform 800ms cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+
+.gc-i-ticket .gc-a {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gc-i-ticket .gc-a1 {
+  transform-origin: 13px 12px;
+}
+
+.gc-i-sparkles .gc-a {
+  transition: fill 300ms var(--motion-ease);
+}
+
+.gc-i-team .gc-side0 { --gc-join-x: 4px; }
+.gc-i-team .gc-side1 { --gc-join-x: -4px; }
+
+.gc-i-images .gc-a,
+.gc-i-images .gc-back {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gc-i-dashboard .gc-a,
+.gc-i-globe .gc-a,
+.gc-i-user .gc-a {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.gc-i-bell .gc-a { transform-origin: 12px 3px; }
+.gc-i-gift .gc-a { transform-origin: 12px 11px; }
+.gc-i-tag .gc-a { transform-origin: 7.5px 7.5px; }
+.gc-i-chart { --gc-draw-ms: 300ms; }
+.gc-i-activity { --gc-draw-ms: 700ms; }
+.gc-i-receipt { --gc-draw-ms: 600ms; }
+.gc-i-list { --gc-draw-ms: 300ms; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-link:is(:hover, :focus-visible) .gc-nav-icon .gc-d {
+    animation: gc-draw var(--gc-draw-ms, 400ms) var(--motion-ease) var(--gc-draw-delay, 0ms) backwards;
+  }
+
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-key .gc-a { transform: rotate(-28deg); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-settings .gc-a { transform: rotate(180deg); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-ticket .gc-a0 { transform: translateX(-3px); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-ticket .gc-a1 { transform: translateX(3px) rotate(4deg); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-images .gc-a { transform: translate(1px, -1px); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-images .gc-back { transform: translate(-1px, 1px); }
+
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a { animation: gc-pop 360ms var(--motion-ease) both; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a1 { animation-delay: 60ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a2 { animation-delay: 120ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a3 { animation-delay: 180ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-user .gc-a { animation: gc-draw 400ms var(--motion-ease) backwards, gc-grow 400ms var(--motion-ease) backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-users .gc-a { animation: gc-slide-in 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-side { animation: gc-join 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-store .gc-a { animation: gc-bob 500ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-a { fill: currentColor; animation: gc-float 1000ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-star { animation: gc-twinkle 1200ms ease-in-out 300ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-gift .gc-a { animation: gc-lid 550ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-folder .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-layers .gc-a0 { animation: gc-lift-5 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-layers .gc-a1 { animation: gc-lift-9 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-credit-card .gc-a { animation: gc-swipe 700ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-wallet .gc-a { animation: gc-hop 550ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-globe .gc-a { animation: gc-spin-x 600ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-server .gc-a0 { animation: gc-swap-down 900ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-server .gc-a1 { animation: gc-swap-up 900ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-bell .gc-a { animation: gc-ring 500ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray { animation: gc-fade-in 300ms var(--motion-ease) backwards; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray1 { animation-delay: 100ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray2 { animation-delay: 200ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray3 { animation-delay: 300ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray4 { animation-delay: 400ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray5 { animation-delay: 500ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray6 { animation-delay: 600ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray7 { animation-delay: 700ms; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-moon .gc-a { animation: gc-rock 1000ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-chevrons-left .gc-a { animation: gc-nudge-left 500ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-chevrons-right .gc-a { animation: gc-nudge-right 500ms ease-in-out; }
+  .sidebar-link:is(:hover, :focus-visible) .gc-i-tag .gc-a { animation: gc-swing 550ms ease-in-out; }
+}
+
+@keyframes gc-draw {
+  from { stroke-dashoffset: 1; opacity: 0; }
+  10% { opacity: 1; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes gc-pop {
+  50% { transform: scale(0.8); }
+}
+
+@keyframes gc-grow {
+  from { transform: scale(0.5); }
+}
+
+@keyframes gc-slide-in {
+  from { transform: translateX(-6px); }
+}
+
+@keyframes gc-join {
+  from { transform: translateX(var(--gc-join-x)); opacity: 0; }
+}
+
+@keyframes gc-bob {
+  40% { transform: translateY(-2px); }
+  70% { transform: translateY(0.5px); }
+}
+
+@keyframes gc-float {
+  33% { transform: translateY(-1px); }
+  66% { transform: translateY(0); }
+}
+
+@keyframes gc-twinkle {
+  0% { opacity: 0; }
+  17% { opacity: 1; }
+  33%, 83% { opacity: 0; }
+}
+
+@keyframes gc-lid {
+  40% { transform: translateY(-2.5px) rotate(-8deg); }
+  70% { transform: translateY(-1px) rotate(4deg); }
+}
+
+@keyframes gc-nudge-scale {
+  50% { transform: scale(1.06); }
+}
+
+@keyframes gc-lift-5 {
+  45% { transform: translateY(-5px); }
+}
+
+@keyframes gc-lift-9 {
+  45% { transform: translateY(-9px); }
+}
+
+@keyframes gc-swipe {
+  40% { transform: translateX(-4px); }
+  75% { transform: translateX(1.5px); }
+}
+
+@keyframes gc-hop {
+  45% { transform: translateY(-3px) rotate(-4deg); }
+}
+
+@keyframes gc-spin-x {
+  50% { transform: scaleX(0.15); }
+}
+
+@keyframes gc-swap-down {
+  35%, 65% { transform: translateY(12px); }
+}
+
+@keyframes gc-swap-up {
+  35%, 65% { transform: translateY(-12px); }
+}
+
+@keyframes gc-ring {
+  25% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+@keyframes gc-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes gc-rock {
+  20% { transform: rotate(-10deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-5deg); }
+  80% { transform: rotate(5deg); }
+}
+
+@keyframes gc-nudge-left {
+  40% { transform: translateX(-2px); }
+}
+
+@keyframes gc-nudge-right {
+  40% { transform: translateX(2px); }
+}
+
+@keyframes gc-swing {
+  30% { transform: rotate(-10deg); }
+  65% { transform: rotate(6deg); }
+}
