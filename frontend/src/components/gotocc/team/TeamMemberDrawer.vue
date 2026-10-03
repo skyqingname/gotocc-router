@@ -17,10 +17,28 @@
           </header>
 
           <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <DateRangePicker :start-date="range.from" :end-date="range.to" @change="onRangeChange" />
-              <button v-if="manageable" type="button" class="btn btn-secondary btn-sm" @click="emit('edit-limits')"><Icon name="edit" size="sm" />{{ t('team.editLimits') }}</button>
+            <!-- 筛选固定在顶部：时间范围和密钥同时作用于下方的指标、每日消费、按模型拆分和明细 -->
+            <div class="sticky -top-5 z-10 -mx-5 -mt-5 space-y-3 border-b border-gray-100 bg-white/95 px-5 py-3 backdrop-blur dark:border-dark-700 dark:bg-dark-900/95">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <DateRangePicker :start-date="range.from" :end-date="range.to" @change="onRangeChange" />
+                <button v-if="manageable" type="button" class="btn btn-secondary btn-sm" @click="emit('edit-limits')"><Icon name="edit" size="sm" />{{ t('team.editLimits') }}</button>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="mr-1 text-xs text-gray-500 dark:text-dark-400">{{ t('team.keys') }}</span>
+                <button
+                  v-for="option in keyChips"
+                  :key="String(option.id)"
+                  type="button"
+                  class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
+                  :class="keyId === option.id ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300' : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-dark-600 dark:text-dark-300'"
+                  :aria-pressed="keyId === option.id"
+                  @click="selectKey(option.id)"
+                >{{ option.name }}</button>
+              </div>
             </div>
+
+            <!-- 切换筛选时保留当前内容并变淡，新数据到达后一起更新 -->
+            <div class="space-y-5 transition-opacity" :class="{ 'opacity-60': busy }">
 
             <!-- 本期指标 -->
             <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -80,19 +98,7 @@
 
             <!-- 明细：按 Key 筛选 -->
             <section>
-              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.usageDetails') }}</h3>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="option in keyChips"
-                    :key="String(option.id)"
-                    type="button"
-                    class="rounded-full border px-2.5 py-0.5 text-xs transition-colors"
-                    :class="keyId === option.id ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300' : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-dark-600 dark:text-dark-300'"
-                    @click="selectKey(option.id)"
-                  >{{ option.name }}</button>
-                </div>
-              </div>
+              <h3 class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">{{ t('team.usageDetails') }}</h3>
               <div class="overflow-hidden rounded-xl border border-gray-100 dark:border-dark-700">
                 <table class="min-w-full text-sm">
                   <tbody class="divide-y divide-gray-50 dark:divide-dark-700/60" :class="{ 'opacity-60': logsLoading }">
@@ -116,6 +122,7 @@
                 <Pagination v-model:page="logsPage" :total="logsTotal" :page-size="LOG_PAGE_SIZE" :show-page-size-selector="false" />
               </div>
             </section>
+            </div>
           </div>
         </aside>
       </div>
@@ -168,6 +175,8 @@ const logs = ref<TeamUsageLog[]>([])
 const logsTotal = ref(0)
 const logsPage = ref(1)
 const logsLoading = ref(false)
+// 已有数据后再次取数（切换范围或密钥）时为 true，内容变淡而不是回到骨架。
+const busy = ref(false)
 const closeRef = ref<HTMLElement | null>(null)
 // 每次取到新的模型数据时递增，让占比条重新伸展。
 const version = ref(0)
@@ -271,11 +280,17 @@ const keyChips = computed(() => [
   ...props.keys.filter((key) => key.user_id === props.member!.user_id).map((key) => ({ id: key.id as number | null, name: key.name })),
 ])
 
-const scope = () => ({ from: range.value.from, to: range.value.to, member_id: props.member!.user_id })
+// 时间范围和所选密钥共同决定抽屉内全部数据的范围。
+const scope = () => ({
+  from: range.value.from,
+  to: range.value.to,
+  member_id: props.member!.user_id,
+  ...(keyId.value === null ? {} : { api_key_id: keyId.value }),
+})
 
 const loadLogs = async () => {
   logsLoading.value = true
-  const query = { ...scope(), limit: LOG_PAGE_SIZE, offset: (logsPage.value - 1) * LOG_PAGE_SIZE, ...(keyId.value === null ? {} : { api_key_id: keyId.value }) }
+  const query = { ...scope(), limit: LOG_PAGE_SIZE, offset: (logsPage.value - 1) * LOG_PAGE_SIZE }
   const result = await teamAPI.usageLogs(query).finally(() => {
     logsLoading.value = false
   })
@@ -284,9 +299,11 @@ const loadLogs = async () => {
 }
 
 const load = async () => {
-  loaded.value = false
+  busy.value = true
   logsPage.value = 1
-  const [usage, modelList] = await Promise.all([teamAPI.usage(scope()), teamAPI.usageModels(scope()), loadLogs()])
+  const [usage, modelList] = await Promise.all([teamAPI.usage(scope()), teamAPI.usageModels(scope()), loadLogs()]).finally(() => {
+    busy.value = false
+  })
   summary.value = usage
   models.value = modelList
   version.value += 1
@@ -295,8 +312,7 @@ const load = async () => {
 
 const selectKey = (id: number | null) => {
   keyId.value = id
-  logsPage.value = 1
-  void loadLogs()
+  void load()
 }
 
 const onRangeChange = (value: { startDate: string; endDate: string }) => {
@@ -304,8 +320,9 @@ const onRangeChange = (value: { startDate: string; endDate: string }) => {
   void load()
 }
 
+// 只响应明细翻页；整体重新取数时页码回到 1，由 load 一并取明细。
 watch(logsPage, (page, previous) => {
-  if (page !== previous && loaded.value) void loadLogs()
+  if (page !== previous && loaded.value && !busy.value) void loadLogs()
 })
 
 // 打开另一位成员时沿用页面的时间范围并重新取数，焦点移到关闭按钮，Esc 可关闭；同一成员的限额更新只刷新显示。
@@ -313,6 +330,7 @@ watch(() => props.member?.user_id, (userId) => {
   if (userId === undefined) return
   range.value = { ...props.initialRange }
   keyId.value = null
+  loaded.value = false
   void load()
   void nextTick(() => closeRef.value?.focus())
 })
