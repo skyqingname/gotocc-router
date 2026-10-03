@@ -3,7 +3,7 @@ import type { TrendDataPoint } from '@/types'
 // 用量时间窗口与汇总计算，移植自 TokenRouter（LGPL-3.0）。
 
 // 快捷时间范围；custom 表示来自日期选择器的自定义范围。
-export type UsageRangePreset = '24h' | '7d' | '30d' | 'custom'
+export type UsageRangePreset = '7d' | '30d' | 'custom'
 
 export type UsageGranularity = 'hour' | 'day'
 
@@ -35,9 +35,11 @@ export const formatDayKey = (date: Date): string =>
 // 与后端按小时分组一致的键（YYYY-MM-DD HH:00，本地时区）。
 export const formatHourKey = (date: Date): string => `${formatDayKey(date)} ${pad(date.getHours())}:00`
 
-// 趋势接口接受的本地时间参数（YYYY-MM-DDTHH:mm:ss）。
-export const formatQueryTime = (date: Date): string =>
-  `${formatDayKey(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+// 用量接口只接受 YYYY-MM-DD 且结束日包含在内；按小时的窗口也按整天查询，再由 bucketKeys 截取窗口内的时段。
+export const rangeQuery = (range: UsageRange): { start_date: string; end_date: string } => ({
+  start_date: formatDayKey(range.startAt),
+  end_date: formatDayKey(new Date(range.endAt.getTime() - 1)),
+})
 
 const startOfDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
@@ -50,12 +52,8 @@ const addDays = (date: Date, days: number): Date => {
 const resolveGranularity = (startAt: Date, endAt: Date): UsageGranularity =>
   endAt.getTime() - startAt.getTime() <= HOURLY_MAX_SPAN_MS ? 'hour' : 'day'
 
-// 快捷范围换算成整点或整天对齐的查询窗口。
+// 快捷范围换算成整天对齐的查询窗口，包含今天。
 export const resolvePresetRange = (preset: Exclude<UsageRangePreset, 'custom'>, now: Date = new Date()): UsageRange => {
-  if (preset === '24h') {
-    const endAt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1)
-    return { startAt: new Date(endAt.getTime() - 24 * HOUR_MS), endAt, granularity: 'hour' }
-  }
   const days = preset === '7d' ? 7 : 30
   const endAt = addDays(startOfDay(now), 1)
   return { startAt: addDays(endAt, -days), endAt, granularity: 'day' }

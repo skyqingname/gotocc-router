@@ -10,8 +10,8 @@ import {
   bucketKeys,
   fillTrendBuckets,
   formatDayKey,
-  formatQueryTime,
   previousRange,
+  rangeQuery,
   resolveCustomRange,
   resolvePresetRange,
   summarizeTrend,
@@ -26,12 +26,12 @@ export type UsageMetric = 'requests' | 'tokens' | 'cost' | 'cacheHitRate'
 export type PresetRange = Exclude<UsageRangePreset, 'custom'>
 
 export const USAGE_METRICS: UsageMetric[] = ['requests', 'tokens', 'cost', 'cacheHitRate']
-const PRESETS: PresetRange[] = ['24h', '7d', '30d']
+const PRESETS: PresetRange[] = ['7d', '30d']
 
 // 记住上次选择的指标和快捷范围；自定义日期与筛选条件下次打开回到默认值。
 const STORAGE_KEY = 'gotocc-dashboard-usage'
-// 日期选择器的快捷项能对应快捷范围时按快捷范围处理（整点或整天对齐）。
-const PICKER_PRESET_MAP: Record<string, PresetRange> = { last24Hours: '24h', '7days': '7d', '30days': '30d' }
+// 日期选择器的快捷项能对应快捷范围时按快捷范围处理并记住；其余快捷项（如近 24 小时即昨天和今天）按自定义日期处理。
+const PICKER_PRESET_MAP: Record<string, PresetRange> = { '7days': '7d', '30days': '30d' }
 
 // 筛选条件，null 表示不限。
 export interface UsageFilters {
@@ -117,15 +117,13 @@ function createUsageState() {
   }
 
   const fetchTrend = (range: UsageRange) => usageAPI.getDashboardTrend({
-    start_date: formatQueryTime(range.startAt),
-    end_date: formatQueryTime(range.endAt),
+    ...rangeQuery(range),
     granularity: range.granularity,
     ...queryParams.value,
   })
 
   const fetchModels = (range: UsageRange, params: Partial<TrendParams>) => usageAPI.getDashboardModels({
-    start_date: formatQueryTime(range.startAt),
-    end_date: formatQueryTime(range.endAt),
+    ...rangeQuery(range),
     ...params,
   })
 
