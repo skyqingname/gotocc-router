@@ -29,6 +29,9 @@ type PlazaModel struct {
 	LongContextBasis ContextPricingBasis
 	// TimePricing 计费会生效的分时倍率时段；无分时为 nil。
 	TimePricing *TimePricingSchedule
+	// GoToCC：官方目录信息与近 24 小时状态，由 EnrichModels 填充。
+	Info  *PlazaModelInfo
+	Stats *PlazaModelStats
 }
 
 // PlazaGroup 模型广场中以分组为顶层的条目。
