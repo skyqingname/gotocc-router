@@ -108,6 +108,7 @@ type subscriptionCacheInvalidationPubSub interface {
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
+	resellerRepo          ResellerRepository
 	cache                 BillingCache
 	userRepo              UserRepository
 	subRepo               UserSubscriptionRepository
@@ -312,6 +313,13 @@ func (s *BillingCacheService) logCacheWriteDrop(task cacheWriteTask, reason stri
 
 // GetUserBalance 获取用户余额（优先从缓存读取）
 func (s *BillingCacheService) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
+	account, err := s.resellerRepo.CustomerAccount(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if account != nil {
+		return account.CreditBalance, nil
+	}
 	if s.cache == nil {
 		// Redis不可用，直接查询数据库
 		return s.getUserBalanceFromDB(ctx, userID)
@@ -821,9 +829,13 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	}
 
 	// 判断计费模式
-	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
+	isSubscriptionMode := user.ResellerCustomer == nil && group != nil && group.IsSubscriptionType() && subscription != nil
 
-	if isSubscriptionMode {
+	if user.ResellerCustomer != nil {
+		if err := s.checkResellerBillingEligibility(ctx, user); err != nil {
+			return err
+		}
+	} else if isSubscriptionMode {
 		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
 			return err
 		}

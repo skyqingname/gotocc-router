@@ -120,6 +120,8 @@
 </template>
 
 <script setup lang="ts">
+import { useResellerCustomer } from '@/composables/useResellerCustomer'
+const resellerCustomer = useResellerCustomer()
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -198,6 +200,7 @@ const navGroups = computed(() => {
         { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: 'calendar', visible: full && isFeatureFlagEnabled(FeatureFlags.subscription) },
         { path: '/orders', label: t('nav.myOrders'), icon: 'document', visible: payment },
         { path: '/redeem', label: t('nav.redeem'), icon: 'gift', visible: full },
+        { path: '/credits', label: t('nav.customerCredits'), icon: 'gift', visible: full && resellerCustomer.isCustomer.value },
         { path: '/affiliate', label: t('nav.affiliate'), icon: 'userPlus', visible: full && isFeatureFlagEnabled(FeatureFlags.affiliate) },
       ],
     },
@@ -205,7 +208,7 @@ const navGroups = computed(() => {
   return groups
     .map(group => ({
       key: group.key,
-      items: group.entries.filter(entry => entry.visible).map(entry => ({ ...entry, to: personalPath(entry.path) })),
+      items: group.entries.filter(entry => entry.visible && resellerCustomer.canVisit(entry.path)).map(entry => ({ ...entry, to: personalPath(entry.path) })),
     }))
     .filter(group => group.items.length > 0)
 })

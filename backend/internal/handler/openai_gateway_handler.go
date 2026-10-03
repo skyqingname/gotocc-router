@@ -2962,7 +2962,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// 准入与计费共用同一 pricingAt。
 				resellerTurnCtx := ctx
 				if h.resellerService != nil {
-					prices, priceErr := h.resellerService.Repo.Pricing(ctx, apiKey.User.ID)
+					pricingUserID := apiKey.User.ID
+					if apiKey.User.ResellerCustomer != nil {
+						pricingUserID = apiKey.User.ResellerCustomer.UserID
+					}
+					prices, priceErr := h.resellerService.Repo.Pricing(ctx, pricingUserID)
 					if priceErr != nil {
 						return service.NewOpenAIWSClientCloseError(coderws.StatusTryAgainLater, "customer pricing unavailable, please reconnect", priceErr)
 					}

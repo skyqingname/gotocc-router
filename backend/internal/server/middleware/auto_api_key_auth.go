@@ -59,6 +59,10 @@ func handleAutoAPIKeyAuth(c *gin.Context, keys *service.APIKeyService, cfg *conf
 
 // BindAPIKeyContext publishes one coherent request-local identity and group.
 func BindAPIKeyContext(c *gin.Context, key *service.APIKey, subscription *service.UserSubscription) {
+	if key.User.ResellerCustomer != nil {
+		c.Request = c.Request.WithContext(service.WithResellerPrices(c.Request.Context(), key.User.ID, key.ResellerPrices))
+		subscription = nil
+	}
 	if key.IsAutoRouting() {
 		if route, ok := service.AutoRouteDecisionFromContext(c.Request.Context()); ok && route.Key != nil && route.Key.ID == key.ID && key.GroupID != nil {
 			updated := *route

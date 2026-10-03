@@ -64,7 +64,10 @@ export interface UserProfileSourceContext {
   provider_label?: string | null
 }
 
+export interface ResellerCustomerAccount { user_id: number; owner_id: number; owner_name: string; credit_balance: number; frozen_credit: number }
+
 export interface User {
+  reseller_customer?: ResellerCustomerAccount | null
   id: number
   username: string
   email: string

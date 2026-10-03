@@ -192,6 +192,7 @@ import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'v
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useResellerAccess } from '@/composables/useResellerAccess'
+import { useResellerCustomer } from '@/composables/useResellerCustomer'
 import { useTheme } from '@/composables/useTheme'
 // 侧栏图标用 GoToCC 的 Lucide 图形，悬停时播放动效。
 import {
@@ -259,6 +260,7 @@ const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const resellerAccess = useResellerAccess()
+const resellerCustomer = useResellerCustomer()
 watch(() => authStore.user?.id, () => { void resellerAccess.load(true).catch(() => { resellerAccess.enabled.value = false }) }, { immediate: true })
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
@@ -354,6 +356,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, hideInSimpleMode: true, featureFlag: flagPayment },
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
+    ...(resellerCustomer.isCustomer.value ? [{ path: '/credits', label: t('nav.customerCredits'), icon: GiftIcon, hideInSimpleMode: true }] : []),
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     ...(resellerAccess.enabled.value ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, hideInSimpleMode: true }] : []),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
@@ -369,7 +372,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
 
 // finalizeNav 合并三重过滤：featureFlag 过滤 + simple 模式过滤。
 function finalizeNav(items: NavItem[]): NavItem[] {
-  const visible = applyFeatureFlags(items)
+  const visible = applyFeatureFlags(items.filter(item => resellerCustomer.canVisit(item.path)))
   return authStore.isSimpleMode ? visible.filter(item => !item.hideInSimpleMode) : visible
 }
 

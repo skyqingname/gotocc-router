@@ -6,6 +6,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useResellerAccess } from '@/composables/useResellerAccess'
+import { isPlatformFundingPage } from '@/composables/useResellerCustomer'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
@@ -292,6 +293,10 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'redeem.title',
       descriptionKey: 'redeem.description'
     }
+  },
+  {
+    path: '/credits', name: 'CustomerCredits', component: () => import('@/views/user/GotoCCCustomerCreditsView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'My Credits', titleKey: 'nav.customerCredits' }
   },
   {
     path: '/reseller', name: 'Reseller', component: () => import('@/views/user/ResellerView.vue'),
@@ -996,6 +1001,13 @@ router.beforeEach(async (to, _from, next) => {
       query: { redirect: to.fullPath } // Save intended destination
     })
     return
+  }
+
+  if (!authStore.isAdmin) {
+    try { await useResellerAccess().load() }
+    catch { appStore.showError('无法读取客户身份，请重试 / Could not load account access'); next(false); return }
+    if (authStore.user?.reseller_customer && isPlatformFundingPage(to.path)) { next('/credits'); return }
+    if (!authStore.user?.reseller_customer && to.path === '/credits') { next('/dashboard'); return }
   }
 
   // Check admin requirement

@@ -22,35 +22,46 @@ type ResellerPrice struct {
 	Multiplier *float64 `json:"multiplier"`
 }
 type ResellerCustomer struct {
-	UserID      int64      `json:"user_id"`
-	Username    string     `json:"username"`
-	Email       string     `json:"email"`
-	Status      string     `json:"status"`
-	Notes       string     `json:"notes"`
-	CreatedAt   time.Time  `json:"created_at"`
-	Charged     float64    `json:"charged"`
-	Profit      float64    `json:"profit"`
-	LastUsageAt *time.Time `json:"last_usage_at"`
+	UserID        int64      `json:"user_id"`
+	Username      string     `json:"username"`
+	Email         string     `json:"email"`
+	Status        string     `json:"status"`
+	Notes         string     `json:"notes"`
+	CreatedAt     time.Time  `json:"created_at"`
+	Charged       float64    `json:"charged"`
+	Profit        float64    `json:"profit"`
+	LastUsageAt   *time.Time `json:"last_usage_at"`
+	CreditBalance float64    `json:"credit_balance"`
+	FrozenCredit  float64    `json:"frozen_credit"`
+	Cost          float64    `json:"cost"`
 }
 type ResellerEarning struct {
-	ID         int64     `json:"id"`
-	CustomerID int64     `json:"customer_id"`
-	Username   string    `json:"username"`
-	GroupID    int64     `json:"group_id"`
-	GroupName  string    `json:"group_name"`
-	Model      string    `json:"model"`
-	Charged    float64   `json:"charged"`
-	Cost       float64   `json:"cost"`
-	Profit     float64   `json:"profit"`
-	Multiplier float64   `json:"multiplier"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID             int64     `json:"id"`
+	CustomerID     int64     `json:"customer_id"`
+	Username       string    `json:"username"`
+	GroupID        int64     `json:"group_id"`
+	GroupName      string    `json:"group_name"`
+	Model          string    `json:"model"`
+	Charged        float64   `json:"charged"`
+	Cost           float64   `json:"cost"`
+	Profit         float64   `json:"profit"`
+	Multiplier     float64   `json:"multiplier"`
+	CreatedAt      time.Time `json:"created_at"`
+	SettlementType string    `json:"settlement_type"`
 }
 type ResellerSummary struct {
 	CustomerCount int64   `json:"customer_count"`
 	Charged       float64 `json:"charged"`
 	Profit        float64 `json:"profit"`
+	Cost          float64 `json:"cost"`
+	CreditBalance float64 `json:"credit_balance"`
+	Gifted        float64 `json:"gifted"`
 }
 type ResellerRepository interface {
+	CustomerAccount(context.Context, int64) (*ResellerCustomerAccount, error)
+	CustomerTransaction(context.Context, int64, int64, func(context.Context) error) error
+	ChangeCustomerCredit(context.Context, int64, int64, ResellerCreditInput) (*ResellerCreditEntry, error)
+	CustomerCreditEntries(context.Context, int64, int64, int, int) ([]ResellerCreditEntry, int64, error)
 	Profile(context.Context, int64) (*ResellerProfile, error)
 	SaveProfile(context.Context, int64, bool) (*ResellerProfile, error)
 	Invitation(context.Context, string) (*ResellerProfile, error)
@@ -91,6 +102,15 @@ func (s *ResellerService) AdminProfile(ctx context.Context, userID int64) (*Rese
 // schedule: resellers earn invite rebates under the same global rates as anyone
 // else, and only while they hold an approved agent identity.
 func (s *ResellerService) SaveProfile(ctx context.Context, userID int64, enabled bool) (*ResellerProfile, error) {
+	if enabled {
+		account, err := s.Repo.CustomerAccount(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if account != nil {
+			return nil, infraerrors.BadRequest("RESELLER_REQUIRES_PLATFORM_ACCOUNT", "站长使用平台直属账户，客户账户不能同时开通站长")
+		}
+	}
 	return s.Repo.SaveProfile(ctx, userID, enabled)
 }
 func (s *ResellerService) Groups(ctx context.Context, userID int64) ([]Group, error) {
@@ -149,7 +169,29 @@ func (s *ResellerService) SetPrices(ctx context.Context, ownerID int64, customer
 	return s.Repo.SetPrices(ctx, ownerID, customerID, overall, prices)
 }
 func (s *ResellerService) BindRegistration(ctx context.Context, userID, ownerID int64) error {
-	return s.Repo.BindCustomer(ctx, userID, ownerID)
+	if err := s.Repo.BindCustomer(ctx, userID, ownerID); err != nil {
+		return err
+	}
+	user, err := s.keys.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	groups, err := s.keys.GetAvailableGroups(ctx, ownerID)
+	if err != nil {
+		return err
+	}
+	owner, err := s.keys.userRepo.GetByID(ctx, ownerID)
+	if err != nil {
+		return err
+	}
+	user.AllowedGroups = make([]int64, 0, len(groups))
+	for _, group := range groups {
+		user.AllowedGroups = append(user.AllowedGroups, group.ID)
+	}
+	user.RestrictPublicGroups = true
+	user.Concurrency = min(user.Concurrency, owner.Concurrency)
+	user.RPMLimit = owner.RPMLimit
+	return s.keys.userRepo.Update(ctx, user, UserUpdateFields{AllowedGroups: true, RestrictPublicGroups: true, Concurrency: true, RPMLimit: true})
 }
 func IsResellerInvitation(code string) bool {
 	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(code)), "RS-")

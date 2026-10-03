@@ -82,6 +82,7 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 	}
 
 	batchCmd := &service.BatchImageBalanceHoldCommand{
+		ResellerSnapshot: cmd.ResellerSnapshot, RequestID: requestID, Model: cmd.Model,
 		APIKeyID: cmd.APIKeyID, UserID: cmd.UserID, ActorUserID: cmd.ActorUserID,
 		TeamID: cmd.TeamID, BatchID: cmd.LocalRequestID, HoldAmount: cmd.HoldAmount,
 		ActualAmount: cmd.ActualAmount, AllowanceReserved: cmd.AllowanceReserved,
@@ -140,14 +141,20 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 			return heldErr
 		}
 		if held && cmd.HoldAmount > 0 {
-			var balance, frozen float64
-			err = tx.QueryRowContext(ctx, `UPDATE users SET
+			if managedReseller(cmd.ResellerSnapshot) {
+				if _, err = releaseResellerCustomerBalance(ctx, tx, batchCmd); err != nil {
+					return err
+				}
+			} else {
+				var balance, frozen float64
+				err = tx.QueryRowContext(ctx, `UPDATE users SET
 				balance=balance+$1, frozen_balance=COALESCE(frozen_balance,0)-$1,
 				updated_at=NOW() WHERE id=$2 AND deleted_at IS NULL
 				AND COALESCE(frozen_balance,0)>=$1 RETURNING balance,frozen_balance`,
-				cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
-			if err != nil {
-				return err
+					cmd.HoldAmount, cmd.UserID).Scan(&balance, &frozen)
+				if err != nil {
+					return err
+				}
 			}
 			if err = releaseBatchImageAPIKeyAllowance(ctx, tx, cmd.APIKeyID, cmd.HoldAmount, cmd.ReservedAt); err != nil {
 				return err
@@ -176,6 +183,7 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 		return err
 	}
 	tx = nil
+	r.invalidateResellerBalance(ctx, cmd.ResellerSnapshot)
 	return nil
 }
 

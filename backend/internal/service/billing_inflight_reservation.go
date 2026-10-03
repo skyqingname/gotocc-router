@@ -54,11 +54,12 @@ const (
 // 不再续期，所以最长持有时间受 TTL 约束（计费任务卡死时预留自动过期）。
 // 所有方法对 nil 接收者安全。
 type InflightReservation struct {
-	cache     InflightBalanceReservationCache
-	userID    int64
-	requestID string
-	amount    float64
-	ttl       time.Duration
+	resellerCost *InflightReservation
+	cache        InflightBalanceReservationCache
+	userID       int64
+	requestID    string
+	amount       float64
+	ttl          time.Duration
 
 	refs        atomic.Int64
 	releaseOnce sync.Once
@@ -102,6 +103,9 @@ func (r *InflightReservation) HandlerDone() {
 	}
 	r.stopOnce.Do(func() {
 		r.stopRenewal()
+		if r.resellerCost != nil {
+			r.resellerCost.stopRenewal()
+		}
 		r.decRef()
 	})
 }
@@ -113,6 +117,7 @@ func (r *InflightReservation) Release() {
 	}
 	r.stopRenewal()
 	r.releaseOnce.Do(func() {
+		r.resellerCost.Release()
 		r.refs.Store(0)
 		relCtx, relCancel := context.WithTimeout(context.Background(), inflightReservationReleaseTimeout)
 		defer relCancel()
@@ -236,6 +241,9 @@ func (s *BillingCacheService) ReserveInflight(ctx context.Context, user *User, g
 }
 
 func (s *BillingCacheService) reserveInflight(ctx context.Context, user *User, group *Group, subscription *UserSubscription, estimate float64, renew bool) (*InflightReservation, error) {
+	if user != nil && user.ResellerCustomer != nil && group != nil {
+		return s.reserveResellerInflight(ctx, user, group, estimate, renew)
+	}
 	cfg, ok := s.inflightReservationConfig()
 	if !ok || user == nil {
 		return nil, nil

@@ -164,6 +164,7 @@ export default {
   // Navigation
   nav: {
     reseller: '站长中心',
+    customerCredits: '我的额度',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',

@@ -14,6 +14,7 @@ import (
 func RegisterPaymentRoutes(
 	v1 *gin.RouterGroup,
 	paymentHandler *handler.PaymentHandler,
+	resellerHandler *handler.ResellerHandler,
 	webhookHandler *handler.PaymentWebhookHandler,
 	adminPaymentHandler *admin.PaymentHandler,
 	jwtAuth middleware.JWTAuthMiddleware,
@@ -36,7 +37,7 @@ func RegisterPaymentRoutes(
 
 		orders := authenticated.Group("/orders")
 		{
-			orders.POST("", paymentHandler.CreateOrder)
+			orders.POST("", resellerHandler.PlatformFunding, paymentHandler.CreateOrder)
 			orders.POST("/verify", paymentHandler.VerifyOrder)
 			orders.GET("/my", paymentHandler.GetMyOrders)
 			orders.GET("/:id", paymentHandler.GetOrder)

@@ -164,6 +164,7 @@ export default {
   // Navigation
   nav: {
     reseller: 'Reseller Center',
+    customerCredits: 'My Credits',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',

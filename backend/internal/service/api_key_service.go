@@ -303,6 +303,7 @@ type RateLimitCacheInvalidator interface {
 }
 
 type APIKeyService struct {
+	resellerRepo              ResellerRepository
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
 	groupRepo                 GroupRepository
@@ -497,6 +498,22 @@ func (s *APIKeyService) incrementAPIKeyErrorCount(ctx context.Context, userID in
 // 对于订阅类型分组：检查用户是否有有效订阅
 // 对于标准类型分组：使用原有的 AllowedGroups 和 IsExclusive 逻辑
 func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group *Group) bool {
+	account, err := s.resellerRepo.CustomerAccount(ctx, user.ID)
+	if err != nil {
+		return false
+	}
+	if account != nil {
+		groups, err := s.resellerAvailableGroups(ctx, user.ID, account)
+		if err != nil {
+			return false
+		}
+		for _, available := range groups {
+			if available.ID == group.ID {
+				return true
+			}
+		}
+		return false
+	}
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
 		_, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, group.ID)
@@ -794,7 +811,12 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 }
 
 // GetByKey 根据Key字符串获取API Key（用于认证）
-func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, error) {
+func (s *APIKeyService) GetByKey(ctx context.Context, key string) (result *APIKey, resultErr error) {
+	defer func() {
+		if resultErr == nil && result != nil {
+			resultErr = s.attachResellerCustomer(ctx, result)
+		}
+	}()
 	if len(key) == 0 || len(key) > MaxAPIKeyCredentialBytes {
 		return nil, ErrAPIKeyNotFound
 	}
@@ -1148,6 +1170,13 @@ func (s *APIKeyService) IncrementUsage(ctx context.Context, keyID int64) error {
 // - 标准类型分组：公开的（非专属）或用户被明确允许的
 // - 订阅类型分组：用户有有效订阅的
 func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([]Group, error) {
+	account, err := s.resellerRepo.CustomerAccount(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if account != nil {
+		return s.resellerAvailableGroups(ctx, userID, account)
+	}
 	// 获取用户信息
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -1208,6 +1237,22 @@ func (s *APIKeyService) SearchAPIKeys(ctx context.Context, userID int64, keyword
 // 与 GetAvailableGroups 的区别：这里保留普通授权分组的「橱窗」语义，不检查
 // 分组是否活跃；有效订阅也授予对应分组的可见性。返回值恒非 nil。
 func (s *APIKeyService) GetUserGroupVisibility(ctx context.Context, userID int64) (map[int64]struct{}, bool, error) {
+	account, err := s.resellerRepo.CustomerAccount(ctx, userID)
+	if err != nil {
+		return nil, false, err
+	}
+	if account != nil {
+		groups, err := s.resellerAvailableGroups(ctx, userID, account)
+		if err != nil {
+			return nil, false, err
+		}
+		allowed := make(map[int64]struct{}, len(groups))
+		for _, group := range groups {
+			allowed[group.ID] = struct{}{}
+		}
+		return allowed, true, nil
+	}
+
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, false, fmt.Errorf("get user: %w", err)

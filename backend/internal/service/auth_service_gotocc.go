@@ -102,6 +102,9 @@ func (s *AuthService) cleanupCreatedUserAfterInvitationFailure(ctx context.Conte
 }
 
 func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, user *User, invitation *registrationInvitation, authSource string) error {
+	if invitation != nil && invitation.reseller != nil {
+		user.Balance = 0
+	}
 	if invitation == nil {
 		return s.createUserAndClaimInvitation(ctx, user, nil)
 	}

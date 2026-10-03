@@ -76,23 +76,23 @@ func (r *resellerRepository) BindCustomer(ctx context.Context, userID, ownerID i
 	if !enabled {
 		return service.ErrInvitationCodeInvalid
 	}
-	_, err = q.ExecContext(ctx, `INSERT INTO reseller_customers(user_id) VALUES($1)`, userID)
+	_, err = q.ExecContext(ctx, `INSERT INTO reseller_customers(user_id,owner_user_id) VALUES($1,$2)`, userID, ownerID)
 	return err
 }
 func (r *resellerRepository) CustomerOwned(ctx context.Context, ownerID, customerID int64) (bool, error) {
 	var ok bool
-	err := scanSingleRow(ctx, r.executor(ctx), `SELECT EXISTS(SELECT 1 FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN users u ON u.id=c.user_id WHERE c.user_id=$2 AND a.inviter_id=$1 AND u.deleted_at IS NULL)`, []any{ownerID, customerID}, &ok)
+	err := scanSingleRow(ctx, r.executor(ctx), `SELECT EXISTS(SELECT 1 FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.user_id=$2 AND c.owner_user_id=$1 AND u.deleted_at IS NULL)`, []any{ownerID, customerID}, &ok)
 	return ok, err
 }
 func (r *resellerRepository) Customers(ctx context.Context, ownerID int64, search string, page, size int) ([]service.ResellerCustomer, int64, error) {
 	q := r.executor(ctx)
 	pattern := "%" + strings.TrimSpace(search) + "%"
-	where := ` FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN users u ON u.id=c.user_id WHERE a.inviter_id=$1 AND u.deleted_at IS NULL AND (u.email ILIKE $2 OR u.username ILIKE $2 OR c.notes ILIKE $2)`
+	where := ` FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.owner_user_id=$1 AND u.deleted_at IS NULL AND (u.email ILIKE $2 OR u.username ILIKE $2 OR c.notes ILIKE $2)`
 	var total int64
 	if err := scanSingleRow(ctx, q, `SELECT COUNT(*)`+where, []any{ownerID, pattern}, &total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT c.user_id,u.username,u.email,u.status,c.notes,c.created_at,COALESCE((SELECT SUM(charged_amount) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id),0)::float8,COALESCE((SELECT SUM(profit_amount) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id),0)::float8,(SELECT MAX(created_at) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id)`+where+` ORDER BY c.created_at DESC,c.user_id DESC LIMIT $3 OFFSET $4`, ownerID, pattern, size, (page-1)*size)
+	rows, err := q.QueryContext(ctx, `SELECT c.user_id,u.username,u.email,u.status,c.notes,c.created_at,c.credit_balance::float8,c.frozen_credit::float8,COALESCE((SELECT SUM(cost_amount) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id AND settlement_type='managed_credit'),0)::float8,COALESCE((SELECT SUM(charged_amount) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id AND settlement_type='managed_credit'),0)::float8,COALESCE((SELECT SUM(profit_amount) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id AND settlement_type='managed_credit'),0)::float8,(SELECT MAX(created_at) FROM reseller_earnings e WHERE e.owner_user_id=$1 AND e.customer_user_id=c.user_id)`+where+` ORDER BY c.created_at DESC,c.user_id DESC LIMIT $3 OFFSET $4`, ownerID, pattern, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -100,7 +100,7 @@ func (r *resellerRepository) Customers(ctx context.Context, ownerID int64, searc
 	out := []service.ResellerCustomer{}
 	for rows.Next() {
 		var c service.ResellerCustomer
-		if err = rows.Scan(&c.UserID, &c.Username, &c.Email, &c.Status, &c.Notes, &c.CreatedAt, &c.Charged, &c.Profit, &c.LastUsageAt); err != nil {
+		if err = rows.Scan(&c.UserID, &c.Username, &c.Email, &c.Status, &c.Notes, &c.CreatedAt, &c.CreditBalance, &c.FrozenCredit, &c.Cost, &c.Charged, &c.Profit, &c.LastUsageAt); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, c)
@@ -108,7 +108,7 @@ func (r *resellerRepository) Customers(ctx context.Context, ownerID int64, searc
 	return out, total, rows.Err()
 }
 func (r *resellerRepository) UpdateNotes(ctx context.Context, ownerID, customerID int64, notes string) error {
-	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE reseller_customers c SET notes=$3 FROM user_affiliates a WHERE c.user_id=$2 AND a.user_id=c.user_id AND a.inviter_id=$1`, ownerID, customerID, strings.TrimSpace(notes))
+	result, err := r.executor(ctx).ExecContext(ctx, `UPDATE reseller_customers c SET notes=$3 WHERE c.user_id=$2 AND c.owner_user_id=$1`, ownerID, customerID, strings.TrimSpace(notes))
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (r *resellerRepository) SetPrices(ctx context.Context, ownerID int64, custo
 	}
 	if customerID != nil {
 		var id int64
-		if err = tx.QueryRowContext(ctx, `SELECT a.user_id FROM user_affiliates a JOIN reseller_customers c ON c.user_id=a.user_id WHERE a.user_id=$2 AND a.inviter_id=$1 FOR SHARE OF a`, ownerID, *customerID).Scan(&id); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT c.user_id FROM reseller_customers c WHERE c.user_id=$2 AND c.owner_user_id=$1 FOR SHARE OF c`, ownerID, *customerID).Scan(&id); err != nil {
 			return infraerrors.NotFound("RESELLER_CUSTOMER_NOT_FOUND", "客户不属于当前站长")
 		}
 	}
@@ -183,7 +183,7 @@ func (r *resellerRepository) SetPrices(ctx context.Context, ownerID int64, custo
 }
 func (r *resellerRepository) Summary(ctx context.Context, ownerID int64) (*service.ResellerSummary, error) {
 	p := &service.ResellerSummary{}
-	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN users u ON u.id=c.user_id WHERE a.inviter_id=$1 AND u.deleted_at IS NULL),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8 FROM reseller_earnings WHERE owner_user_id=$1`, []any{ownerID}, &p.CustomerCount, &p.Charged, &p.Profit)
+	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.owner_user_id=$1 AND u.deleted_at IS NULL),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8,COALESCE(SUM(cost_amount),0)::float8,(SELECT COALESCE(SUM(credit_balance),0)::float8 FROM reseller_customers WHERE owner_user_id=$1),(SELECT COALESCE(SUM(amount),0)::float8 FROM reseller_credit_entries WHERE owner_user_id=$1 AND kind='gift') FROM reseller_earnings WHERE owner_user_id=$1 AND settlement_type='managed_credit'`, []any{ownerID}, &p.CustomerCount, &p.Charged, &p.Profit, &p.Cost, &p.CreditBalance, &p.Gifted)
 	return p, err
 }
 func (r *resellerRepository) Earnings(ctx context.Context, ownerID int64, page, size int) ([]service.ResellerEarning, int64, error) {
@@ -192,7 +192,7 @@ func (r *resellerRepository) Earnings(ctx context.Context, ownerID int64, page, 
 	if err := scanSingleRow(ctx, q, `SELECT COUNT(*) FROM reseller_earnings WHERE owner_user_id=$1`, []any{ownerID}, &count); err != nil {
 		return nil, 0, err
 	}
-	rows, err := q.QueryContext(ctx, `SELECT e.id,e.customer_user_id,u.username,e.group_id,g.name,e.model,e.charged_amount::float8,e.cost_amount::float8,e.profit_amount::float8,e.multiplier::float8,e.created_at FROM reseller_earnings e JOIN users u ON u.id=e.customer_user_id JOIN groups g ON g.id=e.group_id WHERE e.owner_user_id=$1 ORDER BY e.created_at DESC,e.id DESC LIMIT $2 OFFSET $3`, ownerID, size, (page-1)*size)
+	rows, err := q.QueryContext(ctx, `SELECT e.id,e.customer_user_id,u.username,e.group_id,g.name,e.model,e.charged_amount::float8,e.cost_amount::float8,e.profit_amount::float8,e.multiplier::float8,e.created_at,e.settlement_type FROM reseller_earnings e JOIN users u ON u.id=e.customer_user_id JOIN groups g ON g.id=e.group_id WHERE e.owner_user_id=$1 ORDER BY e.created_at DESC,e.id DESC LIMIT $2 OFFSET $3`, ownerID, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -200,7 +200,7 @@ func (r *resellerRepository) Earnings(ctx context.Context, ownerID int64, page, 
 	out := []service.ResellerEarning{}
 	for rows.Next() {
 		var e service.ResellerEarning
-		if err = rows.Scan(&e.ID, &e.CustomerID, &e.Username, &e.GroupID, &e.GroupName, &e.Model, &e.Charged, &e.Cost, &e.Profit, &e.Multiplier, &e.CreatedAt); err != nil {
+		if err = rows.Scan(&e.ID, &e.CustomerID, &e.Username, &e.GroupID, &e.GroupName, &e.Model, &e.Charged, &e.Cost, &e.Profit, &e.Multiplier, &e.CreatedAt, &e.SettlementType); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, e)
@@ -228,69 +228,53 @@ func (r *resellerRepository) Pricing(ctx context.Context, userID int64) (map[int
 		return nil, err
 	}
 	defer tx.Rollback()
-	chain := []resellerPricingNode{}
-	current := userID
-	for {
-		var n resellerPricingNode
-		n.customerID = current
-		n.prices = map[[2]int64]float64{}
-		err = tx.QueryRowContext(ctx, `SELECT p.user_id,p.default_multiplier::float8 FROM reseller_customers c JOIN user_affiliates a ON a.user_id=c.user_id JOIN reseller_profiles p ON p.user_id=a.inviter_id WHERE c.user_id=$1`, current).Scan(&n.ownerID, &n.defaultRate)
-		if errors.Is(err, sql.ErrNoRows) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		rows, e := tx.QueryContext(ctx, `SELECT COALESCE(customer_user_id,0),COALESCE(group_id,0),multiplier::float8 FROM reseller_prices WHERE owner_user_id=$1 AND (customer_user_id IS NULL OR customer_user_id=$2)`, n.ownerID, current)
-		if e != nil {
-			return nil, e
-		}
-		for rows.Next() {
-			var a, b int64
-			var v float64
-			if e = rows.Scan(&a, &b, &v); e != nil {
-				rows.Close()
-				return nil, e
-			}
-			n.prices[[2]int64{a, b}] = v
-		}
-		e = rows.Err()
-		rows.Close()
-		if e != nil {
-			return nil, e
-		}
-		chain = append(chain, n)
-		current = n.ownerID
-	}
 	out := map[int64]*reseller.Snapshot{}
-	if len(chain) == 0 {
+	node := resellerPricingNode{customerID: userID, prices: map[[2]int64]float64{}}
+	err = tx.QueryRowContext(ctx, `SELECT c.owner_user_id,p.default_multiplier::float8 FROM reseller_customers c JOIN reseller_profiles p ON p.user_id=c.owner_user_id WHERE c.user_id=$1`, userID).Scan(&node.ownerID, &node.defaultRate)
+	if errors.Is(err, sql.ErrNoRows) {
 		return out, tx.Commit()
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT g.id,COALESCE(u.rate_multiplier,g.rate_multiplier)::float8,g.image_rate_independent,g.image_rate_multiplier::float8,g.video_rate_independent,g.video_rate_multiplier::float8 FROM groups g LEFT JOIN user_group_rate_multipliers u ON u.group_id=g.id AND u.user_id=$1 WHERE g.deleted_at IS NULL`, current)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT COALESCE(customer_user_id,0),COALESCE(group_id,0),multiplier::float8 FROM reseller_prices WHERE owner_user_id=$1 AND (customer_user_id IS NULL OR customer_user_id=$2)`, node.ownerID, userID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var customerID, groupID int64
+		var multiplier float64
+		if err = rows.Scan(&customerID, &groupID, &multiplier); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		node.prices[[2]int64{customerID, groupID}] = multiplier
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	rows, err = tx.QueryContext(ctx, `SELECT g.id,COALESCE(u.rate_multiplier,g.rate_multiplier)::float8,g.image_rate_independent,g.image_rate_multiplier::float8,g.video_rate_independent,g.video_rate_multiplier::float8 FROM groups g LEFT JOIN user_group_rate_multipliers u ON u.group_id=g.id AND u.user_id=$1 WHERE g.deleted_at IS NULL`, node.ownerID)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var groupID int64
 		var text, image, video float64
-		var imageIndependent, videoIndependent bool
-		if err = rows.Scan(&groupID, &text, &imageIndependent, &image, &videoIndependent, &video); err != nil {
+		var independentImage, independentVideo bool
+		if err = rows.Scan(&groupID, &text, &independentImage, &image, &independentVideo, &video); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		if !imageIndependent {
+		if !independentImage {
 			image = text
 		}
-		if !videoIndependent {
+		if !independentVideo {
 			video = text
 		}
-		for i := len(chain) - 1; i >= 0; i-- {
-			m := chain[i].rate(groupID)
-			text *= m
-			image *= m
-			video *= m
-		}
-		out[groupID] = &reseller.Snapshot{UserID: userID, OwnerID: chain[0].ownerID, GroupID: groupID, Multiplier: chain[0].rate(groupID), TextRate: text, ImageRate: image, VideoRate: video}
+		multiplier := node.rate(groupID)
+		out[groupID] = &reseller.Snapshot{ManagedCredits: true, UserID: userID, OwnerID: node.ownerID, GroupID: groupID, Multiplier: multiplier, TextRate: text * multiplier, ImageRate: image * multiplier, VideoRate: video * multiplier}
 	}
 	err = rows.Err()
 	rows.Close()
@@ -311,6 +295,10 @@ func recordResellerEarning(ctx context.Context, tx *sql.Tx, snapshot *reseller.S
 	if profit < 0 {
 		return fmt.Errorf("reseller snapshot produces a negative margin")
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO reseller_earnings(owner_user_id,customer_user_id,group_id,request_id,api_key_id,model,charged_amount,cost_amount,profit_amount,multiplier) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(request_id,api_key_id) DO NOTHING`, snapshot.OwnerID, snapshot.UserID, snapshot.GroupID, requestID, keyID, model, charged, cost, profit, snapshot.Multiplier)
+	settlementType := "legacy_direct"
+	if snapshot.ManagedCredits {
+		settlementType = "managed_credit"
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO reseller_earnings(owner_user_id,customer_user_id,group_id,request_id,api_key_id,model,charged_amount,cost_amount,profit_amount,multiplier,settlement_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(request_id,api_key_id) DO NOTHING`, snapshot.OwnerID, snapshot.UserID, snapshot.GroupID, requestID, keyID, model, charged, cost, profit, snapshot.Multiplier, settlementType)
 	return err
 }
