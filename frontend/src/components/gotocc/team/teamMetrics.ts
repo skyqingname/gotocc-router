@@ -38,6 +38,13 @@ export const formatMetric = (value: number, metric: TeamCardMetric): string => {
   return formatNumber(Math.round(value))
 }
 
+// 纵轴刻度用短格式：金额最多两位小数且去掉末尾的 0，避免出现 $0.0000。
+export const formatAxis = (value: number, metric: TeamMetric): string => {
+  if (metric === 'cost') return `$${Number(value.toFixed(2))}`
+  if (metric === 'tokens') return formatTokensK(value)
+  return formatNumber(value)
+}
+
 // from 到 to 的每一天（含两端），接口只返回有用量的日期，按这些日期补零。
 export const daysBetween = (from: string, to: string): string[] => {
   const days: string[] = []

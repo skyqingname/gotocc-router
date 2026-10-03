@@ -20,7 +20,7 @@ import { Line } from 'vue-chartjs'
 import Skeleton from '@/components/common/Skeleton.vue'
 import type { TeamMemberUsageSeries } from '@/api/team'
 import { CHART_TICK_FONT_SIZE, useChartColors } from '@/components/gotocc/dashboard/tones'
-import { formatMetric, memberColor, seriesOf, totalValue, type TeamMetric } from './teamMetrics'
+import { formatAxis, formatMetric, memberColor, seriesOf, totalValue, type TeamMetric } from './teamMetrics'
 
 // 各成员按天的走势，颜色与成员排行一致。
 ChartJS.register(CategoryScale, Legend, LinearScale, LineElement, PointElement, Tooltip)
@@ -71,7 +71,7 @@ const chartOptions = computed(() => ({
   },
   scales: {
     x: { grid: { display: false }, ticks: { color: colors.value.text, autoSkip: true, maxTicksLimit: 8, maxRotation: 0, font: { size: CHART_TICK_FONT_SIZE } } },
-    y: { beginAtZero: true, grid: { color: colors.value.grid }, border: { display: false }, ticks: { color: colors.value.text, maxTicksLimit: 5, font: { size: CHART_TICK_FONT_SIZE }, callback: (value: string | number) => formatMetric(Number(value), props.metric) } },
+    y: { beginAtZero: true, grid: { color: colors.value.grid }, border: { display: false }, ticks: { color: colors.value.text, maxTicksLimit: 5, font: { size: CHART_TICK_FONT_SIZE }, callback: (value: string | number) => formatAxis(Number(value), props.metric) } },
   },
 }))
 </script>

@@ -47,7 +47,7 @@ import type { TeamUsageSummary } from '@/api/team'
 import { formatDateLocalInput } from '@/utils/format'
 import { CHART_REVEAL_MS } from '@/components/gotocc/dashboard/motion'
 import { CHART_TICK_FONT_SIZE, useChartColors } from '@/components/gotocc/dashboard/tones'
-import { formatMetric, seriesOf, type TeamMetric } from './teamMetrics'
+import { formatAxis, formatMetric, seriesOf, type TeamMetric } from './teamMetrics'
 
 // 团队趋势：与仪表盘趋势图同一套表现——从左描线、今天的末段虚线、峰值与均值标注、上一周期对比线。
 
@@ -173,7 +173,7 @@ const chartOptions = computed(() => ({
       grace: '15%',
       grid: { color: colors.value.grid, drawTicks: false },
       border: { display: false },
-      ticks: { color: colors.value.text, padding: 8, maxTicksLimit: 5, font: { size: CHART_TICK_FONT_SIZE }, callback: (value: string | number) => formatValue(Number(value)) },
+      ticks: { color: colors.value.text, padding: 8, maxTicksLimit: 5, font: { size: CHART_TICK_FONT_SIZE }, callback: (value: string | number) => formatAxis(Number(value), props.metric) },
     },
   },
 }))
