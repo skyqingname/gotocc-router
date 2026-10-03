@@ -25,7 +25,7 @@ const { locale } = useI18n()
 const tr = (zh: string, en: string) => locale.value.startsWith('zh') ? zh : en
 const money = (value: number) => value.toLocaleString(locale.value, { maximumFractionDigits: 8 })
 function kindLabel(kind: string) {
-  const labels: Record<string, [string, string]> = { purchase: ['购买额度', 'Purchased credits'], gift: ['赠送额度', 'Gift credits'], deduct: ['人工扣减', 'Manual deduction'], consume: ['消费扣除', 'Usage charge'], reserve: ['任务预占', 'Task reservation'], capture: ['任务结算', 'Task settlement'], release: ['预占释放', 'Reservation release'] }
+  const labels: Record<string, [string, string]> = { increase: ['增加额度', 'Credit increase'], initial: ['初始额度', 'Initial credits'], purchase: ['购买额度', 'Purchased credits'], gift: ['赠送额度', 'Gift credits'], deduct: ['减少额度', 'Credit decrease'], consume: ['消费扣除', 'Usage charge'], reserve: ['任务预占', 'Task reservation'], capture: ['任务结算', 'Task settlement'], release: ['预占释放', 'Reservation release'] }
   const label = labels[kind]
   return label ? tr(...label) : kind
 }

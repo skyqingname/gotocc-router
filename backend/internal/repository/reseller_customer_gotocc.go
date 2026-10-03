@@ -53,11 +53,11 @@ func (r *resellerRepository) CustomerTransaction(ctx context.Context, ownerID, c
 	return tx.Commit()
 }
 
-const resellerCreditColumns = `id,customer_user_id,owner_user_id,operation_id,kind,amount::float8,frozen_amount::float8,balance_after::float8,frozen_after::float8,platform_cost::float8,model,notes,created_at`
+const resellerCreditColumns = `id,customer_user_id,owner_user_id,operation_id,kind,amount::float8,frozen_amount::float8,balance_after::float8,frozen_after::float8,platform_cost::float8,model,notes,created_at,deduct_all`
 
 func scanResellerCreditEntry(row interface{ Scan(...any) error }) (*service.ResellerCreditEntry, error) {
 	e := &service.ResellerCreditEntry{}
-	err := row.Scan(&e.ID, &e.CustomerID, &e.OwnerID, &e.OperationID, &e.Kind, &e.Amount, &e.FrozenAmount, &e.BalanceAfter, &e.FrozenAfter, &e.PlatformCost, &e.Model, &e.Notes, &e.CreatedAt)
+	err := row.Scan(&e.ID, &e.CustomerID, &e.OwnerID, &e.OperationID, &e.Kind, &e.Amount, &e.FrozenAmount, &e.BalanceAfter, &e.FrozenAfter, &e.PlatformCost, &e.Model, &e.Notes, &e.CreatedAt, &e.DeductAll)
 	return e, err
 }
 
@@ -81,13 +81,19 @@ func (r *resellerRepository) ChangeCustomerCredit(ctx context.Context, ownerID, 
 	}
 	previous, err := scanResellerCreditEntry(tx.QueryRowContext(ctx, `SELECT `+resellerCreditColumns+` FROM reseller_credit_entries WHERE customer_user_id=$1 AND operation_id=$2 AND api_key_id=0`, customerID, input.OperationID))
 	if err == nil {
-		if previous.Kind != input.Kind || previous.Amount != delta || previous.Notes != input.Notes {
+		if previous.Kind != input.Kind || previous.DeductAll != input.DeductAll || (!input.DeductAll && previous.Amount != delta) || previous.Notes != input.Notes {
 			return nil, infraerrors.Conflict("CUSTOMER_CREDIT_OPERATION_CONFLICT", "这笔额度操作已经使用不同内容提交")
 		}
 		return previous, tx.Commit()
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
+	}
+	if input.DeductAll {
+		if balance <= 0 {
+			return nil, infraerrors.BadRequest("NO_AVAILABLE_CUSTOMER_CREDIT", "没有可减少的额度")
+		}
+		delta = -balance
 	}
 	if balance+delta < 0 {
 		return nil, service.ErrResellerCreditInsufficient
@@ -97,9 +103,9 @@ func (r *resellerRepository) ChangeCustomerCredit(ctx context.Context, ownerID, 
 		return nil, err
 	}
 	entry, err := scanResellerCreditEntry(tx.QueryRowContext(ctx, `INSERT INTO reseller_credit_entries
-		(customer_user_id,owner_user_id,operator_user_id,operation_id,kind,amount,balance_after,frozen_after,notes)
-		VALUES($1,$2,$2,$3,$4,$5,$6,$7,$8) RETURNING `+resellerCreditColumns,
-		customerID, ownerID, input.OperationID, input.Kind, delta, balance, frozen, input.Notes))
+		(customer_user_id,owner_user_id,operator_user_id,operation_id,kind,amount,balance_after,frozen_after,notes,deduct_all)
+		VALUES($1,$2,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING `+resellerCreditColumns,
+		customerID, ownerID, input.OperationID, input.Kind, delta, balance, frozen, input.Notes, input.DeductAll))
 	if err != nil {
 		return nil, err
 	}

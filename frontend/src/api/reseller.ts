@@ -1,6 +1,6 @@
 import { apiClient } from './client'
 import type { User, ApiKey, UsageLog, ResellerCustomerAccount } from '@/types'
-export interface ResellerProfile { user_id: number; enabled: boolean; invitation_code: string; default_multiplier: number }
+export interface ResellerProfile { user_id: number; enabled: boolean; invitation_code: string; default_multiplier: number; initial_credit: number }
 export interface ResellerCustomer { user_id: number; username: string; email: string; status: string; notes: string; created_at: string; charged: number; profit: number; last_usage_at: string | null; credit_balance: number; frozen_credit: number; cost: number }
 export interface ResellerPrice { customer_id: number | null; group_id: number | null; multiplier: number | null }
 export interface ResellerGroup { id: number; name: string; platform: string; base_multiplier: number; image_multiplier: number; image_independent: boolean; video_multiplier: number; video_independent: boolean }
@@ -11,10 +11,11 @@ export interface ResellerOverview { profile: ResellerProfile; invitation_url: st
 export interface ResellerOwnerLimits { balance: number; concurrency: number; rpm_limit: number }
 export interface ResellerCustomerInput { email: string; username: string; password: string; status: 'active' | 'disabled'; concurrency: number; rpm_limit: number; allowed_groups: number[]; notes: string }
 export interface ResellerCreditEntry { id: number; customer_id: number; owner_id: number; operation_id: string; kind: string; amount: number; frozen_amount: number; balance_after: number; frozen_after: number; platform_cost: number; model: string; notes: string; created_at: string }
-export interface ResellerCreditInput { operation_id: string; kind: 'purchase' | 'gift' | 'deduct'; amount: number; notes: string }
+export interface ResellerCreditInput { operation_id: string; kind: 'increase' | 'deduct'; amount: number; deduct_all: boolean; notes: string }
 export interface ResellerKeyInput { name: string; group_id: number | null; routing_mode: 'fixed' | 'auto'; quota: number }
 export interface MyResellerCredits extends ResellerPage<ResellerCreditEntry> { account: ResellerCustomerAccount }
 export const resellerAPI = {
+  saveInitialCredit: async (initial_credit: number) => (await apiClient.put<ResellerProfile>('/reseller/initial-credit', { initial_credit })).data,
   customer: async (id: number) => (await apiClient.get<User>(`/reseller/customers/${id}`)).data,
   createCustomer: async (input: ResellerCustomerInput) => (await apiClient.post<User>('/reseller/customers', input)).data,
   updateCustomer: async (id: number, input: ResellerCustomerInput) => (await apiClient.put<User>(`/reseller/customers/${id}`, input)).data,

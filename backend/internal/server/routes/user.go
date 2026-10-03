@@ -30,6 +30,7 @@ func RegisterUserRoutes(
 		reseller := authenticated.Group("/reseller")
 		reseller.GET("/access", h.Reseller.Access)
 		reseller.GET("", h.Reseller.Overview)
+		reseller.PUT("/initial-credit", h.Reseller.InitialCredit)
 		reseller.GET("/customers", h.Reseller.Customers)
 		reseller.GET("/credits", h.Reseller.MyCredits)
 		reseller.POST("/customers", h.Reseller.CreateCustomer)

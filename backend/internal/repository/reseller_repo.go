@@ -27,7 +27,7 @@ func (r *resellerRepository) executor(ctx context.Context) sqlExecutor {
 }
 func resellerProfile(ctx context.Context, q sqlExecutor, userID int64) (*service.ResellerProfile, error) {
 	p := &service.ResellerProfile{}
-	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8 FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier)
+	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8,COALESCE(p.initial_credit,$3)::float8 FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier, reseller.DefaultInitialCredit}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier, &p.InitialCredit)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrUserNotFound
 	}
@@ -45,7 +45,7 @@ func (r *resellerRepository) Profile(ctx context.Context, id int64) (*service.Re
 // the change destructive.
 func (r *resellerRepository) SaveProfile(ctx context.Context, id int64, enabled bool) (*service.ResellerProfile, error) {
 	code := "RS-" + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
-	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier) SELECT id,$2,$3,$4 FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier)
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier,initial_credit) SELECT id,$2,$3,$4,$5 FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier, reseller.DefaultInitialCredit)
 	if err != nil {
 		return nil, err
 	}
@@ -69,16 +69,25 @@ func (r *resellerRepository) Invitation(ctx context.Context, code string) (*serv
 func (r *resellerRepository) BindCustomer(ctx context.Context, userID, ownerID int64) error {
 	q := r.executor(ctx)
 	var enabled bool
-	err := scanSingleRow(ctx, q, `SELECT enabled FROM reseller_profiles WHERE user_id=$1 FOR SHARE`, []any{ownerID}, &enabled)
+	var initial float64
+	err := scanSingleRow(ctx, q, `SELECT enabled,initial_credit::float8 FROM reseller_profiles WHERE user_id=$1 FOR SHARE`, []any{ownerID}, &enabled, &initial)
 	if err != nil {
 		return err
 	}
 	if !enabled {
 		return service.ErrInvitationCodeInvalid
 	}
-	_, err = q.ExecContext(ctx, `INSERT INTO reseller_customers(user_id,owner_user_id) VALUES($1,$2)`, userID, ownerID)
+	if _, err = q.ExecContext(ctx, `INSERT INTO reseller_customers(user_id,owner_user_id,credit_balance) VALUES($1,$2,$3)`, userID, ownerID, initial); err != nil {
+		return err
+	}
+	if initial > 0 {
+		_, err = q.ExecContext(ctx, `INSERT INTO reseller_credit_entries
+            (customer_user_id,owner_user_id,operator_user_id,operation_id,kind,amount,balance_after,frozen_after)
+            VALUES($1,$2,$2,$3,'initial',$4,$4,0)`, userID, ownerID, fmt.Sprintf("reseller_initial:%d", userID), initial)
+	}
 	return err
 }
+
 func (r *resellerRepository) CustomerOwned(ctx context.Context, ownerID, customerID int64) (bool, error) {
 	var ok bool
 	err := scanSingleRow(ctx, r.executor(ctx), `SELECT EXISTS(SELECT 1 FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.user_id=$2 AND c.owner_user_id=$1 AND u.deleted_at IS NULL)`, []any{ownerID, customerID}, &ok)

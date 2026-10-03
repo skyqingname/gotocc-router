@@ -28,12 +28,14 @@ type ResellerCustomerAccount struct {
 
 type ResellerCreditInput struct {
 	OperationID string  `json:"operation_id" binding:"required"`
-	Kind        string  `json:"kind" binding:"required,oneof=purchase gift deduct"`
-	Amount      float64 `json:"amount" binding:"required,gt=0"`
+	Kind        string  `json:"kind" binding:"required,oneof=increase deduct"`
+	Amount      float64 `json:"amount" binding:"gte=0"`
+	DeductAll   bool    `json:"deduct_all"`
 	Notes       string  `json:"notes"`
 }
 
 type ResellerCreditEntry struct {
+	DeductAll    bool      `json:"deduct_all"`
 	ID           int64     `json:"id"`
 	CustomerID   int64     `json:"customer_id"`
 	OwnerID      int64     `json:"owner_id"`
@@ -87,6 +89,14 @@ func (s *ResellerService) Customer(ctx context.Context, ownerID, customerID int6
 		return nil, err
 	}
 	applyResellerCustomerAccount(user, account)
+	groups, err := s.keys.GetAvailableGroups(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	user.AllowedGroups = make([]int64, 0, len(groups))
+	for _, group := range groups {
+		user.AllowedGroups = append(user.AllowedGroups, group.ID)
+	}
 	return user, nil
 }
 
@@ -168,11 +178,11 @@ func (s *ResellerService) ChangeCredit(ctx context.Context, ownerID, customerID 
 	}
 	input.OperationID = strings.TrimSpace(input.OperationID)
 	input.Amount = QuantizeUsageBillingAmount(input.Amount)
-	if input.OperationID == "" || math.IsNaN(input.Amount) || math.IsInf(input.Amount, 0) || input.Amount <= 0 {
+	if input.OperationID == "" || math.IsNaN(input.Amount) || math.IsInf(input.Amount, 0) || (!input.DeductAll && input.Amount <= 0) {
 		return nil, infraerrors.BadRequest("INVALID_CUSTOMER_CREDIT", "请填写有效的额度")
 	}
-	if input.Kind != "purchase" && input.Kind != "gift" && input.Kind != "deduct" {
-		return nil, infraerrors.BadRequest("INVALID_CUSTOMER_CREDIT_KIND", "请选择购买、赠送或扣减")
+	if (input.Kind != "increase" && input.Kind != "deduct") || (input.DeductAll && input.Kind != "deduct") {
+		return nil, infraerrors.BadRequest("INVALID_CUSTOMER_CREDIT_KIND", "请选择增加或减少额度")
 	}
 	return s.Repo.ChangeCustomerCredit(ctx, ownerID, customerID, input)
 }

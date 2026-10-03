@@ -10,5 +10,6 @@
   ],
   "customer_hidden_route_prefixes": [
     "/custom/"
-  ]
+  ],
+  "default_initial_credit": 0
 }

@@ -6,13 +6,19 @@
       <template v-else-if="overview">
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div><h1 class="text-2xl font-semibold tracking-tight">{{ tr('站长中心', 'Reseller center') }}</h1><p class="mt-2 text-sm text-gray-500">{{ tr('管理你的客户、额度与服务成本。客户付款由你收取。', 'Manage your customers, credits and service costs. Customer payments go to you.') }}</p></div>
-          <button class="btn btn-primary" @click="openCustomer(null)">{{ tr('创建客户', 'Create customer') }}</button>
+          <div class="flex flex-wrap items-end gap-3">
+            <form class="flex items-end gap-2" @submit.prevent="saveInitialCredit">
+              <label class="block text-xs font-medium text-gray-500">{{ tr('初始额度', 'Initial credits') }}<input v-model.number="initialCredit" type="number" min="0" step="any" required :aria-label="tr('新用户初始额度', 'New customer initial credits')" class="input mt-1 w-32" /></label>
+              <button type="submit" class="btn btn-secondary" :disabled="initialSaving || initialCredit === overview.profile.initial_credit">{{ initialSaving ? tr('保存中…', 'Saving…') : tr('保存', 'Save') }}</button>
+            </form>
+            <button class="btn btn-primary" @click="openCustomer(null)">{{ tr('创建客户', 'Create customer') }}</button>
+          </div>
         </div>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="card border-primary-200 bg-primary-50/40 p-5 dark:border-primary-800 dark:bg-primary-950/20"><p class="text-xs font-medium text-primary-700 dark:text-primary-300">{{ tr('你的平台余额', 'Your platform balance') }}</p><p class="mt-3 text-3xl font-semibold tabular-nums">{{ money(overview.limits.balance) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('承担本人和客户的实际服务成本', 'Pays for your own and customer service usage') }}</p></div>
-          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('所属客户', 'Your customers') }}</p><p class="mt-3 text-3xl font-semibold tabular-nums">{{ overview.summary.customer_count }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('账户、权限与额度由你管理', 'You manage their accounts, access and credits') }}</p></div>
-          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('客户剩余可用额度', 'Available customer credits') }}</p><p class="mt-3 text-3xl font-semibold tabular-nums">{{ money(overview.summary.credit_balance) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('发放时不扣你的平台余额', 'Issuing credits does not debit your platform balance') }}</p></div>
-          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('累计客户服务成本', 'Customer service costs') }}</p><p class="mt-3 text-3xl font-semibold tabular-nums">{{ money(overview.summary.cost) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('新结算模式下已扣除的平台余额', 'Platform balance spent under managed billing') }}</p></div>
+          <div class="card border-primary-200 bg-primary-50/40 p-5 dark:border-primary-800 dark:bg-primary-950/20"><p class="text-xs font-medium text-primary-700 dark:text-primary-300">{{ tr('你的平台余额', 'Your platform balance') }}</p><p class="mt-3 break-all text-2xl font-semibold tabular-nums xl:text-xl 2xl:text-2xl">{{ money(overview.limits.balance) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('承担本人和客户的实际服务成本', 'Pays for your own and customer service usage') }}</p></div>
+          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('所属客户', 'Your customers') }}</p><p class="mt-3 break-all text-2xl font-semibold tabular-nums xl:text-xl 2xl:text-2xl">{{ overview.summary.customer_count }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('账户、权限与额度由你管理', 'You manage their accounts, access and credits') }}</p></div>
+          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('客户剩余可用额度', 'Available customer credits') }}</p><p class="mt-3 break-all text-2xl font-semibold tabular-nums xl:text-xl 2xl:text-2xl">{{ money(overview.summary.credit_balance) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('发放时不扣你的平台余额', 'Issuing credits does not debit your platform balance') }}</p></div>
+          <div class="card p-5"><p class="text-xs font-medium text-gray-500">{{ tr('累计客户服务成本', 'Customer service costs') }}</p><p class="mt-3 break-all text-2xl font-semibold tabular-nums xl:text-xl 2xl:text-2xl">{{ money(overview.summary.cost) }}</p><p class="mt-2 text-xs text-gray-500">{{ tr('新结算模式下已扣除的平台余额', 'Platform balance spent under managed billing') }}</p></div>
         </div>
         <section class="card flex flex-col gap-4 p-5 lg:flex-row lg:items-center">
           <div class="lg:w-64 lg:shrink-0"><h2 class="font-semibold">{{ tr('邀请客户', 'Invite customers') }}</h2><p class="mt-1 text-xs leading-5 text-gray-500">{{ tr('通过此链接注册的客户归属于你，充值时会联系你。', 'Customers who register through this link belong to you and contact you for credits.') }}</p></div>
@@ -21,7 +27,7 @@
         <div class="border-b border-gray-200 dark:border-dark-700" role="tablist" :aria-label="tr('站长中心', 'Reseller center')"><button v-for="tab in tabs" :key="tab.id" role="tab" :aria-selected="activeTab === tab.id" class="border-b-2 px-5 py-3 text-sm font-medium" :class="activeTab === tab.id ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500'" @click="activeTab = tab.id">{{ tr(tab.zh, tab.en) }}</button></div>
         <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
         <section v-if="activeTab === 'customers'" class="card overflow-hidden">
-          <div class="flex flex-wrap items-center justify-between gap-3 p-5"><div><h2 class="font-semibold">{{ tr('客户管理', 'Customers') }}</h2><p class="mt-1 text-xs text-gray-500">{{ tr('购买额度、赠送福利、管理权限与 Key。', 'Issue purchased or gift credits, manage access and API keys.') }}</p></div><form class="flex gap-2" @submit.prevent="customerPage = 1; loadCustomers()"><input v-model="search" class="input" :placeholder="tr('搜索邮箱、用户名或备注', 'Search customers')" /><button class="btn btn-secondary shrink-0">{{ tr('搜索', 'Search') }}</button></form></div>
+          <div class="flex flex-wrap items-center justify-between gap-3 p-5"><div><h2 class="font-semibold">{{ tr('客户管理', 'Customers') }}</h2><p class="mt-1 text-xs text-gray-500">{{ tr('管理客户额度、权限与 Key。', 'Manage customer credits, access and API keys.') }}</p></div><form class="flex gap-2" @submit.prevent="customerPage = 1; loadCustomers()"><input v-model="search" class="input" :placeholder="tr('搜索邮箱、用户名或备注', 'Search customers')" /><button class="btn btn-secondary shrink-0">{{ tr('搜索', 'Search') }}</button></form></div>
           <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="border-y border-gray-100 bg-gray-50 text-xs text-gray-500 dark:border-dark-700 dark:bg-dark-800"><tr><th class="px-5 py-3">{{ tr('客户', 'Customer') }}</th><th class="px-5 py-3">{{ tr('可用 / 冻结额度', 'Available / reserved') }}</th><th class="px-5 py-3">{{ tr('消费额度 / 你的成本', 'Credits used / your cost') }}</th><th class="px-5 py-3">{{ tr('备注', 'Notes') }}</th><th class="px-5 py-3">{{ tr('操作', 'Actions') }}</th></tr></thead>
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700"><tr v-for="customer in customers?.items" :key="customer.user_id">
               <td class="px-5 py-4"><div class="flex items-center gap-2"><p class="font-medium">{{ customer.username || customer.email }}</p><span class="rounded-full px-2 py-0.5 text-xs" :class="customer.status === 'active' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-dark-700'">{{ customer.status === 'active' ? tr('启用', 'Active') : tr('停用', 'Disabled') }}</span></div><p class="mt-1 text-xs text-gray-500">{{ customer.email }}</p></td>
@@ -74,6 +80,7 @@ import { useAppStore } from '@/stores/app'
 import defaults from '../../../../reseller-defaults.json'
 const { locale } = useI18n(); const tr = (zh: string,en: string) => locale.value.startsWith('zh') ? zh : en
 const app = useAppStore(); const loading = ref(true); const saving = ref(false); const error = ref(''); const dialogError = ref('')
+const initialCredit = ref(defaults.default_initial_credit); const initialSaving = ref(false)
 const overview = ref<ResellerOverview>(); const customers = ref<ResellerPage<ResellerCustomer>>(); const earnings = ref<ResellerPage<ResellerEarning>>(); const pricing = ref<ResellerPrices>()
 const activeTab = ref('customers'); const tabs = [{id:'customers',zh:'客户管理',en:'Customers'},{id:'pricing',zh:'客户定价',en:'Pricing'},{id:'earnings',zh:'消费与成本',en:'Usage & costs'}]
 const search = ref(''); const customerPage = ref(1); const earningsPage = ref(1)
@@ -85,10 +92,20 @@ const inviteLink = computed(() => overview.value?.invitation_url ?? '')
 const money = (v: number) => new Intl.NumberFormat(locale.value, {style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:8}).format(v)
 const date = (v: string) => new Date(v).toLocaleString(locale.value)
 const baseRate = (g: ResellerGroup) => g.platform === 'video' && g.video_independent ? g.video_multiplier : g.base_multiplier
-async function load() { loading.value = true; error.value = ''; try { overview.value = await resellerAPI.overview(); await Promise.all([loadCustomers(),loadEarnings(),loadPrices()]) } catch(e) { error.value = extractApiErrorMessage(e,tr('读取站长中心失败','Could not load reseller center')) } finally { loading.value = false } }
+async function load() { loading.value = true; error.value = ''; try { overview.value = await resellerAPI.overview(); initialCredit.value = overview.value.profile.initial_credit; await Promise.all([loadCustomers(),loadEarnings(),loadPrices()]) } catch(e) { error.value = extractApiErrorMessage(e,tr('读取站长中心失败','Could not load reseller center')) } finally { loading.value = false } }
 async function loadCustomers() { try { customers.value = await resellerAPI.customers(customerPage.value,search.value) } catch(e) { error.value = extractApiErrorMessage(e,tr('读取客户失败','Could not load customers')) } }
 async function loadEarnings() { try { earnings.value = await resellerAPI.earnings(earningsPage.value) } catch(e) { error.value = extractApiErrorMessage(e,tr('读取消费记录失败','Could not load usage')) } }
 async function loadPrices() { pricing.value = await resellerAPI.prices() }
+async function saveInitialCredit() {
+  initialSaving.value = true
+  try {
+    const profile = await resellerAPI.saveInitialCredit(initialCredit.value)
+    if (overview.value) overview.value.profile = profile
+    initialCredit.value = profile.initial_credit
+    app.showSuccess(tr('初始额度已保存', 'Initial credits saved'))
+  } catch (e) { app.showError(extractApiErrorMessage(e, tr('保存初始额度失败', 'Could not save initial credits'))) }
+  finally { initialSaving.value = false }
+}
 async function copyInvite() { try { await navigator.clipboard.writeText(inviteLink.value); app.showSuccess(tr('邀请链接已复制','Invitation link copied')) } catch { app.showError(tr('请手动复制上方链接','Copy the link manually')) } }
 async function openPricing(customer: ResellerCustomer|null) {
   error.value = ''; dialogError.value = ''

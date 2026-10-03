@@ -4,3 +4,4 @@ package reseller
 const DefaultMultiplier = 1
 const MinimumMultiplier = 1
 const PageSize = 20
+const DefaultInitialCredit = 0
