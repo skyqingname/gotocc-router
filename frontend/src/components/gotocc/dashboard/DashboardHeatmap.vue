@@ -362,11 +362,11 @@ defineExpose({ reload: load })
   outline-offset: 1px;
 }
 
-:global(.dark) .heatmap-cell-today {
+.dark .heatmap-cell-today {
   outline-color: theme('colors.dark.400');
 }
 
-:global(.dark) .heatmap-cell-selected {
+.dark .heatmap-cell-selected {
   outline-color: theme('colors.primary.300');
 }
 

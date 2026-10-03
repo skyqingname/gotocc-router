@@ -21,5 +21,8 @@ export const formatRelativeTime = (iso: string, locale: string): string => {
   return formatter.format(0, 'second')
 }
 
+// 限额与已用额度统一保留两位小数。
+export const formatLimitAmount = (value: number): string => `$${value.toFixed(2)}`
+
 // 姓名首两个字符，作为没有头像时的占位。
 export const initialsOf = (name: string): string => name.substring(0, 2).toUpperCase()

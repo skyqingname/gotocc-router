@@ -137,7 +137,7 @@ import { TOP_MODEL_BAR_MS, TOP_MODEL_BAR_STEP_MS } from '@/components/gotocc/das
 import { CHART_TICK_FONT_SIZE, METRIC_TONES, type MetricTone, useChartColors } from '@/components/gotocc/dashboard/tones'
 import { teamAPI, type TeamAPIKey, type TeamMembership, type TeamUsageLog, type TeamUsageModel, type TeamUsageSummary } from '@/api/team'
 import { formatDateTime, formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
-import { formatTeamCost, initialsOf } from './teamFormat'
+import { formatLimitAmount, formatTeamCost, initialsOf } from './teamFormat'
 
 // 成员用量详情抽屉：本期指标、限额、每日消费、按模型拆分和按 Key 筛选的分页明细。
 ChartJS.register(CategoryScale, Filler, LinearScale, LineElement, PointElement, Tooltip)
@@ -193,7 +193,7 @@ const limits = computed(() => {
     return {
       ...item,
       percent,
-      text: item.limit > 0 ? `${formatTeamCost(item.used)} / ${formatTeamCost(item.limit)}` : `${formatTeamCost(item.used)} · ${t('team.unlimited')}`,
+      text: item.limit > 0 ? `${formatLimitAmount(item.used)} / ${formatLimitAmount(item.limit)}` : `${formatLimitAmount(item.used)} · ${t('team.unlimited')}`,
       barClass: percent >= 100 ? 'bg-red-500' : percent >= 80 ? 'bg-amber-500' : 'bg-emerald-500',
     }
   })

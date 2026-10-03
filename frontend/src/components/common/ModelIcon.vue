@@ -273,7 +273,7 @@ const isMono = computed(() => iconInfo.value !== null && MONO_COLORS.has(iconInf
 .model-icon-mono {
   color: #000000;
 }
-:global(.dark) .model-icon-mono {
+.dark .model-icon-mono {
   color: #ffffff;
 }
 .model-icon-fallback {

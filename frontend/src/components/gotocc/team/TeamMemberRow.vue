@@ -12,7 +12,8 @@
           </span>
           <span class="block truncate text-xs text-gray-500 dark:text-dark-400">{{ member.email }}</span>
         </span>
-        <span class="hidden min-w-0 flex-1 grid-cols-3 gap-4 lg:grid">
+        <span v-if="member.role === 'owner'" class="hidden min-w-0 flex-1 text-xs text-gray-500 dark:text-dark-400 lg:block">{{ t('team.ownerNoLimit') }}</span>
+        <span v-else class="hidden min-w-0 flex-1 grid-cols-3 gap-4 lg:grid">
           <span v-for="limit in limits" :key="limit.key" class="min-w-0">
             <span class="flex items-baseline justify-between gap-2 text-[11px]">
               <span class="text-gray-500 dark:text-dark-400">{{ limit.label }}</span>
@@ -99,7 +100,7 @@ import Icon from '@/components/icons/Icon.vue'
 import UsageSparkline from '@/components/gotocc/dashboard/UsageSparkline.vue'
 import type { TeamMembership, TeamUsageSummary } from '@/api/team'
 import { formatDateTime, formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
-import { formatRelativeTime, formatTeamCost, initialsOf } from './teamFormat'
+import { formatLimitAmount, formatRelativeTime, formatTeamCost, initialsOf } from './teamFormat'
 
 // 团队成员行：收起只占一行，展开看限额明细和本期用量；操作收进菜单。
 type MemberAction = 'details' | 'edit-limits' | 'transfer' | 'remove'
@@ -138,7 +139,7 @@ const limits = computed(() => [
   return {
     ...item,
     percent,
-    text: item.limit > 0 ? `${formatTeamCost(item.used)} / ${formatTeamCost(item.limit)}` : `${formatTeamCost(item.used)} · ${t('team.unlimited')}`,
+    text: item.limit > 0 ? `${formatLimitAmount(item.used)} / ${formatLimitAmount(item.limit)}` : `${formatLimitAmount(item.used)} · ${t('team.unlimited')}`,
     barClass: percent >= 100 ? 'bg-red-500' : percent >= 80 ? 'bg-amber-500' : 'bg-emerald-500',
   }
 }))
