@@ -10,7 +10,7 @@
         </div>
         <section class="card overflow-hidden">
           <div class="border-b border-gray-100 px-6 py-5 dark:border-dark-700"><h2 class="text-base font-semibold">{{ tr('邀请直属客户', 'Invite direct customers') }}</h2><p class="mt-1 text-sm text-gray-500">{{ tr('客户通过此链接完成注册后自动绑定给你。现有普通邀请客户不会自动纳入站长定价。', 'Customers who complete registration through this link are assigned to you. Existing affiliate customers are not automatically enrolled in reseller pricing.') }}</p></div>
-          <div class="flex flex-col gap-3 p-6 sm:flex-row"><input :value="inviteLink" readonly class="input min-w-0 flex-1 font-mono text-sm" :aria-label="tr('站长邀请链接', 'Reseller invitation link')" /><button class="btn btn-primary shrink-0" @click="copyInvite">{{ tr('复制邀请链接', 'Copy invite link') }}</button></div>
+          <div class="flex flex-col gap-3 p-6 sm:flex-row"><input :value="inviteLink" readonly class="input min-w-0 flex-1 font-mono text-sm" :aria-label="tr('站长邀请链接', 'Reseller invitation link')" :placeholder="tr('当前入口尚未配置邀请地址', 'Invitation URL is not configured for this site')" /><button class="btn btn-primary shrink-0" :disabled="!inviteLink" @click="copyInvite">{{ tr('复制邀请链接', 'Copy invite link') }}</button></div>
         </section>
         <div class="border-b border-gray-200 dark:border-dark-700" role="tablist" :aria-label="tr('站长中心', 'Reseller center')"><button v-for="tab in tabs" :key="tab.id" role="tab" :aria-selected="activeTab === tab.id" class="border-b-2 px-5 py-3 text-sm font-medium transition-colors" :class="activeTab === tab.id ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'" @click="activeTab = tab.id">{{ tr(tab.zh, tab.en) }}</button></div>
         <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
@@ -60,7 +60,7 @@ const activeTab = ref('customers'); const tabs = [{id:'customers',zh:'客户管�
 const search = ref(''); const customerPage = ref(1); const earningsPage = ref(1)
 const pricingOpen = ref(false); const priceCustomer = ref<ResellerCustomer|null>(null); const overallInput = ref(''); const groupInputs = ref<Record<number,string>>({})
 const noteCustomer = ref<ResellerCustomer|null>(null); const note = ref('')
-const inviteLink = computed(() => { const url = new URL('/register', window.location.origin); if (overview.value) url.searchParams.set('reseller', overview.value.profile.invitation_code); return url.toString() })
+const inviteLink = computed(() => overview.value?.invitation_url ?? '')
 const money = (v: number) => new Intl.NumberFormat(locale.value, {style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:8}).format(v)
 const date = (v: string) => new Date(v).toLocaleString(locale.value)
 const baseRate = (g: ResellerGroup) => g.platform === 'video' && g.video_independent ? g.video_multiplier : g.base_multiplier

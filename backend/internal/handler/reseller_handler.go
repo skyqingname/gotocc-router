@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
@@ -49,7 +50,7 @@ func (h *ResellerHandler) Overview(c *gin.Context) {
 		response.ErrorFrom(c, e)
 		return
 	}
-	response.Success(c, gin.H{"profile": p, "summary": summary})
+	response.Success(c, gin.H{"profile": p, "summary": summary, "invitation_url": resellersite.InvitationURL(c.Request.Context(), p.InvitationCode)})
 }
 func (h *ResellerHandler) Customers(c *gin.Context) {
 	id, ok := h.owner(c)

@@ -1,0 +1,14 @@
+{
+  "sites": [
+    {
+      "enabled": false,
+      "primary_origin": "https://gotocc.xyz",
+      "customer_origin": ""
+    },
+    {
+      "enabled": true,
+      "primary_origin": "http://127.0.0.1:18080",
+      "customer_origin": "http://localhost:18080"
+    }
+  ]
+}

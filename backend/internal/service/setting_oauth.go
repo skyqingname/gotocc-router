@@ -11,6 +11,7 @@ import (
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 	"github.com/imroc/req/v3"
 )
 
@@ -465,6 +466,8 @@ func (s *SettingService) GetEmailOAuthProviderConfig(ctx context.Context, provid
 	if err := config.ValidateFrontendRedirectURL(cfg.FrontendRedirectURL); err != nil {
 		return config.EmailOAuthProviderConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url invalid")
 	}
+	cfg.RedirectURL = resellersite.Rewrite(ctx, cfg.RedirectURL)
+	cfg.FrontendRedirectURL = resellersite.Rewrite(ctx, cfg.FrontendRedirectURL)
 	return cfg, nil
 }
 
@@ -554,6 +557,8 @@ func (s *SettingService) GetLinuxDoConnectOAuthConfig(ctx context.Context) (conf
 		return config.LinuxDoConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token_auth_method invalid")
 	}
 
+	effective.RedirectURL = resellersite.Rewrite(ctx, effective.RedirectURL)
+	effective.FrontendRedirectURL = resellersite.Rewrite(ctx, effective.FrontendRedirectURL)
 	return effective, nil
 }
 
@@ -705,6 +710,8 @@ func (s *SettingService) GetDingTalkConnectOAuthConfig(ctx context.Context) (con
 		return config.DingTalkConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", err.Error())
 	}
 
+	effective.RedirectURL = resellersite.Rewrite(ctx, effective.RedirectURL)
+	effective.FrontendRedirectURL = resellersite.Rewrite(ctx, effective.FrontendRedirectURL)
 	return effective, nil
 }
 
@@ -734,7 +741,13 @@ func (s *SettingService) GetWeChatConnectOAuthConfig(ctx context.Context) (WeCha
 	if err != nil {
 		return WeChatConnectOAuthConfig{}, fmt.Errorf("get wechat connect settings: %w", err)
 	}
-	return s.parseWeChatConnectOAuthConfig(settings)
+	cfg, err := s.parseWeChatConnectOAuthConfig(settings)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.RedirectURL = resellersite.Rewrite(ctx, cfg.RedirectURL)
+	cfg.FrontendRedirectURL = resellersite.Rewrite(ctx, cfg.FrontendRedirectURL)
+	return cfg, nil
 }
 
 // GetOIDCConnectOAuthConfig 返回用于登录的“最终生效” OIDC 配置。
@@ -961,6 +974,8 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token_auth_method invalid")
 	}
 
+	effective.RedirectURL = resellersite.Rewrite(ctx, effective.RedirectURL)
+	effective.FrontendRedirectURL = resellersite.Rewrite(ctx, effective.FrontendRedirectURL)
 	return effective, nil
 }
 
