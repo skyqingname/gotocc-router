@@ -42,6 +42,14 @@ func (s *APIKeyService) CheckTeamMemberLimits(apiKey *APIKey) error {
 }
 
 func (s *APIKeyService) GetAvailableGroupsForScope(ctx context.Context, userID int64, scope string) ([]Group, error) {
+	account, err := s.resellerRepo.CustomerAccount(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if account != nil {
+		return s.resellerAvailableGroups(ctx, userID, account)
+	}
+
 	if strings.EqualFold(strings.TrimSpace(scope), "team") {
 		if s.cfg != nil && !s.cfg.Team.Enabled {
 			return nil, ErrTeamFeatureDisabled

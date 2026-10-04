@@ -164,6 +164,7 @@ export default {
   // Navigation
   nav: {
     reseller: 'Reseller Center',
+    customerCredits: 'My Credits',
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
@@ -197,6 +198,8 @@ export default {
     myAccount: 'My Account',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
+    systemTheme: 'System',
+    theme: 'Theme',
     collapse: 'Collapse',
     expand: 'Expand',
     logout: 'Logout',
@@ -305,6 +308,8 @@ export default {
     promoCodeInvalidCannotRegister: 'Invalid promo code. Please check and try again or clear the promo code field',
     invitationCodeLabel: 'Invitation Code',
     invitationCodePlaceholder: 'Enter invitation code',
+    resellerInvitationRequired: 'Please register using the invitation link from your station owner.',
+    resellerInvitationInvalid: 'This invitation link is invalid. Please ask your station owner for a new link.',
     invitationCodeRequired: 'Invitation code is required',
     invitationCodeValid: 'Invitation code is valid',
     invitationCodeInvalid: 'Invalid or used invitation code',

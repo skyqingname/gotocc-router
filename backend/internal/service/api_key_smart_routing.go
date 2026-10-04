@@ -173,6 +173,9 @@ func (s *AutoGroupResolver) FreshKey(ctx context.Context, authenticated *APIKey)
 	}
 	copyKey := *key
 	s.keys.compileAPIKeyIPRules(&copyKey)
+	if err := s.keys.attachResellerCustomer(ctx, &copyKey); err != nil {
+		return nil, err
+	}
 	if clientIP, ok := ctx.Value(autoRouteClientIPKey{}).(string); ok {
 		if allowed, _ := ip.CheckIPRestrictionWithCompiledRules(clientIP, copyKey.CompiledIPWhitelist, copyKey.CompiledIPBlacklist); !allowed {
 			return nil, ErrAutoRouteNoAccess
@@ -211,7 +214,14 @@ func (s *AutoGroupResolver) eligibleGroups(ctx context.Context, key *APIKey) (*A
 	user := *payer
 	user.UserGroupRPMOverride = nil
 	copyKey.User = &user
-	groups, err := s.keys.GetAvailableGroups(ctx, user.ID)
+	if err := s.keys.attachResellerCustomer(ctx, &copyKey); err != nil {
+		return nil, nil, err
+	}
+	groupUserID := user.ID
+	if user.ResellerCustomer != nil {
+		groupUserID = user.ResellerCustomer.UserID
+	}
+	groups, err := s.keys.GetAvailableGroups(ctx, groupUserID)
 	if err != nil {
 		return nil, nil, ErrAutoRouteUnavailable.WithCause(err)
 	}

@@ -55,9 +55,9 @@
           <router-link
             v-if="isAuthenticated"
             :to="dashboardPath"
-            class="inline-flex items-center gap-1.5 rounded-full bg-sky-600 py-1.5 pl-1.5 pr-3 text-xs font-semibold text-white shadow-none transition hover:bg-sky-700 dark:bg-sky-600 dark:text-white dark:hover:bg-sky-700"
+            class="inline-flex items-center gap-1.5 rounded-full bg-primary-600 py-1.5 pl-1.5 pr-3 text-xs font-semibold text-white shadow-none transition hover:bg-primary-700 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-700"
           >
-            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[10px] text-white">
+            <span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-[10px] text-white">
               {{ userInitial }}
             </span>
             {{ t('home.dashboard') }}
@@ -85,7 +85,7 @@
         <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <router-link
             :to="isAuthenticated ? dashboardPath : '/login'"
-            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg bg-sky-600 px-6 py-3 text-sm font-semibold text-white shadow-none transition hover:bg-sky-700"
+            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-sm font-semibold text-white shadow-none transition hover:bg-primary-700"
           >
             {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
             <Icon name="arrowRight" size="sm" :stroke-width="2" />
@@ -93,7 +93,7 @@
           <router-link
             v-if="showModelPlazaEntry"
             to="/model-plaza"
-            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-sky-300 hover:text-sky-600 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100 dark:hover:border-sky-500"
+            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100 dark:hover:border-primary-500"
           >
             {{ t('home.exploreMarketplace') }}
             <span class="relative flex h-5 w-5 items-center justify-center overflow-hidden">
@@ -104,7 +104,7 @@
                   :brand="homeMarketplaceButtonBrand"
                   size="18px"
                 />
-                <Icon v-else key="marketplace-fallback" name="sparkles" size="sm" class="text-sky-500" />
+                <Icon v-else key="marketplace-fallback" name="sparkles" size="sm" class="text-primary-500" />
               </Transition>
             </span>
           </router-link>
@@ -139,7 +139,7 @@
       </section>
 
       <section class="mx-auto mt-20 grid max-w-7xl gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-sky-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
           <div class="relative h-44 overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
             <div class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110">
               <span
@@ -167,14 +167,14 @@
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.unifiedGatewayDesc') }}
             </p>
-            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
               {{ t('home.features.browseAll') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-sky-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
           <div class="relative flex h-44 items-center justify-center overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
             <div class="relative h-full w-full transition-transform duration-500 ease-out group-hover:scale-110">
               <div class="absolute left-1/2 top-7 z-10 max-w-[82%] -translate-x-1/2 truncate rounded-lg bg-gray-100 px-3.5 py-1.5 text-xs font-medium text-gray-800 shadow-sm dark:bg-dark-900 dark:text-dark-100">
@@ -217,14 +217,14 @@
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.multiAccountDesc') }}
             </p>
-            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300">
+            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
               {{ t('home.features.learnMore') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-sky-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
           <div class="flex h-44 items-center justify-center border-b border-gray-200 bg-gray-50 p-6 dark:border-dark-800 dark:bg-dark-950">
             <div class="w-full max-w-[200px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-transform duration-500 ease-out group-hover:scale-110 dark:border-dark-700 dark:bg-dark-900">
               <div class="mb-4 flex items-center justify-between text-xs text-gray-500 dark:text-dark-400">
@@ -232,7 +232,7 @@
                 <Icon name="chart" size="sm" />
               </div>
               <div class="space-y-3">
-                <div class="h-2 w-11/12 rounded-full bg-sky-300"></div>
+                <div class="h-2 w-11/12 rounded-full bg-primary-300"></div>
                 <div class="h-2 w-2/3 rounded-full bg-amber-300"></div>
                 <div class="h-2 w-5/6 rounded-full bg-emerald-300"></div>
                 <div class="h-2 w-1/2 rounded-full bg-violet-300"></div>
@@ -246,14 +246,14 @@
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.balanceQuotaDesc') }}
             </p>
-            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300">
+            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
               {{ t('home.features.viewUsage') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-sky-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
           <div class="flex h-44 items-center justify-center border-b border-gray-200 bg-gray-50 dark:border-dark-800 dark:bg-dark-950">
             <div class="relative flex h-24 w-24 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-transform duration-500 ease-out group-hover:scale-110 dark:border-dark-700 dark:bg-dark-900">
               <Icon name="shield" size="xl" class="text-gray-400 dark:text-dark-300" />
@@ -274,7 +274,7 @@
               :href="docUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-300"
+              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300"
             >
               {{ t('home.docs') }}
               <Icon name="externalLink" size="xs" />
@@ -286,7 +286,7 @@
       <section class="mx-auto mt-20 max-w-7xl">
         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="inline-flex items-center gap-2 text-2xl font-bold text-gray-950 hover:text-sky-600 dark:text-white dark:hover:text-sky-300">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="inline-flex items-center gap-2 text-2xl font-bold text-gray-950 hover:text-primary-600 dark:text-white dark:hover:text-primary-300">
               {{ t('home.providers.title') }}
               <Icon name="chevronRight" size="md" />
             </router-link>
@@ -296,7 +296,7 @@
               {{ formatMarketplaceStat(supportedProviders.length) }} {{ t('home.stats.providerTypes') }}
             </p>
           </div>
-          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-sky-600 dark:text-dark-400 dark:hover:text-sky-300">
+          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-primary-600 dark:text-dark-400 dark:hover:text-primary-300">
             {{ t('home.viewAll') }}
             <Icon name="arrowRight" size="xs" class="inline-block" />
           </router-link>
@@ -321,7 +321,7 @@
             <article
               v-for="provider in supportedProviders.slice(0, 6)"
               :key="provider.key"
-              class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-sky-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-sky-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
+              class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
             >
               <div class="flex items-start gap-4">
                 <span
@@ -353,7 +353,7 @@
                   >
                     {{ formatOfficialPriceRatio(provider.officialPriceRatio) }}
                   </p>
-                  <p v-else class="text-sm font-medium text-sky-600 dark:text-sky-300">
+                  <p v-else class="text-sm font-medium text-primary-600 dark:text-primary-300">
                     {{ t('home.providers.supported') }}
                   </p>
                 </div>
@@ -371,7 +371,7 @@
             class="flex min-h-[190px] flex-col"
           >
             <div class="flex items-center gap-3">
-              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-50 text-base font-semibold text-sky-600 dark:bg-sky-500/10 dark:text-sky-300">
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-base font-semibold text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
                 {{ step.index }}
               </span>
               <h2 class="text-lg font-semibold tracking-tight text-gray-950 dark:text-white">{{ step.title }}</h2>
@@ -379,11 +379,11 @@
             <p class="mt-4 max-w-sm text-sm leading-6 text-gray-600 dark:text-dark-300">{{ step.description }}</p>
 
             <div v-if="step.key === 'signup'" class="mt-8">
-              <div class="flex items-center gap-3 text-sky-500">
+              <div class="flex items-center gap-3 text-primary-500">
                 <Icon name="user" size="md" :stroke-width="1.8" />
                 <div class="space-y-1.5">
-                  <div class="h-1.5 w-7 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
-                  <div class="h-1.5 w-20 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
+                  <div class="h-1.5 w-7 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
+                  <div class="h-1.5 w-20 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
                 </div>
               </div>
               <div class="mt-4 grid max-w-[156px] grid-cols-3 gap-3">
@@ -393,38 +393,38 @@
                 <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-gray-800 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-gray-100 dark:ring-dark-800">
                   <GitHubMark class="h-5 w-5" />
                 </span>
-                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-sky-500 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:ring-dark-800">
+                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-primary-500 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:ring-dark-800">
                   <Icon name="mail" size="md" :stroke-width="1.8" />
                 </span>
               </div>
             </div>
 
             <div v-else-if="step.key === 'browse'" class="mt-auto max-w-[270px] pt-6">
-              <div class="flex items-center gap-3 text-sky-500">
+              <div class="flex items-center gap-3 text-primary-500">
                 <Icon name="grid" size="md" :stroke-width="1.8" />
                 <div class="grid flex-1 grid-cols-4 gap-2">
-                  <div class="h-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
-                  <div class="h-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
-                  <div class="h-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
-                  <div class="h-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></div>
+                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
+                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
+                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
+                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
                 </div>
               </div>
               <div class="mt-4 space-y-2">
                 <div class="flex items-center gap-2 rounded-md bg-white/90 px-3 py-2 text-gray-700 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-200 dark:ring-dark-800">
                   <span class="w-14 text-xs font-medium">Claude</span>
-                  <span class="h-2 flex-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></span>
-                  <span class="h-2 w-12 rounded-full bg-sky-100 dark:bg-sky-400/20"></span>
+                  <span class="h-2 flex-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
+                  <span class="h-2 w-12 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
                 </div>
                 <div class="flex items-center gap-2 rounded-md bg-white/90 px-3 py-2 text-gray-700 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-200 dark:ring-dark-800">
                   <span class="w-14 text-xs font-medium">GPT</span>
-                  <span class="h-2 flex-1 rounded-full bg-sky-100 dark:bg-sky-400/20"></span>
-                  <span class="h-2 w-12 rounded-full bg-sky-100 dark:bg-sky-400/20"></span>
+                  <span class="h-2 flex-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
+                  <span class="h-2 w-12 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
                 </div>
               </div>
             </div>
 
             <div v-else class="mt-8 max-w-[270px]">
-              <div class="flex items-center gap-3 text-sky-500">
+              <div class="flex items-center gap-3 text-primary-500">
                 <Icon name="key" size="md" :stroke-width="1.8" />
                 <div class="flex-1 rounded-md bg-white/90 px-3 py-2 font-mono text-xs text-gray-600 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-300 dark:ring-dark-800">
                   GOTOCC_API_KEY
@@ -449,7 +449,7 @@
         <div class="mt-8">
           <router-link
             :to="isAuthenticated ? dashboardPath : '/login'"
-            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg bg-sky-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-sky-700"
+            class="inline-flex min-h-[44px] min-w-[180px] items-center justify-center gap-2 rounded-lg bg-primary-600 px-8 py-3 text-sm font-semibold text-white transition hover:bg-primary-700"
           >
             {{ isAuthenticated ? t('home.goToDashboard') : t('home.cta.button') }}
             <Icon name="arrowRight" size="sm" :stroke-width="2" />
@@ -810,8 +810,8 @@ const homeStatsCards = computed<HomeStatsCard[]>(() => [
     label: t('home.stats.todayTokens'),
     value: formatAnimatedHomeStat('today-tokens', homeStatAnimationTargets.value['today-tokens'], homeStatsLoading.value),
     icon: 'bolt',
-    iconWrapClass: 'bg-sky-100 dark:bg-sky-500/15',
-    iconClass: 'text-sky-600 dark:text-sky-300',
+    iconWrapClass: 'bg-primary-100 dark:bg-primary-500/15',
+    iconClass: 'text-primary-600 dark:text-primary-300',
   },
   {
     key: 'total-tokens',
@@ -834,8 +834,8 @@ const homeStatsCards = computed<HomeStatsCard[]>(() => [
     label: t('home.stats.supportedModels'),
     value: formatAnimatedHomeStat('supported-models', homeStatAnimationTargets.value['supported-models'], homeMarketplaceLoading.value, 'number'),
     icon: 'grid',
-    iconWrapClass: 'bg-sky-100 dark:bg-sky-500/15',
-    iconClass: 'text-sky-600 dark:text-sky-300',
+    iconWrapClass: 'bg-primary-100 dark:bg-primary-500/15',
+    iconClass: 'text-primary-600 dark:text-primary-300',
   },
 ])
 
@@ -1182,7 +1182,7 @@ onUnmounted(() => {
 <style scoped>
 .ba-theme-shell,
 .ba-theme-backdrop {
-  background: linear-gradient(180deg, #d8f1fc 0%, #eaf7fd 40%, #ffffff 100%);
+  background: linear-gradient(180deg, theme('colors.primary.100') 0%, theme('colors.primary.50') 40%, #ffffff 100%);
 }
 
 .dark .ba-theme-shell,

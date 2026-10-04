@@ -43,6 +43,38 @@ export interface PlazaTimePricing {
   periods: PlazaTimePricingPeriod[]
 }
 
+/** GoToCC：模型官方信息（随版 models.dev 快照，后台填写的简介/厂商/用途优先）。 */
+export interface PlazaModelInfo {
+  vendor: string
+  vendor_name: string
+  display_name: string
+  description: string
+  /** 简介来自后台填写。 */
+  custom_description: boolean
+  purposes: string[]
+  context_window: number
+  max_output_tokens: number
+  input_modalities: string[] | null
+  output_modalities: string[] | null
+  reasoning: boolean
+  tool_call: boolean
+  structured_output: boolean
+  attachment: boolean
+  open_weights: boolean
+  knowledge: string
+  release_date: string
+  /** 'models.dev' 表示官方目录中有该模型。 */
+  source: string
+}
+
+/** GoToCC：全站近 24 小时的模型请求概况；success_rate 为百分比。 */
+export interface PlazaModelStats {
+  requests: number
+  errors: number
+  success_rate: number | null
+  avg_first_token_ms: number | null
+}
+
 export interface PlazaModel {
   name: string
   platform: string
@@ -53,6 +85,9 @@ export interface PlazaModel {
   long_context_basis?: PlazaLongContextBasis
   /** 仅配置了分时倍率的模型返回。 */
   time_pricing?: PlazaTimePricing
+  info?: PlazaModelInfo
+  /** 近 24 小时没有请求时缺省。 */
+  stats?: PlazaModelStats
 }
 
 export interface ModelPlazaGroup {

@@ -743,9 +743,8 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 	if o.OrderType != payment.OrderTypeBalance || o.PaidAt == nil || o.PayAmount <= 0 {
 		return 0
 	}
-	// Amount is the credited recharge token amount; gifts are separate grants.
-	return o.Amount
-
+	// 返利只按实充部分计算，赠送额度不参与
+	return paymentOrderAmountWithoutBonus(o)
 }
 
 func (s *PaymentService) tryClaimAffiliateRebateAudit(ctx context.Context, client *dbent.Client, orderID int64, baseAmount float64) (bool, error) {

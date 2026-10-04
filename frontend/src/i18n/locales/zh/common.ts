@@ -164,6 +164,7 @@ export default {
   // Navigation
   nav: {
     reseller: '站长中心',
+    customerCredits: '我的额度',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
@@ -197,6 +198,8 @@ export default {
     myAccount: '我的账户',
     lightMode: '浅色模式',
     darkMode: '深色模式',
+    systemTheme: '跟随系统',
+    theme: '主题',
     collapse: '收起',
     expand: '展开',
     logout: '退出登录',
@@ -304,6 +307,8 @@ export default {
     promoCodeInvalidCannotRegister: '优惠码无效，请检查后重试或清空优惠码',
     invitationCodeLabel: '邀请码',
     invitationCodePlaceholder: '请输入邀请码',
+    resellerInvitationRequired: '请通过站长提供的邀请链接注册。',
+    resellerInvitationInvalid: '邀请链接无效，请联系站长获取新的链接。',
     invitationCodeRequired: '请输入邀请码',
     invitationCodeValid: '邀请码有效',
     invitationCodeInvalid: '邀请码无效或已被使用',

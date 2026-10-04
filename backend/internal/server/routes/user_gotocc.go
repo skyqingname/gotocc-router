@@ -20,6 +20,7 @@ func registerUserTeamRoutes(authenticated *gin.RouterGroup, h *handler.Handlers,
 		team.GET("/usage", panelRateLimiter.Heavy(), h.Team.GetUsageSummary)
 		team.GET("/usage/members", panelRateLimiter.Heavy(), h.Team.ListMemberUsageSeries)
 		team.GET("/usage/logs", panelRateLimiter.Heavy(), h.Team.ListUsageLogs)
+		team.GET("/usage/models", panelRateLimiter.Heavy(), h.Team.ListUsageModels)
 		team.GET("/keys", h.Team.ListTeamKeys)
 		team.POST("/keys/:id/disable", h.Team.DisableTeamKey)
 		team.POST("/keys/:id/enable", h.Team.EnableTeamKey)

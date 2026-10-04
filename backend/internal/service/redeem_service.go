@@ -383,6 +383,9 @@ func unsupportedRedeemTypeError(codeType string) error {
 
 // Redeem 使用兑换码
 func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
+	if err := s.requirePlatformFunding(ctx, userID); err != nil {
+		return nil, err
+	}
 	return s.redeem(ctx, userID, code, enforceRedeemRateLimit)
 }
 
@@ -399,6 +402,9 @@ func (s *RedeemService) redeemForPaymentFulfillment(ctx context.Context, userID 
 // redeem failure counter. Standalone balance codes accrue the same commission
 // as public redemption; the admin balance-adjustment switch does not apply.
 func (s *RedeemService) RedeemForAdminFulfillment(ctx context.Context, userID int64, code string) (*RedeemCode, error) {
+	if err := s.requirePlatformFunding(ctx, userID); err != nil {
+		return nil, err
+	}
 	return s.redeem(ctx, userID, code, bypassRedeemRateLimit)
 }
 

@@ -57,10 +57,7 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 		}
 	}
 	extracted := promptSegmentsFromAuditContent(document, req.Protocol)
-	segments := normalizeSegmentsLatestUserFirst(extracted)
-	if latestTurnOnly {
-		segments = blockingSegmentsLatestUserAndPreviousOutput(extracted)
-	}
+	segments := promptAuditScanSegments(extracted, req.Protocol, latestTurnOnly)
 	if len(segments) == 0 {
 		return PromptSnapshot{}, diagnostic, ErrNoPromptText
 	}
@@ -81,6 +78,14 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 		PromptLength: utf8.RuneCountInString(metadataText), MessageCount: len(segments), Stage: stage,
 		ScanText: scanText, BodyBytes: len(req.Body),
 	}, diagnostic, nil
+}
+
+// isSystemOnePromptProtocol reports the native TypeSafe System One protocol.
+// System One carries no client-harness wrapper blocks, so a literal
+// <system-reminder> or <environment_context> in its evaluation text is ordinary
+// audited content, and its state is the prioritized segment.
+func isSystemOnePromptProtocol(protocol string) bool {
+	return strings.EqualFold(strings.TrimSpace(protocol), "typesafe_systemone")
 }
 
 // DefaultPromptPreviewMaxRunes caps how much sanitized prompt text may be

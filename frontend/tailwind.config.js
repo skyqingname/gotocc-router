@@ -1,5 +1,7 @@
+import { withGotoCCTheme } from './tailwind.gotocc.js'
+
 /** @type {import('tailwindcss').Config} */
-export default {
+export default withGotoCCTheme({
   content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
@@ -144,4 +146,4 @@ export default {
     }
   },
   plugins: []
-}
+})

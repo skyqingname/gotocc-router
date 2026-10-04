@@ -4,15 +4,21 @@ import (
 	"strconv"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-type ResellerHandler struct{ service *service.ResellerService }
+type ResellerHandler struct {
+	service *service.ResellerService
+	usage   *service.UsageService
+}
 
-func NewResellerHandler(s *service.ResellerService) *ResellerHandler { return &ResellerHandler{s} }
+func NewResellerHandler(s *service.ResellerService, usage *service.UsageService) *ResellerHandler {
+	return &ResellerHandler{s, usage}
+}
 func (h *ResellerHandler) owner(c *gin.Context) (int64, bool) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -32,7 +38,12 @@ func (h *ResellerHandler) Access(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"enabled": p.Enabled})
+	account, err := h.service.Repo.CustomerAccount(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"enabled": p.Enabled, "customer": account})
 }
 func (h *ResellerHandler) Overview(c *gin.Context) {
 	id, ok := h.owner(c)
@@ -49,7 +60,12 @@ func (h *ResellerHandler) Overview(c *gin.Context) {
 		response.ErrorFrom(c, e)
 		return
 	}
-	response.Success(c, gin.H{"profile": p, "summary": summary})
+	limits, e := h.service.OwnerLimits(c.Request.Context(), id)
+	if e != nil {
+		response.ErrorFrom(c, e)
+		return
+	}
+	response.Success(c, gin.H{"profile": p, "summary": summary, "limits": limits, "invitation_url": resellersite.InvitationURL(c.Request.Context(), p.InvitationCode)})
 }
 func (h *ResellerHandler) Customers(c *gin.Context) {
 	id, ok := h.owner(c)
@@ -194,7 +210,11 @@ func (h *ResellerHandler) PricingContext(c *gin.Context) {
 		c.Next()
 		return
 	}
-	prices, e := h.service.Repo.Pricing(c.Request.Context(), subject.UserID)
+	pricingUserID := subject.UserID
+	if key, ok := middleware2.GetAPIKeyFromContext(c); ok && key.User.ResellerCustomer != nil {
+		pricingUserID = key.User.ResellerCustomer.UserID
+	}
+	prices, e := h.service.Repo.Pricing(c.Request.Context(), pricingUserID)
 	if e != nil {
 		response.Error(c, 503, "无法读取当前客户价格，请稍后重试")
 		c.Abort()

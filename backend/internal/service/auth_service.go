@@ -18,6 +18,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -216,7 +217,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		return "", nil, fmt.Errorf("hash password: %w", err)
 	}
 
-	grantPlan := s.resolveSignupGrantPlan(ctx, "email")
+	grantPlan := resellerSignupGrantPlan(s.resolveSignupGrantPlan(ctx, "email"), registrationInvitation)
 
 	// 新用户默认 RPM（0 = 不限制）。注册时写入，后续作为用户级兜底。
 	var defaultRPMLimit int
@@ -258,7 +259,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 一次性邀请码和可复用邀请码都已在用户创建事务内原子消费，
 	// 此处不得再次标记或采用 fail-open 语义。
 	// 应用优惠码（如果提供且功能已启用）
-	if promoCode != "" && s.promoService != nil && s.settingService != nil && s.settingService.IsPromoCodeEnabled(ctx) {
+	if (registrationInvitation == nil || registrationInvitation.reseller == nil) && promoCode != "" && s.promoService != nil && s.settingService != nil && s.settingService.IsPromoCodeEnabled(ctx) {
 		if err := s.promoService.ApplyPromoCode(ctx, user.ID, promoCode); err != nil {
 			// 优惠码应用失败不影响注册，只记录日志
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to apply promo code for user %d: %v", user.ID, err)
@@ -566,6 +567,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
+			if resellersite.IsCustomer(ctx) {
+				return "", nil, ErrOAuthInvitationRequired
+			}
 			// OAuth 首次登录视为注册（fail-close：settingService 未配置时不允许注册）
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
@@ -723,7 +727,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			if strings.TrimSpace(signupSource) == "" {
 				signupSource = inferLegacySignupSource(email)
 			}
-			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
+			grantPlan := resellerSignupGrantPlan(s.resolveSignupGrantPlan(ctx, signupSource), registrationInvitation)
 			var defaultRPMLimit int
 			if s.settingService != nil {
 				defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
@@ -843,6 +847,14 @@ func (s *AuthService) ApplyOAuthSignupPromoCode(ctx context.Context, userID int6
 func (s *AuthService) applyOAuthSignupPromoCode(ctx context.Context, user *User, promoCode string) *User {
 	promoCode = strings.TrimSpace(promoCode)
 	if user == nil || user.ID <= 0 || promoCode == "" || s.promoService == nil || s.settingService == nil || !s.settingService.IsPromoCodeEnabled(ctx) {
+		return user
+	}
+	account, err := s.resellerService.Repo.CustomerAccount(ctx, user.ID)
+	if err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to inspect signup funding for user %d: %v", user.ID, err)
+		return user
+	}
+	if account != nil {
 		return user
 	}
 	if err := s.promoService.ApplyPromoCode(ctx, user.ID, promoCode); err != nil {

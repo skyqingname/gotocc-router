@@ -8,6 +8,7 @@ import asyncImage from './asyncImage'
 import admin from './admin'
 import misc from './misc'
 import team from './team'
+import gotocc from './gotocc'
 
 export default {
   ...landing,
@@ -20,4 +21,5 @@ export default {
   admin,
   ...misc,
   ...team,
+  ...gotocc,
 }

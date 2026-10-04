@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/timezone"
 )
 
@@ -146,6 +147,9 @@ func buildLoginAgreementRevision(updatedAt string, docs []LoginAgreementDocument
 
 // GetFrontendURL 获取前端基础URL（数据库优先，fallback 到配置文件）
 func (s *SettingService) GetFrontendURL(ctx context.Context) string {
+	if resellersite.IsCustomer(ctx) {
+		return resellersite.CustomerOrigin(ctx)
+	}
 	val, err := s.settingRepo.GetValue(ctx, SettingKeyFrontendURL)
 	if err == nil && strings.TrimSpace(val) != "" {
 		return strings.TrimSpace(val)
@@ -312,7 +316,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		balanceLowNotifyThreshold = v
 	}
 
-	return &PublicSettings{
+	return applyResellerSitePublicSettings(ctx, &PublicSettings{
 		RegistrationEnabled:                 settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:                  emailVerifyEnabled,
 		ForceEmailOnThirdPartySignup:        settings[SettingKeyForceEmailOnThirdPartySignup] == "true",
@@ -394,7 +398,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		GlobalIPAccessControlEnabled: settings[SettingKeyGlobalIPAccessControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
-	}, nil
+	})
 }
 
 // channelMonitorIntervalMin / channelMonitorIntervalMax bound the default interval
@@ -581,6 +585,7 @@ func (s *SettingService) IsUserErrorViewAllowed(ctx context.Context) bool {
 // A unit test diffs this struct's JSON keys against dto.PublicSettings to catch
 // drift automatically (see setting_service_injection_test.go).
 type PublicSettingsInjectionPayload struct {
+	ResellerInvitationRequired          bool                     `json:"reseller_invitation_required"`
 	RegistrationEnabled                 bool                     `json:"registration_enabled"`
 	EmailVerifyEnabled                  bool                     `json:"email_verify_enabled"`
 	RegistrationEmailSuffixWhitelist    []string                 `json:"registration_email_suffix_whitelist"`
@@ -685,6 +690,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PromoCodeEnabled:                    settings.PromoCodeEnabled,
 		PasswordResetEnabled:                settings.PasswordResetEnabled,
 		InvitationCodeEnabled:               settings.InvitationCodeEnabled,
+		ResellerInvitationRequired:          settings.ResellerInvitationRequired,
 		TotpEnabled:                         settings.TotpEnabled,
 		PasskeyEnabled:                      settings.PasskeyEnabled,
 		LoginAgreementEnabled:               settings.LoginAgreementEnabled,

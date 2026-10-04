@@ -8,27 +8,44 @@ type ViewTransitionDocument = {
   startViewTransition?: (callback: () => void) => ViewTransition
 }
 
+// 未保存主题即跟随系统，与 main.ts 启动时的判断一致。
+export type ThemeMode = 'light' | 'dark' | 'system'
+
 const themeStorageKey = 'theme'
 const themeRippleDuration = 640
-const isDark = ref(document.documentElement.classList.contains('dark'))
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
 
-function prefersDarkMode(): boolean {
+function readThemeMode(): ThemeMode {
   const savedTheme = localStorage.getItem(themeStorageKey)
-  return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  return savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'system'
 }
+
+function resolveIsDark(mode: ThemeMode): boolean {
+  return mode === 'system' ? systemDark.matches : mode === 'dark'
+}
+
+const themeMode = ref<ThemeMode>(readThemeMode())
+const isDark = ref(resolveIsDark(themeMode.value))
 
 function applyTheme(nextIsDark: boolean) {
   isDark.value = nextIsDark
   document.documentElement.classList.toggle('dark', nextIsDark)
 }
 
+// 跟随系统时，系统深浅色切换即时生效。
+systemDark.addEventListener('change', (event) => {
+  if (themeMode.value === 'system') applyTheme(event.matches)
+})
+
 export function initTheme() {
-  applyTheme(prefersDarkMode())
+  applyTheme(resolveIsDark(themeMode.value))
 }
 
-function persistTheme(nextIsDark: boolean) {
-  applyTheme(nextIsDark)
-  localStorage.setItem(themeStorageKey, nextIsDark ? 'dark' : 'light')
+function persistTheme(mode: ThemeMode) {
+  themeMode.value = mode
+  if (mode === 'system') localStorage.removeItem(themeStorageKey)
+  else localStorage.setItem(themeStorageKey, mode)
+  applyTheme(resolveIsDark(mode))
 }
 
 function supportsAnimatedTheme(event?: MouseEvent): event is MouseEvent {
@@ -71,30 +88,35 @@ function animateThemeRipple(transition: ViewTransition, x: number, y: number) {
     .catch(() => undefined)
 }
 
-export function setTheme(nextIsDark: boolean, event?: MouseEvent) {
-  if (nextIsDark === isDark.value) return
-
-  if (!supportsAnimatedTheme(event)) {
-    persistTheme(nextIsDark)
+export function setThemeMode(mode: ThemeMode, event?: MouseEvent) {
+  if (resolveIsDark(mode) === isDark.value || !supportsAnimatedTheme(event)) {
+    persistTheme(mode)
     return
   }
 
   const { clientX, clientY } = event
   const viewTransitionDocument = document as unknown as ViewTransitionDocument
   const transition = viewTransitionDocument.startViewTransition?.(() => {
-    persistTheme(nextIsDark)
+    persistTheme(mode)
   })
 
   if (transition) {
     animateThemeRipple(transition, clientX, clientY)
   } else {
-    persistTheme(nextIsDark)
+    persistTheme(mode)
   }
+}
+
+export function setTheme(nextIsDark: boolean, event?: MouseEvent) {
+  if (nextIsDark === isDark.value) return
+  setThemeMode(nextIsDark ? 'dark' : 'light', event)
 }
 
 export function useTheme() {
   return {
     isDark,
+    themeMode,
+    setThemeMode,
     setTheme,
     toggleTheme: (event?: MouseEvent) => setTheme(!isDark.value, event),
   }

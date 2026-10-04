@@ -26,6 +26,10 @@
         </div>
       </div>
 
+      <div v-else-if="resellerInvitationBlocked" class="rounded-xl border border-amber-200 bg-amber-50 p-5 text-center text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300" role="status">
+        {{ resellerInvitationMessage }}
+      </div>
+
       <!-- Registration Form -->
       <form v-else @submit.prevent="handleRegister" class="space-y-5">
         <!-- Email Input -->
@@ -120,7 +124,7 @@
         </div>
 
         <!-- Invitation Code Input (Required when enabled) -->
-        <div v-if="invitationCodeEnabled || affiliateEnabled">
+        <div v-if="!resellerInvitationRequired && (invitationCodeEnabled || affiliateEnabled)">
           <label for="invitation_code" class="input-label">
             {{ t('auth.invitationCodeLabel') }}
             <span v-if="!invitationCodeEnabled" class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
@@ -284,7 +288,7 @@
 
       </form>
 
-      <div v-if="showOAuthLogin" class="space-y-3 pt-1">
+      <div v-if="showOAuthLogin && !resellerInvitationBlocked" class="space-y-3 pt-1">
         <div class="flex items-center gap-3">
           <div class="h-px flex-1 bg-gray-200 dark:bg-dark-700"></div>
           <span class="text-xs text-gray-500 dark:text-dark-400">
@@ -375,6 +379,7 @@ import {
 } from '@/utils/registrationEmailPolicy'
 import {
   clearAffiliateReferralCode,
+  normalizeOAuthAffiliateCode,
   resolveAffiliateReferralCode
 } from '@/utils/oauthAffiliate'
 import type { LoginAgreementDocument } from '@/types'
@@ -409,6 +414,14 @@ const promoCodeEnabled = ref<boolean>(
   appStore.cachedPublicSettings?.promo_code_enabled === true
 )
 const invitationCodeEnabled = ref<boolean>(false)
+const resellerInvitationRequired = ref(appStore.cachedPublicSettings?.reseller_invitation_required === true)
+const resellerInvitationBlocked = computed(() =>
+  resellerInvitationRequired.value && (!normalizeOAuthAffiliateCode(route.query.reseller) || !invitationValidation.valid)
+)
+const resellerInvitationMessage = computed(() => {
+  if (!normalizeOAuthAffiliateCode(route.query.reseller)) return t('auth.resellerInvitationRequired')
+  return invitationValidating.value ? t('auth.invitationCodeValidating') : t('auth.resellerInvitationInvalid')
+})
 const affiliateEnabled = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
@@ -517,7 +530,7 @@ const agreementGateActive = computed(
 )
 
 const registrationActionDisabled = computed(
-  () => isLoading.value || !settingsLoaded.value || agreementGateActive.value
+  () => isLoading.value || !settingsLoaded.value || agreementGateActive.value || resellerInvitationBlocked.value
 )
 
 watch(validationToastMessage, (value, previousValue) => {
@@ -527,6 +540,11 @@ watch(validationToastMessage, (value, previousValue) => {
 })
 
 function syncAffiliateReferralCode(): string {
+  if (resellerInvitationRequired.value) {
+    const code = normalizeOAuthAffiliateCode(route.query.reseller)
+    formData.invitation_code = code
+    return code
+  }
   const code = resolveAffiliateReferralCode(route.query.invitation_code, route.query.reseller, route.query.aff, route.query.aff_code)
   if (code) formData.invitation_code = code
   return code
@@ -543,6 +561,7 @@ onMounted(async () => {
     emailVerifyEnabled.value = settings.email_verify_enabled
     promoCodeEnabled.value = settings.promo_code_enabled
     invitationCodeEnabled.value = settings.invitation_code_enabled
+    resellerInvitationRequired.value = settings.reseller_invitation_required === true
     affiliateEnabled.value = settings.affiliate_enabled
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
@@ -575,7 +594,8 @@ onMounted(async () => {
         await validatePromoCodeDebounced(promoParam)
       }
     }
-    syncAffiliateReferralCode()
+    const invitation = syncAffiliateReferralCode()
+    if (resellerInvitationRequired.value && invitation) await validateInvitationCodeDebounced(invitation)
   } catch (error) {
     console.error('Failed to load public settings:', error)
     loginAgreementEnabled.value = false
@@ -587,8 +607,11 @@ onMounted(async () => {
 
 watch(
   () => [route.query.invitation_code, route.query.reseller, route.query.aff, route.query.aff_code],
-  () => {
-    syncAffiliateReferralCode()
+  async () => {
+    invitationValidation.valid = false
+    invitationValidation.invalid = false
+    const invitation = syncAffiliateReferralCode()
+    if (resellerInvitationRequired.value && invitation) await validateInvitationCodeDebounced(invitation)
   }
 )
 
@@ -970,6 +993,7 @@ function validateForm(): boolean {
 // ==================== Form Handlers ====================
 
 async function handleRegister(): Promise<void> {
+  if (registrationActionDisabled.value) return
   // Clear previous error
   errorMessage.value = ''
 

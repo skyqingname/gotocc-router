@@ -139,6 +139,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		if !isAPIKeyNonConsumingRequest(c.Request.Method, c.Request.URL.Path) {
+			if err := apiKeyService.ValidateResellerFunds(apiKey); err != nil {
+				WriteAutoRoutingError(c, err)
+				return
+			}
 			if err := apiKeyService.CheckTeamMemberLimits(apiKey); err != nil {
 				if abortTeamAPIKeyError(c, err) {
 					return
@@ -214,7 +218,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 5. 按端点需要加载订阅 ───────────────────────────────────
 
 		var subscription *service.UserSubscription
-		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		isSubscriptionType := apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		if isSubscriptionType && subscriptionService != nil {
 			sub, subErr := subscriptionService.GetActiveSubscription(

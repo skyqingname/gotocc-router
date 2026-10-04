@@ -1,0 +1,19 @@
+{
+  "source": "https://models.dev/api.json",
+  "providers": [
+    "openai",
+    "anthropic",
+    "google",
+    "xai",
+    "deepseek",
+    "moonshotai",
+    "zhipuai",
+    "zai",
+    "minimax",
+    "alibaba",
+    "volcengine",
+    "mistral",
+    "meta",
+    "cohere"
+  ]
+}

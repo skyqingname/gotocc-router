@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 	"log/slog"
 	"math"
 	"strconv"
@@ -63,6 +65,9 @@ func (s *SettingService) IsPromoCodeEnabled(ctx context.Context) bool {
 
 // IsInvitationCodeEnabled 检查是否启用邀请码注册功能
 func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
+	if resellersite.IsCustomer(ctx) {
+		return true
+	}
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyInvitationCodeEnabled)
 	if err != nil {
 		return false // 默认关闭

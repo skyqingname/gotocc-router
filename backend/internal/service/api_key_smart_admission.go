@@ -57,12 +57,19 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 	if payer == nil || payer.ID != bound.User.ID || !payer.IsActive() {
 		return nil, ErrAutoRouteNoAccess
 	}
-	if !currentGroup.IsSubscriptionType() && !payer.CanBindGroup(groupID, currentGroup.IsExclusive) {
+	if bound.User.ResellerCustomer == nil && !currentGroup.IsSubscriptionType() && !payer.CanBindGroup(groupID, currentGroup.IsExclusive) {
 		return nil, ErrAutoRouteNoAccess
 	}
 	copyUser, copyGroup := *payer, *currentGroup
 	copyUser.UserGroupRPMOverride = nil
 	key.User, key.Group, key.GroupID = &copyUser, &copyGroup, &groupID
+	if err := s.keys.attachResellerCustomer(ctx, key); err != nil {
+		return nil, err
+	}
+	payer = key.User
+	if !payer.CanBindGroup(groupID, currentGroup.IsExclusive) && payer.ResellerCustomer != nil {
+		return nil, ErrAutoRouteNoAccess
+	}
 	if s.keys.userGroupRateRepo != nil {
 		override, err := s.keys.userGroupRateRepo.GetRPMOverrideByUserAndGroup(ctx, payer.ID, groupID)
 		if err != nil {
@@ -74,7 +81,11 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 		}
 	}
 	admission := &AutoRouteAdmission{Key: key}
-	if currentGroup.IsSubscriptionType() {
+	if payer.ResellerCustomer != nil {
+		if err := checkResellerCustomerFunds(payer.ResellerCustomer); err != nil {
+			return nil, err
+		}
+	} else if currentGroup.IsSubscriptionType() {
 		if s.subscriptions == nil || s.keys.userSubRepo == nil {
 			return nil, ErrAutoRouteUnavailable
 		}

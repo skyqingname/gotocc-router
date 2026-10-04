@@ -149,6 +149,7 @@ func RegisterAdminRoutes(
 
 		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
 		registerTeamRoutes(admin, h, stepUpAuth)
+		registerModelPlazaOverrideRoutes(admin, h)
 	}
 }
 

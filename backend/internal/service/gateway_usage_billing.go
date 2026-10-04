@@ -286,8 +286,17 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		return nil
 	}
 
+	snapshot := p.APIKey.ResellerPriceAt(p.PricingAt)
+	if snapshot != nil && snapshot.ManagedCredits {
+		p.IsSubscriptionBill = false
+		p.Subscription = nil
+		if usageLog != nil {
+			usageLog.SubscriptionID = nil
+			usageLog.BillingType = BillingTypeBalance
+		}
+	}
 	cmd := &UsageBillingCommand{
-		ResellerSnapshot:   p.APIKey.ResellerPriceAt(p.PricingAt),
+		ResellerSnapshot:   snapshot,
 		RequestID:          requestID,
 		APIKeyID:           p.APIKey.ID,
 		UserID:             p.User.ID,
@@ -324,7 +333,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	// user-specific) rate multiplier consumes subscription quota at the expected
 	// speed. TotalCost remains the raw (pre-multiplier) value; downstream guards
 	// on "> 0" still correctly skip free subscriptions (RateMultiplier == 0).
-	if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
+	if (cmd.ResellerSnapshot == nil || !cmd.ResellerSnapshot.ManagedCredits) && p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
 		cmd.SubscriptionID = &p.Subscription.ID
 		cmd.SubscriptionCost = p.Cost.ActualCost
 	} else if p.Cost.ActualCost > 0 {
@@ -351,6 +360,9 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	}
 
 	cmd := buildUsageBillingCommand(requestID, usageLog, p)
+	if cmd != nil && cmd.ResellerSnapshot != nil && cmd.ResellerSnapshot.ManagedCredits && (cmd.RequestID == "" || repo == nil) {
+		return false, ErrBillingServiceUnavailable
+	}
 	if cmd == nil || cmd.RequestID == "" {
 		postUsageBilling(ctx, p, deps)
 		return true, nil
@@ -470,6 +482,10 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 	if p == nil || p.Cost == nil || p.User == nil || deps == nil || deps.billingCacheService == nil {
 		return
 	}
+	if snapshot := p.APIKey.ResellerPriceAt(p.PricingAt); snapshot != nil && snapshot.ManagedCredits {
+		_ = deps.billingCacheService.InvalidateUserBalance(ctx, snapshot.OwnerID)
+		return
+	}
 	if result != nil && result.NewBalance != nil && deps.billingCacheService.balanceBelowEligibilityThreshold(*result.NewBalance) {
 		if err := deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID); err != nil {
 			slog.Warn("invalidate balance cache after exhausted deduction failed",
@@ -503,7 +519,7 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 			slog.Error("panic in notifyBalanceLow", "recover", r)
 		}
 	}()
-	if p.IsSubscriptionBill || p.Cost.ActualCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
+	if p.IsSubscriptionBill || p.Cost.ActualCost <= 0 || p.User == nil || p.User.ResellerCustomer != nil || deps.balanceNotifyService == nil {
 		slog.Debug("notifyBalanceLow: skipped",
 			"is_subscription", p.IsSubscriptionBill,
 			"actual_cost", p.Cost.ActualCost,

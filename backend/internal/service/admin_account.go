@@ -426,6 +426,9 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 			return nil, infraerrors.BadRequest("VIDEO_BASE_URL_REQUIRED", "请填写视频供应商地址")
 		}
 	}
+	if input.Platform == PlatformTypeSafe && input.Type != AccountTypeAPIKey {
+		return nil, errors.New("typesafe accounts only support apikey credentials")
+	}
 	// Probe/session state is system-managed. New accounts always start with automatic refresh disabled.
 	delete(accountExtra, "upstream_billing_probe_enabled")
 	delete(accountExtra, "upstream_billing_rate_sync_enabled")
@@ -597,6 +600,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if account.Platform == PlatformTypeSafe && input.Type != "" && input.Type != AccountTypeAPIKey {
+		return nil, errors.New("typesafe accounts only support apikey credentials")
 	}
 	var credentialParent *Account
 	// Keep the pre-update policy so a group-list change can rotate the session

@@ -8,6 +8,7 @@ import (
 
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/resellersite"
 )
 
 type registrationInvitation struct {
@@ -23,13 +24,19 @@ func (s *AuthService) SetReusableInvitationCodeRepository(repo ReusableInvitatio
 }
 
 func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
-	invitationCode = strings.ToUpper(strings.TrimSpace(invitationCode))
+	invitationCode = strings.TrimSpace(invitationCode)
 	if IsResellerInvitation(invitationCode) {
 		profile, err := s.resellerService.Repo.Invitation(ctx, invitationCode)
 		if err != nil {
 			return nil, err
 		}
 		return &registrationInvitation{reseller: profile}, nil
+	}
+	if resellersite.IsCustomer(ctx) {
+		if invitationCode == "" {
+			return nil, missingErr
+		}
+		return nil, ErrInvitationCodeInvalid
 	}
 	if invitationCode == "" {
 		if s.settingService != nil && s.settingService.IsInvitationCodeEnabled(ctx) {
@@ -63,14 +70,7 @@ func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation 
 		return nil
 	}
 	if invitation.reseller != nil {
-		bound, err := s.affiliateService.repo.BindInviter(ctx, user.ID, invitation.reseller.UserID, invitation.reseller.InvitationCode)
-		if err != nil {
-			return err
-		}
-		if !bound {
-			return ErrInvitationCodeInvalid
-		}
-		return s.resellerService.BindRegistration(ctx, user.ID, invitation.reseller.UserID)
+		return s.resellerService.BindRegistration(ctx, user, invitation.reseller.UserID)
 	}
 	if invitation.redeem != nil {
 		if s.redeemRepo == nil {
@@ -102,6 +102,9 @@ func (s *AuthService) cleanupCreatedUserAfterInvitationFailure(ctx context.Conte
 }
 
 func (s *AuthService) createUserWithRegistrationInvitation(ctx context.Context, user *User, invitation *registrationInvitation, authSource string) error {
+	if invitation != nil && invitation.reseller != nil {
+		user.Balance = 0
+	}
 	if invitation == nil {
 		return s.createUserAndClaimInvitation(ctx, user, nil)
 	}
@@ -155,4 +158,13 @@ func (s *AuthService) ensureSignupInvitation(ctx context.Context, userID int64) 
 func (s *AuthService) ValidateRegistrationInvitation(ctx context.Context, code string) error {
 	_, err := s.resolveRegistrationInvitation(ctx, code, ErrInvitationCodeRequired)
 	return err
+}
+
+// resellerSignupGrantPlan keeps platform signup gifts separate from station credits.
+func resellerSignupGrantPlan(plan signupGrantPlan, invitation *registrationInvitation) signupGrantPlan {
+	if invitation != nil && invitation.reseller != nil {
+		plan.Balance = 0
+		plan.Subscriptions = nil
+	}
+	return plan
 }

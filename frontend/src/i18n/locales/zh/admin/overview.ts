@@ -1020,6 +1020,7 @@ export default {
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
         video: 'Video',
+        typesafe: 'TypeSafe / Jev',
         composite: 'Composite',
       },
       saving: '保存中...',

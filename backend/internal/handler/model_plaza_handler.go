@@ -72,6 +72,9 @@ type modelPlazaModel struct {
 	LongContextBasis string `json:"long_context_basis,omitempty"`
 	// TimePricing 分时倍率时段，落在时段内的请求整单乘倍率；无分时省略。
 	TimePricing *modelPlazaTimePricing `json:"time_pricing,omitempty"`
+	// GoToCC：官方目录信息与近 24 小时状态。
+	Info  *service.PlazaModelInfo  `json:"info,omitempty"`
+	Stats *service.PlazaModelStats `json:"stats,omitempty"`
 }
 
 // modelPlazaGroup 广场分组条目（白名单字段）。
@@ -126,6 +129,10 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	groups, err := h.modelPlazaService.ListGroups(c.Request.Context())
 	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if err := h.modelPlazaService.EnrichModels(c.Request.Context(), groups, h.settingService); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -197,6 +204,8 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) mo
 			OfficialPricing:  toModelPlazaOfficialPricing(m.OfficialPricing),
 			LongContextBasis: string(m.LongContextBasis),
 			TimePricing:      toModelPlazaTimePricing(m.TimePricing),
+			Info:             m.Info,
+			Stats:            m.Stats,
 		})
 	}
 	dto := modelPlazaGroup{

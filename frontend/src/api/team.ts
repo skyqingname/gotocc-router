@@ -76,6 +76,10 @@ export interface TeamUsageDaily {
   date: string
   actual_cost: number
   request_count: number
+  input_tokens: number
+  output_tokens: number
+  // 当天有用量的成员数。
+  active_members: number
 }
 
 export interface TeamUsageSummary {
@@ -83,6 +87,8 @@ export interface TeamUsageSummary {
   request_count: number
   input_tokens: number
   output_tokens: number
+  // 范围内有用量的成员数。
+  active_members: number
   daily: TeamUsageDaily[]
 }
 
@@ -105,6 +111,15 @@ export interface TeamUsageLog {
   input_tokens: number
   output_tokens: number
   created_at: string
+}
+
+// 团队用量按模型的汇总，按消费从高到低排列。
+export interface TeamUsageModel {
+  model: string
+  request_count: number
+  input_tokens: number
+  output_tokens: number
+  actual_cost: number
 }
 
 export interface TeamUsagePage {
@@ -205,12 +220,16 @@ export const teamAPI = {
     const { data } = await apiClient.get<TeamUsageSummary>('/team/usage', { params: query })
     return data
   },
-  async memberUsage(query: Pick<TeamUsageQuery, 'from' | 'to'> = {}): Promise<TeamMemberUsageSeries[]> {
+  async memberUsage(query: Pick<TeamUsageQuery, 'from' | 'to' | 'member_id' | 'api_key_id'> = {}): Promise<TeamMemberUsageSeries[]> {
     const { data } = await apiClient.get<TeamMemberUsageSeries[]>('/team/usage/members', { params: query })
     return data
   },
   async usageLogs(query: TeamUsageQuery = {}): Promise<TeamUsagePage> {
     const { data } = await apiClient.get<TeamUsagePage>('/team/usage/logs', { params: query })
+    return data
+  },
+  async usageModels(query: Pick<TeamUsageQuery, 'from' | 'to' | 'member_id' | 'api_key_id'> = {}): Promise<TeamUsageModel[]> {
+    const { data } = await apiClient.get<TeamUsageModel[]>('/team/usage/models', { params: query })
     return data
   },
   async keys(): Promise<TeamAPIKey[]> {
