@@ -170,12 +170,8 @@ func (s *ResellerService) SetPrices(ctx context.Context, ownerID int64, customer
 	}
 	return s.Repo.SetPrices(ctx, ownerID, customerID, overall, prices)
 }
-func (s *ResellerService) BindRegistration(ctx context.Context, userID, ownerID int64) error {
-	if err := s.Repo.BindCustomer(ctx, userID, ownerID); err != nil {
-		return err
-	}
-	user, err := s.keys.userRepo.GetByID(ctx, userID)
-	if err != nil {
+func (s *ResellerService) BindRegistration(ctx context.Context, user *User, ownerID int64) error {
+	if err := s.Repo.BindCustomer(ctx, user.ID, ownerID); err != nil {
 		return err
 	}
 	groups, err := s.keys.GetAvailableGroups(ctx, ownerID)

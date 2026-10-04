@@ -70,7 +70,7 @@ func (s *AuthService) useRegistrationInvitation(ctx context.Context, invitation 
 		return nil
 	}
 	if invitation.reseller != nil {
-		return s.resellerService.BindRegistration(ctx, user.ID, invitation.reseller.UserID)
+		return s.resellerService.BindRegistration(ctx, user, invitation.reseller.UserID)
 	}
 	if invitation.redeem != nil {
 		if s.redeemRepo == nil {
