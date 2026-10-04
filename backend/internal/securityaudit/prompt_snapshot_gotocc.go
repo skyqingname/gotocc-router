@@ -25,6 +25,7 @@ func ExtractBlockingPromptSnapshot(req Request, latestTurnOnly bool) (PromptSnap
 
 func promptSegmentsFromAuditContent(document auditcontent.Document, protocol string) []promptSegment {
 	allowRolelessMessage := promptAuditAllowsRolelessMessage(protocol)
+	systemOne := isSystemOnePromptProtocol(protocol)
 	segments := make([]promptSegment, 0, len(document.Segments))
 	for _, segment := range document.Segments {
 		if !isPromptAuditClientControlledSegment(segment, allowRolelessMessage) {
@@ -54,7 +55,9 @@ func promptSegmentsFromAuditContent(document auditcontent.Document, protocol str
 		}
 		segText := segment.Text
 		if user {
-			segText = stripPromptAuditClientWrapperBlocks(segText)
+			if !systemOne {
+				segText = stripPromptAuditClientWrapperBlocks(segText)
+			}
 			if segText == "" {
 				continue
 			}

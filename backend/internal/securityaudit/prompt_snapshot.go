@@ -83,6 +83,14 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 	}, diagnostic, nil
 }
 
+// isSystemOnePromptProtocol reports the native TypeSafe System One protocol.
+// System One carries no client-harness wrapper blocks, so a literal
+// <system-reminder> or <environment_context> in its evaluation text is ordinary
+// audited content, and its state is the prioritized segment.
+func isSystemOnePromptProtocol(protocol string) bool {
+	return strings.EqualFold(strings.TrimSpace(protocol), "typesafe_systemone")
+}
+
 // DefaultPromptPreviewMaxRunes caps how much sanitized prompt text may be
 // considered before BuildPromptPreview withholds the majority for storage/UI.
 const DefaultPromptPreviewMaxRunes = 96

@@ -27,7 +27,7 @@
     "@vueuse/core": "^10.7.0",
     "axios": "^1.20.0",
     "chart.js": "^4.4.1",
-    "dompurify": "^3.4.14",
+    "dompurify": "^3.4.16",
     "driver.js": "^1.4.0",
     "file-saver": "^2.0.5",
     "marked": "^17.0.1",
@@ -38,7 +38,7 @@
     "vue-draggable-plus": "^0.6.1",
     "vue-i18n": "^9.14.5",
     "vue-router": "^4.2.5",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "file:third-party/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@intlify/message-compiler": "9.14.5",
@@ -78,12 +78,6 @@
       "flatted@3.3.3": "3.4.2",
       "dompurify@<3.4.14": ">=3.4.14",
       "colord@<2.9.4": ">=2.9.4"
-    },
-    "auditConfig": {
-      "ignoreCves": [
-        "CVE-2023-30533",
-        "CVE-2024-22363"
-      ]
     }
   }
 }
