@@ -57,10 +57,7 @@ func extractPromptSnapshotWithDiagnostics(req Request, latestTurnOnly bool) (Pro
 		}
 	}
 	extracted := promptSegmentsFromAuditContent(document, req.Protocol)
-	segments := normalizeSegmentsLatestUserFirst(extracted)
-	if latestTurnOnly {
-		segments = blockingSegmentsLatestUserAndPreviousOutput(extracted)
-	}
+	segments := promptAuditScanSegments(extracted, req.Protocol, latestTurnOnly)
 	if len(segments) == 0 {
 		return PromptSnapshot{}, diagnostic, ErrNoPromptText
 	}

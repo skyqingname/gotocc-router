@@ -23,6 +23,22 @@ func ExtractBlockingPromptSnapshot(req Request, latestTurnOnly bool) (PromptSnap
 	return snapshot, err
 }
 
+func promptAuditScanSegments(values []promptSegment, protocol string, latestTurnOnly bool) []string {
+	if isSystemOnePromptProtocol(protocol) {
+		// System One is a single evaluation, not a chat turn. Keep its state
+		// first in both audit modes, then retain the other text in canonical order.
+		segments := promptSegmentTexts(normalizedPromptSegments(values))
+		if len(segments) > 1 {
+			segments = append([]string{segments[len(segments)-1]}, segments[:len(segments)-1]...)
+		}
+		return segments
+	}
+	if latestTurnOnly {
+		return blockingSegmentsLatestUserAndPreviousOutput(values)
+	}
+	return normalizeSegmentsLatestUserFirst(values)
+}
+
 func promptSegmentsFromAuditContent(document auditcontent.Document, protocol string) []promptSegment {
 	allowRolelessMessage := promptAuditAllowsRolelessMessage(protocol)
 	systemOne := isSystemOnePromptProtocol(protocol)

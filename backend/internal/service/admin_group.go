@@ -97,7 +97,7 @@ func (s *adminServiceImpl) GetGroupModelsListCandidates(ctx context.Context, id 
 	if platform == "" {
 		platform = PlatformAnthropic
 	}
-	if platform != PlatformComposite && !isConcreteRequestPlatform(platform) {
+	if platform != PlatformComposite && platform != PlatformVideo && !isConcreteRequestPlatform(platform) {
 		return nil, infraerrors.BadRequest("INVALID_GROUP_PLATFORM", "unsupported group platform")
 	}
 
