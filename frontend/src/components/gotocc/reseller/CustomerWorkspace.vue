@@ -13,7 +13,7 @@
           <label class="text-sm font-medium">{{ tr('状态', 'Status') }}<Select v-model="form.status" class="mt-2" :searchable="false" :options="statusOptions" /></label>
           <label class="text-sm font-medium">{{ customer ? tr('重设密码（留空保留）', 'Reset password (leave blank to keep)') : tr('登录密码', 'Password') }}<input v-model="form.password" type="password" :required="!customer" autocomplete="new-password" class="input mt-2" /></label>
           <label class="text-sm font-medium">{{ tr('并发数', 'Concurrency') }}<input v-model.number="form.concurrency" type="number" min="1" :max="limits.concurrency" required class="input mt-2" /><span class="mt-1 block text-xs font-normal text-gray-500">{{ tr('你的可用上限', 'Your limit') }}: {{ limits.concurrency }}</span></label>
-          <label class="text-sm font-medium">{{ tr('每分钟请求数', 'Requests per minute') }}<input v-model.number="form.rpm_limit" type="number" min="0" :max="limits.rpm_limit || undefined" required class="input mt-2" /><span class="mt-1 block text-xs font-normal text-gray-500">{{ limits.rpm_limit ? `${tr('你的可用上限', 'Your limit')}: ${limits.rpm_limit}` : tr('0 表示不单独限制', '0 means no individual limit') }}</span></label>
+          <label class="text-sm font-medium">{{ tr('每分钟请求数', 'Requests per minute') }}<input v-model.number="form.rpm_limit" type="number" :min="limits.rpm_limit ? 1 : 0" :max="limits.rpm_limit || undefined" required class="input mt-2" /><span class="mt-1 block text-xs font-normal text-gray-500">{{ limits.rpm_limit ? `${tr('你的可用上限', 'Your limit')}: ${limits.rpm_limit}` : tr('0 表示不单独限制', '0 means no individual limit') }}</span></label>
         </div>
         <div>
           <p class="mb-2 text-sm font-medium">{{ tr('可用分组', 'Available groups') }}</p>
