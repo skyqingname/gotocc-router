@@ -24,7 +24,7 @@ func (s *AuthService) SetReusableInvitationCodeRepository(repo ReusableInvitatio
 }
 
 func (s *AuthService) resolveRegistrationInvitation(ctx context.Context, invitationCode string, missingErr error) (*registrationInvitation, error) {
-	invitationCode = strings.ToUpper(strings.TrimSpace(invitationCode))
+	invitationCode = strings.TrimSpace(invitationCode)
 	if IsResellerInvitation(invitationCode) {
 		profile, err := s.resellerService.Repo.Invitation(ctx, invitationCode)
 		if err != nil {

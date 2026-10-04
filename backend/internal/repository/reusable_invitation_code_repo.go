@@ -69,8 +69,12 @@ func (r *reusableInvitationCodeRepository) GetByID(ctx context.Context, id int64
 }
 
 func (r *reusableInvitationCodeRepository) GetByCode(ctx context.Context, code string) (*service.ReusableInvitationCode, error) {
-	m, err := clientFromContext(ctx, r.client).ReusableInvitationCode.Query().
-		Where(reusableinvitationcode.CodeEQ(code)).Only(ctx)
+	client := clientFromContext(ctx, r.client)
+	m, err := client.ReusableInvitationCode.Query().Where(reusableinvitationcode.CodeEQ(code)).Only(ctx)
+	if dbent.IsNotFound(err) {
+		// AFF codes joined this directory from a case-insensitive lookup; keep that for every code.
+		m, err = client.ReusableInvitationCode.Query().Where(reusableinvitationcode.CodeEqualFold(code)).Only(ctx)
+	}
 	if err != nil {
 		if dbent.IsNotFound(err) {
 			return nil, service.ErrReusableInvitationCodeNotFound
