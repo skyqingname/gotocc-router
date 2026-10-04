@@ -31,8 +31,9 @@ func teamSubject(c *gin.Context) (middleware.AuthSubject, bool) {
 }
 
 func (h *TeamHandler) GetCurrent(c *gin.Context) {
-	subject, ok := teamSubject(c)
+	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 	teamCtx, err := h.service.GetCurrent(c.Request.Context(), subject.UserID)
@@ -127,8 +128,9 @@ func (h *TeamHandler) SetStatus(c *gin.Context) {
 }
 
 func (h *TeamHandler) ListMembers(c *gin.Context) {
-	subject, ok := teamSubject(c)
+	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 	members, err := h.service.ListMembers(c.Request.Context(), subject.UserID)
@@ -220,8 +222,9 @@ func (h *TeamHandler) GetUsageSummary(c *gin.Context) {
 
 // ListMemberUsageSeries 返回当前和历史成员的一次性趋势汇总。
 func (h *TeamHandler) ListMemberUsageSeries(c *gin.Context) {
-	subject, ok := teamSubject(c)
+	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 	query, err := parseTeamUsageQuery(c)
@@ -277,8 +280,9 @@ func (h *TeamHandler) ListUsageModels(c *gin.Context) {
 
 // ListTeamKeys 返回当前成员可见的团队 Key 元数据。
 func (h *TeamHandler) ListTeamKeys(c *gin.Context) {
-	subject, ok := teamSubject(c)
+	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 	items, err := h.service.ListTeamKeys(c.Request.Context(), subject.UserID)

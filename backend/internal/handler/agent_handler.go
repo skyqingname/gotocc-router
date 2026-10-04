@@ -22,14 +22,15 @@ func (h *AgentHandler) subject(c *gin.Context) (int64, bool) {
 	return subject.UserID, true
 }
 
-// Overview returns the caller's own enrollment state. status is empty when the
-// user has never applied.
+// Overview returns the read subject's enrollment state. status is empty when
+// the user has never applied.
 func (h *AgentHandler) Overview(c *gin.Context) {
-	userID, ok := h.subject(c)
+	subject, ok := middleware2.GetReadSubjectFromContext(c)
 	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	profile, err := h.service.Overview(c.Request.Context(), userID)
+	profile, err := h.service.Overview(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

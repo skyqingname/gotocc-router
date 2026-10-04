@@ -24,7 +24,7 @@
                 {{ t('affiliate.agent.appliedAt', { time: agentAppliedAt }) }}
               </p>
             </div>
-            <button
+            <button v-support-readonly
               v-if="canApplyForAgent"
               class="btn btn-primary w-full sm:w-auto sm:shrink-0"
               :disabled="applyingAgent"

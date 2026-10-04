@@ -21,10 +21,12 @@ export function supportReadOnlyError(): Error {
 }
 
 const personalReads = [
-  /^\/user\/(profile|platform-quotas|aff|passkeys|totp\/(status|verification-method))$/,
+  /^\/user\/(profile|platform-quotas|aff|agent|passkeys|totp\/(status|verification-method))$/,
   /^\/user\/api-keys\/\d+\/usage\/daily$/,
   /^\/keys(?:\/\d+)?$/,
-  /^\/groups\/(available|rates)$/,
+  /^\/keys\/\d+\/routing-capabilities$/,
+  /^\/groups\/(available|rates|routing-priorities)$/,
+  /^\/team(?:\/(keys|members|usage\/members))?$/,
   /^\/channels\/available$/,
   /^\/usage(?:\/(stats|errors(?:\/\d+)?|\d+|dashboard\/(stats|trend|models|snapshot-v2|api-keys-usage)))?$/,
   /^\/subscriptions(?:\/(active|progress|summary))?$/,

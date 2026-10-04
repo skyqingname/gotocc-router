@@ -11,6 +11,7 @@ import (
 func registerAdminSupportRoutes(admin *gin.RouterGroup, h *handler.Handlers, settings *service.SettingService) {
 	support := admin.Group("/support/users/:user_id")
 	support.Use(h.Admin.User.RequireSupportTarget)
+	registerAdminSupportGotoccRoutes(support, h)
 	support.GET("/user/profile", h.User.GetProfile)
 	support.GET("/user/platform-quotas", h.User.GetMyPlatformQuotas)
 	support.GET("/user/aff", h.User.GetAffiliate)

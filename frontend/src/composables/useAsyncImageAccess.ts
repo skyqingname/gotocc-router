@@ -133,6 +133,7 @@ export function useAsyncImageAccess() {
 }
 
 watch(adminSupportContext, () => {
+  clearAutoRoutingCapabilities()
   loaded.value = false
   loading.value = false
   pendingLoad = null
