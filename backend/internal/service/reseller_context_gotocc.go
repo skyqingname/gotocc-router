@@ -3,15 +3,10 @@ package service
 import "context"
 
 func (s *APIKeyService) attachResellerCustomer(ctx context.Context, key *APIKey) error {
-	account, err := s.resellerRepo.CustomerAccount(ctx, key.UserID)
+	// key.User is the paying user; a team key is paid by the team owner, not the member using it.
+	account, err := s.resellerRepo.CustomerAccount(ctx, key.User.ID)
 	if err != nil {
 		return err
-	}
-	if account == nil && key.User.ID != key.UserID {
-		account, err = s.resellerRepo.CustomerAccount(ctx, key.User.ID)
-		if err != nil {
-			return err
-		}
 	}
 	if account == nil {
 		return nil
