@@ -132,7 +132,11 @@ const scope = (range: { from: string; to: string }): TeamUsageQuery => ({
   ...(keyId.value === null ? {} : { api_key_id: keyId.value }),
 })
 
+// 用递增序号丢弃过期响应，快速切换范围或筛选时只保留最后一次结果。
+let requestSeq = 0
+
 const load = async () => {
+  const seq = ++requestSeq
   busy.value = true
   const [now, before, modelList, memberSeries] = await Promise.all([
     teamAPI.usage(scope(props.range)),
@@ -140,8 +144,9 @@ const load = async () => {
     teamAPI.usageModels(scope(props.range)),
     teamAPI.memberUsage(scope(props.range)),
   ]).finally(() => {
-    busy.value = false
+    if (seq === requestSeq) busy.value = false
   })
+  if (seq !== requestSeq) return
   current.value = now
   previous.value = before
   models.value = modelList

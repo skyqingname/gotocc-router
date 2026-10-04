@@ -95,11 +95,16 @@ const query = (offset: number, limit: number): TeamUsageQuery => {
   return result
 }
 
+// 用递增序号丢弃过期响应，快速翻页或切换筛选时只保留最后一次结果。
+let requestSeq = 0
+
 const load = async () => {
+  const seq = ++requestSeq
   loading.value = true
   const result = await teamAPI.usageLogs(query((page.value - 1) * pageSize, pageSize)).finally(() => {
-    loading.value = false
+    if (seq === requestSeq) loading.value = false
   })
+  if (seq !== requestSeq) return
   items.value = result.items
   total.value = result.total
 }

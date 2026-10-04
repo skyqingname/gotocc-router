@@ -288,22 +288,30 @@ const scope = () => ({
   ...(keyId.value === null ? {} : { api_key_id: keyId.value }),
 })
 
+// 用递增序号丢弃过期响应：快速切换成员、范围、密钥或翻页时只保留最后一次结果。
+let loadSeq = 0
+let logsSeq = 0
+
 const loadLogs = async () => {
+  const seq = ++logsSeq
   logsLoading.value = true
   const query = { ...scope(), limit: LOG_PAGE_SIZE, offset: (logsPage.value - 1) * LOG_PAGE_SIZE }
   const result = await teamAPI.usageLogs(query).finally(() => {
-    logsLoading.value = false
+    if (seq === logsSeq) logsLoading.value = false
   })
+  if (seq !== logsSeq) return
   logs.value = result.items
   logsTotal.value = result.total
 }
 
 const load = async () => {
+  const seq = ++loadSeq
   busy.value = true
   logsPage.value = 1
   const [usage, modelList] = await Promise.all([teamAPI.usage(scope()), teamAPI.usageModels(scope()), loadLogs()]).finally(() => {
-    busy.value = false
+    if (seq === loadSeq) busy.value = false
   })
+  if (seq !== loadSeq) return
   summary.value = usage
   models.value = modelList
   version.value += 1
