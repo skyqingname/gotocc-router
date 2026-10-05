@@ -1,0 +1,4 @@
+{
+  "quota_gap_percent": 5,
+  "quota_snapshot_max_age_seconds": 300
+}

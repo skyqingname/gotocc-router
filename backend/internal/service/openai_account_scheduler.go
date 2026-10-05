@@ -76,6 +76,7 @@ type OpenAIAccountScheduleRequest struct {
 	StickyPreviousAccountID int64
 	StickyWeighted          bool
 	SubscriptionPriority    bool
+	BalanceSamePriority     bool
 	PreserveStickyBinding   bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
 	// generic sticky health or concurrency heuristics would prefer another.
@@ -392,6 +393,9 @@ func (s *defaultOpenAIAccountScheduler) Select(
 		decision.LatencyMs = time.Since(start).Milliseconds()
 		s.metrics.recordSelect(decision)
 	}()
+	if req.BalanceSamePriority {
+		return s.selectBalancedOpenAIAccount(ctx, req)
+	}
 
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
 	sessionChecked := false
@@ -935,6 +939,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		staleSnapshotCompactRetry: staleSnapshotCompactRetry,
 		candidateCount:            len(candidates),
 	}
+	if req.BalanceSamePriority {
+		return s.service.balancedOpenAIAccountLoadPlan(req, plan)
+	}
 	if len(candidates) == 0 {
 		plan.selectionOrder = s.buildOpenAISelectionOrder(req, plan)
 		return plan
@@ -1269,6 +1276,9 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		}
 		if req.SessionHash != "" && !req.PreserveStickyBinding {
 			_ = s.service.bindOpenAIStickySessionDuringSelection(ctx, req.GroupID, req.SessionHash, fresh.ID)
+		}
+		if req.BalanceSamePriority {
+			s.service.openaiAccountRotation.Selected(selectionOrder[0].account.ID, fresh.ID)
 		}
 		return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 			Account:     fresh,
@@ -1770,6 +1780,9 @@ func (s *defaultOpenAIAccountScheduler) finishLoadBalanceSelectionFallback(
 				compactBlocked = true
 				continue
 			}
+			if req.BalanceSamePriority {
+				s.service.openaiAccountRotation.Selected(attempt.selectionOrder[0].account.ID, fresh.ID)
+			}
 			return attachSelectionProfitGate(ctx, &AccountSelectionResult{
 				Account: fresh,
 				WaitPlan: &AccountWaitPlan{
@@ -2138,15 +2151,7 @@ func (s *OpenAIGatewayService) getOpenAIAccountScheduler(ctx context.Context) Op
 	if !s.isOpenAIAdvancedSchedulerEnabled(ctx) {
 		return nil
 	}
-	s.openaiSchedulerOnce.Do(func() {
-		if s.openaiAccountStats == nil {
-			s.openaiAccountStats = newOpenAIAccountRuntimeStats()
-		}
-		if s.openaiScheduler == nil {
-			s.openaiScheduler = newDefaultOpenAIAccountScheduler(s, s.openaiAccountStats)
-		}
-	})
-	return s.openaiScheduler
+	return s.openAIAccountSchedulerCore()
 }
 
 func resetOpenAIAdvancedSchedulerSettingCacheForTest() {
@@ -2398,7 +2403,11 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 	if strings.TrimSpace(previousResponseID) == "" {
 		guardianParentAccountID = s.resolveOpenAIGuardianParentAccountID(ctx, groupID)
 	}
+	balanceSamePriority := useBalancedOpenAISelection(ctx, platform, previousResponseID, previousResponseCanMove, guardianParentAccountID, preserveGuardianParentBinding)
 	scheduler := s.getOpenAIAccountScheduler(ctx)
+	if balanceSamePriority {
+		scheduler = s.openAIAccountSchedulerCore()
+	}
 	if scheduler == nil {
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		if guardianParentAccountID > 0 {
@@ -2514,8 +2523,9 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		StickyAccountID:         stickyAccountID,
 		GuardianParentAccountID: guardianParentAccountID,
 		StickyPreviousAccountID: stickyPreviousAccountID,
-		StickyWeighted:          stickyWeighted,
-		SubscriptionPriority:    subscriptionPriority,
+		StickyWeighted:          stickyWeighted && !balanceSamePriority,
+		SubscriptionPriority:    subscriptionPriority && !balanceSamePriority,
+		BalanceSamePriority:     balanceSamePriority,
 		PreserveStickyBinding:   preserveGuardianParentBinding,
 		RequirePrivacySet:       s.openAIGroupRequiresPrivacySet(ctx, groupID),
 		PreviousResponseID:      previousResponseID,
