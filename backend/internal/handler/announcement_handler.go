@@ -15,12 +15,14 @@ import (
 // AnnouncementHandler handles user announcement operations
 type AnnouncementHandler struct {
 	announcementService *service.AnnouncementService
+	resellerService     *service.ResellerService
 }
 
 // NewAnnouncementHandler creates a new user announcement handler
-func NewAnnouncementHandler(announcementService *service.AnnouncementService) *AnnouncementHandler {
+func NewAnnouncementHandler(announcementService *service.AnnouncementService, resellerService *service.ResellerService) *AnnouncementHandler {
 	return &AnnouncementHandler{
 		announcementService: announcementService,
+		resellerService:     resellerService,
 	}
 }
 
@@ -35,7 +37,10 @@ func (h *AnnouncementHandler) List(c *gin.Context) {
 
 	unreadOnly := parseBoolQuery(c.Query("unread_only"))
 
-	items, err := h.announcementService.ListForUser(c.Request.Context(), subject.UserID, unreadOnly)
+	items, customer, err := h.resellerService.CustomerAnnouncements(c.Request.Context(), subject.UserID, unreadOnly)
+	if err == nil && !customer {
+		items, err = h.announcementService.ListForUser(c.Request.Context(), subject.UserID, unreadOnly)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -63,7 +68,11 @@ func (h *AnnouncementHandler) MarkRead(c *gin.Context) {
 		return
 	}
 
-	if err := h.announcementService.MarkRead(c.Request.Context(), subject.UserID, announcementID); err != nil {
+	customer, err := h.resellerService.ReadCustomerAnnouncement(c.Request.Context(), subject.UserID, announcementID)
+	if err == nil && !customer {
+		err = h.announcementService.MarkRead(c.Request.Context(), subject.UserID, announcementID)
+	}
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}

@@ -1,6 +1,10 @@
 import { apiClient } from './client'
-import type { User, ApiKey, UsageLog, ResellerCustomerAccount } from '@/types'
-export interface ResellerProfile { user_id: number; enabled: boolean; invitation_code: string; default_multiplier: number; initial_credit: number }
+import type { User, ApiKey, UsageLog, ResellerCustomerAccount, Announcement } from '@/types'
+export interface ResellerCommunicationSettings { contact_enabled: boolean; contact_info: string; announcements_enabled: boolean; sync_main_announcements: boolean }
+export interface ResellerProfile extends ResellerCommunicationSettings { user_id: number; enabled: boolean; invitation_code: string; default_multiplier: number; initial_credit: number }
+export interface ResellerAnnouncement extends Announcement { source_announcement_id: number | null }
+export interface ResellerAnnouncementReview extends Announcement { review_status: 'pending' | 'approved' | 'rejected'; reviewed_at: string | null }
+export interface ResellerAnnouncementInput { title: string; content: string; status: 'draft' | 'active' | 'archived'; notify_mode: 'silent' | 'popup' }
 export interface ResellerCustomer { user_id: number; username: string; email: string; status: string; notes: string; created_at: string; charged: number; profit: number; last_usage_at: string | null; credit_balance: number; frozen_credit: number; cost: number }
 export interface ResellerPrice { customer_id: number | null; group_id: number | null; multiplier: number | null }
 export interface ResellerGroup { id: number; name: string; platform: string; base_multiplier: number; image_multiplier: number; image_independent: boolean; video_multiplier: number; video_independent: boolean }
@@ -15,6 +19,13 @@ export interface ResellerCreditInput { operation_id: string; kind: 'increase' | 
 export interface ResellerKeyInput { name: string; group_id: number | null; routing_mode: 'fixed' | 'auto'; quota: number }
 export interface MyResellerCredits extends ResellerPage<ResellerCreditEntry> { account: ResellerCustomerAccount }
 export const resellerAPI = {
+  saveCommunicationSettings: async (input: ResellerCommunicationSettings) => (await apiClient.put<ResellerProfile>('/reseller/communication-settings', input)).data,
+  announcements: async () => (await apiClient.get<ResellerAnnouncement[]>('/reseller/announcements')).data,
+  createAnnouncement: async (input: ResellerAnnouncementInput) => (await apiClient.post<ResellerAnnouncement>('/reseller/announcements', input)).data,
+  updateAnnouncement: async (id: number, input: ResellerAnnouncementInput) => (await apiClient.put<ResellerAnnouncement>(`/reseller/announcements/${id}`, input)).data,
+  setAnnouncementStatus: async (id: number, status: ResellerAnnouncementInput['status']) => (await apiClient.put(`/reseller/announcements/${id}/status`, { status })).data,
+  mainAnnouncements: async () => (await apiClient.get<ResellerAnnouncementReview[]>('/reseller/main-announcements')).data,
+  reviewMainAnnouncement: async (id: number, source_updated_at: string, status: 'approved' | 'rejected') => (await apiClient.post(`/reseller/main-announcements/${id}/review`, { source_updated_at, status })).data,
   saveInitialCredit: async (initial_credit: number) => (await apiClient.put<ResellerProfile>('/reseller/initial-credit', { initial_credit })).data,
   customer: async (id: number) => (await apiClient.get<User>(`/reseller/customers/${id}`)).data,
   createCustomer: async (input: ResellerCustomerInput) => (await apiClient.post<User>('/reseller/customers', input)).data,

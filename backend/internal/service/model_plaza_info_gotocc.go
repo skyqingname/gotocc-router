@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/modelcatalog"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 // 模型广场的模型官方信息与近 24 小时状态（GoToCC）。官方信息来自随版打包的 models.dev 快照
@@ -52,6 +53,12 @@ type PlazaModelStats struct {
 	Errors          int64    `json:"errors"`
 	SuccessRate     *float64 `json:"success_rate"`
 	AvgFirstTokenMs *float64 `json:"avg_first_token_ms"`
+}
+
+// PlazaVideoInfo 是 Video 分组模型的系列与能力，接口文档页据此生成示例。
+type PlazaVideoInfo struct {
+	Family       string                      `json:"family"`
+	Capabilities *videoprotocol.Capabilities `json:"capabilities"`
 }
 
 // PlazaModelOverride 是后台为单个模型填写的展示信息，非空字段覆盖官方目录的值。
@@ -118,12 +125,33 @@ func (s *ModelPlazaService) EnrichModels(ctx context.Context, groups []PlazaGrou
 	if err != nil {
 		return err
 	}
+	videoModels := map[int64]videoprotocol.Models{}
+	for gi := range groups {
+		if groups[gi].Platform != PlatformVideo {
+			continue
+		}
+		group, err := s.groupRepo.GetByID(ctx, groups[gi].ID)
+		if err != nil {
+			return err
+		}
+		videoModels[group.ID] = group.VideoModels
+	}
 	for gi := range groups {
 		for mi := range groups[gi].Models {
 			model := &groups[gi].Models[mi]
 			key := strings.ToLower(model.Name)
 			entry, found := modelcatalog.Lookup(model.Name)
 			info := plazaModelInfo(model, entry, found, overrides[key])
+			// Video 分组模型的说明与系列来自分组配置，后台广场覆盖仍然优先。
+			if config, ok := videoModels[groups[gi].ID][model.Name]; ok {
+				model.Video = &PlazaVideoInfo{Family: config.Family, Capabilities: config.Capabilities}
+				if overrides[key].Description == "" && config.Description != "" {
+					info.Description, info.CustomDescription = config.Description, true
+				}
+				if overrides[key].Vendor == "" && !found && config.Family != "" {
+					info.Vendor = config.Family
+				}
+			}
 			model.Info = &info
 			if found && entry.Model.Cost != nil && entry.Model.Cost.Input != nil {
 				model.OfficialPricing = plazaOfficialFromCatalog(entry.Model.Cost)

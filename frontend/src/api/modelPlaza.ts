@@ -6,6 +6,7 @@
 
 import { apiClient } from './client'
 import type { UserPricingInterval, UserSupportedModelPricing } from './channels'
+import type { VideoCapabilities } from '@/components/admin/channel/video-models'
 
 /** 官方参考价（USD per token，与计费目录同源；字段缺失 = 目录未覆盖）。 */
 export interface PlazaOfficialPricing {
@@ -88,6 +89,14 @@ export interface PlazaModel {
   info?: PlazaModelInfo
   /** 近 24 小时没有请求时缺省。 */
   stats?: PlazaModelStats
+  /** 仅 Video 分组模型返回：系列与能力，文档页据此生成示例。 */
+  video?: PlazaVideoInfo
+}
+
+export interface PlazaVideoInfo {
+  family: string
+  /** 未填写能力时为 null，网关不做限制。 */
+  capabilities: VideoCapabilities | null
 }
 
 export interface ModelPlazaGroup {

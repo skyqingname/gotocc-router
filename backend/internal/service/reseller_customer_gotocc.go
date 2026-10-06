@@ -16,14 +16,16 @@ var ErrResellerBalanceInsufficient = infraerrors.Forbidden("RESELLER_BALANCE_INS
 var ErrResellerOwnerInactive = infraerrors.Forbidden("RESELLER_OWNER_INACTIVE", "所属站长账户已停用，请联系站长")
 
 type ResellerCustomerAccount struct {
-	UserID         int64   `json:"user_id"`
-	OwnerID        int64   `json:"owner_id"`
-	OwnerName      string  `json:"owner_name"`
-	CreditBalance  float64 `json:"credit_balance"`
-	FrozenCredit   float64 `json:"frozen_credit"`
-	OwnerBalance   float64 `json:"-"`
-	OwnerActive    bool    `json:"-"`
-	CustomerActive bool    `json:"-"`
+	UserID               int64   `json:"user_id"`
+	OwnerID              int64   `json:"owner_id"`
+	OwnerName            string  `json:"owner_name"`
+	ContactInfo          string  `json:"contact_info"`
+	AnnouncementsEnabled bool    `json:"announcements_enabled"`
+	CreditBalance        float64 `json:"credit_balance"`
+	FrozenCredit         float64 `json:"frozen_credit"`
+	OwnerBalance         float64 `json:"-"`
+	OwnerActive          bool    `json:"-"`
+	CustomerActive       bool    `json:"-"`
 }
 
 type ResellerCreditInput struct {

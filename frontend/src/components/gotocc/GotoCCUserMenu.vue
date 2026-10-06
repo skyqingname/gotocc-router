@@ -74,12 +74,12 @@
           </button>
         </div>
 
-        <div v-if="appStore.contactInfo" class="menu-section">
+        <div v-if="contactInfo" class="menu-section">
           <div class="flex items-start gap-3 px-2.5 py-2 text-sm">
             <Icon name="chat" size="md" class="shrink-0 text-gray-400 dark:text-dark-400" />
             <span class="min-w-0">
               <span class="block text-xs text-gray-500 dark:text-dark-400">{{ t('common.contactSupport') }}</span>
-              <span class="block break-all font-medium text-gray-800 dark:text-dark-100">{{ appStore.contactInfo }}</span>
+              <span class="block break-all font-medium text-gray-800 dark:text-dark-100">{{ contactInfo }}</span>
             </span>
           </div>
         </div>
@@ -148,6 +148,7 @@ const rootRef = ref<HTMLElement | null>(null)
 
 // 头部只在已登录时挂载本组件，用户对象始终存在。
 const user = computed(() => view.user!)
+const contactInfo = computed(() => user.value.reseller_customer ? user.value.reseller_customer.contact_info : appStore.contactInfo)
 const avatarUrl = computed(() => user.value.avatar_url || '')
 const displayName = computed(() => user.value.username || user.value.email.split('@')[0])
 const initials = computed(() => displayName.value.substring(0, 2).toUpperCase())

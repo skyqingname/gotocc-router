@@ -43,6 +43,14 @@
           </p>
         </div>
       </div>
+      <!-- 视频模型按分辨率分档：每档一块 -->
+      <div v-else-if="model.video && requestIntervals(model).length" class="grid grid-cols-3 gap-2">
+        <div v-for="interval in requestIntervals(model)" :key="tierLabel(interval)" class="min-w-0 rounded-lg bg-white px-2.5 py-2 dark:bg-dark-800">
+          <p class="text-[11px] text-gray-500 dark:text-dark-400">{{ tierLabel(interval) }}</p>
+          <p class="mt-0.5 text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{{ paidPerUnit(interval.per_request_price, rate) }}</p>
+          <p class="text-[11px] text-gray-400 dark:text-dark-500">{{ t(perUnitKey(model)) }}</p>
+        </div>
+      </div>
       <div v-else class="space-y-1 rounded-lg bg-white px-3 py-2 dark:bg-dark-800">
         <p class="flex items-baseline gap-1">
           <span class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ paidPerUnit(model.pricing.per_request_price, rate) }}</span>
@@ -95,6 +103,7 @@ import {
   unitKey,
 } from './plazaPricing'
 import { vendorLabel } from './vendors'
+import { videoSpecLine } from '../video/videoDocs'
 
 // 模型广场卡片：名称与标签、简介、近 24 小时状态、实付分档价、官方价和上下文。
 const props = defineProps<{ group: ModelPlazaGroup; model: PlazaModel }>()
@@ -159,6 +168,7 @@ const officialLine = computed(() => {
 })
 
 const factsLine = computed(() => {
+  if (props.model.video) return videoSpecLine(props.model.video.capabilities)
   const value = info.value
   if (!value?.context_window) return value?.release_date ? t('gotocc.plaza.released', { date: value.release_date }) : ''
   const parts = [t('gotocc.plaza.context', { size: formatTokenCount(value.context_window) })]

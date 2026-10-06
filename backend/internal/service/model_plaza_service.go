@@ -32,6 +32,7 @@ type PlazaModel struct {
 	// GoToCC：官方目录信息与近 24 小时状态，由 EnrichModels 填充。
 	Info  *PlazaModelInfo
 	Stats *PlazaModelStats
+	Video *PlazaVideoInfo
 }
 
 // PlazaGroup 模型广场中以分组为顶层的条目。

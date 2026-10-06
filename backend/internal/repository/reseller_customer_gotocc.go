@@ -14,10 +14,13 @@ func (r *resellerRepository) CustomerAccount(ctx context.Context, userID int64) 
 	account := &service.ResellerCustomerAccount{}
 	err := scanSingleRow(ctx, r.executor(ctx), `SELECT c.user_id,c.owner_user_id,u.username,
 		c.credit_balance::float8,c.frozen_credit::float8,u.balance::float8,
-		(u.status='active' AND u.deleted_at IS NULL),(customer.status='active' AND customer.deleted_at IS NULL)
-		FROM reseller_customers c JOIN users customer ON customer.id=c.user_id JOIN users u ON u.id=c.owner_user_id WHERE c.user_id=$1`,
+		(u.status='active' AND u.deleted_at IS NULL),(customer.status='active' AND customer.deleted_at IS NULL),
+        CASE WHEN p.enabled AND p.contact_enabled THEN p.contact_info ELSE '' END,
+        COALESCE(p.enabled AND p.announcements_enabled,FALSE)
+		FROM reseller_customers c JOIN users customer ON customer.id=c.user_id JOIN users u ON u.id=c.owner_user_id
+        LEFT JOIN reseller_profiles p ON p.user_id=c.owner_user_id WHERE c.user_id=$1`,
 		[]any{userID}, &account.UserID, &account.OwnerID, &account.OwnerName,
-		&account.CreditBalance, &account.FrozenCredit, &account.OwnerBalance, &account.OwnerActive, &account.CustomerActive)
+		&account.CreditBalance, &account.FrozenCredit, &account.OwnerBalance, &account.OwnerActive, &account.CustomerActive, &account.ContactInfo, &account.AnnouncementsEnabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

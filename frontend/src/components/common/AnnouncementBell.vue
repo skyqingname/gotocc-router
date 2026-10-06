@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="showAnnouncements">
     <!-- 铃铛按钮 -->
     <button
       @click="openModal"
@@ -312,6 +312,8 @@
 </template>
 
 <script setup lang="ts">
+import { useResellerCommunications } from '@/composables/useResellerCommunications'
+const { showAnnouncements } = useResellerCommunications()
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'

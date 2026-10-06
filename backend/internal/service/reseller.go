@@ -11,6 +11,7 @@ import (
 )
 
 type ResellerProfile struct {
+	ResellerCommunicationSettings
 	InitialCredit     float64 `json:"initial_credit"`
 	UserID            int64   `json:"user_id"`
 	Enabled           bool    `json:"enabled"`
@@ -59,6 +60,7 @@ type ResellerSummary struct {
 	Gifted        float64 `json:"gifted"`
 }
 type ResellerRepository interface {
+	ResellerCommunicationsRepository
 	SetInitialCredit(context.Context, int64, float64) error
 	CustomerAccount(context.Context, int64) (*ResellerCustomerAccount, error)
 	CustomerTransaction(context.Context, int64, int64, func(context.Context) error) error

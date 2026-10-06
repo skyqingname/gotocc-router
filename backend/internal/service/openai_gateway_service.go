@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/accountbalance"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/openai"
@@ -589,6 +590,7 @@ type OpenAIGatewayService struct {
 	openaiWSPool                   *openAIWSConnPool
 	openaiWSStateStore             OpenAIWSStateStore
 	openaiScheduler                OpenAIAccountScheduler
+	openaiAccountRotation          accountbalance.Rotation
 	openaiWSPassthroughDialer      openAIWSClientDialer
 	openaiWSSessionPreemptions     openAIWSSessionPreemptRegistry
 	openaiAccountStats             *openAIAccountRuntimeStats

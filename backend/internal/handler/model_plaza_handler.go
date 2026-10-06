@@ -75,6 +75,7 @@ type modelPlazaModel struct {
 	// GoToCC：官方目录信息与近 24 小时状态。
 	Info  *service.PlazaModelInfo  `json:"info,omitempty"`
 	Stats *service.PlazaModelStats `json:"stats,omitempty"`
+	Video *service.PlazaVideoInfo  `json:"video,omitempty"`
 }
 
 // modelPlazaGroup 广场分组条目（白名单字段）。
@@ -206,6 +207,7 @@ func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) mo
 			TimePricing:      toModelPlazaTimePricing(m.TimePricing),
 			Info:             m.Info,
 			Stats:            m.Stats,
+			Video:            m.Video,
 		})
 	}
 	dto := modelPlazaGroup{
