@@ -91,7 +91,7 @@ export function buildVideoExample(model: string, caps: VideoCapabilities | null 
 
   const url = `${baseURL}/videos`
   const pretty = JSON.stringify(payload, null, 2)
-  let curl = `curl ${url} \\\n  -H "Authorization: Bearer sk-你的API密钥" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(payload)}'`
+  let curl = `curl ${url} \\\n  -H "Authorization: Bearer sk-你的API密钥" \\\n  -H "Content-Type: application/json" \\\n  -d '${pretty}'`
   let javascript = `const response = await fetch('${url}', {\n  method: 'POST',\n  headers: { Authorization: 'Bearer sk-你的API密钥', 'Content-Type': 'application/json' },\n  body: JSON.stringify(${pretty})\n})\nconst task = await response.json()\nconsole.log(task.id)`
   let python = `import requests\n\nresponse = requests.post('${url}', headers={\n    'Authorization': 'Bearer sk-你的API密钥',\n    'Content-Type': 'application/json',\n}, json=${pretty})\nprint(response.json()['id'])`
   if (kind === 'image-base64') {

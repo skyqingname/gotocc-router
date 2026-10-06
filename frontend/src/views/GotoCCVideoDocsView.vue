@@ -77,7 +77,7 @@
               <button v-for="kind in supportedKinds" :key="kind.key" type="button" class="rounded-full border px-3 py-1 text-xs" :class="kind.key === activeKind ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-200' : 'border-gray-200 text-gray-600 dark:border-dark-600 dark:text-dark-300'" @click="exampleKind = kind.key">{{ kind.label }}</button>
             </div>
             <p class="rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-dark-600 dark:text-dark-200">
-              <b class="text-primary-700 dark:text-primary-300">模型能力：</b>{{ selected.name }}：{{ capabilityText }}
+              <b class="text-primary-700 dark:text-primary-300">模型能力：</b>{{ capabilityText }}
             </p>
             <div>
               <div class="flex gap-1 border-b border-gray-200 dark:border-dark-700">
@@ -252,7 +252,7 @@ watch(entries, (list) => {
 })
 const selected = computed(() => entries.value.find((item) => item.name === selectedName.value))
 const capabilities = computed(() => selected.value?.model.video?.capabilities)
-const capabilityText = computed(() => [selected.value?.model.info?.description, ...videoCapabilityItems(capabilities.value)].filter(Boolean).join('；'))
+const capabilityText = computed(() => [selected.value?.model.info?.description?.replace(/[。；;.\s]+$/, ''), ...videoCapabilityItems(capabilities.value)].filter(Boolean).join('；'))
 const supportedKinds = computed(() => VIDEO_EXAMPLE_KINDS.filter((kind) => videoExampleSupported(capabilities.value, kind.key)))
 const exampleKind = ref<VideoExampleKind>('text')
 const activeKind = computed(() => (supportedKinds.value.some((kind) => kind.key === exampleKind.value) ? exampleKind.value : 'text'))

@@ -63,7 +63,7 @@ func applyVideoCapabilities(config *videoprotocol.Config, parameters, body []byt
 		return nil, nil, fmt.Errorf("该模型时长只支持 %s 秒", joinVideoSeconds(caps.FixedSeconds))
 	}
 	if len(caps.FixedSeconds) == 0 && ((caps.MinSeconds > 0 && seconds < caps.MinSeconds) || (caps.MaxSeconds > 0 && seconds > caps.MaxSeconds)) {
-		return nil, nil, fmt.Errorf("该模型时长需在 %s 之间", videoSecondsRange(caps))
+		return nil, nil, fmt.Errorf("该模型时长需为 %s", videoSecondsRange(caps))
 	}
 
 	resolution, requested := openAIVideoResolutionFromBody(parameters)
