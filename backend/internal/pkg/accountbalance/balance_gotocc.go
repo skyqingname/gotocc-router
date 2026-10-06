@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"time"
 )
 
 // Candidate contains scheduling facts only, never account credentials.
@@ -14,10 +15,11 @@ type Candidate struct {
 	Available  bool
 	QuotaUsed  float64
 	QuotaKnown bool
+	LastUsedAt time.Time
 }
 
-// Rotation shares turns across requests and groups within the single core.
-// Reserving a turn before slot acquisition also spreads concurrent arrivals.
+// Rotation shares new-session assignments across groups within the single core.
+// Existing sticky sessions return before requesting another rotation turn.
 type Rotation struct {
 	mu   sync.Mutex
 	turn uint64
@@ -75,6 +77,11 @@ func (r *Rotation) Order(candidates []Candidate) []int64 {
 		if r.last[a.ID] != r.last[b.ID] {
 			return r.last[a.ID] < r.last[b.ID]
 		}
+		// Before this core has assigned a turn, start with the less recently used
+		// account. This retains useful history across a core restart.
+		if !a.LastUsedAt.Equal(b.LastUsedAt) {
+			return a.LastUsedAt.Before(b.LastUsedAt)
+		}
 		return a.ID < b.ID
 	})
 	order := make([]int64, 0, len(candidates))
@@ -86,6 +93,21 @@ func (r *Rotation) Order(candidates []Candidate) []int64 {
 		r.last[order[0]] = r.turn
 	}
 	return order
+}
+
+// Observe seeds accounts already serving sticky sessions when this core starts.
+// Repeated messages in the same session do not consume new-session turns.
+func (r *Rotation) Observe(accountID int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.last == nil {
+		r.last = make(map[int64]uint64)
+	}
+	if _, known := r.last[accountID]; known {
+		return
+	}
+	r.turn++
+	r.last[accountID] = r.turn
 }
 
 // Selected records a replacement when the first reservation lost its slot or

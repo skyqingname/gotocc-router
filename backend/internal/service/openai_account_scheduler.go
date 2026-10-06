@@ -392,10 +392,11 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	defer func() {
 		decision.LatencyMs = time.Since(start).Milliseconds()
 		s.metrics.recordSelect(decision)
+		if req.Platform == PlatformOpenAI && selection != nil && selection.Account != nil &&
+			(decision.StickySessionHit || decision.StickyPreviousHit) {
+			s.service.openaiAccountRotation.Observe(selection.Account.ID)
+		}
 	}()
-	if req.BalanceSamePriority {
-		return s.selectBalancedOpenAIAccount(ctx, req)
-	}
 
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
 	sessionChecked := false
@@ -2526,6 +2527,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 		StickyWeighted:          stickyWeighted && !balanceSamePriority,
 		SubscriptionPriority:    subscriptionPriority && !balanceSamePriority,
 		BalanceSamePriority:     balanceSamePriority,
+		DisableStickyEscape:     balanceSamePriority,
 		PreserveStickyBinding:   preserveGuardianParentBinding,
 		RequirePrivacySet:       s.openAIGroupRequiresPrivacySet(ctx, groupID),
 		PreviousResponseID:      previousResponseID,

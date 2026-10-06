@@ -32,22 +32,6 @@ func (s *OpenAIGatewayService) openAIAccountSchedulerCore() OpenAIAccountSchedul
 	return s.openaiScheduler
 }
 
-func (s *defaultOpenAIAccountScheduler) selectBalancedOpenAIAccount(ctx context.Context, req OpenAIAccountScheduleRequest) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
-	selection, count, topK, skew, err := s.selectByLoadBalance(ctx, req)
-	decision := OpenAIAccountScheduleDecision{
-		Layer:          openAIAccountScheduleLayerLoadBalance,
-		CandidateCount: count,
-		TopK:           topK,
-		LoadSkew:       skew,
-	}
-	if selection != nil && selection.Account != nil {
-		decision.SelectedAccountID = selection.Account.ID
-		decision.SelectedAccountType = selection.Account.Type
-		decision.StickyPreviousHit = req.StickyPreviousAccountID > 0 && req.StickyPreviousAccountID == selection.Account.ID
-	}
-	return selection, decision, err
-}
-
 func (s *OpenAIGatewayService) balancedOpenAIAccountLoadPlan(req OpenAIAccountScheduleRequest, plan openAIAccountLoadPlan) openAIAccountLoadPlan {
 	pool := plan.allCandidates
 	items := make([]accountbalance.Candidate, 0, len(pool))
@@ -63,14 +47,18 @@ func (s *OpenAIGatewayService) balancedOpenAIAccountLoadPlan(req OpenAIAccountSc
 			}
 		}
 		quota, known := openAIAccountQuotaPressure(account, now)
-		items = append(items, accountbalance.Candidate{
+		item := accountbalance.Candidate{
 			ID:         account.ID,
 			Priority:   account.Priority,
 			Capability: capability,
 			Available:  !candidate.loadKnown || account.Concurrency <= 0 || candidate.loadInfo.CurrentConcurrency < account.Concurrency,
 			QuotaUsed:  quota,
 			QuotaKnown: known,
-		})
+		}
+		if account.LastUsedAt != nil {
+			item.LastUsedAt = *account.LastUsedAt
+		}
+		items = append(items, item)
 		byID[account.ID] = candidate
 	}
 	order := s.openaiAccountRotation.Order(items)
