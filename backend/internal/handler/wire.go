@@ -50,6 +50,7 @@ func ProvideAdminHandlers(
 	auditLogHandler *admin.AuditLogHandler,
 	ipAccessControlHandler *admin.IPAccessControlHandler,
 	teamHandler *admin.TeamHandler,
+	canvasBridgeHandler *admin.CanvasBridgeHandler,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	usageAlert *service.UsageAlertService,
 	opencodeGoUsage *service.OpenCodeGoUsageService,
@@ -99,6 +100,7 @@ func ProvideAdminHandlers(
 		AuditLog:               auditLogHandler,
 		IPAccessControl:        ipAccessControlHandler,
 		Team:                   teamHandler,
+		CanvasBridge:           canvasBridgeHandler,
 	}
 }
 
@@ -369,6 +371,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAuditLogHandler,
 	admin.NewIPAccessControlHandler,
 	admin.NewTeamHandler,
+	admin.NewCanvasBridgeHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

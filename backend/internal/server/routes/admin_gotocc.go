@@ -47,3 +47,13 @@ func registerModelPlazaOverrideRoutes(admin *gin.RouterGroup, h *handler.Handler
 	admin.GET("/model-plaza/overrides", h.Admin.Setting.GetModelPlazaOverrides)
 	admin.PUT("/model-plaza/overrides", h.Admin.Setting.UpdateModelPlazaOverrides)
 }
+
+// registerCanvasBridgeRoutes 注册影策画布桥接接口：校验 GoToCC 账号、把余额单向划入画布及退回。
+func registerCanvasBridgeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	bridge := admin.Group("/canvas-bridge")
+	{
+		bridge.POST("/verify", h.Admin.CanvasBridge.Verify)
+		bridge.POST("/transfers", h.Admin.CanvasBridge.Transfer)
+		bridge.POST("/transfers/:id/reverse", h.Admin.CanvasBridge.Reverse)
+	}
+}

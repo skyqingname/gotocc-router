@@ -46,6 +46,7 @@ type AdminHandlers struct {
 	AuditLog               *admin.AuditLogHandler
 	IPAccessControl        *admin.IPAccessControlHandler
 	Team                   *admin.TeamHandler
+	CanvasBridge           *admin.CanvasBridgeHandler
 }
 
 // Handlers contains all HTTP handlers

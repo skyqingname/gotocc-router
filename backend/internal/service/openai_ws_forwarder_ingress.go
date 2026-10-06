@@ -179,6 +179,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			)
 		}
 	}
+	// mode_router_v2 关闭时仍按账号显式配置的 http_bridge 桥接：第三方中转通常不提供
+	// Responses WebSocket，按 ctx_pool 直连上游会握手 404。
+	if !modeRouterV2Enabled && account.ResolveOpenAIResponsesWebSocketV2Mode(OpenAIWSIngressModeCtxPool) == OpenAIWSIngressModeHTTPBridge {
+		forceHTTPBridge = true
+	}
 	if !forceHTTPBridge && wsDecision.Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
 		return fmt.Errorf("websocket ingress requires ws_v2 transport, got=%s", wsDecision.Transport)
 	}

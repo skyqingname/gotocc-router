@@ -2135,6 +2135,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		_ = wsConn.CloseNow()
 	}()
 	wsConn.SetReadLimit(service.ResolveOpenAIWSClientReadLimitBytes(h.cfg))
+	stopClientKeepalive := startOpenAIWSClientKeepalive(ctx, wsConn, h.openAICompactKeepaliveInterval())
+	defer stopClientKeepalive()
 	if policyErr := h.enforceOpenAIWSIPAccess(ctx, trustedClientIdentity); policyErr != nil {
 		if closeErr, ok := openAIWSClientPolicyClose(policyErr); ok {
 			closeOpenAIClientWS(wsConn, closeErr.StatusCode(), closeErr.Reason())
