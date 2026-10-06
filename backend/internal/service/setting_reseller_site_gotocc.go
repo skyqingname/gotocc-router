@@ -16,7 +16,7 @@ func applyResellerSitePublicSettings(ctx context.Context, settings *PublicSettin
 	settings.SiteLogo = resellersite.Rewrite(ctx, settings.SiteLogo)
 	settings.APIBaseURL = resellersite.CustomerOrigin(ctx)
 	settings.DocURL = resellersite.Rewrite(ctx, settings.DocURL)
-	settings.ContactInfo = resellersite.Rewrite(ctx, settings.ContactInfo)
+	settings.ContactInfo = ""
 	settings.HomeContent = resellersite.Rewrite(ctx, settings.HomeContent)
 	settings.PurchaseSubscriptionURL = resellersite.Rewrite(ctx, settings.PurchaseSubscriptionURL)
 	settings.CustomMenuItems = resellersite.Rewrite(ctx, settings.CustomMenuItems)

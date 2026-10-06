@@ -27,7 +27,7 @@ func (r *resellerRepository) executor(ctx context.Context) sqlExecutor {
 }
 func resellerProfile(ctx context.Context, q sqlExecutor, userID int64) (*service.ResellerProfile, error) {
 	p := &service.ResellerProfile{}
-	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8,COALESCE(p.initial_credit,$3)::float8 FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier, reseller.DefaultInitialCredit}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier, &p.InitialCredit)
+	err := scanSingleRow(ctx, q, `SELECT u.id,COALESCE(p.enabled,FALSE),COALESCE(p.invitation_code,''),COALESCE(p.default_multiplier,$2)::float8,COALESCE(p.initial_credit,$3)::float8,COALESCE(p.contact_enabled,$4),COALESCE(p.contact_info,''),COALESCE(p.announcements_enabled,$5),COALESCE(p.sync_main_announcements,$6) FROM users u LEFT JOIN reseller_profiles p ON p.user_id=u.id WHERE u.id=$1`, []any{userID, reseller.DefaultMultiplier, reseller.DefaultInitialCredit, reseller.DefaultContactEnabled, reseller.DefaultAnnouncementsEnabled, reseller.DefaultSyncMainAnnouncements}, &p.UserID, &p.Enabled, &p.InvitationCode, &p.DefaultMultiplier, &p.InitialCredit, &p.ContactEnabled, &p.ContactInfo, &p.AnnouncementsEnabled, &p.SyncMainAnnouncements)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrUserNotFound
 	}
@@ -45,7 +45,7 @@ func (r *resellerRepository) Profile(ctx context.Context, id int64) (*service.Re
 // the change destructive.
 func (r *resellerRepository) SaveProfile(ctx context.Context, id int64, enabled bool) (*service.ResellerProfile, error) {
 	code := "RS-" + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
-	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier,initial_credit) SELECT id,$2,$3,$4,$5 FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier, reseller.DefaultInitialCredit)
+	result, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO reseller_profiles(user_id,enabled,invitation_code,default_multiplier,initial_credit,contact_enabled,announcements_enabled,sync_main_announcements) SELECT id,$2,$3,$4,$5,$6,$7,$8 FROM users WHERE id=$1 AND deleted_at IS NULL ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=NOW()`, id, enabled, code, reseller.DefaultMultiplier, reseller.DefaultInitialCredit, reseller.DefaultContactEnabled, reseller.DefaultAnnouncementsEnabled, reseller.DefaultSyncMainAnnouncements)
 	if err != nil {
 		return nil, err
 	}

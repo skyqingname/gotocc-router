@@ -3,10 +3,14 @@ import { ref, computed, watch } from 'vue'
 import { announcementsAPI } from '@/api'
 import { adminSupportContext, supportRequestGeneration } from '@/utils/adminSupportContext'
 import type { UserAnnouncement } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 const THROTTLE_MS = 20 * 60 * 1000 // 20 minutes
 
 export const useAnnouncementStore = defineStore('announcements', () => {
+  const auth = useAuthStore()
+  const identityScope = computed(() => `${auth.user?.id ?? ''}:${auth.user?.reseller_customer?.owner_id ?? ''}:${auth.user?.reseller_customer?.announcements_enabled ?? ''}`)
+  const requestScope = () => `${identityScope.value}:${supportRequestGeneration()}`
   // State
   const announcements = ref<UserAnnouncement[]>([])
   const loading = ref(false)
@@ -24,7 +28,7 @@ export const useAnnouncementStore = defineStore('announcements', () => {
 
   // Actions
   async function fetchAnnouncements(force = false) {
-    const scope = supportRequestGeneration()
+    const scope = requestScope()
     const now = Date.now()
     if (!force && lastFetchTime.value > 0 && now - lastFetchTime.value < THROTTLE_MS) {
       return
@@ -36,16 +40,16 @@ export const useAnnouncementStore = defineStore('announcements', () => {
     try {
       loading.value = true
       const all = await announcementsAPI.list(false)
-      if (scope !== supportRequestGeneration()) return
+      if (scope !== requestScope()) return
       announcements.value = all.slice(0, 20)
       enqueueNewPopups()
     } catch (err: any) {
-      if (scope !== supportRequestGeneration()) return
+      if (scope !== requestScope()) return
       // Revert throttle timestamp on failure so retry is allowed
       lastFetchTime.value = 0
       console.error('Failed to fetch announcements:', err)
     } finally {
-      if (scope === supportRequestGeneration()) loading.value = false
+      if (scope === requestScope()) loading.value = false
     }
   }
 
@@ -86,15 +90,17 @@ export const useAnnouncementStore = defineStore('announcements', () => {
 
     // Show next popup after a short delay
     if (popupQueue.value.length > 0) {
-      const scope = supportRequestGeneration()
-      setTimeout(() => { if (scope === supportRequestGeneration()) showNextPopup() }, 300)
+      const scope = requestScope()
+      setTimeout(() => { if (scope === requestScope()) showNextPopup() }, 300)
     }
   }
 
   async function markAsRead(id: number) {
     if (adminSupportContext.value) return
+    const scope = requestScope()
     try {
       await announcementsAPI.markRead(id)
+      if (scope !== requestScope()) return
       const ann = announcements.value.find((a) => a.id === id)
       if (ann) {
         ann.read_at = new Date().toISOString()
@@ -137,6 +143,11 @@ export const useAnnouncementStore = defineStore('announcements', () => {
   watch(adminSupportContext, (context) => {
     reset()
     if (context) void fetchAnnouncements(true)
+  }, { flush: 'sync' })
+
+  watch(identityScope, () => {
+    reset()
+    if (auth.user) void fetchAnnouncements(true)
   }, { flush: 'sync' })
 
   return {

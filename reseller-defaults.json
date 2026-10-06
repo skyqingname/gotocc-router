@@ -11,5 +11,12 @@
   "customer_hidden_route_prefixes": [
     "/custom/"
   ],
-  "default_initial_credit": 0
+  "default_initial_credit": 0,
+  "communications": {
+    "contact_enabled": false,
+    "announcements_enabled": false,
+    "sync_main_announcements": true,
+    "announcement_list_limit": 200,
+    "announcement_title_max_length": 200
+  }
 }

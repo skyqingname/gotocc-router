@@ -96,6 +96,9 @@ import { useAnnouncementStore } from '@/stores/announcements'
 import { formatRelativeWithDateTime } from '@/utils/format'
 import type { Announcement, UserAnnouncement } from '@/types'
 import '@/styles/announcement-markdown.css'
+import { useResellerCommunications } from '@/composables/useResellerCommunications'
+
+const { showAnnouncements } = useResellerCommunications()
 
 type PreviewAnnouncement = Pick<Announcement | UserAnnouncement, 'title' | 'content' | 'created_at'>
 
@@ -114,7 +117,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
 const displayedAnnouncement = computed(() => (
-  props.preview ? props.announcement : announcementStore.currentPopup
+  props.preview ? props.announcement : showAnnouncements.value ? announcementStore.currentPopup : null
 ))
 
 marked.setOptions({
