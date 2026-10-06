@@ -149,6 +149,9 @@ func RegisterAdminRoutes(
 
 		// 团队运维管理沿用 Plus 管理认证、限流、合规与审计链。
 		registerTeamRoutes(admin, h, stepUpAuth)
+
+		// 影策画布桥接（管理员 API Key 调用）
+		registerCanvasBridgeRoutes(admin, h)
 		registerModelPlazaOverrideRoutes(admin, h)
 	}
 }
