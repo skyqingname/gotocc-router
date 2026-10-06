@@ -32,7 +32,12 @@
             <Icon name="search" size="sm" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input v-model.trim="search" type="search" class="input pl-9" :placeholder="t('gotocc.plaza.searchPlaceholder')" />
           </div>
-          <span class="text-sm text-gray-500 dark:text-dark-400">{{ t('gotocc.plaza.summary', { models: visibleCount, groups: visibleGroups.length }) }}</span>
+          <span class="flex items-center gap-3 text-sm text-gray-500 dark:text-dark-400">
+            <RouterLink v-if="hasVideoModels" to="/docs/video" class="inline-flex items-center gap-1 rounded-full border border-primary-200 px-3 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-300 dark:hover:bg-primary-500/10">
+              <Icon name="book" size="xs" />{{ t('gotocc.plaza.videoDocs') }}
+            </RouterLink>
+            {{ t('gotocc.plaza.summary', { models: visibleCount, groups: visibleGroups.length }) }}
+          </span>
         </div>
         <div v-for="row in filterRows" :key="row.key" class="flex flex-wrap items-center gap-2">
           <span class="w-10 shrink-0 text-xs text-gray-500 dark:text-dark-400">{{ row.label }}</span>
@@ -140,6 +145,7 @@ const descriptionHtml = computed(() => {
 })
 
 const groups = computed(() => props.response?.groups ?? [])
+const hasVideoModels = computed(() => groups.value.some((group) => group.models.some((model) => model.video)))
 const vendorOf = (model: PlazaModel) => canonicalVendor(model.info?.vendor ?? model.platform)
 const purposesOf = (model: PlazaModel) => model.info?.purposes ?? []
 

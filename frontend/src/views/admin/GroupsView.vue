@@ -653,7 +653,7 @@
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
         </div>
-        <VideoModelsEditor v-if="createForm.platform === 'video'" v-model="createForm.video_models" @validity="createVideoModelsValid = $event" />
+        <VideoModelsEditor v-if="createForm.platform === 'video'" v-model="createForm.video_models" v-model:pricing="createForm.model_pricing" @validity="createVideoModelsValid = $event" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -1560,7 +1560,8 @@
         </div>
 
 
-        <div class="border-t border-gray-200 pt-4 mt-4 dark:border-dark-400">
+        <!-- Video 分组的价格在视频模型表中逐模型设置 -->
+        <div v-if="createForm.platform !== 'video'" class="border-t border-gray-200 pt-4 mt-4 dark:border-dark-400">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
               <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.title") }}</h4>
@@ -2357,7 +2358,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <VideoModelsEditor v-if="editForm.platform === 'video'" :key="editingGroup?.id" v-model="editForm.video_models" @validity="editVideoModelsValid = $event" />
+        <VideoModelsEditor v-if="editForm.platform === 'video'" :key="editingGroup?.id" v-model="editForm.video_models" v-model:pricing="editForm.model_pricing" @validity="editVideoModelsValid = $event" />
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
           <input
@@ -3306,7 +3307,8 @@
         />
 
 
-        <div class="border-t border-gray-200 pt-4 mt-4 dark:border-dark-400">
+        <!-- Video 分组的价格在视频模型表中逐模型设置 -->
+        <div v-if="editForm.platform !== 'video'" class="border-t border-gray-200 pt-4 mt-4 dark:border-dark-400">
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
               <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.title") }}</h4>

@@ -15,6 +15,17 @@
       </div>
       <p v-if="info?.description" class="leading-6 text-gray-700 dark:text-dark-200">{{ info.description }}</p>
 
+      <!-- 视频模型能力与接入示例 -->
+      <div v-if="model.video" class="space-y-2 rounded-xl bg-rose-50/60 p-4 dark:bg-rose-500/5">
+        <p class="text-xs font-medium text-rose-700 dark:text-rose-300">{{ t('gotocc.plaza.videoCapabilities') }}</p>
+        <div class="flex flex-wrap gap-1.5">
+          <span v-for="item in videoCapabilityItems(model.video.capabilities)" :key="item" class="rounded-full border border-rose-200 bg-white px-2.5 py-0.5 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-dark-800 dark:text-rose-300">{{ item }}</span>
+        </div>
+        <RouterLink :to="{ path: '/docs/video', query: { model: model.name } }" class="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">
+          {{ t('gotocc.plaza.videoExamples') }}<Icon name="chevronRight" size="xs" />
+        </RouterLink>
+      </div>
+
       <!-- 官方信息 -->
       <dl v-if="info?.source" class="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-gray-50 p-4 dark:bg-dark-900/60 sm:grid-cols-3">
         <div v-for="fact in facts" :key="fact.label">
@@ -107,6 +118,7 @@ import {
   unitKey,
 } from './plazaPricing'
 import { vendorLabel } from './vendors'
+import { videoCapabilityItems } from '../video/videoDocs'
 
 // 模型详情：官方信息（models.dev）、能力、近 24 小时状态、实付与官方的完整分档价。
 const props = defineProps<{ group: ModelPlazaGroup | null; model: PlazaModel | null }>()

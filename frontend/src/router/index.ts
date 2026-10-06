@@ -193,6 +193,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/docs/video',
+    name: 'VideoDocs',
+    component: () => import('@/views/GotoCCVideoDocsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Video API'
+    }
+  },
+  {
     path: '/models',
     name: 'LegacyModelsRedirect',
     redirect: '/model-plaza',

@@ -48,9 +48,22 @@ type Config struct {
 	StatusField   string            `json:"status_field"`
 	VideoURLField string            `json:"video_url_field"`
 	Statuses      map[string]string `json:"statuses"`
+
+	// Public description, series and capabilities shown in docs and the model plaza.
+	Description  string        `json:"description,omitempty"`
+	Family       string        `json:"family,omitempty"`
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 func (c Config) Validate() error {
+	if c.Capabilities != nil {
+		if err := c.Capabilities.Validate(); err != nil {
+			return err
+		}
+	}
+	if strings.Contains(c.UpstreamModel, ResolutionPlaceholder) && (c.Capabilities == nil || len(c.Capabilities.Resolutions) == 0) {
+		return fmt.Errorf("上游模型名使用 %s 时需选择支持的分辨率", ResolutionPlaceholder)
+	}
 	if c.Protocol == "yingce" {
 		if err := c.FreezeCatalog(); err != nil {
 			return err

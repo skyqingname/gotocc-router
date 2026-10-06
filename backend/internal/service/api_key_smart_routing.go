@@ -10,6 +10,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
 const (
@@ -291,12 +292,14 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 			return nil, nil
 		}
 	}
+	var videoConfig *videoprotocol.Config
 	if group.Platform == PlatformVideo {
 		models := group.VideoModels
 		config, exists := models[input.Model]
 		if !exists || !config.Enabled {
 			return nil, nil
 		}
+		videoConfig = &config
 		mapping.Mapped, mapping.MappedModel = true, config.UpstreamModel
 	}
 	for i := range catalog.Accounts[group.ID] {
@@ -317,6 +320,12 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 		accountModel := mapping.MappedModel
 		if input.Endpoint == CompositeRouteEndpointImages && account.Platform == PlatformOpenAI {
 			accountModel = model
+		}
+		if videoConfig != nil {
+			// A resolution placeholder expands to several upstream models; any one the account serves qualifies it.
+			if accountModel = videoModelAccount(ctx, []Account{*account}, *videoConfig); accountModel == "" {
+				continue
+			}
 		}
 		explicitRoute := mapping.Mapped || (composite != nil && composite.Source == CompositeRouteSourceExplicit)
 		if !autoRouteAccountClaimsModel(account, accountModel, explicitRoute) {

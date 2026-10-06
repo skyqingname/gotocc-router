@@ -50,16 +50,26 @@ func (s *GatewayService) VideoModelIDs(ctx context.Context, groupID int64) ([]st
 		if !config.Enabled {
 			continue
 		}
-		for i := range accounts {
-			account := &accounts[i]
-			if account.IsVideoAPIKey() && account.IsSchedulableForModelWithContext(ctx, config.UpstreamModel) && gatewayAccountSupportsModel(ctx, account, config.UpstreamModel) {
-				ids = append(ids, model)
-				break
-			}
+		if videoModelAccount(ctx, accounts, config) != "" {
+			ids = append(ids, model)
 		}
 	}
 	sort.Strings(ids)
 	return ids, nil
+}
+
+// videoModelAccount returns the first upstream model of the configuration that
+// one of the accounts can serve, or "" when none can.
+func videoModelAccount(ctx context.Context, accounts []Account, config videoprotocol.Config) string {
+	for _, upstream := range config.UpstreamModels() {
+		for i := range accounts {
+			account := &accounts[i]
+			if account.IsVideoAPIKey() && account.IsSchedulableForModelWithContext(ctx, upstream) && gatewayAccountSupportsModel(ctx, account, upstream) {
+				return upstream
+			}
+		}
+	}
+	return ""
 }
 
 func (s *OpenAIGatewayService) listVideoAccounts(ctx context.Context, groupID *int64) ([]Account, error) {
@@ -110,6 +120,10 @@ func (s *OpenAIGatewayService) ResolveVideoModel(ctx context.Context, key *APIKe
 
 func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, contentType string) ([]byte, string, error) {
 	parameters, err := OpenAIVideoRequestParameters(body, contentType)
+	if err != nil {
+		return nil, "", err
+	}
+	parameters, written, err := applyVideoCapabilities(config, parameters, body, contentType)
 	if err != nil {
 		return nil, "", err
 	}
@@ -189,13 +203,18 @@ func PrepareVideoModelRequest(config *videoprotocol.Config, body []byte, content
 		}
 		part.Close()
 	}
+	fields := written
 	for field := range config.Defaults {
+		fields = append(fields, field)
+	}
+	for _, field := range fields {
 		if present[field] || !gjson.GetBytes(prepared, field).Exists() {
 			continue
 		}
 		if err := writer.WriteField(field, gjson.GetBytes(prepared, field).String()); err != nil {
 			return nil, "", err
 		}
+		present[field] = true
 	}
 	if err := writer.Close(); err != nil {
 		return nil, "", err

@@ -18,7 +18,7 @@ import (
 
 // Accept the gateway's canonical video fields and Yingce's equivalent names.
 func normalizeYingceVideoParameters(body []byte) ([]byte, error) {
-	aliases := [][2]string{{"duration", "seconds"}, {"aspectRatio", "aspect_ratio"}, {"generateAudio", "generate_audio"}, {"providerOptions", "provider_options"}, {"image_urls", "images"}, {"reference_images", "images"}, {"video_urls", "videos"}, {"reference_videos", "videos"}, {"audio_urls", "audios"}, {"reference_audios", "audios"}}
+	aliases := [][2]string{{"duration", "seconds"}, {"duration_seconds", "seconds"}, {"aspectRatio", "aspect_ratio"}, {"ratio", "aspect_ratio"}, {"generateAudio", "generate_audio"}, {"providerOptions", "provider_options"}, {"image_urls", "images"}, {"reference_images", "images"}, {"video_urls", "videos"}, {"reference_videos", "videos"}, {"audio_urls", "audios"}, {"reference_audios", "audios"}}
 	var err error
 	for _, pair := range aliases {
 		v := gjson.GetBytes(body, pair[0])
@@ -79,7 +79,7 @@ func prepareYingceGeneration(config *videoprotocol.Config, parameters, original 
 		}
 	}
 	known := map[string]bool{}
-	for _, key := range []string{"model", "prompt", "seconds", "duration", "aspect_ratio", "aspectRatio", "resolution", "quality", "generate_audio", "generateAudio", "watermark", "images", "image_urls", "reference_images", "input_reference", "videos", "video_urls", "reference_videos", "audios", "audio_urls", "reference_audios", "provider_options", "providerOptions", "output", "extra", "operation"} {
+	for _, key := range []string{"model", "prompt", "seconds", "duration", "duration_seconds", "aspect_ratio", "aspectRatio", "ratio", "first_frame_image", "last_frame_image", "resolution", "quality", "generate_audio", "generateAudio", "watermark", "images", "image_urls", "reference_images", "input_reference", "videos", "video_urls", "reference_videos", "audios", "audio_urls", "reference_audios", "provider_options", "providerOptions", "output", "extra", "operation"} {
 		known[key] = true
 	}
 	for key, value := range raw {
@@ -106,6 +106,15 @@ func prepareYingceGeneration(config *videoprotocol.Config, parameters, original 
 	}
 	if v := gjson.GetBytes(parameters, "input_reference"); v.Type == gjson.String {
 		gen.Images = append(gen.Images, yp.MediaReference{URL: v.String(), Kind: "image"})
+	}
+	for _, frame := range [][2]string{{"first_frame_image", "first_frame"}, {"last_frame_image", "last_frame"}} {
+		if v := gjson.GetBytes(parameters, frame[0]); v.Type == gjson.String {
+			reference := yp.MediaReference{URL: v.String(), Kind: "image", Role: frame[1], Order: len(gen.Images)}
+			if strings.HasPrefix(reference.URL, "data:") {
+				reference.DataURL, reference.URL = reference.URL, ""
+			}
+			gen.Images = append(gen.Images, reference)
+		}
 	}
 	mediaType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
