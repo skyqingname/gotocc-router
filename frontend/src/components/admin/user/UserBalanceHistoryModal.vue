@@ -240,7 +240,7 @@ const loadHistory = async (page: number) => {
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'canvas_transfer' || type === 'canvas_transfer_reversal'
+const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'canvas_transfer' || type === 'canvas_reversal'
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -302,7 +302,7 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
     case 'canvas_transfer':
       return t('redeem.balanceCanvasTransfer')
-    case 'canvas_transfer_reversal':
+    case 'canvas_reversal':
       return t('redeem.balanceCanvasTransferReversal')
     case 'concurrency':
       return t('redeem.concurrencyAddedRedeem')

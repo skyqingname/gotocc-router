@@ -14,7 +14,7 @@ import (
 // 唯一来源，画布积分不足时从付款人余额单向划入画布；团队成员由团队负责人付款并计入成员额度。
 const (
 	AdjustmentTypeCanvasTransfer         = "canvas_transfer"
-	AdjustmentTypeCanvasTransferReversal = "canvas_transfer_reversal"
+	AdjustmentTypeCanvasTransferReversal = "canvas_reversal"
 
 	canvasTransferCodePrefix         = "CANVAS-"
 	canvasTransferReversalCodePrefix = "CANVASR-"
