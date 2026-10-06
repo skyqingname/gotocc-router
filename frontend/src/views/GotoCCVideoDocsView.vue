@@ -90,14 +90,12 @@
             </div>
           </template>
 
-          <div class="overflow-x-auto rounded-xl border border-gray-100 dark:border-dark-700">
-            <table class="min-w-full text-left text-xs">
-              <thead class="bg-gray-50 text-gray-500 dark:bg-dark-900/60 dark:text-dark-400"><tr><th class="px-3 py-2">字段</th><th class="px-3 py-2">说明</th></tr></thead>
-              <tbody class="divide-y divide-gray-50 text-gray-700 dark:divide-dark-700/60 dark:text-dark-200">
-                <tr v-for="field in fields" :key="field[0]"><td class="whitespace-nowrap px-3 py-2 font-mono">{{ field[0] }}</td><td class="px-3 py-2 leading-5">{{ field[1] }}</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <dl class="divide-y divide-gray-50 rounded-xl border border-gray-100 text-xs text-gray-700 dark:divide-dark-700/60 dark:border-dark-700 dark:text-dark-200">
+            <div v-for="field in fields" :key="field[0]" class="grid gap-1 px-3 py-2 sm:grid-cols-[17rem_1fr] sm:gap-4">
+              <dt class="break-all font-mono text-gray-900 dark:text-white">{{ field[0] }}</dt>
+              <dd class="leading-5">{{ field[1] }}</dd>
+            </div>
+          </dl>
           <div class="rounded-xl bg-gray-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:bg-dark-900/60 dark:text-dark-300">
             <p class="font-medium text-gray-900 dark:text-white">参考素材</p>
             <p>参考图、参考视频、参考音频都可以用公网可直接访问的 URL；图片也可以写成 base64 data URL（<code>data:image/jpeg;base64,…</code>）直接放进请求体，平台原样交给上游。若提示获取不到图片，多半是上游拉不到你的图床，改用 base64 直传。数组元素也可以写成 <code>{"url": "…", "role": "first_frame"}</code> 指定首帧 / 尾帧。超出模型能力的请求会直接返回 400 并说明原因，不会扣费。</p>
@@ -291,6 +289,8 @@ function toMarkdown(node: Node): string {
   if (/^H[1-6]$/.test(node.tagName)) return `\n\n${'#'.repeat(Number(node.tagName[1]))} ${node.textContent?.trim()}\n\n`
   if (node.tagName === 'CODE') return `\`${node.textContent?.trim()}\``
   if (node.tagName === 'TR') return `\n| ${[...node.children].map((cell) => cell.textContent?.trim()).join(' | ')} |`
+  if (node.tagName === 'DT') return `\n- \`${node.textContent?.trim()}\`：`
+  if (node.tagName === 'DD') return node.textContent?.trim() ?? ''
   const content = [...node.childNodes].map(toMarkdown).join('')
   return ['P', 'DIV', 'SECTION', 'DETAILS', 'SUMMARY', 'TABLE', 'LABEL'].includes(node.tagName) ? `\n${content.trim()}\n` : content
 }
