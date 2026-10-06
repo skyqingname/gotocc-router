@@ -1255,8 +1255,9 @@ func (c *UserMessageQueueConfig) GetEffectiveMode() string {
 	return ""
 }
 
-// DefaultOpenAIWSClientFirstMessageTimeoutSeconds preserves the legacy ingress deadline.
-const DefaultOpenAIWSClientFirstMessageTimeoutSeconds = 30
+// DefaultOpenAIWSClientFirstMessageTimeoutSeconds 覆盖首个 response.create 的完整上传：Codex 建连后
+// 立即发送带完整上下文的预热请求，慢速上行传输数十 MB 需要数分钟。
+const DefaultOpenAIWSClientFirstMessageTimeoutSeconds = 600
 
 // GatewayOpenAIWSConfig OpenAI Responses WebSocket 配置。
 // 注意：默认全局开启；如需回滚可使用 force_http 或关闭 enabled。
@@ -2472,7 +2473,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.store_disabled_conn_mode", "strict")
 	viper.SetDefault("gateway.openai_ws.store_disabled_force_new_conn", true)
 	viper.SetDefault("gateway.openai_ws.prewarm_generate_enabled", false)
-	viper.SetDefault("gateway.openai_ws.client_read_limit_bytes", 64*1024*1024)
+	viper.SetDefault("gateway.openai_ws.client_read_limit_bytes", 256*1024*1024)
 	viper.SetDefault("gateway.openai_ws.http_bridge_enabled", true)
 	viper.SetDefault("gateway.openai_ws.http_bridge_threshold_bytes", 15*1024*1024)
 	viper.SetDefault("gateway.openai_ws.responses_websockets", false)
