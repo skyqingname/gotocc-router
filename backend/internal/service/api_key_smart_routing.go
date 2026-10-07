@@ -2,14 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"strings"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
-	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ip"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/videoprotocol"
 )
 
@@ -141,48 +139,7 @@ func (s *AutoGroupResolver) Resolve(ctx context.Context, key *APIKey, input Auto
 }
 
 func (s *AutoGroupResolver) FreshKey(ctx context.Context, authenticated *APIKey) (*APIKey, error) {
-	if s == nil || s.keys == nil || s.keys.apiKeyRepo == nil {
-		return nil, ErrAutoRouteUnavailable
-	}
-	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		return nil, infraerrors.Forbidden("AUTO_ROUTING_UNSUPPORTED_RUN_MODE", "automatic routing requires standard run mode")
-	}
-	if authenticated == nil || authenticated.ID <= 0 || !authenticated.IsAutoRouting() {
-		return nil, ErrAutoRouteNoAccess
-	}
-	key, err := s.keys.apiKeyRepo.GetByID(ctx, authenticated.ID)
-	if errors.Is(err, ErrAPIKeyNotFound) {
-		return nil, ErrAutoRouteNoAccess
-	}
-	if err != nil {
-		return nil, ErrAutoRouteUnavailable.WithCause(err)
-	}
-	if key == nil || key.User == nil || key.Key != authenticated.Key || key.UserID != authenticated.UserID ||
-		!key.IsAutoRouting() || key.GroupID != nil ||
-		(key.TeamID == nil) != (authenticated.TeamID == nil) ||
-		(key.TeamID != nil && *key.TeamID != *authenticated.TeamID) {
-		return nil, ErrAutoRouteContext
-	}
-	if key.IsExpired() || key.Status == StatusAPIKeyExpired {
-		return nil, ErrAPIKeyExpired
-	}
-	if key.IsQuotaExhausted() || key.Status == StatusAPIKeyQuotaExhausted {
-		return nil, ErrAPIKeyQuotaExhausted
-	}
-	if !key.IsActive() {
-		return nil, ErrAutoRouteNoAccess
-	}
-	copyKey := *key
-	s.keys.compileAPIKeyIPRules(&copyKey)
-	if err := s.keys.attachResellerCustomer(ctx, &copyKey); err != nil {
-		return nil, err
-	}
-	if clientIP, ok := ctx.Value(autoRouteClientIPKey{}).(string); ok {
-		if allowed, _ := ip.CheckIPRestrictionWithCompiledRules(clientIP, copyKey.CompiledIPWhitelist, copyKey.CompiledIPBlacklist); !allowed {
-			return nil, ErrAutoRouteNoAccess
-		}
-	}
-	return &copyKey, nil
+	return s.freshAutoKey(ctx, authenticated, true)
 }
 
 func (s *AutoGroupResolver) eligibleGroups(ctx context.Context, key *APIKey) (*APIKey, []Group, error) {
@@ -192,7 +149,7 @@ func (s *AutoGroupResolver) eligibleGroups(ctx context.Context, key *APIKey) (*A
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		return nil, nil, infraerrors.Forbidden("AUTO_ROUTING_UNSUPPORTED_RUN_MODE", "automatic routing requires standard run mode")
 	}
-	if key == nil || key.User == nil || !key.IsAutoRouting() || !key.IsActive() {
+	if key == nil || key.User == nil || !key.IsAutoRouting() || !autoKeyAllowsResourceRead(key) {
 		return nil, nil, ErrAutoRouteNoAccess
 	}
 	copyKey := *key

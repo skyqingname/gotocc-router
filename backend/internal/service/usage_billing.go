@@ -194,6 +194,7 @@ type UsageBillingApplyResult struct {
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.
 type BatchImageBalanceHoldCommand struct {
+	Settlement         *MarkBatchImageJobSettledParams
 	TeamWallet         bool
 	Model              string
 	ResellerSnapshot   *reseller.Snapshot `json:"-"`

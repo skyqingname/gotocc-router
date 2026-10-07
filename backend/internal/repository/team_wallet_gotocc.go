@@ -94,11 +94,15 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 	}
 	result := &service.TeamFundingResult{OperationID: operationID, Amount: amount}
 	var previousActor int64
-	err = tx.QueryRowContext(ctx, `SELECT actor_user_id,amount,personal_balance_after,balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).
-		Scan(&previousActor, &result.Amount, &result.PersonalBalance, &result.TeamBalance)
+	var previousKind string
+	err = tx.QueryRowContext(ctx, `SELECT actor_user_id,kind,amount,balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).
+		Scan(&previousActor, &previousKind, &result.Amount, &result.TeamBalance)
 	if err == nil {
-		if previousActor != ownerID || result.Amount != amount {
+		if previousKind != "fund" || previousActor != ownerID || result.Amount != amount {
 			return nil, service.ErrTeamFundingConflict
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT personal_balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).Scan(&result.PersonalBalance); err != nil {
+			return nil, err
 		}
 		return result, tx.Commit()
 	}
@@ -123,7 +127,7 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 			return nil, err
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO reseller_credit_entries (customer_user_id,owner_user_id,operator_user_id,operation_id,kind,amount,balance_after,frozen_after,notes)
-			VALUES($1,$2,$1,$3,'team_transfer',-$4,$5,$6,$7)`, ownerID, source.Int64, "team:"+operationID, amount, result.PersonalBalance, personalFrozen, fmt.Sprintf("转入团队 %d 公共余额", teamID))
+			VALUES($1,$2,$1,$3,'team_transfer',$4,$5,$6,$7)`, ownerID, source.Int64, "team:"+operationID, -amount, result.PersonalBalance, personalFrozen, fmt.Sprintf("转入团队 %d 公共余额", teamID))
 	} else {
 		err = tx.QueryRowContext(ctx, `UPDATE users SET balance=balance-$2,updated_at=NOW() WHERE id=$1 AND balance >= $2 AND status='active' AND deleted_at IS NULL RETURNING balance`, ownerID, amount).Scan(&result.PersonalBalance)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -132,7 +136,11 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 		if err != nil {
 			return nil, err
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO redeem_codes(code,type,value,status,used_by,used_at,notes) VALUES($1,'team_transfer',-$2,'used',$3,NOW(),$4)`, "team:"+operationID, amount, ownerID, fmt.Sprintf("转入团队 %d 公共余额", teamID))
+		code, codeErr := service.GenerateRedeemCode()
+		if codeErr != nil {
+			return nil, codeErr
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO redeem_codes(code,type,value,status,used_by,used_at,notes) VALUES($1,'team_transfer',$2,'used',$3,NOW(),$4)`, code, -amount, ownerID, fmt.Sprintf("转入团队 %d 公共余额", teamID))
 	}
 	if err != nil {
 		return nil, err

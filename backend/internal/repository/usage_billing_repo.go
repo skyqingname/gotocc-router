@@ -164,6 +164,10 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 			_ = tx.Rollback()
 		}
 	}()
+	var jobStatus string
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM batch_image_jobs WHERE batch_id=$1 FOR UPDATE`, cmd.BatchID).Scan(&jobStatus); err != nil {
+		return nil, err
+	}
 
 	applied, err := r.claimUsageBillingRequest(ctx, tx, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint)
 	if err != nil {
@@ -177,12 +181,18 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 				return nil, err
 			}
 			result.UsageLogPersisted = true
+			if err := completeBatchImageWalletSettlement(ctx, tx, cmd); err != nil {
+				return nil, err
+			}
 			if err := tx.Commit(); err != nil {
 				return nil, err
 			}
 			tx = nil
 		}
 		return result, nil
+	}
+	if err := checkBatchImageWalletOperation(ctx, tx, cmd, operation, jobStatus); err != nil {
+		return nil, err
 	}
 
 	result, err := apply(ctx, tx, cmd)
@@ -206,6 +216,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 
 	if operation == batchImageAllowanceCapture {
 		if err := recordResellerEarning(ctx, tx, cmd.ResellerSnapshot, cmd.RequestID, cmd.APIKeyID, cmd.Model, cmd.ActualAmount); err != nil {
+			return nil, err
+		}
+		if err := completeBatchImageWalletSettlement(ctx, tx, cmd); err != nil {
 			return nil, err
 		}
 	}
@@ -636,6 +649,7 @@ func userExistsForBilling(ctx context.Context, tx *sql.Tx, userID int64) (bool, 
 }
 
 func incrementUsageBillingAPIKeyQuota(ctx context.Context, tx *sql.Tx, apiKeyID int64, amount float64) (bool, error) {
+	// Account for an admitted request even if its key was deleted while running.
 	var exhausted bool
 	err := tx.QueryRowContext(ctx, `
 		UPDATE api_keys
@@ -649,7 +663,7 @@ func incrementUsageBillingAPIKeyQuota(ctx context.Context, tx *sql.Tx, apiKeyID 
 				ELSE status
 			END,
 			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
+		WHERE id = $2
 		RETURNING quota > 0 AND quota_used >= quota AND quota_used - $1 < quota
 	`, amount, apiKeyID, service.StatusAPIKeyActive, service.StatusAPIKeyQuotaExhausted).Scan(&exhausted)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -671,7 +685,7 @@ func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, tx *sql.Tx, apiKe
 			window_1d_start = CASE WHEN window_1d_start IS NULL OR window_1d_start + INTERVAL '24 hours' <= NOW() THEN date_trunc('day', NOW()) ELSE window_1d_start END,
 			window_7d_start = CASE WHEN window_7d_start IS NULL OR window_7d_start + INTERVAL '7 days' <= NOW() THEN date_trunc('day', NOW()) ELSE window_7d_start END,
 			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
+		WHERE id = $2
 	`, cost, apiKeyID)
 	if err != nil {
 		return err

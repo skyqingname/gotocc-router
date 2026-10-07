@@ -231,7 +231,7 @@ func (s *AutoGroupResolver) loadCatalogState(ctx context.Context, authenticated 
 	if strings.TrimSpace(input.Endpoint) == "" {
 		return nil, infraerrors.BadRequest("MODEL_CATALOG_ENDPOINT_REQUIRED", "endpoint is required for automatic routing model catalog")
 	}
-	key, err := s.FreshKey(ctx, authenticated)
+	key, err := s.freshAutoKey(ctx, authenticated, false)
 	if err != nil {
 		return nil, err
 	}
