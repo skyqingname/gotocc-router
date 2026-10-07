@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	ErrTeamBalanceInsufficient = infraerrors.Forbidden("TEAM_BALANCE_INSUFFICIENT", "团队公共余额不足，请由现任负责人转入额度")
-	ErrTeamFundingSource       = infraerrors.Conflict("TEAM_FUNDING_SOURCE_MISMATCH", "团队额度来源不一致，请使用相同来源的额度")
-	ErrTeamFundingConflict     = infraerrors.Conflict("TEAM_FUNDING_CONFLICT", "这笔团队转入已使用不同内容提交")
+	ErrTeamBalanceInsufficient   = infraerrors.Forbidden("TEAM_BALANCE_INSUFFICIENT", "团队公共余额不足，请由现任负责人转入额度")
+	ErrTeamFundingSource         = infraerrors.Conflict("TEAM_FUNDING_SOURCE_MISMATCH", "团队额度来源不一致，请使用相同来源的额度")
+	ErrTeamFundingConflict       = infraerrors.Conflict("TEAM_FUNDING_CONFLICT", "这笔团队转入已使用不同内容提交")
+	ErrTeamBalanceUpdateConflict = infraerrors.Conflict("TEAM_BALANCE_UPDATE_CONFLICT", "这笔团队余额调整已使用不同内容提交")
 )
 
 // TeamWallet belongs to the team; an owner change never moves these funds.
@@ -32,6 +33,22 @@ type TeamFundingResult struct {
 type TeamWalletRepository interface {
 	GetWallet(context.Context, int64) (*TeamWallet, error)
 	FundWallet(context.Context, int64, int64, string, float64) (*TeamFundingResult, error)
+	SetWalletBalance(context.Context, int64, int64, string, float64) (*TeamWallet, error)
+}
+
+func (s *TeamService) AdminSetWalletBalance(ctx context.Context, teamID, adminID int64, operationID string, balance float64) (*TeamWallet, error) {
+	if _, err := uuid.Parse(operationID); err != nil {
+		return nil, infraerrors.BadRequest("TEAM_BALANCE_OPERATION_ID_INVALID", "团队余额调整单号无效")
+	}
+	if math.IsNaN(balance) || math.IsInf(balance, 0) || balance < 0 {
+		return nil, infraerrors.BadRequest("TEAM_BALANCE_INVALID", "团队余额必须为非负数")
+	}
+	wallet, err := s.walletRepo.SetWalletBalance(ctx, teamID, adminID, operationID, QuantizeUsageBillingAmount(balance))
+	if err != nil {
+		return nil, err
+	}
+	s.invalidateTeamKeys(ctx, teamID)
+	return wallet, nil
 }
 
 func ProvideTeamService(repo TeamRepository, userRepo UserRepository, emailService *EmailService, apiKeyCache APIKeyCache, inviteLimiter TeamInvitationLimiter, settings *SettingService, cfg *config.Config, wallet TeamWalletRepository, balanceCache BillingCache) *TeamService {

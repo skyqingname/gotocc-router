@@ -1,9 +1,13 @@
 export default {
   team: {
     wallet: {
-      title: 'Personal and team balances',
-      personal: 'My personal balance',
-      personalHint: 'Personal keys use this balance. It remains yours after transferring or leaving the team.',
+      title: 'Team balance',
+      editBalance: 'Edit team balance',
+      balanceAction: 'Balance',
+      currentBalance: 'Current available balance: {amount}',
+      newBalance: 'New balance (USD)',
+      adminBalanceHint: 'Set the available team balance, including zero. Existing task reservations remain unchanged.',
+      balanceUpdated: 'Team balance updated',
       shared: 'Team balance',
       sharedHint: 'Team keys spend from this balance. The current owner manages it, and it stays with the team after transfer.',
       frozen: 'Reserved for tasks: {amount}',

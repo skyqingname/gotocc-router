@@ -44,6 +44,10 @@ const teamsAPI = {
     const { data } = await apiClient.post<TeamContext>(`/admin/teams/${id}/force-transfer`, { target_user_id: targetUserID })
     return data
   },
+  async setBalance(id: number, operationID: string, balance: number): Promise<{ balance: number; frozen_balance: number }> {
+    const { data } = await apiClient.patch<{ balance: number; frozen_balance: number }>(`/admin/teams/${id}/balance`, { operation_id: operationID, balance })
+    return data
+  },
   async dissolve(id: number): Promise<void> {
     await apiClient.delete(`/admin/teams/${id}`)
   },

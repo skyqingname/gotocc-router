@@ -1,23 +1,16 @@
 <template>
-  <section class="grid gap-4 md:grid-cols-2" :aria-label="t('team.wallet.title')">
-    <div class="card p-5">
-      <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('team.wallet.personal') }}</p>
-      <p class="mt-2 text-3xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ userView.user ? formatTeamCost(userView.user.balance) : '—' }}</p>
-      <p class="mt-3 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('team.wallet.personalHint') }}</p>
-    </div>
-    <div class="rounded-2xl border border-primary-200 bg-primary-50/70 p-5 dark:border-primary-500/30 dark:bg-primary-500/10">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p class="text-sm text-primary-700 dark:text-primary-300">{{ t('team.wallet.shared') }}</p>
-          <p class="mt-2 text-3xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ formatTeamCost(context.team.balance) }}</p>
-        </div>
-        <button v-if="context.membership.role === 'owner' && !adminSupportContext" class="btn btn-primary btn-sm" :disabled="context.team.status !== 'active'" @click="openFunding">
-          <Icon name="plus" size="sm" />{{ t('team.wallet.fund') }}
-        </button>
+  <section class="rounded-2xl border border-primary-200 bg-primary-50/70 p-5 dark:border-primary-500/30 dark:bg-primary-500/10" :aria-label="t('team.wallet.title')">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p class="text-sm text-primary-700 dark:text-primary-300">{{ t('team.wallet.shared') }}</p>
+        <p class="mt-2 text-3xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ formatTeamCost(context.team.balance) }}</p>
       </div>
-      <p class="mt-2 text-xs tabular-nums text-gray-600 dark:text-dark-300">{{ t('team.wallet.frozen', { amount: formatTeamCost(context.team.frozen_balance) }) }}</p>
-      <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('team.wallet.sharedHint') }}</p>
+      <button v-if="context.membership.role === 'owner' && !adminSupportContext" class="btn btn-primary btn-sm" :disabled="context.team.status !== 'active'" @click="openFunding">
+        <Icon name="plus" size="sm" />{{ t('team.wallet.fund') }}
+      </button>
     </div>
+    <p class="mt-2 text-xs tabular-nums text-gray-600 dark:text-dark-300">{{ t('team.wallet.frozen', { amount: formatTeamCost(context.team.frozen_balance) }) }}</p>
+    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('team.wallet.sharedHint') }}</p>
   </section>
 
   <BaseDialog :show="showFunding" :title="t('team.wallet.fund')" width="narrow" @close="closeFunding">

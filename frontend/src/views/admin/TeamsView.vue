@@ -16,7 +16,7 @@
         </div>
       </template>
       <template #table>
-        <DataTable :columns="columns" :data="paginatedTeams" :loading="loading" row-key="id" :actions-count="4" default-sort-key="created_at" default-sort-order="desc">
+        <DataTable :columns="columns" :data="paginatedTeams" :loading="loading" row-key="id" :actions-count="6" default-sort-key="created_at" default-sort-order="desc">
           <template #cell-id="{ value }"><span class="font-mono text-xs text-gray-500">#{{ value }}</span></template>
           <template #cell-name="{ value }"><span class="font-medium text-gray-900 dark:text-white">{{ value }}</span></template>
           <template #cell-owner_email="{ value }"><span class="block max-w-72 truncate text-gray-700 dark:text-gray-300" :title="value">{{ value }}</span></template>
@@ -29,6 +29,7 @@
               <button class="row-action" :title="t('team.viewDetails')" @click="openDetails(row)"><Icon name="eye" size="sm" /><span>{{ t('team.viewDetails') }}</span></button>
               <button class="row-action" :title="t('team.viewStatistics')" @click="openStatistics(row)"><Icon name="chart" size="sm" /><span>{{ t('team.viewStatistics') }}</span></button>
               <button class="row-action" :title="t('common.edit')" @click="openEdit(row)"><Icon name="edit" size="sm" /><span>{{ t('common.edit') }}</span></button>
+              <button class="row-action" :title="t('team.wallet.editBalance')" @click="balanceTeam = row"><Icon name="creditCard" size="sm" /><span>{{ t('team.wallet.balanceAction') }}</span></button>
               <button class="row-action" :disabled="statusUpdatingID === row.id" :title="row.status === 'active' ? t('team.pause') : t('team.resume')" @click="toggleStatus(row)"><Icon :name="row.status === 'active' ? 'ban' : 'play'" size="sm" /><span>{{ row.status === 'active' ? t('team.pause') : t('team.resume') }}</span></button>
               <button class="row-action text-red-600 dark:text-red-400" :title="t('team.dissolve')" @click="dissolvingTeam = row"><Icon name="trash" size="sm" /><span>{{ t('team.dissolve') }}</span></button>
             </div>
@@ -100,6 +101,7 @@
 
     <ConfirmDialog :show="Boolean(dissolvingTeam)" :title="t('team.dissolveTitle')" :message="t('team.dissolveMessage')" danger @cancel="dissolvingTeam = null" @confirm="dissolveTeam" />
     <TotpStepUpDialog :controller="stepUp" />
+    <AdminTeamBalanceDialog :team="balanceTeam" @close="balanceTeam = null" @saved="loadTeams" />
   </AppLayout>
 </template>
 
@@ -120,6 +122,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
+import AdminTeamBalanceDialog from '@/components/gotocc/team/AdminTeamBalanceDialog.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import type { Column } from '@/components/common/types'
 import { useStepUp, isStepUpCancelled } from '@/composables/useStepUp'
@@ -140,6 +143,7 @@ const page = ref(1)
 const pageSize = ref(getPersistedPageSize())
 const showCreate = ref(false)
 const editingTeam = ref<AdminTeam | null>(null)
+const balanceTeam = ref<AdminTeam | null>(null)
 const detailsTeam = ref<AdminTeam | null>(null)
 const detailsMembers = ref<TeamMembership[]>([])
 const detailsLoading = ref(false)

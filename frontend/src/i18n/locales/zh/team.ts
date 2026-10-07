@@ -1,10 +1,14 @@
 export default {
   team: {
     wallet: {
-      title: '个人与团队余额',
-      personal: '我的个人余额',
-      personalHint: '个人密钥使用这笔余额；转让或退出团队后仍归你所有。',
-      shared: '团队公共余额',
+      title: '团队余额',
+      editBalance: '修改团队余额',
+      balanceAction: '余额',
+      currentBalance: '当前可用余额：{amount}',
+      newBalance: '修改后余额（USD）',
+      adminBalanceHint: '直接设置团队可用余额，可设为 0；任务冻结额度保持不变。',
+      balanceUpdated: '团队余额已更新',
+      shared: '团队余额',
       sharedHint: '团队密钥从公共余额消费，由现任负责人管理；交接时余额留在团队。',
       frozen: '任务冻结中 {amount}',
       fund: '转入团队额度',
