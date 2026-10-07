@@ -54,6 +54,17 @@ export const BatchImageIcon = icon('images', [
   ]],
 ])
 
+// 画布框与两颗星光沿用侧栏线宽；悬停时星光错峰闪亮。
+export const CanvasIcon = icon('canvas', [
+  ['g', { class: 'gc-a' }, [
+    ['path', { d: 'M13 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8' }],
+    ['path', { d: 'm3 16 5-5 5 5 3-3 5 5' }],
+    ['circle', { cx: '8', cy: '7.5', r: '.75', fill: 'currentColor' }],
+  ]],
+  ['path', { class: 'gc-spark gc-spark0', d: 'm18.5 1 1.1 3.4L23 5.5l-3.4 1.1-1.1 3.4-1.1-3.4L14 5.5l3.4-1.1Z' }],
+  ['path', { class: 'gc-spark gc-spark1', d: 'M2 1v3M.5 2.5h3' }],
+])
+
 export const ChartIcon = icon('chart', [
   ['path', { d: 'M3 3v16a2 2 0 0 0 2 2h16' }],
   drawn('path', { d: 'M8 17v-3' }, 0),

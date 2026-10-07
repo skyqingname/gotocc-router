@@ -169,6 +169,7 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     team: 'My Team',
+    enterCanvas: 'Enter Canvas',
     teams: 'Teams',
     batchImage: 'Batch Images',
     asyncImage: 'Async Images',
