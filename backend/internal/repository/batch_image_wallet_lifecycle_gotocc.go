@@ -29,7 +29,7 @@ func checkBatchImageWalletOperation(ctx context.Context, tx *sql.Tx, cmd *servic
 		if err != nil {
 			return err
 		}
-		if captured || status == service.BatchImageJobStatusCompleted || status == service.BatchImageJobStatusOutputDeleted {
+		if captured || status == service.BatchImageJobStatusCompleted {
 			return service.ErrBatchImageAlreadySettled
 		}
 	}
