@@ -232,10 +232,14 @@ func (p *BatchImageProviderProcessor) releaseTerminalHold(ctx context.Context, j
 	if p == nil || job == nil {
 		return nil
 	}
-	if job.Status != BatchImageJobStatusFailed && job.Status != BatchImageJobStatusCancelled {
+	if job.Status != BatchImageJobStatusFailed && job.Status != BatchImageJobStatusCancelled &&
+		!(job.Status == BatchImageJobStatusOutputDeleted && job.SettledAt == nil) {
 		return nil
 	}
 	if err := releaseBatchImageBalanceHold(ctx, p.BillingRepo, job, batchImageDerefString(job.RequestHash)); err != nil {
+		if errors.Is(err, ErrBatchImageAlreadySettled) {
+			return nil
+		}
 		return err
 	}
 	if p.AuthCache != nil && job.UserID > 0 {

@@ -724,8 +724,12 @@ func (s *BatchImagePublicService) Cancel(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	if isBatchImageProcessorDoneStatus(job.Status) {
-		if job.Status == BatchImageJobStatusFailed || job.Status == BatchImageJobStatusCancelled {
+		if job.Status == BatchImageJobStatusFailed || job.Status == BatchImageJobStatusCancelled ||
+			(job.Status == BatchImageJobStatusOutputDeleted && job.SettledAt == nil) {
 			if err := releaseBatchImageBalanceHold(ctx, s.BillingRepo, job, batchImageDerefString(job.RequestHash)); err != nil {
+				if errors.Is(err, ErrBatchImageAlreadySettled) {
+					return BatchImageJobToPublic(job), nil
+				}
 				s.enqueueBillingRetry(ctx, job.BatchID)
 				return nil, ErrBatchImageCancelFailed
 			}
