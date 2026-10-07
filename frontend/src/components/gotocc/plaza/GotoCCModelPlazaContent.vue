@@ -72,13 +72,13 @@
             </p>
           </div>
           <button type="button" class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:border-gray-300 dark:border-dark-600 dark:text-dark-300" :aria-expanded="!collapsed.has(group.id)" @click="toggle(group.id)">
-            {{ t('gotocc.plaza.modelCount', { count: group.models.length }) }}
+            {{ t('gotocc.plaza.modelCount', { count: displayedGroupCount(group) }) }}
             <Icon name="chevronDown" size="xs" class="plaza-chevron" />
           </button>
         </div>
         <div class="plaza-collapse" :inert="collapsed.has(group.id)">
           <div class="plaza-collapse-inner">
-            <PlazaVideoModels v-if="group.platform === 'video'" :group="group" @detail="detail = { group, model: $event }" />
+            <PlazaVideoModels v-if="group.platform === 'video'" :group="group" @count="videoCounts[group.id] = $event" @detail="detail = { group, model: $event }" />
             <div v-else class="grid gap-4 pt-4 md:grid-cols-2 2xl:grid-cols-3">
               <PlazaModelCard
                 v-for="(model, index) in group.models"
@@ -138,6 +138,7 @@ const search = ref('')
 const vendor = ref<string>('all')
 const purpose = ref<string>('all')
 const groupId = ref<number | 'all'>('all')
+const videoCounts = ref<Record<number, number>>({})
 const collapsed = ref(new Set<number>())
 const detail = ref<{ group: ModelPlazaGroup; model: PlazaModel } | null>(null)
 
@@ -169,7 +170,8 @@ const visibleGroups = computed(() => groups.value
   .filter((group) => group.models.length > 0)
   .sort((a, b) => groupRate(a) - groupRate(b) || a.name.localeCompare(b.name)))
 
-const visibleCount = computed(() => visibleGroups.value.reduce((sum, group) => sum + group.models.length, 0))
+const displayedGroupCount = (group: ModelPlazaGroup) => group.platform === 'video' ? (videoCounts.value[group.id] ?? group.models.length) : group.models.length
+const visibleCount = computed(() => visibleGroups.value.reduce((sum, group) => sum + displayedGroupCount(group), 0))
 const hasFilter = computed(() => search.value !== '' || vendor.value !== 'all' || purpose.value !== 'all' || groupId.value !== 'all')
 
 // 筛选项的计数基于全部模型，选中项变化时不跳动。

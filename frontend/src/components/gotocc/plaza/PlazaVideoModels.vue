@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
@@ -33,7 +33,7 @@ import PlazaModelCard from './PlazaModelCard.vue'
 import { canonicalVendor, vendorLabel } from './vendors'
 
 const props = defineProps<{ group: ModelPlazaGroup }>()
-const emit = defineEmits<{ detail: [model: PlazaModel] }>()
+const emit = defineEmits<{ detail: [model: PlazaModel]; count: [value: number] }>()
 const { t } = useI18n()
 const vendor = ref('all')
 const billing = ref('all')
@@ -41,6 +41,7 @@ const vendorOf = (model: PlazaModel) => canonicalVendor(model.info?.vendor ?? mo
 const matchesVendor = (model: PlazaModel) => vendor.value === 'all' || vendorOf(model) === vendor.value
 const matchesBilling = (model: PlazaModel) => billing.value === 'all' || model.pricing?.billing_mode === billing.value
 const visibleModels = computed(() => props.group.models.filter(model => matchesVendor(model) && matchesBilling(model)))
+watch(() => visibleModels.value.length, count => emit('count', count), { immediate: true })
 const countedLabel = (label: string, count: number) => `${label} (${count})`
 
 const vendorOptions = computed(() => {
