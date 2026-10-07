@@ -48,6 +48,9 @@ func isBatchImageManagementRequest(method, path string) bool {
 
 func isAPIKeyNonConsumingRequest(method, path string) bool {
 	path = strings.TrimRight(path, "/")
+	if isVideoTaskReadRequest(method, path) {
+		return true
+	}
 	if method == http.MethodGet {
 		if path == "/v1/usage" || path == "/antigravity/v1/usage" || path == "/v1/sub2api/billing" || path == "/backend-api/wham/usage" {
 			return true
@@ -60,6 +63,22 @@ func isAPIKeyNonConsumingRequest(method, path string) bool {
 		return true
 	}
 	return method == http.MethodPost && strings.HasSuffix(path, "/messages/count_tokens")
+}
+
+func isVideoTaskReadRequest(method, path string) bool {
+	if method != http.MethodGet {
+		return false
+	}
+	path = strings.TrimRight(path, "/")
+	for _, root := range []string{"/v1/videos/generations/", "/v1/videos/edits/", "/v1/videos/extensions/", "/v1/videos/", "/v1/video/generations/"} {
+		remainder := strings.TrimPrefix(path, root)
+		if remainder == path {
+			continue
+		}
+		id, suffix, hasSuffix := strings.Cut(remainder, "/")
+		return id != "" && (!hasSuffix || suffix == "content")
+	}
+	return false
 }
 
 func abortTeamAPIKeyError(c *gin.Context, err error) bool {

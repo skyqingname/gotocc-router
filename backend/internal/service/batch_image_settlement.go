@@ -149,8 +149,21 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 	}
 
 	now := time.Now()
+	outputExpiresAt := now.Add(s.outputRetentionAfterTerminal())
 	usageLog := buildBatchImageSettlementUsageLog(job, actualCost, result.RequestID, now)
-	if err := captureBatchImageBalanceHold(ctx, s.BillingRepo, job, actualCost, manifestHash, usageLog); err != nil {
+	settlement := MarkBatchImageJobSettledParams{
+		BatchID:         job.BatchID,
+		ActualCost:      actualCost,
+		ManifestHash:    manifestHash,
+		Now:             &now,
+		OutputExpiresAt: &outputExpiresAt,
+		EventPayload: map[string]any{
+			"batch_id": job.BatchID, "request_id": result.RequestID,
+			"success_count": job.SuccessCount, "fail_count": job.FailCount,
+			"actual_cost": actualCost, "manifest_hash": manifestHash,
+		},
+	}
+	if err := captureBatchImageBalanceHold(ctx, s.BillingRepo, job, actualCost, manifestHash, usageLog, &settlement); err != nil {
 		msg := truncateBatchImageMessage(err.Error(), batchImageMaxErrorMessageLength)
 		if failErr := s.recordSettlementFailure(ctx, job, "SETTLEMENT_BILLING_FAILED", msg); failErr != nil {
 			return nil, failErr
@@ -159,22 +172,9 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 	}
 	s.invalidateAuthCache(ctx, batchImageBillingUserID(job))
 
-	outputExpiresAt := now.Add(s.outputRetentionAfterTerminal())
-	if err := s.Repo.MarkBatchImageJobSettled(ctx, MarkBatchImageJobSettledParams{
-		BatchID:         job.BatchID,
-		ActualCost:      actualCost,
-		ManifestHash:    manifestHash,
-		Now:             &now,
-		OutputExpiresAt: &outputExpiresAt,
-		EventPayload: map[string]any{
-			"batch_id":      job.BatchID,
-			"request_id":    result.RequestID,
-			"success_count": job.SuccessCount,
-			"fail_count":    job.FailCount,
-			"actual_cost":   actualCost,
-			"manifest_hash": manifestHash,
-		},
-	}); err != nil {
+	// Completion is already committed with the charge. Reconciliation is also
+	// idempotent for a retry that reaches this point after a previous commit.
+	if err := s.Repo.MarkBatchImageJobSettled(ctx, settlement); err != nil && !errors.Is(err, ErrBatchImageAlreadySettled) {
 		return nil, err
 	}
 	return result, nil

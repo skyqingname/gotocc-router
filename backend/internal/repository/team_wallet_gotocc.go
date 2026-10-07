@@ -94,11 +94,15 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 	}
 	result := &service.TeamFundingResult{OperationID: operationID, Amount: amount}
 	var previousActor int64
-	err = tx.QueryRowContext(ctx, `SELECT actor_user_id,amount,personal_balance_after,balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).
-		Scan(&previousActor, &result.Amount, &result.PersonalBalance, &result.TeamBalance)
+	var previousKind string
+	err = tx.QueryRowContext(ctx, `SELECT actor_user_id,kind,amount,balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).
+		Scan(&previousActor, &previousKind, &result.Amount, &result.TeamBalance)
 	if err == nil {
-		if previousActor != ownerID || result.Amount != amount {
+		if previousKind != "fund" || previousActor != ownerID || result.Amount != amount {
 			return nil, service.ErrTeamFundingConflict
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT personal_balance_after FROM team_wallet_entries WHERE team_id=$1 AND operation_id=$2 AND api_key_id=0`, teamID, operationID).Scan(&result.PersonalBalance); err != nil {
+			return nil, err
 		}
 		return result, tx.Commit()
 	}

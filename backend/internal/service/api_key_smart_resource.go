@@ -16,6 +16,9 @@ func (s *AutoGroupResolver) RestoreResourceSubscription(ctx context.Context, key
 	if key == nil || key.Group == nil || key.User == nil {
 		return nil, ErrAutoRouteContext
 	}
+	if key.TeamID != nil || key.User.ResellerCustomer != nil {
+		return nil, nil
+	}
 	if !key.Group.IsSubscriptionType() {
 		if id != 0 {
 			return nil, ErrAutoRouteContext
@@ -38,7 +41,7 @@ func (s *AutoGroupResolver) RestoreResourceSubscription(ctx context.Context, key
 // RestoreGroup restores a verified resource owner binding without discovering
 // another model, account, or payment source.
 func (s *AutoGroupResolver) RestoreGroup(ctx context.Context, authenticated *APIKey, groupID int64, platform string) (*AutoRouteDecision, error) {
-	key, err := s.FreshKey(ctx, authenticated)
+	key, err := s.freshAutoKey(ctx, authenticated, false)
 	if err != nil {
 		return nil, err
 	}

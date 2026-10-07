@@ -381,6 +381,7 @@ func reserveBatchImageMemberAllowance(ctx context.Context, tx *sql.Tx, cmd *serv
 }
 
 func releaseBatchImageAPIKeyAllowance(ctx context.Context, tx *sql.Tx, apiKeyID int64, amount float64, reservedAt time.Time) error {
+	// Soft deletion revokes new requests; it does not erase this task's hold.
 	result, err := tx.ExecContext(ctx, `
 		UPDATE api_keys SET
 			quota_used = GREATEST(0, quota_used - $1),
@@ -389,7 +390,7 @@ func releaseBatchImageAPIKeyAllowance(ctx context.Context, tx *sql.Tx, apiKeyID 
 			usage_7d = CASE WHEN window_7d_start <= $3 AND $3 < window_7d_start + INTERVAL '7 days' THEN GREATEST(0, usage_7d - $1) ELSE usage_7d END,
 			status = CASE WHEN status = $4 AND team_owner_disabled = FALSE AND (quota <= 0 OR GREATEST(0, quota_used - $1) < quota) THEN $5 ELSE status END,
 			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL`, amount, apiKeyID, reservedAt, service.StatusAPIKeyQuotaExhausted, service.StatusAPIKeyActive)
+		WHERE id = $2`, amount, apiKeyID, reservedAt, service.StatusAPIKeyQuotaExhausted, service.StatusAPIKeyActive)
 	if err != nil {
 		return err
 	}
@@ -440,7 +441,7 @@ func chargeLegacyBatchImageAPIKey(ctx context.Context, tx *sql.Tx, apiKeyID int6
 			window_7d_start = CASE WHEN window_7d_start IS NULL OR window_7d_start + INTERVAL '7 days' <= NOW() THEN date_trunc('day', NOW()) ELSE window_7d_start END,
 			status = CASE WHEN quota > 0 AND quota_used + $1 >= quota AND team_owner_disabled = FALSE THEN $3 ELSE status END,
 			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL`, amount, apiKeyID, service.StatusAPIKeyQuotaExhausted)
+		WHERE id = $2`, amount, apiKeyID, service.StatusAPIKeyQuotaExhausted)
 	if err != nil {
 		return err
 	}

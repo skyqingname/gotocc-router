@@ -80,7 +80,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 		}
 		if override != nil {
 			value := *override
-			copyUser.UserGroupRPMOverride = &value
+			key.User.UserGroupRPMOverride = &value
 		}
 	}
 	admission := &AutoRouteAdmission{Key: key}

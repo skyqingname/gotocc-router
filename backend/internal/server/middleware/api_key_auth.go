@@ -201,6 +201,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// consumes the key's remaining balance.
 		whamUsageRequest := c.Request.Method == http.MethodGet && c.Request.URL.Path == "/backend-api/wham/usage"
 		skipBilling := c.Request.URL.Path == "/v1/usage" || whamUsageRequest ||
+			isVideoTaskReadRequest(c.Request.Method, c.Request.URL.Path) ||
 			isAsyncImageTaskManagement(c.Request.Method, c.Request.URL.Path) ||
 			isAsyncImageReadRequest(c.Request.Method, c.Request.URL.Path) ||
 			isBatchImageManagementRequest(c.Request.Method, c.Request.URL.Path)
