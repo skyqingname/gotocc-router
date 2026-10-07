@@ -51,6 +51,7 @@ func resellerOwnerHoldCommand(cmd *service.BatchImageBalanceHoldCommand) *servic
 	owner.HoldAmount = resellerPlatformCost(cmd.ResellerSnapshot, cmd.HoldAmount)
 	owner.ActualAmount = resellerPlatformCost(cmd.ResellerSnapshot, cmd.ActualAmount)
 	owner.ResellerSnapshot = nil
+	owner.TeamWallet = false
 	return &owner
 }
 

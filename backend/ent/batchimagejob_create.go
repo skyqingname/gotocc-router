@@ -29,6 +29,20 @@ func (_c *BatchImageJobCreate) SetResellerSnapshot(v *reseller.Snapshot) *BatchI
 	return _c
 }
 
+// SetTeamWallet sets the "team_wallet" field.
+func (_c *BatchImageJobCreate) SetTeamWallet(v bool) *BatchImageJobCreate {
+	_c.mutation.SetTeamWallet(v)
+	return _c
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_c *BatchImageJobCreate) SetNillableTeamWallet(v *bool) *BatchImageJobCreate {
+	if v != nil {
+		_c.SetTeamWallet(*v)
+	}
+	return _c
+}
+
 // SetBatchID sets the "batch_id" field.
 func (_c *BatchImageJobCreate) SetBatchID(v string) *BatchImageJobCreate {
 	_c.mutation.SetBatchID(v)
@@ -640,6 +654,10 @@ func (_c *BatchImageJobCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *BatchImageJobCreate) defaults() {
+	if _, ok := _c.mutation.TeamWallet(); !ok {
+		v := batchimagejob.DefaultTeamWallet
+		_c.mutation.SetTeamWallet(v)
+	}
 	if _, ok := _c.mutation.TaskName(); !ok {
 		v := batchimagejob.DefaultTaskName
 		_c.mutation.SetTaskName(v)
@@ -692,6 +710,9 @@ func (_c *BatchImageJobCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *BatchImageJobCreate) check() error {
+	if _, ok := _c.mutation.TeamWallet(); !ok {
+		return &ValidationError{Name: "team_wallet", err: errors.New(`ent: missing required field "BatchImageJob.team_wallet"`)}
+	}
 	if _, ok := _c.mutation.BatchID(); !ok {
 		return &ValidationError{Name: "batch_id", err: errors.New(`ent: missing required field "BatchImageJob.batch_id"`)}
 	}
@@ -853,6 +874,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ResellerSnapshot(); ok {
 		_spec.SetField(batchimagejob.FieldResellerSnapshot, field.TypeJSON, value)
 		_node.ResellerSnapshot = value
+	}
+	if value, ok := _c.mutation.TeamWallet(); ok {
+		_spec.SetField(batchimagejob.FieldTeamWallet, field.TypeBool, value)
+		_node.TeamWallet = value
 	}
 	if value, ok := _c.mutation.BatchID(); ok {
 		_spec.SetField(batchimagejob.FieldBatchID, field.TypeString, value)
@@ -1097,6 +1122,18 @@ func (u *BatchImageJobUpsert) UpdateResellerSnapshot() *BatchImageJobUpsert {
 // ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
 func (u *BatchImageJobUpsert) ClearResellerSnapshot() *BatchImageJobUpsert {
 	u.SetNull(batchimagejob.FieldResellerSnapshot)
+	return u
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *BatchImageJobUpsert) SetTeamWallet(v bool) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldTeamWallet, v)
+	return u
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateTeamWallet() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldTeamWallet)
 	return u
 }
 
@@ -1901,6 +1938,20 @@ func (u *BatchImageJobUpsertOne) UpdateResellerSnapshot() *BatchImageJobUpsertOn
 func (u *BatchImageJobUpsertOne) ClearResellerSnapshot() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearResellerSnapshot()
+	})
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *BatchImageJobUpsertOne) SetTeamWallet(v bool) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetTeamWallet(v)
+	})
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateTeamWallet() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateTeamWallet()
 	})
 }
 
@@ -2993,6 +3044,20 @@ func (u *BatchImageJobUpsertBulk) UpdateResellerSnapshot() *BatchImageJobUpsertB
 func (u *BatchImageJobUpsertBulk) ClearResellerSnapshot() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.ClearResellerSnapshot()
+	})
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *BatchImageJobUpsertBulk) SetTeamWallet(v bool) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetTeamWallet(v)
+	})
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateTeamWallet() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateTeamWallet()
 	})
 }
 

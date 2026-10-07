@@ -87,7 +87,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 
 	billingType := int8(BillingTypeBalance)
 	var subscriptionID *int64
-	if input.Subscription != nil && input.APIKey.Group.IsSubscriptionType() {
+	if input.APIKey.TeamID == nil && input.Subscription != nil && input.APIKey.Group.IsSubscriptionType() {
 		billingType = BillingTypeSubscription
 		id := input.Subscription.ID
 		subscriptionID = &id
@@ -103,6 +103,7 @@ func (s *OpenAIGatewayService) PrepareOpenAIVideoTask(ctx context.Context, input
 	localRequestID := "video-local:" + generateRequestID()
 	now := time.Now()
 	task, err := s.openAIVideoTaskRepo.Create(ctx, CreateOpenAIVideoTaskParams{
+		TeamWallet:            input.APIKey.TeamID != nil,
 		LocalRequestID:        localRequestID,
 		ActorUserID:           usageActorUserID(input.APIKey, input.APIKey.User),
 		BillingUserID:         input.APIKey.User.ID,
@@ -287,6 +288,7 @@ func (s *OpenAIGatewayService) openAIVideoHoldCommand(task *OpenAIVideoTask, acc
 		accountType = account.Type
 	}
 	return &OpenAIVideoBalanceHoldCommand{
+		TeamWallet:       task.TeamWallet,
 		ResellerSnapshot: task.ResellerSnapshot,
 		Model:            task.RequestedModel,
 		TaskID:           task.ID, LocalRequestID: task.LocalRequestID,

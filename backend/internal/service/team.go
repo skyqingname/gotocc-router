@@ -77,6 +77,7 @@ func WithTeamFrontendRequest(ctx context.Context, origin, host string) context.C
 
 // Team 表示团队的公开基础信息。
 type Team struct {
+	TeamWallet
 	ID                     int64      `json:"id"`
 	Name                   string     `json:"name"`
 	Status                 string     `json:"status"`
@@ -297,6 +298,8 @@ type TeamRepository interface {
 
 // TeamService 编排团队权限、令牌、邮件和缓存失效。
 type TeamService struct {
+	walletRepo     TeamWalletRepository
+	balanceCache   BillingCache
 	repo           TeamRepository
 	userRepo       UserRepository
 	emailService   *EmailService
@@ -372,7 +375,7 @@ func (s *TeamService) UpdateName(ctx context.Context, userID int64, name string)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateName(ctx, teamCtx.Team.ID, name); err != nil {
+	if err := s.repo.UpdateName(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, name); err != nil {
 		return nil, err
 	}
 	return s.repo.GetContextByTeamID(ctx, teamCtx.Team.ID)
@@ -387,7 +390,7 @@ func (s *TeamService) UpdateDefaultMemberLimits(ctx context.Context, userID int6
 	if daily < 0 || weekly < 0 || monthly < 0 {
 		return nil, infraerrors.BadRequest("TEAM_DEFAULT_MEMBER_LIMIT_INVALID", "成员默认限额不能为负数")
 	}
-	if err := s.repo.SetDefaultMemberLimits(ctx, teamCtx.Team.ID, daily, weekly, monthly); err != nil {
+	if err := s.repo.SetDefaultMemberLimits(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, daily, weekly, monthly); err != nil {
 		return nil, err
 	}
 	return s.repo.GetContextByTeamID(ctx, teamCtx.Team.ID)
@@ -402,7 +405,7 @@ func (s *TeamService) SetStatus(ctx context.Context, userID int64, status string
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.SetStatus(ctx, teamCtx.Team.ID, status); err != nil {
+	if err := s.repo.SetStatus(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, status); err != nil {
 		return nil, err
 	}
 	s.invalidateTeamKeys(ctx, teamCtx.Team.ID)
@@ -510,7 +513,7 @@ func (s *TeamService) DisableTeamKey(ctx context.Context, userID, keyID int64) e
 	if err != nil {
 		return err
 	}
-	key, err := s.repo.DisableTeamKey(ctx, teamCtx.Team.ID, keyID, nil)
+	key, err := s.repo.DisableTeamKey(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, keyID, nil)
 	if err != nil {
 		return err
 	}
@@ -524,7 +527,7 @@ func (s *TeamService) EnableTeamKey(ctx context.Context, userID, keyID int64) er
 	if err != nil {
 		return err
 	}
-	key, err := s.repo.EnableTeamKey(ctx, teamCtx.Team.ID, keyID, nil)
+	key, err := s.repo.EnableTeamKey(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, keyID, nil)
 	if err != nil {
 		return err
 	}
@@ -538,7 +541,7 @@ func (s *TeamService) DeleteTeamKey(ctx context.Context, userID, keyID int64) er
 	if err != nil {
 		return err
 	}
-	key, err := s.repo.DeleteTeamKey(ctx, teamCtx.Team.ID, keyID, nil)
+	key, err := s.repo.DeleteTeamKey(WithTeamOwnerMutation(ctx, userID), teamCtx.Team.ID, keyID, nil)
 	if err != nil {
 		return err
 	}
@@ -719,7 +722,7 @@ func (s *TeamService) RemoveMember(ctx context.Context, ownerUserID, memberUserI
 	if ownerUserID == memberUserID {
 		return ErrTeamOwnerCannotLeave
 	}
-	if err := s.repo.RemoveMember(ctx, teamCtx.Team.ID, memberUserID, time.Now()); err != nil {
+	if err := s.repo.RemoveMember(WithTeamOwnerMutation(ctx, ownerUserID), teamCtx.Team.ID, memberUserID, time.Now()); err != nil {
 		return err
 	}
 	s.invalidateTeamKeys(ctx, teamCtx.Team.ID)
@@ -749,7 +752,7 @@ func (s *TeamService) UpdateMemberLimits(ctx context.Context, ownerUserID, membe
 	if daily < 0 || weekly < 0 || monthly < 0 {
 		return infraerrors.BadRequest("TEAM_MEMBER_LIMIT_INVALID", "成员限额不能为负数")
 	}
-	if err := s.repo.UpdateMemberLimits(ctx, teamCtx.Team.ID, memberUserID, daily, weekly, monthly); err != nil {
+	if err := s.repo.UpdateMemberLimits(WithTeamOwnerMutation(ctx, ownerUserID), teamCtx.Team.ID, memberUserID, daily, weekly, monthly); err != nil {
 		return err
 	}
 	s.invalidateTeamKeys(ctx, teamCtx.Team.ID)
@@ -764,7 +767,7 @@ func (s *TeamService) ResetMemberUsage(ctx context.Context, ownerUserID, memberU
 	if !daily && !weekly && !monthly {
 		return infraerrors.BadRequest("TEAM_USAGE_RESET_EMPTY", "至少选择一个需要重置的周期")
 	}
-	if err := s.repo.ResetMemberUsage(ctx, teamCtx.Team.ID, memberUserID, daily, weekly, monthly, time.Now()); err != nil {
+	if err := s.repo.ResetMemberUsage(WithTeamOwnerMutation(ctx, ownerUserID), teamCtx.Team.ID, memberUserID, daily, weekly, monthly, time.Now()); err != nil {
 		return err
 	}
 	s.invalidateTeamKeys(ctx, teamCtx.Team.ID)
@@ -835,7 +838,7 @@ func (s *TeamService) Dissolve(ctx context.Context, ownerUserID int64) error {
 	if err != nil {
 		return err
 	}
-	if err := s.repo.Dissolve(ctx, teamCtx.Team.ID, time.Now()); err != nil {
+	if err := s.repo.Dissolve(WithTeamOwnerMutation(ctx, ownerUserID), teamCtx.Team.ID, time.Now()); err != nil {
 		return err
 	}
 	s.invalidateTeamKeys(ctx, teamCtx.Team.ID)

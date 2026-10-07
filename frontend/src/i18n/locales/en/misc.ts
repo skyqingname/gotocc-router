@@ -304,14 +304,14 @@ export default {
     team: {
       welcome: {
         title: 'Team feature guide',
-        ownerDescription: '<div class="tour-step-description"><p>This guide covers the main owner workflows:</p><ul><li>Manage members and send targeted invitations</li><li>Configure default limits for new members</li><li>Create team keys billed to the team owner</li><li>Compare member usage and spending trends</li></ul></div>',
+        ownerDescription: '<div class="tour-step-description"><p>This guide covers the main owner workflows:</p><ul><li>Manage members and send targeted invitations</li><li>Configure default limits for new members</li><li>Create keys billed to the team balance</li><li>Compare member usage and spending trends</li></ul></div>',
         memberDescription: '<div class="tour-step-description"><p>This guide covers the features available to team members:</p><ul><li>Review your daily, weekly, and monthly limits</li><li>Create team keys that use team entitlements</li><li>Review your team requests in usage records</li></ul></div>',
-        noTeamDescription: '<div class="tour-step-description"><p>A team lets each member create separate keys while sharing the owner\'s balance, subscription, and group entitlements.</p><p>Create a team first, then invite members, configure limits, and review usage by member.</p></div>',
+        noTeamDescription: '<div class="tour-step-description"><p>A team lets each member create separate keys while sharing a separate team balance.</p><p>Create a team first, then invite members, configure limits, and review usage by member.</p></div>',
         nextBtn: 'Start guide'
       },
       createTeam: {
         title: 'Create a team',
-        description: '<div class="tour-step-description"><p>Enter a team name to create it. The creator becomes the sole owner and is billed for team key usage.</p><p class="tour-info-box">Member invitations and default limit settings appear on this page after creation.</p></div>'
+        description: '<div class="tour-step-description"><p>Enter a team name to create it. The creator becomes the sole owner and can move personal credits into the separate team balance.</p><p class="tour-info-box">Member invitations and default limit settings appear on this page after creation.</p></div>'
       },
       members: {
         title: 'Members and limits',
@@ -336,7 +336,7 @@ export default {
       },
       keyScope: {
         title: 'Switch to team keys',
-        description: '<div class="tour-step-description"><p>This menu switches between personal and team keys. The team scope is active, so new keys use the owner\'s balance, subscription, and group entitlements.</p></div>'
+        description: '<div class="tour-step-description"><p>This menu switches between personal and team keys. The team scope is active, so new keys use the team balance and the current owner\'s group permissions.</p></div>'
       },
       createKey: {
         title: 'Create a team key',

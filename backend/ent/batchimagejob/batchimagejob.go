@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldResellerSnapshot holds the string denoting the reseller_snapshot field in the database.
 	FieldResellerSnapshot = "reseller_snapshot"
+	// FieldTeamWallet holds the string denoting the team_wallet field in the database.
+	FieldTeamWallet = "team_wallet"
 	// FieldBatchID holds the string denoting the batch_id field in the database.
 	FieldBatchID = "batch_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
@@ -111,6 +113,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldResellerSnapshot,
+	FieldTeamWallet,
 	FieldBatchID,
 	FieldUserID,
 	FieldBillingUserID,
@@ -168,6 +171,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultTeamWallet holds the default value on creation for the "team_wallet" field.
+	DefaultTeamWallet bool
 	// BatchIDValidator is a validator for the "batch_id" field. It is called by the builders before save.
 	BatchIDValidator func(string) error
 	// ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
@@ -234,6 +239,11 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByTeamWallet orders the results by the team_wallet field.
+func ByTeamWallet(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTeamWallet, opts...).ToFunc()
 }
 
 // ByBatchID orders the results by the batch_id field.

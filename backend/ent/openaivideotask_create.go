@@ -30,6 +30,20 @@ func (_c *OpenAIVideoTaskCreate) SetResellerSnapshot(v *reseller.Snapshot) *Open
 	return _c
 }
 
+// SetTeamWallet sets the "team_wallet" field.
+func (_c *OpenAIVideoTaskCreate) SetTeamWallet(v bool) *OpenAIVideoTaskCreate {
+	_c.mutation.SetTeamWallet(v)
+	return _c
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_c *OpenAIVideoTaskCreate) SetNillableTeamWallet(v *bool) *OpenAIVideoTaskCreate {
+	if v != nil {
+		_c.SetTeamWallet(*v)
+	}
+	return _c
+}
+
 // SetProviderConfig sets the "provider_config" field.
 func (_c *OpenAIVideoTaskCreate) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskCreate {
 	_c.mutation.SetProviderConfig(v)
@@ -567,6 +581,10 @@ func (_c *OpenAIVideoTaskCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *OpenAIVideoTaskCreate) defaults() {
+	if _, ok := _c.mutation.TeamWallet(); !ok {
+		v := openaivideotask.DefaultTeamWallet
+		_c.mutation.SetTeamWallet(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := openaivideotask.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -615,6 +633,9 @@ func (_c *OpenAIVideoTaskCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *OpenAIVideoTaskCreate) check() error {
+	if _, ok := _c.mutation.TeamWallet(); !ok {
+		return &ValidationError{Name: "team_wallet", err: errors.New(`ent: missing required field "OpenAIVideoTask.team_wallet"`)}
+	}
 	if v, ok := _c.mutation.ProviderConfig(); ok {
 		if err := v.Validate(); err != nil {
 			return &ValidationError{Name: "provider_config", err: fmt.Errorf(`ent: validator failed for field "OpenAIVideoTask.provider_config": %w`, err)}
@@ -808,6 +829,10 @@ func (_c *OpenAIVideoTaskCreate) createSpec() (*OpenAIVideoTask, *sqlgraph.Creat
 	if value, ok := _c.mutation.ResellerSnapshot(); ok {
 		_spec.SetField(openaivideotask.FieldResellerSnapshot, field.TypeJSON, value)
 		_node.ResellerSnapshot = value
+	}
+	if value, ok := _c.mutation.TeamWallet(); ok {
+		_spec.SetField(openaivideotask.FieldTeamWallet, field.TypeBool, value)
+		_node.TeamWallet = value
 	}
 	if value, ok := _c.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)
@@ -1056,6 +1081,18 @@ func (u *OpenAIVideoTaskUpsert) UpdateResellerSnapshot() *OpenAIVideoTaskUpsert 
 // ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
 func (u *OpenAIVideoTaskUpsert) ClearResellerSnapshot() *OpenAIVideoTaskUpsert {
 	u.SetNull(openaivideotask.FieldResellerSnapshot)
+	return u
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *OpenAIVideoTaskUpsert) SetTeamWallet(v bool) *OpenAIVideoTaskUpsert {
+	u.Set(openaivideotask.FieldTeamWallet, v)
+	return u
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsert) UpdateTeamWallet() *OpenAIVideoTaskUpsert {
+	u.SetExcluded(openaivideotask.FieldTeamWallet)
 	return u
 }
 
@@ -1851,6 +1888,20 @@ func (u *OpenAIVideoTaskUpsertOne) UpdateResellerSnapshot() *OpenAIVideoTaskUpse
 func (u *OpenAIVideoTaskUpsertOne) ClearResellerSnapshot() *OpenAIVideoTaskUpsertOne {
 	return u.Update(func(s *OpenAIVideoTaskUpsert) {
 		s.ClearResellerSnapshot()
+	})
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *OpenAIVideoTaskUpsertOne) SetTeamWallet(v bool) *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetTeamWallet(v)
+	})
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertOne) UpdateTeamWallet() *OpenAIVideoTaskUpsertOne {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateTeamWallet()
 	})
 }
 
@@ -2933,6 +2984,20 @@ func (u *OpenAIVideoTaskUpsertBulk) UpdateResellerSnapshot() *OpenAIVideoTaskUps
 func (u *OpenAIVideoTaskUpsertBulk) ClearResellerSnapshot() *OpenAIVideoTaskUpsertBulk {
 	return u.Update(func(s *OpenAIVideoTaskUpsert) {
 		s.ClearResellerSnapshot()
+	})
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (u *OpenAIVideoTaskUpsertBulk) SetTeamWallet(v bool) *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.SetTeamWallet(v)
+	})
+}
+
+// UpdateTeamWallet sets the "team_wallet" field to the value that was provided on create.
+func (u *OpenAIVideoTaskUpsertBulk) UpdateTeamWallet() *OpenAIVideoTaskUpsertBulk {
+	return u.Update(func(s *OpenAIVideoTaskUpsert) {
+		s.UpdateTeamWallet()
 	})
 }
 

@@ -35,6 +35,7 @@ var (
 )
 
 type OpenAIVideoTask struct {
+	TeamWallet            bool
 	ResellerSnapshot      *reseller.Snapshot `json:"-"`
 	ID                    int64
 	LocalRequestID        string
@@ -85,6 +86,7 @@ type OpenAIVideoTask struct {
 }
 
 type CreateOpenAIVideoTaskParams struct {
+	TeamWallet            bool
 	ResellerSnapshot      *reseller.Snapshot `json:"-"`
 	LocalRequestID        string
 	ActorUserID           int64
@@ -130,6 +132,7 @@ type OpenAIVideoTaskRepository interface {
 }
 
 type OpenAIVideoBalanceHoldCommand struct {
+	TeamWallet         bool
 	Model              string
 	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	TaskID             int64

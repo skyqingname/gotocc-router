@@ -409,7 +409,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance' || type === 'canvas_transfer' || type === 'canvas_reversal'
+  return type === 'balance' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -425,6 +425,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+  } else if (item.type === 'team_transfer') {
+    return t('redeem.balanceTeamTransfer')
   } else if (item.type === 'canvas_transfer') {
     return t('redeem.balanceCanvasTransfer')
   } else if (item.type === 'canvas_reversal') {

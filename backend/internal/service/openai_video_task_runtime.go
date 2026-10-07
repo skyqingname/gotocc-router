@@ -240,6 +240,7 @@ func (s *OpenAIGatewayService) settleOpenAIVideoTask(ctx context.Context, task *
 		actualCost = QuantizeUsageBillingAmount(task.TotalCost * task.GroupRateMultiplier)
 		cmd := &UsageBillingCommand{
 			ResellerSnapshot:   task.ResellerSnapshot,
+			TeamWallet:         task.TeamWallet,
 			RequestID:          "openai-video:" + derefOpenAIVideoString(task.TaskID),
 			RequestPayloadHash: task.RequestPayloadHash,
 			APIKeyID:           task.APIKeyID, UserID: task.BillingUserID,
@@ -357,7 +358,7 @@ func (s *OpenAIGatewayService) recordOpenAIVideoTaskUsage(ctx context.Context, t
 }
 
 func (s *OpenAIGatewayService) recordOpenAIVideoPlatformQuota(ctx context.Context, task *OpenAIVideoTask, actualCost float64) {
-	if s == nil || task == nil || actualCost <= 0 || s.billingCacheService == nil || s.userPlatformQuotaRepo == nil {
+	if s == nil || task == nil || actualCost <= 0 || s.billingCacheService == nil || s.userPlatformQuotaRepo == nil || task.TeamWallet {
 		return
 	}
 	platform := PlatformOpenAI

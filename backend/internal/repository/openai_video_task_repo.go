@@ -29,7 +29,7 @@ const openAIVideoTaskColumns = `
 	upstream_endpoint, model_mapping_chain, user_agent, ip_address, retry_count,
 	next_poll_at, lease_until, lease_token, last_error_code, last_error_message,
 	usage_recorded, created_at, updated_at, submitted_at, finished_at,
-	settled_at, usage_recorded_at, provider_config, reseller_snapshot`
+	settled_at, usage_recorded_at, provider_config, reseller_snapshot, team_wallet`
 
 type openAIVideoTaskScanner interface{ Scan(dest ...any) error }
 
@@ -50,7 +50,7 @@ func scanOpenAIVideoTask(row openAIVideoTaskScanner) (*service.OpenAIVideoTask, 
 		&task.IPAddress, &task.RetryCount, &task.NextPollAt, &task.LeaseUntil,
 		&task.LeaseToken, &task.LastErrorCode, &task.LastErrorMessage,
 		&task.UsageRecorded, &task.CreatedAt, &task.UpdatedAt, &task.SubmittedAt,
-		&task.FinishedAt, &task.SettledAt, &task.UsageRecordedAt, &providerConfig, &resellerJSON,
+		&task.FinishedAt, &task.SettledAt, &task.UsageRecordedAt, &providerConfig, &resellerJSON, &task.TeamWallet,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, service.ErrOpenAIVideoTaskNotFound
@@ -83,10 +83,10 @@ func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.Create
 			upstream_model, request_seconds, resolution, billing_mode, billing_type, total_cost,
 			hold_amount, group_rate_multiplier, account_rate_multiplier,
 			request_payload_hash, inbound_endpoint, upstream_endpoint,
-			model_mapping_chain, user_agent, ip_address, next_poll_at, provider_config, reseller_snapshot
+			model_mapping_chain, user_agent, ip_address, next_poll_at, provider_config, reseller_snapshot, team_wallet
 		) VALUES (
 			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-			$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
+			$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
 		)
 		RETURNING `+openAIVideoTaskColumns,
 		strings.TrimSpace(p.LocalRequestID), p.ActorUserID, p.BillingUserID,
@@ -97,7 +97,7 @@ func (r *openAIVideoTaskRepository) Create(ctx context.Context, p service.Create
 		p.HoldAmount, p.GroupRateMultiplier, p.AccountRateMultiplier,
 		strings.TrimSpace(p.RequestPayloadHash), strings.TrimSpace(p.InboundEndpoint),
 		strings.TrimSpace(p.UpstreamEndpoint), p.ModelMappingChain, p.UserAgent,
-		p.IPAddress, p.NextPollAt, providerConfig, resellerJSON,
+		p.IPAddress, p.NextPollAt, providerConfig, resellerJSON, p.TeamWallet,
 	)
 	return scanOpenAIVideoTask(row)
 }

@@ -42,6 +42,9 @@ func (Team) Fields() []ent.Field {
 	}
 	return []ent.Field{
 		field.String("name").MaxLen(100).NotEmpty(),
+		field.Float("balance").SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).Default(0),
+		field.Float("frozen_balance").SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).Default(0),
+		field.Int64("reseller_owner_id").Optional().Nillable(),
 		field.String("status").MaxLen(20).Default("active").Validate(func(value string) error {
 			if value != "active" && value != "suspended" {
 				return fmt.Errorf("team status must be active or suspended")

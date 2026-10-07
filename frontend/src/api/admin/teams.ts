@@ -2,6 +2,8 @@ import { apiClient } from '../client'
 import type { TeamContext, TeamMembership, TeamStatus, TeamUsageQuery, TeamUsageSummary } from '../team'
 
 export interface AdminTeam {
+  balance: number
+  frozen_balance: number
   id: number
   name: string
   status: TeamStatus
@@ -40,6 +42,10 @@ const teamsAPI = {
   },
   async forceTransfer(id: number, targetUserID: number): Promise<TeamContext> {
     const { data } = await apiClient.post<TeamContext>(`/admin/teams/${id}/force-transfer`, { target_user_id: targetUserID })
+    return data
+  },
+  async setBalance(id: number, operationID: string, balance: number): Promise<{ balance: number; frozen_balance: number }> {
+    const { data } = await apiClient.patch<{ balance: number; frozen_balance: number }>(`/admin/teams/${id}/balance`, { operation_id: operationID, balance })
     return data
   },
   async dissolve(id: number): Promise<void> {

@@ -64,6 +64,10 @@ func isAPIKeyNonConsumingRequest(method, path string) bool {
 
 func abortTeamAPIKeyError(c *gin.Context, err error) bool {
 	switch {
+	case errors.Is(err, service.ErrTeamFundingSource):
+		AbortWithError(c, http.StatusForbidden, "TEAM_FUNDING_SOURCE_MISMATCH", "团队当前负责人的额度来源与团队不一致")
+	case errors.Is(err, service.ErrTeamBalanceInsufficient):
+		AbortWithError(c, http.StatusForbidden, "TEAM_BALANCE_INSUFFICIENT", "团队公共余额不足")
 	case errors.Is(err, service.ErrTeamMemberDailyExceeded):
 		AbortWithError(c, http.StatusTooManyRequests, "TEAM_MEMBER_DAILY_LIMIT_EXCEEDED", "团队成员日限额已用完")
 	case errors.Is(err, service.ErrTeamMemberWeeklyExceeded):

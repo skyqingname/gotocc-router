@@ -169,6 +169,7 @@ export default {
     announcements: '公告',
     apiKeys: 'API 密钥',
     team: '我的团队',
+    enterCanvas: '走进画布',
     teams: '团队管理',
     batchImage: '批量生图',
     asyncImage: '异步生图',

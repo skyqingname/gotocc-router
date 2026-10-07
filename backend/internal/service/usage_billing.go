@@ -19,6 +19,8 @@ var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerpri
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
+	TeamMembershipID   int64
+	TeamWallet         bool
 	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	RequestID          string
 	APIKeyID           int64
@@ -145,6 +147,9 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.APIKeyRateLimitCost,
 		c.AccountQuotaCost,
 	)
+	if c.TeamWallet {
+		raw += "|team_wallet"
+	}
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash
 	}
@@ -189,6 +194,7 @@ type UsageBillingApplyResult struct {
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.
 type BatchImageBalanceHoldCommand struct {
+	TeamWallet         bool
 	Model              string
 	ResellerSnapshot   *reseller.Snapshot `json:"-"`
 	RequestID          string
@@ -235,6 +241,9 @@ func buildBatchImageBalanceHoldFingerprint(c *BatchImageBalanceHoldCommand) stri
 			teamID = *c.TeamID
 		}
 		raw += fmt.Sprintf("|%d|%d|%s", c.ActorUserID, teamID, c.ReservedAt.UTC().Format(time.RFC3339Nano))
+	}
+	if c.TeamWallet {
+		raw += "|team_wallet"
 	}
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash

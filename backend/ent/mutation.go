@@ -11556,6 +11556,7 @@ type BatchImageJobMutation struct {
 	typ                 string
 	id                  *int64
 	reseller_snapshot   **reseller.Snapshot
+	team_wallet         *bool
 	batch_id            *string
 	user_id             *int64
 	adduser_id          *int64
@@ -11766,6 +11767,42 @@ func (m *BatchImageJobMutation) ResellerSnapshotCleared() bool {
 func (m *BatchImageJobMutation) ResetResellerSnapshot() {
 	m.reseller_snapshot = nil
 	delete(m.clearedFields, batchimagejob.FieldResellerSnapshot)
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (m *BatchImageJobMutation) SetTeamWallet(b bool) {
+	m.team_wallet = &b
+}
+
+// TeamWallet returns the value of the "team_wallet" field in the mutation.
+func (m *BatchImageJobMutation) TeamWallet() (r bool, exists bool) {
+	v := m.team_wallet
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamWallet returns the old "team_wallet" field's value of the BatchImageJob entity.
+// If the BatchImageJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BatchImageJobMutation) OldTeamWallet(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamWallet is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamWallet requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamWallet: %w", err)
+	}
+	return oldValue.TeamWallet, nil
+}
+
+// ResetTeamWallet resets all changes to the "team_wallet" field.
+func (m *BatchImageJobMutation) ResetTeamWallet() {
+	m.team_wallet = nil
 }
 
 // SetBatchID sets the "batch_id" field.
@@ -14044,9 +14081,12 @@ func (m *BatchImageJobMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BatchImageJobMutation) Fields() []string {
-	fields := make([]string, 0, 45)
+	fields := make([]string, 0, 46)
 	if m.reseller_snapshot != nil {
 		fields = append(fields, batchimagejob.FieldResellerSnapshot)
+	}
+	if m.team_wallet != nil {
+		fields = append(fields, batchimagejob.FieldTeamWallet)
 	}
 	if m.batch_id != nil {
 		fields = append(fields, batchimagejob.FieldBatchID)
@@ -14190,6 +14230,8 @@ func (m *BatchImageJobMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case batchimagejob.FieldResellerSnapshot:
 		return m.ResellerSnapshot()
+	case batchimagejob.FieldTeamWallet:
+		return m.TeamWallet()
 	case batchimagejob.FieldBatchID:
 		return m.BatchID()
 	case batchimagejob.FieldUserID:
@@ -14289,6 +14331,8 @@ func (m *BatchImageJobMutation) OldField(ctx context.Context, name string) (ent.
 	switch name {
 	case batchimagejob.FieldResellerSnapshot:
 		return m.OldResellerSnapshot(ctx)
+	case batchimagejob.FieldTeamWallet:
+		return m.OldTeamWallet(ctx)
 	case batchimagejob.FieldBatchID:
 		return m.OldBatchID(ctx)
 	case batchimagejob.FieldUserID:
@@ -14392,6 +14436,13 @@ func (m *BatchImageJobMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResellerSnapshot(v)
+		return nil
+	case batchimagejob.FieldTeamWallet:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamWallet(v)
 		return nil
 	case batchimagejob.FieldBatchID:
 		v, ok := value.(string)
@@ -15106,6 +15157,9 @@ func (m *BatchImageJobMutation) ResetField(name string) error {
 	switch name {
 	case batchimagejob.FieldResellerSnapshot:
 		m.ResetResellerSnapshot()
+		return nil
+	case batchimagejob.FieldTeamWallet:
+		m.ResetTeamWallet()
 		return nil
 	case batchimagejob.FieldBatchID:
 		m.ResetBatchID()
@@ -31598,6 +31652,7 @@ type OpenAIVideoTaskMutation struct {
 	typ                        string
 	id                         *int64
 	reseller_snapshot          **reseller.Snapshot
+	team_wallet                *bool
 	provider_config            **videoprotocol.Config
 	local_request_id           *string
 	task_id                    *string
@@ -31810,6 +31865,42 @@ func (m *OpenAIVideoTaskMutation) ResellerSnapshotCleared() bool {
 func (m *OpenAIVideoTaskMutation) ResetResellerSnapshot() {
 	m.reseller_snapshot = nil
 	delete(m.clearedFields, openaivideotask.FieldResellerSnapshot)
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (m *OpenAIVideoTaskMutation) SetTeamWallet(b bool) {
+	m.team_wallet = &b
+}
+
+// TeamWallet returns the value of the "team_wallet" field in the mutation.
+func (m *OpenAIVideoTaskMutation) TeamWallet() (r bool, exists bool) {
+	v := m.team_wallet
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTeamWallet returns the old "team_wallet" field's value of the OpenAIVideoTask entity.
+// If the OpenAIVideoTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *OpenAIVideoTaskMutation) OldTeamWallet(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTeamWallet is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTeamWallet requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTeamWallet: %w", err)
+	}
+	return oldValue.TeamWallet, nil
+}
+
+// ResetTeamWallet resets all changes to the "team_wallet" field.
+func (m *OpenAIVideoTaskMutation) ResetTeamWallet() {
+	m.team_wallet = nil
 }
 
 // SetProviderConfig sets the "provider_config" field.
@@ -34037,9 +34128,12 @@ func (m *OpenAIVideoTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *OpenAIVideoTaskMutation) Fields() []string {
-	fields := make([]string, 0, 46)
+	fields := make([]string, 0, 47)
 	if m.reseller_snapshot != nil {
 		fields = append(fields, openaivideotask.FieldResellerSnapshot)
+	}
+	if m.team_wallet != nil {
+		fields = append(fields, openaivideotask.FieldTeamWallet)
 	}
 	if m.provider_config != nil {
 		fields = append(fields, openaivideotask.FieldProviderConfig)
@@ -34186,6 +34280,8 @@ func (m *OpenAIVideoTaskMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case openaivideotask.FieldResellerSnapshot:
 		return m.ResellerSnapshot()
+	case openaivideotask.FieldTeamWallet:
+		return m.TeamWallet()
 	case openaivideotask.FieldProviderConfig:
 		return m.ProviderConfig()
 	case openaivideotask.FieldLocalRequestID:
@@ -34287,6 +34383,8 @@ func (m *OpenAIVideoTaskMutation) OldField(ctx context.Context, name string) (en
 	switch name {
 	case openaivideotask.FieldResellerSnapshot:
 		return m.OldResellerSnapshot(ctx)
+	case openaivideotask.FieldTeamWallet:
+		return m.OldTeamWallet(ctx)
 	case openaivideotask.FieldProviderConfig:
 		return m.OldProviderConfig(ctx)
 	case openaivideotask.FieldLocalRequestID:
@@ -34392,6 +34490,13 @@ func (m *OpenAIVideoTaskMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResellerSnapshot(v)
+		return nil
+	case openaivideotask.FieldTeamWallet:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTeamWallet(v)
 		return nil
 	case openaivideotask.FieldProviderConfig:
 		v, ok := value.(*videoprotocol.Config)
@@ -35077,6 +35182,9 @@ func (m *OpenAIVideoTaskMutation) ResetField(name string) error {
 	switch name {
 	case openaivideotask.FieldResellerSnapshot:
 		m.ResetResellerSnapshot()
+		return nil
+	case openaivideotask.FieldTeamWallet:
+		m.ResetTeamWallet()
 		return nil
 	case openaivideotask.FieldProviderConfig:
 		m.ResetProviderConfig()
@@ -50995,6 +51103,12 @@ type TeamMutation struct {
 	updated_at                   *time.Time
 	deleted_at                   *time.Time
 	name                         *string
+	balance                      *float64
+	addbalance                   *float64
+	frozen_balance               *float64
+	addfrozen_balance            *float64
+	reseller_owner_id            *int64
+	addreseller_owner_id         *int64
 	status                       *string
 	member_limit                 *int
 	addmember_limit              *int
@@ -51278,6 +51392,188 @@ func (m *TeamMutation) OldName(ctx context.Context) (v string, err error) {
 // ResetName resets all changes to the "name" field.
 func (m *TeamMutation) ResetName() {
 	m.name = nil
+}
+
+// SetBalance sets the "balance" field.
+func (m *TeamMutation) SetBalance(f float64) {
+	m.balance = &f
+	m.addbalance = nil
+}
+
+// Balance returns the value of the "balance" field in the mutation.
+func (m *TeamMutation) Balance() (r float64, exists bool) {
+	v := m.balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalance returns the old "balance" field's value of the Team entity.
+// If the Team object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TeamMutation) OldBalance(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalance: %w", err)
+	}
+	return oldValue.Balance, nil
+}
+
+// AddBalance adds f to the "balance" field.
+func (m *TeamMutation) AddBalance(f float64) {
+	if m.addbalance != nil {
+		*m.addbalance += f
+	} else {
+		m.addbalance = &f
+	}
+}
+
+// AddedBalance returns the value that was added to the "balance" field in this mutation.
+func (m *TeamMutation) AddedBalance() (r float64, exists bool) {
+	v := m.addbalance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalance resets all changes to the "balance" field.
+func (m *TeamMutation) ResetBalance() {
+	m.balance = nil
+	m.addbalance = nil
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (m *TeamMutation) SetFrozenBalance(f float64) {
+	m.frozen_balance = &f
+	m.addfrozen_balance = nil
+}
+
+// FrozenBalance returns the value of the "frozen_balance" field in the mutation.
+func (m *TeamMutation) FrozenBalance() (r float64, exists bool) {
+	v := m.frozen_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenBalance returns the old "frozen_balance" field's value of the Team entity.
+// If the Team object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TeamMutation) OldFrozenBalance(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenBalance: %w", err)
+	}
+	return oldValue.FrozenBalance, nil
+}
+
+// AddFrozenBalance adds f to the "frozen_balance" field.
+func (m *TeamMutation) AddFrozenBalance(f float64) {
+	if m.addfrozen_balance != nil {
+		*m.addfrozen_balance += f
+	} else {
+		m.addfrozen_balance = &f
+	}
+}
+
+// AddedFrozenBalance returns the value that was added to the "frozen_balance" field in this mutation.
+func (m *TeamMutation) AddedFrozenBalance() (r float64, exists bool) {
+	v := m.addfrozen_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFrozenBalance resets all changes to the "frozen_balance" field.
+func (m *TeamMutation) ResetFrozenBalance() {
+	m.frozen_balance = nil
+	m.addfrozen_balance = nil
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (m *TeamMutation) SetResellerOwnerID(i int64) {
+	m.reseller_owner_id = &i
+	m.addreseller_owner_id = nil
+}
+
+// ResellerOwnerID returns the value of the "reseller_owner_id" field in the mutation.
+func (m *TeamMutation) ResellerOwnerID() (r int64, exists bool) {
+	v := m.reseller_owner_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResellerOwnerID returns the old "reseller_owner_id" field's value of the Team entity.
+// If the Team object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TeamMutation) OldResellerOwnerID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResellerOwnerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResellerOwnerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResellerOwnerID: %w", err)
+	}
+	return oldValue.ResellerOwnerID, nil
+}
+
+// AddResellerOwnerID adds i to the "reseller_owner_id" field.
+func (m *TeamMutation) AddResellerOwnerID(i int64) {
+	if m.addreseller_owner_id != nil {
+		*m.addreseller_owner_id += i
+	} else {
+		m.addreseller_owner_id = &i
+	}
+}
+
+// AddedResellerOwnerID returns the value that was added to the "reseller_owner_id" field in this mutation.
+func (m *TeamMutation) AddedResellerOwnerID() (r int64, exists bool) {
+	v := m.addreseller_owner_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (m *TeamMutation) ClearResellerOwnerID() {
+	m.reseller_owner_id = nil
+	m.addreseller_owner_id = nil
+	m.clearedFields[team.FieldResellerOwnerID] = struct{}{}
+}
+
+// ResellerOwnerIDCleared returns if the "reseller_owner_id" field was cleared in this mutation.
+func (m *TeamMutation) ResellerOwnerIDCleared() bool {
+	_, ok := m.clearedFields[team.FieldResellerOwnerID]
+	return ok
+}
+
+// ResetResellerOwnerID resets all changes to the "reseller_owner_id" field.
+func (m *TeamMutation) ResetResellerOwnerID() {
+	m.reseller_owner_id = nil
+	m.addreseller_owner_id = nil
+	delete(m.clearedFields, team.FieldResellerOwnerID)
 }
 
 // SetStatus sets the "status" field.
@@ -51844,7 +52140,7 @@ func (m *TeamMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TeamMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 12)
 	if m.created_at != nil {
 		fields = append(fields, team.FieldCreatedAt)
 	}
@@ -51856,6 +52152,15 @@ func (m *TeamMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, team.FieldName)
+	}
+	if m.balance != nil {
+		fields = append(fields, team.FieldBalance)
+	}
+	if m.frozen_balance != nil {
+		fields = append(fields, team.FieldFrozenBalance)
+	}
+	if m.reseller_owner_id != nil {
+		fields = append(fields, team.FieldResellerOwnerID)
 	}
 	if m.status != nil {
 		fields = append(fields, team.FieldStatus)
@@ -51888,6 +52193,12 @@ func (m *TeamMutation) Field(name string) (ent.Value, bool) {
 		return m.DeletedAt()
 	case team.FieldName:
 		return m.Name()
+	case team.FieldBalance:
+		return m.Balance()
+	case team.FieldFrozenBalance:
+		return m.FrozenBalance()
+	case team.FieldResellerOwnerID:
+		return m.ResellerOwnerID()
 	case team.FieldStatus:
 		return m.Status()
 	case team.FieldMemberLimit:
@@ -51915,6 +52226,12 @@ func (m *TeamMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDeletedAt(ctx)
 	case team.FieldName:
 		return m.OldName(ctx)
+	case team.FieldBalance:
+		return m.OldBalance(ctx)
+	case team.FieldFrozenBalance:
+		return m.OldFrozenBalance(ctx)
+	case team.FieldResellerOwnerID:
+		return m.OldResellerOwnerID(ctx)
 	case team.FieldStatus:
 		return m.OldStatus(ctx)
 	case team.FieldMemberLimit:
@@ -51962,6 +52279,27 @@ func (m *TeamMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
+	case team.FieldBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalance(v)
+		return nil
+	case team.FieldFrozenBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenBalance(v)
+		return nil
+	case team.FieldResellerOwnerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResellerOwnerID(v)
+		return nil
 	case team.FieldStatus:
 		v, ok := value.(string)
 		if !ok {
@@ -52005,6 +52343,15 @@ func (m *TeamMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *TeamMutation) AddedFields() []string {
 	var fields []string
+	if m.addbalance != nil {
+		fields = append(fields, team.FieldBalance)
+	}
+	if m.addfrozen_balance != nil {
+		fields = append(fields, team.FieldFrozenBalance)
+	}
+	if m.addreseller_owner_id != nil {
+		fields = append(fields, team.FieldResellerOwnerID)
+	}
 	if m.addmember_limit != nil {
 		fields = append(fields, team.FieldMemberLimit)
 	}
@@ -52025,6 +52372,12 @@ func (m *TeamMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *TeamMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case team.FieldBalance:
+		return m.AddedBalance()
+	case team.FieldFrozenBalance:
+		return m.AddedFrozenBalance()
+	case team.FieldResellerOwnerID:
+		return m.AddedResellerOwnerID()
 	case team.FieldMemberLimit:
 		return m.AddedMemberLimit()
 	case team.FieldDefaultDailyLimitUsd:
@@ -52042,6 +52395,27 @@ func (m *TeamMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *TeamMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case team.FieldBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalance(v)
+		return nil
+	case team.FieldFrozenBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFrozenBalance(v)
+		return nil
+	case team.FieldResellerOwnerID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResellerOwnerID(v)
+		return nil
 	case team.FieldMemberLimit:
 		v, ok := value.(int)
 		if !ok {
@@ -52081,6 +52455,9 @@ func (m *TeamMutation) ClearedFields() []string {
 	if m.FieldCleared(team.FieldDeletedAt) {
 		fields = append(fields, team.FieldDeletedAt)
 	}
+	if m.FieldCleared(team.FieldResellerOwnerID) {
+		fields = append(fields, team.FieldResellerOwnerID)
+	}
 	return fields
 }
 
@@ -52097,6 +52474,9 @@ func (m *TeamMutation) ClearField(name string) error {
 	switch name {
 	case team.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case team.FieldResellerOwnerID:
+		m.ClearResellerOwnerID()
 		return nil
 	}
 	return fmt.Errorf("unknown Team nullable field %s", name)
@@ -52117,6 +52497,15 @@ func (m *TeamMutation) ResetField(name string) error {
 		return nil
 	case team.FieldName:
 		m.ResetName()
+		return nil
+	case team.FieldBalance:
+		m.ResetBalance()
+		return nil
+	case team.FieldFrozenBalance:
+		m.ResetFrozenBalance()
+		return nil
+	case team.FieldResellerOwnerID:
+		m.ResetResellerOwnerID()
 		return nil
 	case team.FieldStatus:
 		m.ResetStatus()

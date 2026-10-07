@@ -262,7 +262,7 @@ func (s *BillingCacheService) reserveInflight(ctx context.Context, user *User, g
 		return nil, nil
 	}
 
-	balance, err := s.GetUserBalance(ctx, user.ID)
+	balance, err := s.balanceForRequest(ctx, user)
 	if err != nil {
 		logger.LegacyPrintf("service.billing_cache", "Warning: inflight reservation balance read failed for user %d (fail-open): %v", user.ID, err)
 		return nil, nil
@@ -274,7 +274,7 @@ func (s *BillingCacheService) reserveInflight(ctx context.Context, user *User, g
 	}
 	requestID := uuid.NewString()
 	reserveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inflightReservationReserveTimeout)
-	allowed, inflight, err := rc.ReserveInflightBalance(reserveCtx, user.ID, requestID, estimate, balance, ttl)
+	allowed, inflight, err := rc.ReserveInflightBalance(reserveCtx, inflightBalanceScopeID(user), requestID, estimate, balance, ttl)
 	cancel()
 	if err != nil {
 		logger.LegacyPrintf("service.billing_cache", "Warning: inflight reservation failed for user %d (fail-open): %v", user.ID, err)
@@ -285,7 +285,7 @@ func (s *BillingCacheService) reserveInflight(ctx context.Context, user *User, g
 		return nil, ErrInsufficientBalance
 	}
 
-	r := &InflightReservation{cache: rc, userID: user.ID, requestID: requestID, amount: estimate, ttl: ttl}
+	r := &InflightReservation{cache: rc, userID: inflightBalanceScopeID(user), requestID: requestID, amount: estimate, ttl: ttl}
 	r.refs.Store(1)
 	if renewer, ok := s.cache.(InflightBalanceReservationRenewer); renew && ok && renewer != nil {
 		r.startRenewal(renewer)

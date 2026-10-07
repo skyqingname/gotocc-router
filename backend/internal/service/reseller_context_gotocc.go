@@ -3,13 +3,13 @@ package service
 import "context"
 
 func (s *APIKeyService) attachResellerCustomer(ctx context.Context, key *APIKey) error {
-	// key.User is the paying user; a team key is paid by the team owner, not the member using it.
+	// The current owner supplies team pricing; the wallet supplies its independent balance.
 	account, err := s.resellerRepo.CustomerAccount(ctx, key.User.ID)
 	if err != nil {
 		return err
 	}
 	if account == nil {
-		return nil
+		return bindTeamWallet(key)
 	}
 	customer, err := s.userRepo.GetByID(ctx, account.UserID)
 	if err != nil {
@@ -30,7 +30,7 @@ func (s *APIKeyService) attachResellerCustomer(ctx context.Context, key *APIKey)
 	for _, group := range groups {
 		key.User.AllowedGroups = append(key.User.AllowedGroups, group.ID)
 	}
-	return nil
+	return bindTeamWallet(key)
 }
 
 func (s *APIKeyService) resellerAvailableGroups(ctx context.Context, customerID int64, account *ResellerCustomerAccount) ([]Group, error) {

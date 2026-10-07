@@ -106,12 +106,13 @@
             <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
           </div>
 
-          <router-link
+          <component
             v-for="item in personalNavItems"
             :key="item.path"
-            :to="item.path"
+            :is="item.external ? 'a' : RouterLink"
+            v-bind="item.external ? { href: item.path, target: '_blank', rel: 'noopener noreferrer' } : { to: item.path }"
             class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+            :class="{ 'sidebar-link-active': !item.external && isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : item.path === '/usage' ? 'sidebar-usage' : undefined"
             @click="handleMenuItemClick(item.path)"
@@ -119,7 +120,7 @@
             <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
             <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </router-link>
+          </component>
         </div>
       </template>
 
@@ -129,12 +130,13 @@
           <div v-if="isAdminSupportMode" class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
             <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
           </div>
-          <router-link
+          <component
             v-for="item in userNavItems"
             :key="item.path"
-            :to="item.path"
+            :is="item.external ? 'a' : RouterLink"
+            v-bind="item.external ? { href: item.path, target: '_blank', rel: 'noopener noreferrer' } : { to: item.path }"
             class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+            :class="{ 'sidebar-link-active': !item.external && isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : item.path === '/usage' ? 'sidebar-usage' : undefined"
             @click="handleMenuItemClick(item.path)"
@@ -142,7 +144,7 @@
             <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
             <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
             <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </router-link>
+          </component>
         </div>
       </template>
     </nav>
@@ -189,14 +191,14 @@
 
 <script setup lang="ts">
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useResellerCustomer } from '@/composables/useResellerCustomer'
 import { useTheme } from '@/composables/useTheme'
 // 侧栏图标用 GoToCC 的 Lucide 图形，悬停时播放动效。
 import {
-  BatchImageIcon, BellIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
+  BatchImageIcon, BellIcon, CanvasIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
   CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, ModelPlazaIcon, MoonIcon, OrderIcon,
   OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, ServerIcon, ShieldIcon, SignalIcon,
   SunIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
@@ -214,12 +216,14 @@ import { parseAdminSupportTargetId } from '@/utils/adminSupport'
 
 import { adminSupportContext } from '@/utils/adminSupportContext'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
+import navigationLinks from '../../../../navigation-links.json'
 
 interface NavItem {
   path: string
   label: string
   icon: unknown
   iconSvg?: string
+  external?: boolean
   hideInSimpleMode?: boolean
   children?: NavItem[]
   /**
@@ -347,6 +351,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, featureFlag: flagModelPlaza },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/team', label: t('nav.team'), icon: TeamIcon, hideInSimpleMode: true, featureFlag: flagTeam },
+    { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, external: true, hideInSimpleMode: true },
     { path: '/async-image', label: t('nav.asyncImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
@@ -380,7 +385,7 @@ function finalizeNav(items: NavItem[]): NavItem[] {
 const userNavItems = computed((): NavItem[] => {
   const items = finalizeNav(buildSelfNavItems(true))
   const id = adminSupportContext.value?.userId
-  return id ? items.map(item => ({ ...item, path: supportPathForPersonalPath(id, item.path) || item.path })) : items
+  return id ? items.map(item => item.external ? item : ({ ...item, path: supportPathForPersonalPath(id, item.path) || item.path })) : items
 })
 
 const supportTargetId = computed(() => {

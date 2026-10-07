@@ -16,11 +16,12 @@
         </div>
       </template>
       <template #table>
-        <DataTable :columns="columns" :data="paginatedTeams" :loading="loading" row-key="id" :actions-count="4" default-sort-key="created_at" default-sort-order="desc">
+        <DataTable :columns="columns" :data="paginatedTeams" :loading="loading" row-key="id" :actions-count="6" default-sort-key="created_at" default-sort-order="desc">
           <template #cell-id="{ value }"><span class="font-mono text-xs text-gray-500">#{{ value }}</span></template>
           <template #cell-name="{ value }"><span class="font-medium text-gray-900 dark:text-white">{{ value }}</span></template>
           <template #cell-owner_email="{ value }"><span class="block max-w-72 truncate text-gray-700 dark:text-gray-300" :title="value">{{ value }}</span></template>
           <template #cell-member_count="{ row }"><span class="tabular-nums text-gray-700 dark:text-gray-300">{{ row.member_count }} / {{ row.member_limit }}</span></template>
+          <template #cell-balance="{ value }"><span class="tabular-nums text-gray-900 dark:text-white">{{ formatMoney(value) }}</span></template>
           <template #cell-status="{ value }"><span class="badge" :class="value === 'active' ? 'badge-success' : 'badge-danger'">{{ value === 'active' ? t('team.statusActive') : t('team.statusSuspended') }}</span></template>
           <template #cell-created_at="{ value }"><span class="whitespace-nowrap text-gray-500">{{ formatDateTime(value) }}</span></template>
           <template #cell-actions="{ row }">
@@ -28,6 +29,7 @@
               <button class="row-action" :title="t('team.viewDetails')" @click="openDetails(row)"><Icon name="eye" size="sm" /><span>{{ t('team.viewDetails') }}</span></button>
               <button class="row-action" :title="t('team.viewStatistics')" @click="openStatistics(row)"><Icon name="chart" size="sm" /><span>{{ t('team.viewStatistics') }}</span></button>
               <button class="row-action" :title="t('common.edit')" @click="openEdit(row)"><Icon name="edit" size="sm" /><span>{{ t('common.edit') }}</span></button>
+              <button class="row-action" :title="t('team.wallet.editBalance')" @click="balanceTeam = row"><Icon name="creditCard" size="sm" /><span>{{ t('team.wallet.balanceAction') }}</span></button>
               <button class="row-action" :disabled="statusUpdatingID === row.id" :title="row.status === 'active' ? t('team.pause') : t('team.resume')" @click="toggleStatus(row)"><Icon :name="row.status === 'active' ? 'ban' : 'play'" size="sm" /><span>{{ row.status === 'active' ? t('team.pause') : t('team.resume') }}</span></button>
               <button class="row-action text-red-600 dark:text-red-400" :title="t('team.dissolve')" @click="dissolvingTeam = row"><Icon name="trash" size="sm" /><span>{{ t('team.dissolve') }}</span></button>
             </div>
@@ -64,6 +66,7 @@
       <div v-else-if="detailsTeam" class="space-y-6">
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="metric"><span>{{ t('team.owner') }}</span><strong :title="detailsTeam.owner_email">{{ detailsTeam.owner_email }}</strong></div>
+          <div class="metric"><span>{{ t('team.wallet.shared') }}</span><strong>{{ formatMoney(detailsTeam.balance) }}</strong></div>
           <div class="metric"><span>{{ t('team.members') }}</span><strong>{{ detailsTeam.member_count }} / {{ detailsTeam.member_limit }}</strong></div>
           <div class="metric"><span>{{ t('common.status') }}</span><strong>{{ detailsTeam.status === 'active' ? t('team.statusActive') : t('team.statusSuspended') }}</strong></div>
           <div class="metric"><span>{{ t('team.createdAt') }}</span><strong>{{ formatDateTime(detailsTeam.created_at) }}</strong></div>
@@ -98,6 +101,7 @@
 
     <ConfirmDialog :show="Boolean(dissolvingTeam)" :title="t('team.dissolveTitle')" :message="t('team.dissolveMessage')" danger @cancel="dissolvingTeam = null" @confirm="dissolveTeam" />
     <TotpStepUpDialog :controller="stepUp" />
+    <AdminTeamBalanceDialog :team="balanceTeam" @close="balanceTeam = null" @saved="loadTeams" />
   </AppLayout>
 </template>
 
@@ -118,12 +122,14 @@ import Pagination from '@/components/common/Pagination.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
+import AdminTeamBalanceDialog from '@/components/gotocc/team/AdminTeamBalanceDialog.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import type { Column } from '@/components/common/types'
 import { useStepUp, isStepUpCancelled } from '@/composables/useStepUp'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
+import { formatTeamCost as formatMoney } from '@/components/gotocc/team/teamFormat'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -137,6 +143,7 @@ const page = ref(1)
 const pageSize = ref(getPersistedPageSize())
 const showCreate = ref(false)
 const editingTeam = ref<AdminTeam | null>(null)
+const balanceTeam = ref<AdminTeam | null>(null)
 const detailsTeam = ref<AdminTeam | null>(null)
 const detailsMembers = ref<TeamMembership[]>([])
 const detailsLoading = ref(false)
@@ -155,6 +162,7 @@ const columns = computed<Column[]>(() => [
   { key: 'id', label: 'ID', sortable: true },
   { key: 'name', label: t('team.name'), sortable: true },
   { key: 'owner_email', label: t('team.owner'), sortable: true },
+  { key: 'balance', label: t('team.wallet.shared'), sortable: true },
   { key: 'member_count', label: t('team.members'), sortable: true },
   { key: 'status', label: t('common.status'), sortable: true },
   { key: 'created_at', label: t('team.createdAt'), sortable: true },

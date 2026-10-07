@@ -41,6 +41,20 @@ func (_u *BatchImageJobUpdate) ClearResellerSnapshot() *BatchImageJobUpdate {
 	return _u
 }
 
+// SetTeamWallet sets the "team_wallet" field.
+func (_u *BatchImageJobUpdate) SetTeamWallet(v bool) *BatchImageJobUpdate {
+	_u.mutation.SetTeamWallet(v)
+	return _u
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_u *BatchImageJobUpdate) SetNillableTeamWallet(v *bool) *BatchImageJobUpdate {
+	if v != nil {
+		_u.SetTeamWallet(*v)
+	}
+	return _u
+}
+
 // SetUserID sets the "user_id" field.
 func (_u *BatchImageJobUpdate) SetUserID(v int64) *BatchImageJobUpdate {
 	_u.mutation.ResetUserID()
@@ -1000,6 +1014,9 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.ResellerSnapshotCleared() {
 		_spec.ClearField(batchimagejob.FieldResellerSnapshot, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.TeamWallet(); ok {
+		_spec.SetField(batchimagejob.FieldTeamWallet, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(batchimagejob.FieldUserID, field.TypeInt64, value)
 	}
@@ -1275,6 +1292,20 @@ func (_u *BatchImageJobUpdateOne) SetResellerSnapshot(v *reseller.Snapshot) *Bat
 // ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
 func (_u *BatchImageJobUpdateOne) ClearResellerSnapshot() *BatchImageJobUpdateOne {
 	_u.mutation.ClearResellerSnapshot()
+	return _u
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (_u *BatchImageJobUpdateOne) SetTeamWallet(v bool) *BatchImageJobUpdateOne {
+	_u.mutation.SetTeamWallet(v)
+	return _u
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_u *BatchImageJobUpdateOne) SetNillableTeamWallet(v *bool) *BatchImageJobUpdateOne {
+	if v != nil {
+		_u.SetTeamWallet(*v)
+	}
 	return _u
 }
 
@@ -2266,6 +2297,9 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if _u.mutation.ResellerSnapshotCleared() {
 		_spec.ClearField(batchimagejob.FieldResellerSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TeamWallet(); ok {
+		_spec.SetField(batchimagejob.FieldTeamWallet, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UserID(); ok {
 		_spec.SetField(batchimagejob.FieldUserID, field.TypeInt64, value)

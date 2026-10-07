@@ -855,9 +855,11 @@ func ProvideBillingCacheService(
 	cfg *config.Config,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	resellerRepo ResellerRepository,
+	teamWalletRepo TeamWalletRepository,
 ) *BillingCacheService {
 	svc := NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
 	svc.resellerRepo = resellerRepo
+	svc.teamWalletRepo = teamWalletRepo
 	return svc
 }
 
@@ -896,7 +898,7 @@ var ProviderSet = wire.NewSet(
 	NewPasskeyService,
 	ProvideResellerUserService,
 	NewClientDisconnectRiskService,
-	NewTeamService,
+	ProvideTeamService,
 	NewCanvasBridgeService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,

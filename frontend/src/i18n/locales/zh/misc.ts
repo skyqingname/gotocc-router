@@ -330,7 +330,7 @@ export default {
         title: '团队功能导览',
         ownerDescription: '<div class="tour-step-description"><p>这段导览会介绍团队所有者最常用的工作流：</p><ul><li>管理成员并发送定向邀请</li><li>设置新成员默认限额</li><li>创建由团队所有者统一付费的团队密钥</li><li>查看各成员的用量趋势和消费对比</li></ul></div>',
         memberDescription: '<div class="tour-step-description"><p>这段导览会介绍团队成员可以使用的功能：</p><ul><li>查看自己的日、周、月限额</li><li>创建使用团队权益的团队密钥</li><li>查看自己的团队请求记录</li></ul></div>',
-        noTeamDescription: '<div class="tour-step-description"><p>团队可以让多名成员分别创建密钥，同时统一使用所有者的余额、订阅和分组权益。</p><p>先创建团队，之后就能邀请成员、设置限额，并按成员查看使用情况。</p></div>',
+        noTeamDescription: '<div class="tour-step-description"><p>团队可以让多名成员分别创建密钥，同时使用独立的团队公共余额，个人余额与订阅保持独立。</p><p>先创建团队，之后就能邀请成员、设置限额，并按成员查看使用情况。</p></div>',
         nextBtn: '开始导览'
       },
       createTeam: {
@@ -360,7 +360,7 @@ export default {
       },
       keyScope: {
         title: '切换到团队密钥',
-        description: '<div class="tour-step-description"><p>这个菜单用于切换个人密钥和团队密钥。当前已进入团队作用域，创建的密钥会使用所有者的余额、订阅和分组权益。</p></div>'
+        description: '<div class="tour-step-description"><p>这个菜单用于切换个人密钥和团队密钥。当前已进入团队作用域，创建的密钥会使用团队公共余额，并沿用现任负责人有权使用的分组。</p></div>'
       },
       createKey: {
         title: '创建团队密钥',

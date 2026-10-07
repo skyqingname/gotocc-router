@@ -40,8 +40,8 @@ func (r *teamRepository) Create(ctx context.Context, name string, ownerUserID in
 	}
 	var teamID int64
 	if err = tx.QueryRowContext(ctx, `
-		INSERT INTO teams (name, status, member_limit, created_at, updated_at)
-		VALUES ($1, 'active', $2, NOW(), NOW()) RETURNING id`, name, memberLimit).Scan(&teamID); err != nil {
+		INSERT INTO teams (name, status, member_limit, reseller_owner_id, created_at, updated_at)
+		VALUES ($1, 'active', $2, (SELECT owner_user_id FROM reseller_customers WHERE user_id=$3), NOW(), NOW()) RETURNING id`, name, memberLimit, ownerUserID).Scan(&teamID); err != nil {
 		return nil, err
 	}
 	if _, err = tx.ExecContext(ctx, `
@@ -65,7 +65,7 @@ func (r *teamRepository) GetContextByTeamID(ctx context.Context, teamID int64) (
 
 func (r *teamRepository) scanContext(ctx context.Context, where string, arg int64) (*service.TeamContext, error) {
 	query := `
-		SELECT t.id, t.name, t.status, t.member_limit,
+		SELECT t.id, t.name, t.status, t.member_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
 		       t.default_daily_limit_usd, t.default_weekly_limit_usd, t.default_monthly_limit_usd,
 		       t.created_at, t.updated_at,
 		       (SELECT COUNT(*) FROM team_memberships cm WHERE cm.team_id = t.id AND cm.left_at IS NULL AND cm.role = 'member') AS member_count,
@@ -92,6 +92,7 @@ func (r *teamRepository) scanContext(ctx context.Context, where string, arg int6
 	teamCtx := &service.TeamContext{Team: &service.Team{}, Membership: &service.TeamMembership{}, Owner: &service.TeamMembership{}}
 	err := row.Scan(
 		&teamCtx.Team.ID, &teamCtx.Team.Name, &teamCtx.Team.Status, &teamCtx.Team.MemberLimit,
+		&teamCtx.Team.Balance, &teamCtx.Team.FrozenBalance, &teamCtx.Team.ResellerOwnerID,
 		&teamCtx.Team.DefaultDailyLimitUSD, &teamCtx.Team.DefaultWeeklyLimitUSD, &teamCtx.Team.DefaultMonthlyLimitUSD,
 		&teamCtx.Team.CreatedAt, &teamCtx.Team.UpdatedAt, &teamCtx.Team.MemberCount,
 		&teamCtx.Membership.ID, &teamCtx.Membership.TeamID, &teamCtx.Membership.UserID, &teamCtx.Membership.Email, &teamCtx.Membership.Username, &teamCtx.Membership.Role,
@@ -116,16 +117,18 @@ func (r *teamRepository) scanContext(ctx context.Context, where string, arg int6
 }
 
 func (r *teamRepository) UpdateName(ctx context.Context, teamID int64, name string) error {
+	if service.TeamOwnerMutationUserID(ctx) != 0 {
+		return r.ownerUpdate(ctx, teamID, `UPDATE teams SET name = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, teamID, name)
+	}
 	result, err := r.db.ExecContext(ctx, `UPDATE teams SET name = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, teamID, name)
 	return requireTeamAffected(result, err)
 }
 
 func (r *teamRepository) SetDefaultMemberLimits(ctx context.Context, teamID int64, daily, weekly, monthly float64) error {
-	result, err := r.db.ExecContext(ctx, `
+	return r.ownerUpdate(ctx, teamID, `
 		UPDATE teams SET default_daily_limit_usd = $2, default_weekly_limit_usd = $3,
 			default_monthly_limit_usd = $4, updated_at = NOW()
 		WHERE id = $1 AND deleted_at IS NULL`, teamID, daily, weekly, monthly)
-	return requireTeamAffected(result, err)
 }
 
 func (r *teamRepository) ListMembers(ctx context.Context, teamID int64) ([]service.TeamMembership, error) {
@@ -419,6 +422,14 @@ func (r *teamRepository) RemoveMember(ctx context.Context, teamID, userID int64,
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err = lockTeamRow(ctx, tx, teamID); err != nil {
+		return err
+	}
+	if actorID := service.TeamOwnerMutationUserID(ctx); actorID != 0 {
+		if err := lockTeamOwner(ctx, tx, teamID, actorID); err != nil {
+			return err
+		}
+	}
 	result, err := tx.ExecContext(ctx, `
 		UPDATE team_memberships SET left_at = $3, updated_at = $3
 		WHERE team_id = $1 AND user_id = $2 AND left_at IS NULL AND role = 'member'`, teamID, userID, now)
@@ -436,24 +447,16 @@ func (r *teamRepository) RemoveMember(ctx context.Context, teamID, userID int64,
 }
 
 func (r *teamRepository) UpdateMemberLimits(ctx context.Context, teamID, userID int64, daily, weekly, monthly float64) error {
-	result, err := r.db.ExecContext(ctx, `
+	return r.ownerUpdate(ctx, teamID, `
 		UPDATE team_memberships SET daily_limit_usd = $3, weekly_limit_usd = $4, monthly_limit_usd = $5, updated_at = NOW()
 		WHERE team_id = $1 AND user_id = $2 AND left_at IS NULL AND role = 'member'`, teamID, userID, daily, weekly, monthly)
-	if err != nil {
-		return err
-	}
-	affected, _ := result.RowsAffected()
-	if affected == 0 {
-		return service.ErrTeamMembershipRequired
-	}
-	return nil
 }
 
 func (r *teamRepository) ResetMemberUsage(ctx context.Context, teamID, userID int64, resetDaily, resetWeekly, resetMonthly bool, now time.Time) error {
 	dailyStart := timezone.StartOfDay(now)
 	weeklyStart := timezone.StartOfWeek(now)
 	monthlyStart := timezone.StartOfMonth(now)
-	result, err := r.db.ExecContext(ctx, `
+	return r.ownerUpdate(ctx, teamID, `
 		UPDATE team_memberships SET
 			daily_usage_usd = CASE WHEN $3 THEN 0 ELSE daily_usage_usd END,
 			weekly_usage_usd = CASE WHEN $4 THEN 0 ELSE weekly_usage_usd END,
@@ -464,14 +467,6 @@ func (r *teamRepository) ResetMemberUsage(ctx context.Context, teamID, userID in
 			updated_at = NOW()
 		WHERE team_id = $1 AND user_id = $2 AND left_at IS NULL AND role = 'member'`,
 		teamID, userID, resetDaily, resetWeekly, resetMonthly, dailyStart, weeklyStart, monthlyStart)
-	if err != nil {
-		return err
-	}
-	affected, _ := result.RowsAffected()
-	if affected == 0 {
-		return service.ErrTeamMembershipRequired
-	}
-	return nil
 }
 
 func (r *teamRepository) CreateOwnershipTransfer(ctx context.Context, teamID, fromUserID, toUserID int64, tokenHash string, expiresAt time.Time) (*service.TeamOwnershipTransfer, error) {
@@ -480,6 +475,12 @@ func (r *teamRepository) CreateOwnershipTransfer(ctx context.Context, teamID, fr
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err = lockTeamOwner(ctx, tx, teamID, fromUserID); err != nil {
+		return nil, err
+	}
+	if err = checkTeamTransferSource(ctx, tx, teamID, toUserID); err != nil {
+		return nil, err
+	}
 	var targetMember bool
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM team_memberships WHERE team_id = $1 AND user_id = $2 AND left_at IS NULL AND role = 'member')`, teamID, toUserID).Scan(&targetMember); err != nil {
 		return nil, err
@@ -513,6 +514,15 @@ func (r *teamRepository) ResolveOwnershipTransfer(ctx context.Context, tokenHash
 	var id, teamID, fromUserID, toUserID int64
 	var status string
 	var expiresAt time.Time
+	if err = tx.QueryRowContext(ctx, `SELECT team_id FROM team_ownership_transfers WHERE token_hash=$1`, tokenHash).Scan(&teamID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, service.ErrTeamTransferInvalid
+		}
+		return nil, err
+	}
+	if err = lockTeamRow(ctx, tx, teamID); err != nil {
+		return nil, err
+	}
 	err = tx.QueryRowContext(ctx, `SELECT id, team_id, from_user_id, to_user_id, status, expires_at FROM team_ownership_transfers WHERE token_hash = $1 FOR UPDATE`, tokenHash).
 		Scan(&id, &teamID, &fromUserID, &toUserID, &status, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -570,6 +580,11 @@ func (r *teamRepository) Dissolve(ctx context.Context, teamID int64, now time.Ti
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if actorID := service.TeamOwnerMutationUserID(ctx); actorID != 0 {
+		if err := lockTeamOwner(ctx, tx, teamID, actorID); err != nil {
+			return err
+		}
+	}
 	if result, execErr := tx.ExecContext(ctx, `UPDATE teams SET status = 'suspended', deleted_at = $2, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL`, teamID, now); execErr != nil {
 		return execErr
 	} else if affected, _ := result.RowsAffected(); affected == 0 {
@@ -591,6 +606,9 @@ func (r *teamRepository) Dissolve(ctx context.Context, teamID int64, now time.Ti
 }
 
 func (r *teamRepository) SetStatus(ctx context.Context, teamID int64, status string) error {
+	if service.TeamOwnerMutationUserID(ctx) != 0 {
+		return r.ownerUpdate(ctx, teamID, `UPDATE teams SET status = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, teamID, status)
+	}
 	result, err := r.db.ExecContext(ctx, `UPDATE teams SET status = $2, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, teamID, status)
 	return requireTeamAffected(result, err)
 }
@@ -626,7 +644,7 @@ func (r *teamRepository) ForceTransfer(ctx context.Context, teamID, toUserID int
 	}
 	defer func() { _ = tx.Rollback() }()
 	var fromUserID int64
-	if err = tx.QueryRowContext(ctx, `SELECT user_id FROM team_memberships WHERE team_id = $1 AND left_at IS NULL AND role = 'owner' FOR UPDATE`, teamID).Scan(&fromUserID); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT user_id FROM team_memberships WHERE team_id = $1 AND left_at IS NULL AND role = 'owner'`, teamID).Scan(&fromUserID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, service.ErrTeamNotFound
 		}
@@ -654,6 +672,12 @@ func (r *teamRepository) ForceTransfer(ctx context.Context, teamID, toUserID int
 
 // transferTeamOwnership 分两步交换角色，避免部分唯一索引在单条 UPDATE 中看到两个 Owner。
 func transferTeamOwnership(ctx context.Context, tx *sql.Tx, teamID, fromUserID, toUserID int64, now time.Time) error {
+	if err := lockTeamOwner(ctx, tx, teamID, fromUserID); err != nil {
+		return err
+	}
+	if err := checkTeamTransferSource(ctx, tx, teamID, toUserID); err != nil {
+		return err
+	}
 	demoted, err := tx.ExecContext(ctx, `
 		UPDATE team_memberships SET role = 'member', daily_limit_usd = 0, weekly_limit_usd = 0, monthly_limit_usd = 0, updated_at = $4
 		WHERE team_id = $1 AND user_id = $2 AND user_id <> $3 AND left_at IS NULL AND role = 'owner'`, teamID, fromUserID, toUserID, now)
@@ -677,7 +701,7 @@ func transferTeamOwnership(ctx context.Context, tx *sql.Tx, teamID, fromUserID, 
 
 func (r *teamRepository) ListAdmin(ctx context.Context) ([]service.TeamAdminListItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT t.id, t.name, t.status, t.member_limit,
+		SELECT t.id, t.name, t.status, t.member_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
 		       t.default_daily_limit_usd, t.default_weekly_limit_usd, t.default_monthly_limit_usd,
 		       t.created_at, t.updated_at,
 		       (SELECT COUNT(*) FROM team_memberships cm WHERE cm.team_id = t.id AND cm.left_at IS NULL AND cm.role = 'member'),
@@ -696,6 +720,7 @@ func (r *teamRepository) ListAdmin(ctx context.Context) ([]service.TeamAdminList
 		var item service.TeamAdminListItem
 		if err := rows.Scan(
 			&item.ID, &item.Name, &item.Status, &item.MemberLimit,
+			&item.Balance, &item.FrozenBalance, &item.ResellerOwnerID,
 			&item.DefaultDailyLimitUSD, &item.DefaultWeeklyLimitUSD, &item.DefaultMonthlyLimitUSD,
 			&item.CreatedAt, &item.UpdatedAt, &item.MemberCount, &item.OwnerUserID, &item.OwnerEmail,
 		); err != nil {
@@ -952,31 +977,53 @@ func (r *teamRepository) ListTeamKeys(ctx context.Context, teamID int64, actorUs
 }
 
 func (r *teamRepository) DisableTeamKey(ctx context.Context, teamID, keyID int64, actorUserID *int64) (string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if err = lockTeamOwner(ctx, tx, teamID, service.TeamOwnerMutationUserID(ctx)); err != nil {
+		return "", err
+	}
 	args := []any{teamID, keyID}
 	actorCondition, args := teamKeyActorCondition(actorUserID, args)
 	var key string
-	err := r.db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE api_keys k SET status = 'disabled', team_owner_disabled = TRUE, updated_at = NOW()
 		WHERE k.team_id = $1 AND k.id = $2 AND k.deleted_at IS NULL`+actorCondition+`
 		RETURNING k.key`, args...).Scan(&key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", service.ErrAPIKeyNotFound
 	}
-	return key, err
+	if err != nil {
+		return "", err
+	}
+	return key, tx.Commit()
 }
 
 func (r *teamRepository) EnableTeamKey(ctx context.Context, teamID, keyID int64, actorUserID *int64) (string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	if err = lockTeamOwner(ctx, tx, teamID, service.TeamOwnerMutationUserID(ctx)); err != nil {
+		return "", err
+	}
 	args := []any{teamID, keyID}
 	actorCondition, args := teamKeyActorCondition(actorUserID, args)
 	var key string
-	err := r.db.QueryRowContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE api_keys k SET status = 'active', team_owner_disabled = FALSE, updated_at = NOW()
 		WHERE k.team_id = $1 AND k.id = $2 AND k.deleted_at IS NULL`+actorCondition+`
 		RETURNING k.key`, args...).Scan(&key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", service.ErrAPIKeyNotFound
 	}
-	return key, err
+	if err != nil {
+		return "", err
+	}
+	return key, tx.Commit()
 }
 
 func (r *teamRepository) DeleteTeamKey(ctx context.Context, teamID, keyID int64, actorUserID *int64) (string, error) {
@@ -985,6 +1032,9 @@ func (r *teamRepository) DeleteTeamKey(ctx context.Context, teamID, keyID int64,
 		return "", err
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err = lockTeamOwner(ctx, tx, teamID, service.TeamOwnerMutationUserID(ctx)); err != nil {
+		return "", err
+	}
 	args := []any{teamID, keyID}
 	actorCondition, args := teamKeyActorCondition(actorUserID, args)
 	var key string

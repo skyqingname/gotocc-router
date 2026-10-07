@@ -115,7 +115,19 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User account is not active")
 			return
 		}
+		if err := apiKeyService.ValidateTeamKeyLifecycle(apiKey); err != nil {
+			abortWithGoogleError(c, 403, err.Error())
+			return
+		}
 		if !isAPIKeyNonConsumingRequest(c.Request.Method, c.Request.URL.Path) {
+			if err := apiKeyService.CheckTeamMemberLimits(apiKey); err != nil {
+				abortWithGoogleError(c, 429, err.Error())
+				return
+			}
+			if err := apiKeyService.ValidateTeamGroupEntitlement(c.Request.Context(), apiKey); err != nil {
+				abortWithGoogleError(c, 403, err.Error())
+				return
+			}
 			if err := apiKeyService.ValidateResellerFunds(apiKey); err != nil {
 				WriteAutoRoutingError(c, err)
 				return
@@ -178,7 +190,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
-		isSubscriptionType := apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		isSubscriptionType := apiKey.TeamID == nil && apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 		if isSubscriptionType && subscriptionService != nil {
 			subscription, err := subscriptionService.GetActiveSubscription(
 				c.Request.Context(),

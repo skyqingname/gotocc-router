@@ -75,6 +75,21 @@ func Name(v string) predicate.Team {
 	return predicate.Team(sql.FieldEQ(FieldName, v))
 }
 
+// Balance applies equality check predicate on the "balance" field. It's identical to BalanceEQ.
+func Balance(v float64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldBalance, v))
+}
+
+// FrozenBalance applies equality check predicate on the "frozen_balance" field. It's identical to FrozenBalanceEQ.
+func FrozenBalance(v float64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldFrozenBalance, v))
+}
+
+// ResellerOwnerID applies equality check predicate on the "reseller_owner_id" field. It's identical to ResellerOwnerIDEQ.
+func ResellerOwnerID(v int64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldResellerOwnerID, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Team {
 	return predicate.Team(sql.FieldEQ(FieldStatus, v))
@@ -293,6 +308,136 @@ func NameEqualFold(v string) predicate.Team {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Team {
 	return predicate.Team(sql.FieldContainsFold(FieldName, v))
+}
+
+// BalanceEQ applies the EQ predicate on the "balance" field.
+func BalanceEQ(v float64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldBalance, v))
+}
+
+// BalanceNEQ applies the NEQ predicate on the "balance" field.
+func BalanceNEQ(v float64) predicate.Team {
+	return predicate.Team(sql.FieldNEQ(FieldBalance, v))
+}
+
+// BalanceIn applies the In predicate on the "balance" field.
+func BalanceIn(vs ...float64) predicate.Team {
+	return predicate.Team(sql.FieldIn(FieldBalance, vs...))
+}
+
+// BalanceNotIn applies the NotIn predicate on the "balance" field.
+func BalanceNotIn(vs ...float64) predicate.Team {
+	return predicate.Team(sql.FieldNotIn(FieldBalance, vs...))
+}
+
+// BalanceGT applies the GT predicate on the "balance" field.
+func BalanceGT(v float64) predicate.Team {
+	return predicate.Team(sql.FieldGT(FieldBalance, v))
+}
+
+// BalanceGTE applies the GTE predicate on the "balance" field.
+func BalanceGTE(v float64) predicate.Team {
+	return predicate.Team(sql.FieldGTE(FieldBalance, v))
+}
+
+// BalanceLT applies the LT predicate on the "balance" field.
+func BalanceLT(v float64) predicate.Team {
+	return predicate.Team(sql.FieldLT(FieldBalance, v))
+}
+
+// BalanceLTE applies the LTE predicate on the "balance" field.
+func BalanceLTE(v float64) predicate.Team {
+	return predicate.Team(sql.FieldLTE(FieldBalance, v))
+}
+
+// FrozenBalanceEQ applies the EQ predicate on the "frozen_balance" field.
+func FrozenBalanceEQ(v float64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldFrozenBalance, v))
+}
+
+// FrozenBalanceNEQ applies the NEQ predicate on the "frozen_balance" field.
+func FrozenBalanceNEQ(v float64) predicate.Team {
+	return predicate.Team(sql.FieldNEQ(FieldFrozenBalance, v))
+}
+
+// FrozenBalanceIn applies the In predicate on the "frozen_balance" field.
+func FrozenBalanceIn(vs ...float64) predicate.Team {
+	return predicate.Team(sql.FieldIn(FieldFrozenBalance, vs...))
+}
+
+// FrozenBalanceNotIn applies the NotIn predicate on the "frozen_balance" field.
+func FrozenBalanceNotIn(vs ...float64) predicate.Team {
+	return predicate.Team(sql.FieldNotIn(FieldFrozenBalance, vs...))
+}
+
+// FrozenBalanceGT applies the GT predicate on the "frozen_balance" field.
+func FrozenBalanceGT(v float64) predicate.Team {
+	return predicate.Team(sql.FieldGT(FieldFrozenBalance, v))
+}
+
+// FrozenBalanceGTE applies the GTE predicate on the "frozen_balance" field.
+func FrozenBalanceGTE(v float64) predicate.Team {
+	return predicate.Team(sql.FieldGTE(FieldFrozenBalance, v))
+}
+
+// FrozenBalanceLT applies the LT predicate on the "frozen_balance" field.
+func FrozenBalanceLT(v float64) predicate.Team {
+	return predicate.Team(sql.FieldLT(FieldFrozenBalance, v))
+}
+
+// FrozenBalanceLTE applies the LTE predicate on the "frozen_balance" field.
+func FrozenBalanceLTE(v float64) predicate.Team {
+	return predicate.Team(sql.FieldLTE(FieldFrozenBalance, v))
+}
+
+// ResellerOwnerIDEQ applies the EQ predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDEQ(v int64) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDNEQ applies the NEQ predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDNEQ(v int64) predicate.Team {
+	return predicate.Team(sql.FieldNEQ(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDIn applies the In predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDIn(vs ...int64) predicate.Team {
+	return predicate.Team(sql.FieldIn(FieldResellerOwnerID, vs...))
+}
+
+// ResellerOwnerIDNotIn applies the NotIn predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDNotIn(vs ...int64) predicate.Team {
+	return predicate.Team(sql.FieldNotIn(FieldResellerOwnerID, vs...))
+}
+
+// ResellerOwnerIDGT applies the GT predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDGT(v int64) predicate.Team {
+	return predicate.Team(sql.FieldGT(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDGTE applies the GTE predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDGTE(v int64) predicate.Team {
+	return predicate.Team(sql.FieldGTE(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDLT applies the LT predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDLT(v int64) predicate.Team {
+	return predicate.Team(sql.FieldLT(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDLTE applies the LTE predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDLTE(v int64) predicate.Team {
+	return predicate.Team(sql.FieldLTE(FieldResellerOwnerID, v))
+}
+
+// ResellerOwnerIDIsNil applies the IsNil predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDIsNil() predicate.Team {
+	return predicate.Team(sql.FieldIsNull(FieldResellerOwnerID))
+}
+
+// ResellerOwnerIDNotNil applies the NotNil predicate on the "reseller_owner_id" field.
+func ResellerOwnerIDNotNil() predicate.Team {
+	return predicate.Team(sql.FieldNotNull(FieldResellerOwnerID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

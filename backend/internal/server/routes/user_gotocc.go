@@ -12,6 +12,7 @@ func registerUserTeamRoutes(authenticated *gin.RouterGroup, h *handler.Handlers,
 	{
 		team.GET("", h.Team.GetCurrent)
 		team.POST("", h.Team.Create)
+		team.POST("/wallet/fund", h.Team.FundWallet)
 		team.PATCH("", h.Team.Update)
 		team.PATCH("/default-member-limits", h.Team.UpdateDefaultMemberLimits)
 		team.POST("/status", gin.HandlerFunc(stepUpAuth), h.Team.SetStatus)

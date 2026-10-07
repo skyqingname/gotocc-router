@@ -73,6 +73,75 @@ func (_u *TeamUpdate) SetNillableName(v *string) *TeamUpdate {
 	return _u
 }
 
+// SetBalance sets the "balance" field.
+func (_u *TeamUpdate) SetBalance(v float64) *TeamUpdate {
+	_u.mutation.ResetBalance()
+	_u.mutation.SetBalance(v)
+	return _u
+}
+
+// SetNillableBalance sets the "balance" field if the given value is not nil.
+func (_u *TeamUpdate) SetNillableBalance(v *float64) *TeamUpdate {
+	if v != nil {
+		_u.SetBalance(*v)
+	}
+	return _u
+}
+
+// AddBalance adds value to the "balance" field.
+func (_u *TeamUpdate) AddBalance(v float64) *TeamUpdate {
+	_u.mutation.AddBalance(v)
+	return _u
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (_u *TeamUpdate) SetFrozenBalance(v float64) *TeamUpdate {
+	_u.mutation.ResetFrozenBalance()
+	_u.mutation.SetFrozenBalance(v)
+	return _u
+}
+
+// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
+func (_u *TeamUpdate) SetNillableFrozenBalance(v *float64) *TeamUpdate {
+	if v != nil {
+		_u.SetFrozenBalance(*v)
+	}
+	return _u
+}
+
+// AddFrozenBalance adds value to the "frozen_balance" field.
+func (_u *TeamUpdate) AddFrozenBalance(v float64) *TeamUpdate {
+	_u.mutation.AddFrozenBalance(v)
+	return _u
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (_u *TeamUpdate) SetResellerOwnerID(v int64) *TeamUpdate {
+	_u.mutation.ResetResellerOwnerID()
+	_u.mutation.SetResellerOwnerID(v)
+	return _u
+}
+
+// SetNillableResellerOwnerID sets the "reseller_owner_id" field if the given value is not nil.
+func (_u *TeamUpdate) SetNillableResellerOwnerID(v *int64) *TeamUpdate {
+	if v != nil {
+		_u.SetResellerOwnerID(*v)
+	}
+	return _u
+}
+
+// AddResellerOwnerID adds value to the "reseller_owner_id" field.
+func (_u *TeamUpdate) AddResellerOwnerID(v int64) *TeamUpdate {
+	_u.mutation.AddResellerOwnerID(v)
+	return _u
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (_u *TeamUpdate) ClearResellerOwnerID() *TeamUpdate {
+	_u.mutation.ClearResellerOwnerID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *TeamUpdate) SetStatus(v string) *TeamUpdate {
 	_u.mutation.SetStatus(v)
@@ -457,6 +526,27 @@ func (_u *TeamUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(team.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Balance(); ok {
+		_spec.SetField(team.FieldBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalance(); ok {
+		_spec.AddField(team.FieldBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FrozenBalance(); ok {
+		_spec.SetField(team.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
+		_spec.AddField(team.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ResellerOwnerID(); ok {
+		_spec.SetField(team.FieldResellerOwnerID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedResellerOwnerID(); ok {
+		_spec.AddField(team.FieldResellerOwnerID, field.TypeInt64, value)
+	}
+	if _u.mutation.ResellerOwnerIDCleared() {
+		_spec.ClearField(team.FieldResellerOwnerID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(team.FieldStatus, field.TypeString, value)
 	}
@@ -766,6 +856,75 @@ func (_u *TeamUpdateOne) SetNillableName(v *string) *TeamUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetBalance sets the "balance" field.
+func (_u *TeamUpdateOne) SetBalance(v float64) *TeamUpdateOne {
+	_u.mutation.ResetBalance()
+	_u.mutation.SetBalance(v)
+	return _u
+}
+
+// SetNillableBalance sets the "balance" field if the given value is not nil.
+func (_u *TeamUpdateOne) SetNillableBalance(v *float64) *TeamUpdateOne {
+	if v != nil {
+		_u.SetBalance(*v)
+	}
+	return _u
+}
+
+// AddBalance adds value to the "balance" field.
+func (_u *TeamUpdateOne) AddBalance(v float64) *TeamUpdateOne {
+	_u.mutation.AddBalance(v)
+	return _u
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (_u *TeamUpdateOne) SetFrozenBalance(v float64) *TeamUpdateOne {
+	_u.mutation.ResetFrozenBalance()
+	_u.mutation.SetFrozenBalance(v)
+	return _u
+}
+
+// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
+func (_u *TeamUpdateOne) SetNillableFrozenBalance(v *float64) *TeamUpdateOne {
+	if v != nil {
+		_u.SetFrozenBalance(*v)
+	}
+	return _u
+}
+
+// AddFrozenBalance adds value to the "frozen_balance" field.
+func (_u *TeamUpdateOne) AddFrozenBalance(v float64) *TeamUpdateOne {
+	_u.mutation.AddFrozenBalance(v)
+	return _u
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (_u *TeamUpdateOne) SetResellerOwnerID(v int64) *TeamUpdateOne {
+	_u.mutation.ResetResellerOwnerID()
+	_u.mutation.SetResellerOwnerID(v)
+	return _u
+}
+
+// SetNillableResellerOwnerID sets the "reseller_owner_id" field if the given value is not nil.
+func (_u *TeamUpdateOne) SetNillableResellerOwnerID(v *int64) *TeamUpdateOne {
+	if v != nil {
+		_u.SetResellerOwnerID(*v)
+	}
+	return _u
+}
+
+// AddResellerOwnerID adds value to the "reseller_owner_id" field.
+func (_u *TeamUpdateOne) AddResellerOwnerID(v int64) *TeamUpdateOne {
+	_u.mutation.AddResellerOwnerID(v)
+	return _u
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (_u *TeamUpdateOne) ClearResellerOwnerID() *TeamUpdateOne {
+	_u.mutation.ClearResellerOwnerID()
 	return _u
 }
 
@@ -1182,6 +1341,27 @@ func (_u *TeamUpdateOne) sqlSave(ctx context.Context) (_node *Team, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(team.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Balance(); ok {
+		_spec.SetField(team.FieldBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBalance(); ok {
+		_spec.AddField(team.FieldBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FrozenBalance(); ok {
+		_spec.SetField(team.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
+		_spec.AddField(team.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ResellerOwnerID(); ok {
+		_spec.SetField(team.FieldResellerOwnerID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedResellerOwnerID(); ok {
+		_spec.AddField(team.FieldResellerOwnerID, field.TypeInt64, value)
+	}
+	if _u.mutation.ResellerOwnerIDCleared() {
+		_spec.ClearField(team.FieldResellerOwnerID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(team.FieldStatus, field.TypeString, value)

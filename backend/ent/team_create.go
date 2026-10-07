@@ -75,6 +75,48 @@ func (_c *TeamCreate) SetName(v string) *TeamCreate {
 	return _c
 }
 
+// SetBalance sets the "balance" field.
+func (_c *TeamCreate) SetBalance(v float64) *TeamCreate {
+	_c.mutation.SetBalance(v)
+	return _c
+}
+
+// SetNillableBalance sets the "balance" field if the given value is not nil.
+func (_c *TeamCreate) SetNillableBalance(v *float64) *TeamCreate {
+	if v != nil {
+		_c.SetBalance(*v)
+	}
+	return _c
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (_c *TeamCreate) SetFrozenBalance(v float64) *TeamCreate {
+	_c.mutation.SetFrozenBalance(v)
+	return _c
+}
+
+// SetNillableFrozenBalance sets the "frozen_balance" field if the given value is not nil.
+func (_c *TeamCreate) SetNillableFrozenBalance(v *float64) *TeamCreate {
+	if v != nil {
+		_c.SetFrozenBalance(*v)
+	}
+	return _c
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (_c *TeamCreate) SetResellerOwnerID(v int64) *TeamCreate {
+	_c.mutation.SetResellerOwnerID(v)
+	return _c
+}
+
+// SetNillableResellerOwnerID sets the "reseller_owner_id" field if the given value is not nil.
+func (_c *TeamCreate) SetNillableResellerOwnerID(v *int64) *TeamCreate {
+	if v != nil {
+		_c.SetResellerOwnerID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *TeamCreate) SetStatus(v string) *TeamCreate {
 	_c.mutation.SetStatus(v)
@@ -271,6 +313,14 @@ func (_c *TeamCreate) defaults() error {
 		v := team.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Balance(); !ok {
+		v := team.DefaultBalance
+		_c.mutation.SetBalance(v)
+	}
+	if _, ok := _c.mutation.FrozenBalance(); !ok {
+		v := team.DefaultFrozenBalance
+		_c.mutation.SetFrozenBalance(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := team.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -309,6 +359,12 @@ func (_c *TeamCreate) check() error {
 		if err := team.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Team.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Balance(); !ok {
+		return &ValidationError{Name: "balance", err: errors.New(`ent: missing required field "Team.balance"`)}
+	}
+	if _, ok := _c.mutation.FrozenBalance(); !ok {
+		return &ValidationError{Name: "frozen_balance", err: errors.New(`ent: missing required field "Team.frozen_balance"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Team.status"`)}
@@ -392,6 +448,18 @@ func (_c *TeamCreate) createSpec() (*Team, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(team.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.Balance(); ok {
+		_spec.SetField(team.FieldBalance, field.TypeFloat64, value)
+		_node.Balance = value
+	}
+	if value, ok := _c.mutation.FrozenBalance(); ok {
+		_spec.SetField(team.FieldFrozenBalance, field.TypeFloat64, value)
+		_node.FrozenBalance = value
+	}
+	if value, ok := _c.mutation.ResellerOwnerID(); ok {
+		_spec.SetField(team.FieldResellerOwnerID, field.TypeInt64, value)
+		_node.ResellerOwnerID = &value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(team.FieldStatus, field.TypeString, value)
@@ -587,6 +655,66 @@ func (u *TeamUpsert) UpdateName() *TeamUpsert {
 	return u
 }
 
+// SetBalance sets the "balance" field.
+func (u *TeamUpsert) SetBalance(v float64) *TeamUpsert {
+	u.Set(team.FieldBalance, v)
+	return u
+}
+
+// UpdateBalance sets the "balance" field to the value that was provided on create.
+func (u *TeamUpsert) UpdateBalance() *TeamUpsert {
+	u.SetExcluded(team.FieldBalance)
+	return u
+}
+
+// AddBalance adds v to the "balance" field.
+func (u *TeamUpsert) AddBalance(v float64) *TeamUpsert {
+	u.Add(team.FieldBalance, v)
+	return u
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (u *TeamUpsert) SetFrozenBalance(v float64) *TeamUpsert {
+	u.Set(team.FieldFrozenBalance, v)
+	return u
+}
+
+// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
+func (u *TeamUpsert) UpdateFrozenBalance() *TeamUpsert {
+	u.SetExcluded(team.FieldFrozenBalance)
+	return u
+}
+
+// AddFrozenBalance adds v to the "frozen_balance" field.
+func (u *TeamUpsert) AddFrozenBalance(v float64) *TeamUpsert {
+	u.Add(team.FieldFrozenBalance, v)
+	return u
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (u *TeamUpsert) SetResellerOwnerID(v int64) *TeamUpsert {
+	u.Set(team.FieldResellerOwnerID, v)
+	return u
+}
+
+// UpdateResellerOwnerID sets the "reseller_owner_id" field to the value that was provided on create.
+func (u *TeamUpsert) UpdateResellerOwnerID() *TeamUpsert {
+	u.SetExcluded(team.FieldResellerOwnerID)
+	return u
+}
+
+// AddResellerOwnerID adds v to the "reseller_owner_id" field.
+func (u *TeamUpsert) AddResellerOwnerID(v int64) *TeamUpsert {
+	u.Add(team.FieldResellerOwnerID, v)
+	return u
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (u *TeamUpsert) ClearResellerOwnerID() *TeamUpsert {
+	u.SetNull(team.FieldResellerOwnerID)
+	return u
+}
+
 // SetStatus sets the "status" field.
 func (u *TeamUpsert) SetStatus(v string) *TeamUpsert {
 	u.Set(team.FieldStatus, v)
@@ -762,6 +890,76 @@ func (u *TeamUpsertOne) SetName(v string) *TeamUpsertOne {
 func (u *TeamUpsertOne) UpdateName() *TeamUpsertOne {
 	return u.Update(func(s *TeamUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetBalance sets the "balance" field.
+func (u *TeamUpsertOne) SetBalance(v float64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetBalance(v)
+	})
+}
+
+// AddBalance adds v to the "balance" field.
+func (u *TeamUpsertOne) AddBalance(v float64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddBalance(v)
+	})
+}
+
+// UpdateBalance sets the "balance" field to the value that was provided on create.
+func (u *TeamUpsertOne) UpdateBalance() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateBalance()
+	})
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (u *TeamUpsertOne) SetFrozenBalance(v float64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetFrozenBalance(v)
+	})
+}
+
+// AddFrozenBalance adds v to the "frozen_balance" field.
+func (u *TeamUpsertOne) AddFrozenBalance(v float64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddFrozenBalance(v)
+	})
+}
+
+// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
+func (u *TeamUpsertOne) UpdateFrozenBalance() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateFrozenBalance()
+	})
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (u *TeamUpsertOne) SetResellerOwnerID(v int64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetResellerOwnerID(v)
+	})
+}
+
+// AddResellerOwnerID adds v to the "reseller_owner_id" field.
+func (u *TeamUpsertOne) AddResellerOwnerID(v int64) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddResellerOwnerID(v)
+	})
+}
+
+// UpdateResellerOwnerID sets the "reseller_owner_id" field to the value that was provided on create.
+func (u *TeamUpsertOne) UpdateResellerOwnerID() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateResellerOwnerID()
+	})
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (u *TeamUpsertOne) ClearResellerOwnerID() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.ClearResellerOwnerID()
 	})
 }
 
@@ -1120,6 +1318,76 @@ func (u *TeamUpsertBulk) SetName(v string) *TeamUpsertBulk {
 func (u *TeamUpsertBulk) UpdateName() *TeamUpsertBulk {
 	return u.Update(func(s *TeamUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetBalance sets the "balance" field.
+func (u *TeamUpsertBulk) SetBalance(v float64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetBalance(v)
+	})
+}
+
+// AddBalance adds v to the "balance" field.
+func (u *TeamUpsertBulk) AddBalance(v float64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddBalance(v)
+	})
+}
+
+// UpdateBalance sets the "balance" field to the value that was provided on create.
+func (u *TeamUpsertBulk) UpdateBalance() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateBalance()
+	})
+}
+
+// SetFrozenBalance sets the "frozen_balance" field.
+func (u *TeamUpsertBulk) SetFrozenBalance(v float64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetFrozenBalance(v)
+	})
+}
+
+// AddFrozenBalance adds v to the "frozen_balance" field.
+func (u *TeamUpsertBulk) AddFrozenBalance(v float64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddFrozenBalance(v)
+	})
+}
+
+// UpdateFrozenBalance sets the "frozen_balance" field to the value that was provided on create.
+func (u *TeamUpsertBulk) UpdateFrozenBalance() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateFrozenBalance()
+	})
+}
+
+// SetResellerOwnerID sets the "reseller_owner_id" field.
+func (u *TeamUpsertBulk) SetResellerOwnerID(v int64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetResellerOwnerID(v)
+	})
+}
+
+// AddResellerOwnerID adds v to the "reseller_owner_id" field.
+func (u *TeamUpsertBulk) AddResellerOwnerID(v int64) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddResellerOwnerID(v)
+	})
+}
+
+// UpdateResellerOwnerID sets the "reseller_owner_id" field to the value that was provided on create.
+func (u *TeamUpsertBulk) UpdateResellerOwnerID() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateResellerOwnerID()
+	})
+}
+
+// ClearResellerOwnerID clears the value of the "reseller_owner_id" field.
+func (u *TeamUpsertBulk) ClearResellerOwnerID() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.ClearResellerOwnerID()
 	})
 }
 
