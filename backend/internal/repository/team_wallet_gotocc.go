@@ -123,7 +123,7 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 			return nil, err
 		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO reseller_credit_entries (customer_user_id,owner_user_id,operator_user_id,operation_id,kind,amount,balance_after,frozen_after,notes)
-			VALUES($1,$2,$1,$3,'team_transfer',-$4,$5,$6,$7)`, ownerID, source.Int64, "team:"+operationID, amount, result.PersonalBalance, personalFrozen, fmt.Sprintf("转入团队 %d 公共余额", teamID))
+			VALUES($1,$2,$1,$3,'team_transfer',$4,$5,$6,$7)`, ownerID, source.Int64, "team:"+operationID, -amount, result.PersonalBalance, personalFrozen, fmt.Sprintf("转入团队 %d 公共余额", teamID))
 	} else {
 		err = tx.QueryRowContext(ctx, `UPDATE users SET balance=balance-$2,updated_at=NOW() WHERE id=$1 AND balance >= $2 AND status='active' AND deleted_at IS NULL RETURNING balance`, ownerID, amount).Scan(&result.PersonalBalance)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -132,7 +132,11 @@ func (r *teamRepository) FundWallet(ctx context.Context, teamID, ownerID int64, 
 		if err != nil {
 			return nil, err
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO redeem_codes(code,type,value,status,used_by,used_at,notes) VALUES($1,'team_transfer',-$2,'used',$3,NOW(),$4)`, "team:"+operationID, amount, ownerID, fmt.Sprintf("转入团队 %d 公共余额", teamID))
+		code, codeErr := service.GenerateRedeemCode()
+		if codeErr != nil {
+			return nil, codeErr
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO redeem_codes(code,type,value,status,used_by,used_at,notes) VALUES($1,'team_transfer',$2,'used',$3,NOW(),$4)`, code, -amount, ownerID, fmt.Sprintf("转入团队 %d 公共余额", teamID))
 	}
 	if err != nil {
 		return nil, err
