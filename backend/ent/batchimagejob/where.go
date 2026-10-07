@@ -54,6 +54,11 @@ func IDLTE(id int64) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldLTE(FieldID, id))
 }
 
+// TeamWallet applies equality check predicate on the "team_wallet" field. It's identical to TeamWalletEQ.
+func TeamWallet(v bool) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldTeamWallet, v))
+}
+
 // BatchID applies equality check predicate on the "batch_id" field. It's identical to BatchIDEQ.
 func BatchID(v string) predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldEQ(FieldBatchID, v))
@@ -282,6 +287,16 @@ func ResellerSnapshotIsNil() predicate.BatchImageJob {
 // ResellerSnapshotNotNil applies the NotNil predicate on the "reseller_snapshot" field.
 func ResellerSnapshotNotNil() predicate.BatchImageJob {
 	return predicate.BatchImageJob(sql.FieldNotNull(FieldResellerSnapshot))
+}
+
+// TeamWalletEQ applies the EQ predicate on the "team_wallet" field.
+func TeamWalletEQ(v bool) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldEQ(FieldTeamWallet, v))
+}
+
+// TeamWalletNEQ applies the NEQ predicate on the "team_wallet" field.
+func TeamWalletNEQ(v bool) predicate.BatchImageJob {
+	return predicate.BatchImageJob(sql.FieldNEQ(FieldTeamWallet, v))
 }
 
 // BatchIDEQ applies the EQ predicate on the "batch_id" field.

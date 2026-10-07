@@ -55,6 +55,7 @@ func buildBatchImageHoldCommand(job *BatchImageJob, requestID string, actualAmou
 		actualAmount = 0
 	}
 	cmd := &BatchImageBalanceHoldCommand{
+		TeamWallet:         job.TeamWallet,
 		ResellerSnapshot:   job.ResellerSnapshot,
 		Model:              job.Model,
 		RequestID:          requestID,
@@ -88,6 +89,9 @@ func reserveBatchImageBalanceHold(ctx context.Context, repo UsageBillingReposito
 		return nil
 	}
 	if _, err := repo.ReserveBatchImageBalance(ctx, cmd); err != nil {
+		if errors.Is(err, ErrTeamBalanceInsufficient) {
+			return err
+		}
 		if errors.Is(err, ErrBatchImageInsufficientBalance) {
 			return ErrBatchImageInsufficientBalance
 		}

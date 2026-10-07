@@ -4,6 +4,9 @@ export type TeamRole = 'owner' | 'member'
 export type TeamStatus = 'active' | 'suspended'
 
 export interface Team {
+
+  balance: number
+  frozen_balance: number
   id: number
   name: string
   status: TeamStatus
@@ -37,6 +40,13 @@ export interface TeamContext {
   team: Team
   membership: TeamMembership
   owner: TeamMembership
+}
+
+export interface TeamFundingResult {
+  operation_id: string
+  amount: number
+  personal_balance: number
+  team_balance: number
 }
 
 export interface TeamInvitation {
@@ -139,6 +149,10 @@ export interface TeamUsageQuery {
 }
 
 export const teamAPI = {
+  async fundWallet(operationID: string, amount: number): Promise<TeamFundingResult> {
+    const { data } = await apiClient.post<TeamFundingResult>('/team/wallet/fund', { operation_id: operationID, amount })
+    return data
+  },
   async current(): Promise<TeamContext> {
     const { data } = await apiClient.get<TeamContext>('/team')
     return data

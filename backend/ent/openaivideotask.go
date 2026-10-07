@@ -22,6 +22,8 @@ type OpenAIVideoTask struct {
 	ID int64 `json:"id,omitempty"`
 	// ResellerSnapshot holds the value of the "reseller_snapshot" field.
 	ResellerSnapshot *reseller.Snapshot `json:"reseller_snapshot,omitempty"`
+	// TeamWallet holds the value of the "team_wallet" field.
+	TeamWallet bool `json:"team_wallet,omitempty"`
 	// ProviderConfig holds the value of the "provider_config" field.
 	ProviderConfig *videoprotocol.Config `json:"provider_config,omitempty"`
 	// LocalRequestID holds the value of the "local_request_id" field.
@@ -122,7 +124,7 @@ func (*OpenAIVideoTask) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case openaivideotask.FieldResellerSnapshot, openaivideotask.FieldProviderConfig:
 			values[i] = new([]byte)
-		case openaivideotask.FieldAllowanceReserved, openaivideotask.FieldUsageRecorded:
+		case openaivideotask.FieldTeamWallet, openaivideotask.FieldAllowanceReserved, openaivideotask.FieldUsageRecorded:
 			values[i] = new(sql.NullBool)
 		case openaivideotask.FieldTotalCost, openaivideotask.FieldActualCost, openaivideotask.FieldHoldAmount, openaivideotask.FieldGroupRateMultiplier, openaivideotask.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
@@ -160,6 +162,12 @@ func (_m *OpenAIVideoTask) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.ResellerSnapshot); err != nil {
 					return fmt.Errorf("unmarshal field reseller_snapshot: %w", err)
 				}
+			}
+		case openaivideotask.FieldTeamWallet:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field team_wallet", values[i])
+			} else if value.Valid {
+				_m.TeamWallet = value.Bool
 			}
 		case openaivideotask.FieldProviderConfig:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -489,6 +497,9 @@ func (_m *OpenAIVideoTask) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("reseller_snapshot=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ResellerSnapshot))
+	builder.WriteString(", ")
+	builder.WriteString("team_wallet=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TeamWallet))
 	builder.WriteString(", ")
 	builder.WriteString("provider_config=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProviderConfig))

@@ -42,6 +42,20 @@ func (_u *OpenAIVideoTaskUpdate) ClearResellerSnapshot() *OpenAIVideoTaskUpdate 
 	return _u
 }
 
+// SetTeamWallet sets the "team_wallet" field.
+func (_u *OpenAIVideoTaskUpdate) SetTeamWallet(v bool) *OpenAIVideoTaskUpdate {
+	_u.mutation.SetTeamWallet(v)
+	return _u
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_u *OpenAIVideoTaskUpdate) SetNillableTeamWallet(v *bool) *OpenAIVideoTaskUpdate {
+	if v != nil {
+		_u.SetTeamWallet(*v)
+	}
+	return _u
+}
+
 // SetProviderConfig sets the "provider_config" field.
 func (_u *OpenAIVideoTaskUpdate) SetProviderConfig(v *videoprotocol.Config) *OpenAIVideoTaskUpdate {
 	_u.mutation.SetProviderConfig(v)
@@ -998,6 +1012,9 @@ func (_u *OpenAIVideoTaskUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if _u.mutation.ResellerSnapshotCleared() {
 		_spec.ClearField(openaivideotask.FieldResellerSnapshot, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.TeamWallet(); ok {
+		_spec.SetField(openaivideotask.FieldTeamWallet, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)
 	}
@@ -1261,6 +1278,20 @@ func (_u *OpenAIVideoTaskUpdateOne) SetResellerSnapshot(v *reseller.Snapshot) *O
 // ClearResellerSnapshot clears the value of the "reseller_snapshot" field.
 func (_u *OpenAIVideoTaskUpdateOne) ClearResellerSnapshot() *OpenAIVideoTaskUpdateOne {
 	_u.mutation.ClearResellerSnapshot()
+	return _u
+}
+
+// SetTeamWallet sets the "team_wallet" field.
+func (_u *OpenAIVideoTaskUpdateOne) SetTeamWallet(v bool) *OpenAIVideoTaskUpdateOne {
+	_u.mutation.SetTeamWallet(v)
+	return _u
+}
+
+// SetNillableTeamWallet sets the "team_wallet" field if the given value is not nil.
+func (_u *OpenAIVideoTaskUpdateOne) SetNillableTeamWallet(v *bool) *OpenAIVideoTaskUpdateOne {
+	if v != nil {
+		_u.SetTeamWallet(*v)
+	}
 	return _u
 }
 
@@ -2249,6 +2280,9 @@ func (_u *OpenAIVideoTaskUpdateOne) sqlSave(ctx context.Context) (_node *OpenAIV
 	}
 	if _u.mutation.ResellerSnapshotCleared() {
 		_spec.ClearField(openaivideotask.FieldResellerSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TeamWallet(); ok {
+		_spec.SetField(openaivideotask.FieldTeamWallet, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.ProviderConfig(); ok {
 		_spec.SetField(openaivideotask.FieldProviderConfig, field.TypeJSON, value)

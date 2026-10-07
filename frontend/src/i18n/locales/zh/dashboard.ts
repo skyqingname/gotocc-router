@@ -939,6 +939,7 @@ export default {
     balanceAddedAffiliate: '余额充值（返利转入）',
     balanceAddedAdmin: '余额充值（管理员）',
     balanceDeductedAdmin: '余额扣除（管理员）',
+    balanceTeamTransfer: '转入团队公共余额',
     balanceCanvasTransfer: '影策画布划转',
     balanceCanvasTransferReversal: '影策画布划转退回',
     concurrencyAddedRedeem: '并发增加（兑换）',

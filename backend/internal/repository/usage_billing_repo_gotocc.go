@@ -82,6 +82,7 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 	}
 
 	batchCmd := &service.BatchImageBalanceHoldCommand{
+		TeamWallet:       cmd.TeamWallet,
 		ResellerSnapshot: cmd.ResellerSnapshot, RequestID: requestID, Model: cmd.Model,
 		APIKeyID: cmd.APIKeyID, UserID: cmd.UserID, ActorUserID: cmd.ActorUserID,
 		TeamID: cmd.TeamID, BatchID: cmd.LocalRequestID, HoldAmount: cmd.HoldAmount,
@@ -141,7 +142,11 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 			return heldErr
 		}
 		if held && cmd.HoldAmount > 0 {
-			if managedReseller(cmd.ResellerSnapshot) {
+			if cmd.TeamWallet {
+				if _, err = releaseTeamWallet(ctx, tx, batchCmd); err != nil {
+					return err
+				}
+			} else if managedReseller(cmd.ResellerSnapshot) {
 				if _, err = releaseResellerCustomerBalance(ctx, tx, batchCmd); err != nil {
 					return err
 				}
@@ -191,6 +196,9 @@ func openAIVideoBillingFingerprint(cmd *service.OpenAIVideoBalanceHoldCommand, o
 	raw := fmt.Sprintf("%s|%s|%d|%d|%d|%0.10f|%0.10f|%s",
 		operation, strings.TrimSpace(cmd.LocalRequestID), cmd.TaskID, cmd.APIKeyID,
 		cmd.UserID, cmd.HoldAmount, cmd.ActualAmount, strings.TrimSpace(cmd.RequestPayloadHash))
+	if cmd.TeamWallet {
+		raw += "|team_wallet"
+	}
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }

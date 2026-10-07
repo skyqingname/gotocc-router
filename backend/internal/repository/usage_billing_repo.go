@@ -219,13 +219,20 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
-	if !managedReseller(cmd.ResellerSnapshot) && cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
+	if !cmd.TeamWallet && !managedReseller(cmd.ResellerSnapshot) && cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
 		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
 			return err
 		}
 	}
 
-	if managedReseller(cmd.ResellerSnapshot) && cmd.BalanceCost+cmd.SubscriptionCost > 0 {
+	if cmd.TeamWallet && cmd.BalanceCost+cmd.SubscriptionCost > 0 {
+		newBalance, sufficient, err := deductTeamWallet(ctx, tx, cmd)
+		if err != nil {
+			return err
+		}
+		result.NewBalance = &newBalance
+		result.BalanceOverdrafted = !sufficient
+	} else if managedReseller(cmd.ResellerSnapshot) && cmd.BalanceCost+cmd.SubscriptionCost > 0 {
 		newBalance, sufficient, err := deductResellerCustomerBalance(ctx, tx, cmd)
 		if err != nil {
 			return err
@@ -241,7 +248,11 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.BalanceOverdrafted = !sufficient
 	}
 
-	if cmd.TeamID != nil && cmd.ActorUserID > 0 && cmd.ActorUserID != cmd.UserID {
+	if cmd.TeamWallet && cmd.TeamMembershipID > 0 && cmd.ActorUserID != cmd.UserID {
+		if err := recordTeamWalletMemberUsage(ctx, tx, cmd.TeamMembershipID, cmd.SubscriptionCost+cmd.BalanceCost, time.Now()); err != nil {
+			return err
+		}
+	} else if cmd.TeamID != nil && cmd.ActorUserID > 0 && cmd.ActorUserID != cmd.UserID {
 		if err := incrementUsageBillingTeamMember(ctx, tx, *cmd.TeamID, cmd.ActorUserID, cmd.SubscriptionCost+cmd.BalanceCost, time.Now()); err != nil {
 			return err
 		}
@@ -469,6 +480,9 @@ func reserveUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	if cmd.HoldAmount <= 0 {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
+	if cmd.TeamWallet {
+		return reserveTeamWallet(ctx, tx, cmd)
+	}
 	if managedReseller(cmd.ResellerSnapshot) {
 		return reserveResellerCustomerBalance(ctx, tx, cmd)
 	}
@@ -501,6 +515,9 @@ func captureUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	}
 	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 {
 		return nil, service.ErrBatchImageSettlementCostExceedsHold
+	}
+	if cmd.TeamWallet {
+		return captureTeamWallet(ctx, tx, cmd)
 	}
 	if managedReseller(cmd.ResellerSnapshot) {
 		return captureResellerCustomerBalance(ctx, tx, cmd)
@@ -543,6 +560,9 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	if !held {
 		logger.LegacyPrintf("repository.usage_billing", "[BatchImage] release skipped, hold was never reserved: batch=%s", cmd.BatchID)
 		return &service.BatchImageBalanceHoldResult{}, nil
+	}
+	if cmd.TeamWallet {
+		return releaseTeamWallet(ctx, tx, cmd)
 	}
 	if managedReseller(cmd.ResellerSnapshot) {
 		return releaseResellerCustomerBalance(ctx, tx, cmd)

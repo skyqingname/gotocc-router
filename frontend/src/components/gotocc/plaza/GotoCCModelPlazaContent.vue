@@ -78,7 +78,8 @@
         </div>
         <div class="plaza-collapse" :inert="collapsed.has(group.id)">
           <div class="plaza-collapse-inner">
-            <div class="grid gap-4 pt-4 md:grid-cols-2 2xl:grid-cols-3">
+            <PlazaVideoModels v-if="group.platform === 'video'" :group="group" @detail="detail = { group, model: $event }" />
+            <div v-else class="grid gap-4 pt-4 md:grid-cols-2 2xl:grid-cols-3">
               <PlazaModelCard
                 v-for="(model, index) in group.models"
                 :key="`${model.platform}:${model.name}`"
@@ -115,6 +116,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatPeakRateWindow, hasPeakRate, serverTimezoneLabel } from '@/utils/peak-rate'
 import PlazaModelCard from './PlazaModelCard.vue'
 import PlazaModelDetail from './PlazaModelDetail.vue'
+import PlazaVideoModels from './PlazaVideoModels.vue'
 import { formatRate, groupRate, sortModels } from './plazaPricing'
 import { PURPOSES, canonicalVendor, vendorLabel } from './vendors'
 

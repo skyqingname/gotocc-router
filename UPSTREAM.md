@@ -21,7 +21,13 @@ in [outbound identity](docs/OUTBOUND_IDENTITY.md),
 [upgrade prerequisites](backend/migrations/README.md#upgrade-prerequisites).
 Completed integration narratives remain in Git history.
 
-## Current Version
+## GoToCC candidate
+
+The owned candidate is `0.2.13+custom.005`, based on the published GoToCC
+`0.2.13+custom.004`. Its Plus input remains `v0.2.13+custom.001`; no upstream
+merge is included in this change. This candidate has not been published.
+
+## Plus Baseline Version
 
 ```text
 Git/GitHub: v0.2.13+custom.001

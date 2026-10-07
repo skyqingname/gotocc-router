@@ -139,6 +139,11 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		if !isAPIKeyNonConsumingRequest(c.Request.Method, c.Request.URL.Path) {
+			if err := apiKeyService.ValidateTeamGroupEntitlement(c.Request.Context(), apiKey); err != nil {
+				AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", "团队当前负责人没有此分组的有效订阅权益")
+				return
+			}
+
 			if err := apiKeyService.ValidateResellerFunds(apiKey); err != nil {
 				WriteAutoRoutingError(c, err)
 				return
@@ -218,7 +223,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 5. 按端点需要加载订阅 ───────────────────────────────────
 
 		var subscription *service.UserSubscription
-		isSubscriptionType := apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		isSubscriptionType := apiKey.TeamID == nil && apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		if isSubscriptionType && subscriptionService != nil {
 			sub, subErr := subscriptionService.GetActiveSubscription(

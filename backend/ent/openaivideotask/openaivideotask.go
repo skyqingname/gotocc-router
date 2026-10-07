@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldResellerSnapshot holds the string denoting the reseller_snapshot field in the database.
 	FieldResellerSnapshot = "reseller_snapshot"
+	// FieldTeamWallet holds the string denoting the team_wallet field in the database.
+	FieldTeamWallet = "team_wallet"
 	// FieldProviderConfig holds the string denoting the provider_config field in the database.
 	FieldProviderConfig = "provider_config"
 	// FieldLocalRequestID holds the string denoting the local_request_id field in the database.
@@ -113,6 +115,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldResellerSnapshot,
+	FieldTeamWallet,
 	FieldProviderConfig,
 	FieldLocalRequestID,
 	FieldTaskID,
@@ -171,6 +174,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultTeamWallet holds the default value on creation for the "team_wallet" field.
+	DefaultTeamWallet bool
 	// LocalRequestIDValidator is a validator for the "local_request_id" field. It is called by the builders before save.
 	LocalRequestIDValidator func(string) error
 	// TaskIDValidator is a validator for the "task_id" field. It is called by the builders before save.
@@ -235,6 +240,11 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByTeamWallet orders the results by the team_wallet field.
+func ByTeamWallet(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTeamWallet, opts...).ToFunc()
 }
 
 // ByLocalRequestID orders the results by the local_request_id field.

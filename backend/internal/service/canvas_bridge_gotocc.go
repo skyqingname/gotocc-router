@@ -11,7 +11,7 @@ import (
 )
 
 // 影策画布桥接：画布前置的桥接服务凭管理员 API Key 调用这些接口。GoToCC 是账号与钱包的
-// 唯一来源，画布积分不足时从付款人余额单向划入画布；团队成员由团队负责人付款并计入成员额度。
+// 唯一来源，个人画布充值始终从本人个人余额单向划入；团队关系不改变付款人。
 const (
 	AdjustmentTypeCanvasTransfer         = "canvas_transfer"
 	AdjustmentTypeCanvasTransferReversal = "canvas_reversal"
@@ -110,10 +110,7 @@ func (s *CanvasBridgeService) Verify(ctx context.Context, in CanvasBridgeVerifyI
 	if err != nil {
 		return nil, err
 	}
-	payer, err := s.payer(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
+	payer := canvasBridgePayer{userID: user.ID, teamActive: true}
 	return &CanvasBridgeAccount{
 		UserID: user.ID, Email: user.Email, Username: user.Username, Status: user.Status,
 		ResellerCustomer: customer != nil, PayerUserID: payer.userID, TeamID: payer.teamID,
@@ -126,7 +123,7 @@ type canvasBridgePayer struct {
 	teamActive bool
 }
 
-// payer 团队成员由负责人付款并计入成员额度；负责人与未入团用户由本人付款。
+// payer 仅供历史画布划转退回时释放原团队成员限额；新划转不再使用团队付款。
 func (s *CanvasBridgeService) payer(ctx context.Context, userID int64) (canvasBridgePayer, error) {
 	teamCtx, err := s.teams.GetContextByUserID(ctx, userID)
 	if errors.Is(err, ErrTeamNotFound) {
@@ -150,10 +147,7 @@ func (s *CanvasBridgeService) Transfer(ctx context.Context, in CanvasBridgeTrans
 	if user.Status != StatusActive {
 		return nil, ErrUserNotActive
 	}
-	payer, err := s.payer(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
+	payer := canvasBridgePayer{userID: user.ID, teamActive: true}
 	if !payer.teamActive {
 		return nil, ErrTeamSuspended
 	}

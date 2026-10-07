@@ -100,6 +100,7 @@ var (
 )
 
 type BatchImageJob struct {
+	TeamWallet        bool
 	ResellerSnapshot  *reseller.Snapshot `json:"-"`
 	GroupID           *int64
 	ID                int64
@@ -166,6 +167,7 @@ type BatchImageJob struct {
 }
 
 type CreateBatchImageJobParams struct {
+	TeamWallet        bool
 	ResellerSnapshot  *reseller.Snapshot `json:"-"`
 	GroupID           *int64
 	BatchID           string

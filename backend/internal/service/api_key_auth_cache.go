@@ -46,6 +46,7 @@ type APIKeyAuthActorSnapshot struct {
 }
 
 type APIKeyAuthTeamSnapshot struct {
+	TeamWallet
 	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`

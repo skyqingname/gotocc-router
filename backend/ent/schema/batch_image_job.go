@@ -30,6 +30,7 @@ func (BatchImageJob) Annotations() []schema.Annotation {
 func (BatchImageJob) Fields() []ent.Field {
 	return []ent.Field{
 		field.JSON("reseller_snapshot", &reseller.Snapshot{}).Optional(),
+		field.Bool("team_wallet").Default(false),
 		field.String("batch_id").MaxLen(64).Immutable(),
 		field.Int64("user_id"),
 		field.Int64("billing_user_id").Optional(),

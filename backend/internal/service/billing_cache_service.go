@@ -108,6 +108,7 @@ type subscriptionCacheInvalidationPubSub interface {
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
 type BillingCacheService struct {
+	teamWalletRepo        TeamWalletRepository
 	resellerRepo          ResellerRepository
 	cache                 BillingCache
 	userRepo              UserRepository
@@ -829,9 +830,13 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	}
 
 	// 判断计费模式
-	isSubscriptionMode := user.ResellerCustomer == nil && group != nil && group.IsSubscriptionType() && subscription != nil
+	isSubscriptionMode := user.TeamWalletID == nil && user.ResellerCustomer == nil && group != nil && group.IsSubscriptionType() && subscription != nil
 
-	if user.ResellerCustomer != nil {
+	if user.TeamWalletID != nil {
+		if err := s.checkTeamWalletEligibility(ctx, user); err != nil {
+			return err
+		}
+	} else if user.ResellerCustomer != nil {
 		if err := s.checkResellerBillingEligibility(ctx, user); err != nil {
 			return err
 		}
@@ -846,7 +851,7 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	}
 
 	// user × platform quota 仅在 standard（余额）模式生效；订阅模式豁免
-	if !isSubscriptionMode {
+	if !isSubscriptionMode && user.TeamWalletID == nil {
 		if err := s.checkUserPlatformQuotaEligibility(ctx, user.ID, platform); err != nil {
 			return err
 		}

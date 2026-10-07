@@ -26,6 +26,7 @@ func (OpenAIVideoTask) Fields() []ent.Field {
 	timestamptz := map[string]string{dialect.Postgres: "timestamptz"}
 	return []ent.Field{
 		field.JSON("reseller_snapshot", &reseller.Snapshot{}).Optional(),
+		field.Bool("team_wallet").Default(false),
 		field.JSON("provider_config", &videoprotocol.Config{}).Optional(),
 		field.String("local_request_id").MaxLen(128).Immutable(),
 		field.String("task_id").MaxLen(255).Optional().Nillable(),

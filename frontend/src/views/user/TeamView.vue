@@ -67,6 +67,8 @@
           </div>
         </header>
 
+        <TeamWalletCard :context="teamContext" @funded="teamContext.team.balance = $event.team_balance" />
+
         <nav class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-dark-700" :aria-label="t('team.title')">
           <button
             v-for="tab in visibleTabs"
@@ -227,6 +229,7 @@ import Select, { type SelectOption } from '@/components/common/Select.vue'
 import TeamMemberDrawer from '@/components/gotocc/team/TeamMemberDrawer.vue'
 import TeamMemberRow from '@/components/gotocc/team/TeamMemberRow.vue'
 import TeamOverview from '@/components/gotocc/team/TeamOverview.vue'
+import TeamWalletCard from '@/components/gotocc/team/TeamWalletCard.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import { teamAPI, type TeamAPIKey, type TeamContext, type TeamInvitation, type TeamInvitationPreview, type TeamMembership, type TeamMemberUsageSeries } from '@/api/team'
 import { useAppStore } from '@/stores/app'

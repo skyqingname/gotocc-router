@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 28 // v28: group-owned video protocol models
+const apiKeyAuthSnapshotVersion = 29 // v29: independent team wallet snapshots
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -382,7 +382,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		snapshot.ActorUser = &APIKeyAuthActorSnapshot{ID: apiKey.ActorUser.ID, Status: apiKey.ActorUser.Status, Email: apiKey.ActorUser.Email, Username: apiKey.ActorUser.Username}
 	}
 	if apiKey.Team != nil {
-		snapshot.Team = &APIKeyAuthTeamSnapshot{ID: apiKey.Team.ID, Name: apiKey.Team.Name, Status: apiKey.Team.Status}
+		snapshot.Team = &APIKeyAuthTeamSnapshot{TeamWallet: apiKey.Team.TeamWallet, ID: apiKey.Team.ID, Name: apiKey.Team.Name, Status: apiKey.Team.Status}
 		snapshot.TeamMembership = apiKey.TeamMembership
 	}
 
@@ -507,7 +507,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		apiKey.ActorUser = apiKey.User
 	}
 	if snapshot.Team != nil {
-		apiKey.Team = &Team{ID: snapshot.Team.ID, Name: snapshot.Team.Name, Status: snapshot.Team.Status}
+		apiKey.Team = &Team{TeamWallet: snapshot.Team.TeamWallet, ID: snapshot.Team.ID, Name: snapshot.Team.Name, Status: snapshot.Team.Status}
 		apiKey.TeamMembership = snapshot.TeamMembership
 	}
 	if snapshot.Group != nil {

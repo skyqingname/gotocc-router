@@ -2,6 +2,8 @@ import { apiClient } from '../client'
 import type { TeamContext, TeamMembership, TeamStatus, TeamUsageQuery, TeamUsageSummary } from '../team'
 
 export interface AdminTeam {
+  balance: number
+  frozen_balance: number
   id: number
   name: string
   status: TeamStatus

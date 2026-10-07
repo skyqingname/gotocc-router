@@ -7,6 +7,7 @@ import (
 )
 
 type User struct {
+	TeamWalletID     *int64 // Request-only funding scope; never persisted on a user.
 	ResellerCustomer *ResellerCustomerAccount
 	ID               int64
 	Email            string

@@ -25,6 +25,12 @@ type Team struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// Balance holds the value of the "balance" field.
+	Balance float64 `json:"balance,omitempty"`
+	// FrozenBalance holds the value of the "frozen_balance" field.
+	FrozenBalance float64 `json:"frozen_balance,omitempty"`
+	// ResellerOwnerID holds the value of the "reseller_owner_id" field.
+	ResellerOwnerID *int64 `json:"reseller_owner_id,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// MemberLimit holds the value of the "member_limit" field.
@@ -108,9 +114,9 @@ func (*Team) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case team.FieldDefaultDailyLimitUsd, team.FieldDefaultWeeklyLimitUsd, team.FieldDefaultMonthlyLimitUsd:
+		case team.FieldBalance, team.FieldFrozenBalance, team.FieldDefaultDailyLimitUsd, team.FieldDefaultWeeklyLimitUsd, team.FieldDefaultMonthlyLimitUsd:
 			values[i] = new(sql.NullFloat64)
-		case team.FieldID, team.FieldMemberLimit:
+		case team.FieldID, team.FieldResellerOwnerID, team.FieldMemberLimit:
 			values[i] = new(sql.NullInt64)
 		case team.FieldName, team.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -161,6 +167,25 @@ func (_m *Team) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case team.FieldBalance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance", values[i])
+			} else if value.Valid {
+				_m.Balance = value.Float64
+			}
+		case team.FieldFrozenBalance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field frozen_balance", values[i])
+			} else if value.Valid {
+				_m.FrozenBalance = value.Float64
+			}
+		case team.FieldResellerOwnerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reseller_owner_id", values[i])
+			} else if value.Valid {
+				_m.ResellerOwnerID = new(int64)
+				*_m.ResellerOwnerID = value.Int64
 			}
 		case team.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -266,6 +291,17 @@ func (_m *Team) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Balance))
+	builder.WriteString(", ")
+	builder.WriteString("frozen_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FrozenBalance))
+	builder.WriteString(", ")
+	if v := _m.ResellerOwnerID; v != nil {
+		builder.WriteString("reseller_owner_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

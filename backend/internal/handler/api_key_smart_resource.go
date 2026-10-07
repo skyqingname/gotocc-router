@@ -45,7 +45,7 @@ func (h *GatewayHandler) restoreAutoResource(c *gin.Context, key *service.APIKey
 			}
 		}
 		if task != nil && account != nil {
-			if task.ActorUserID != key.UserID || task.BillingUserID != key.User.ID || valueOrZeroInt64(task.TeamID) != valueOrZeroInt64(key.TeamID) {
+			if task.ActorUserID != key.UserID || (!task.TeamWallet && task.BillingUserID != key.User.ID) || valueOrZeroInt64(task.TeamID) != valueOrZeroInt64(key.TeamID) {
 				middleware.WriteAutoRoutingError(c, service.ErrAutoRouteNoAccess)
 				return true
 			}

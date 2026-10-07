@@ -23,6 +23,12 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldBalance holds the string denoting the balance field in the database.
+	FieldBalance = "balance"
+	// FieldFrozenBalance holds the string denoting the frozen_balance field in the database.
+	FieldFrozenBalance = "frozen_balance"
+	// FieldResellerOwnerID holds the string denoting the reseller_owner_id field in the database.
+	FieldResellerOwnerID = "reseller_owner_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldMemberLimit holds the string denoting the member_limit field in the database.
@@ -89,6 +95,9 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldName,
+	FieldBalance,
+	FieldFrozenBalance,
+	FieldResellerOwnerID,
 	FieldStatus,
 	FieldMemberLimit,
 	FieldDefaultDailyLimitUsd,
@@ -122,6 +131,10 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultBalance holds the default value on creation for the "balance" field.
+	DefaultBalance float64
+	// DefaultFrozenBalance holds the default value on creation for the "frozen_balance" field.
+	DefaultFrozenBalance float64
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -170,6 +183,21 @@ func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByBalance orders the results by the balance field.
+func ByBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalance, opts...).ToFunc()
+}
+
+// ByFrozenBalance orders the results by the frozen_balance field.
+func ByFrozenBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFrozenBalance, opts...).ToFunc()
+}
+
+// ByResellerOwnerID orders the results by the reseller_owner_id field.
+func ByResellerOwnerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResellerOwnerID, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

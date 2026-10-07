@@ -267,6 +267,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	holdID := BatchImageHoldRequestID(batchID)
 	holdAmount := pricingSnapshot.HoldAmount
 	job, err := s.Repo.CreateBatchImageJob(ctx, CreateBatchImageJobParams{
+		TeamWallet:              owner.TeamID != nil,
 		ResellerSnapshot:        ResellerPriceForOptionalGroup(ctx, owner.EffectiveBillingUserID(), owner.GroupID),
 		GroupID:                 owner.GroupID,
 		BatchID:                 batchID,

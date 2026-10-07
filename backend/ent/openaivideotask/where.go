@@ -54,6 +54,11 @@ func IDLTE(id int64) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldLTE(FieldID, id))
 }
 
+// TeamWallet applies equality check predicate on the "team_wallet" field. It's identical to TeamWalletEQ.
+func TeamWallet(v bool) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldTeamWallet, v))
+}
+
 // LocalRequestID applies equality check predicate on the "local_request_id" field. It's identical to LocalRequestIDEQ.
 func LocalRequestID(v string) predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldLocalRequestID, v))
@@ -282,6 +287,16 @@ func ResellerSnapshotIsNil() predicate.OpenAIVideoTask {
 // ResellerSnapshotNotNil applies the NotNil predicate on the "reseller_snapshot" field.
 func ResellerSnapshotNotNil() predicate.OpenAIVideoTask {
 	return predicate.OpenAIVideoTask(sql.FieldNotNull(FieldResellerSnapshot))
+}
+
+// TeamWalletEQ applies the EQ predicate on the "team_wallet" field.
+func TeamWalletEQ(v bool) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldEQ(FieldTeamWallet, v))
+}
+
+// TeamWalletNEQ applies the NEQ predicate on the "team_wallet" field.
+func TeamWalletNEQ(v bool) predicate.OpenAIVideoTask {
+	return predicate.OpenAIVideoTask(sql.FieldNEQ(FieldTeamWallet, v))
 }
 
 // ProviderConfigIsNil applies the IsNil predicate on the "provider_config" field.

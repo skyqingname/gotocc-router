@@ -66,6 +66,9 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 	if err := s.keys.attachResellerCustomer(ctx, key); err != nil {
 		return nil, err
 	}
+	if err := s.keys.ValidateTeamGroupEntitlement(ctx, key); err != nil {
+		return nil, err
+	}
 	payer = key.User
 	if !payer.CanBindGroup(groupID, currentGroup.IsExclusive) && payer.ResellerCustomer != nil {
 		return nil, ErrAutoRouteNoAccess
@@ -85,7 +88,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 		if err := checkResellerCustomerFunds(payer.ResellerCustomer); err != nil {
 			return nil, err
 		}
-	} else if currentGroup.IsSubscriptionType() {
+	} else if key.TeamID == nil && currentGroup.IsSubscriptionType() {
 		if s.subscriptions == nil || s.keys.userSubRepo == nil {
 			return nil, ErrAutoRouteUnavailable
 		}
