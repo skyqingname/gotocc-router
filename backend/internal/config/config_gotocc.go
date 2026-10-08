@@ -12,6 +12,11 @@ type TeamConfig struct {
 	DefaultMemberLimit int  `mapstructure:"default_member_limit"`
 }
 
+// AsyncImageConfig bounds multipart uploads accepted by asynchronous image edits.
+type AsyncImageConfig struct {
+	EditMaxInputImages int `mapstructure:"edit_max_input_images"`
+}
+
 // VideoTaskConfig controls durable polling and terminal billing for
 // OpenAI-compatible asynchronous video tasks.
 type VideoTaskConfig struct {
