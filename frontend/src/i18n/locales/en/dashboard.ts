@@ -554,6 +554,7 @@ export default {
       modelPlaceholder: 'Search model', allCategories: 'All categories', allStatuses: 'All status codes',
       empty: 'No error requests', failedToLoad: 'Failed to load error requests',
       categories: {
+        security_audit: 'Security audit refusal',
         auth: 'Auth failed', rate_limit: 'Rate limited', quota: 'Balance/Subscription',
         invalid_request: 'Invalid request', service_unavailable: 'Service unavailable',
         upstream: 'Upstream error', internal: 'Platform error', other: 'Other', cyber: 'Cyber policy',
@@ -587,6 +588,7 @@ export default {
       zhipu: 'Zhipu GLM',
       deepseek: 'DeepSeek',
       minimax: 'MiniMax',
+      stepfun: 'StepFun',
       opencode_go: 'OpenCode'
     },
     // Check modes (how a monitor performs its checks)

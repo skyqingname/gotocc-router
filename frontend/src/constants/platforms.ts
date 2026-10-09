@@ -20,6 +20,7 @@ export const CONCRETE_PLATFORM_OPTIONS = [
   { value: 'zhipu', label: 'Zhipu GLM' },
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'minimax', label: 'MiniMax' },
+  { value: 'stepfun', label: 'StepFun' },
   { value: 'opencode_go', label: 'OpenCode' },
   { value: 'video', label: 'Video' },
   { value: 'typesafe', label: 'TypeSafe / Jev' }

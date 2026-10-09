@@ -1,3 +1,4 @@
 {
-  "openai_model": "gpt-6-astra"
+  "openai_model": "gpt-6-astra",
+  "openai_codex_client_tab": "codex-ws"
 }

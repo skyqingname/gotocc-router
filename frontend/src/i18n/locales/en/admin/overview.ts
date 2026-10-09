@@ -1087,6 +1087,7 @@ export default {
         zhipu: 'Zhipu GLM',
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
+      stepfun: 'StepFun',
         opencode_go: 'OpenCode',
         video: 'Video',
         typesafe: 'TypeSafe / Jev',

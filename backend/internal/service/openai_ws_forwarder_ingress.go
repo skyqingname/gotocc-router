@@ -768,7 +768,13 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				return errOpenAIWSSessionPreempted
 			}
 			if hooks != nil && hooks.AfterTurn != nil {
-				hooks.AfterTurn(turn, result, bridgeErr)
+				// A local warmup releases the normal admission/concurrency state,
+				// but supplies no inference result to billing or account feedback.
+				completionResult := result
+				if isOpenAIWSLocalWarmup(bridgePayloadRaw) {
+					completionResult = nil
+				}
+				hooks.AfterTurn(turn, completionResult, bridgeErr)
 			}
 			if bridgeErr != nil {
 				var failoverErr *UpstreamFailoverError
@@ -815,7 +821,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				turnState = bridgeTurnState
 			}
 			responseID := strings.TrimSpace(result.RequestID)
-			if responseID != "" && stateStore != nil {
+			if responseID != "" && stateStore != nil && !isOpenAIWSLocalWarmup(bridgePayloadRaw) {
 				ttl := s.openAIWSResponseStickyTTL()
 				logOpenAIWSBindResponseAccountWarn(groupID, account.ID, responseID, s.bindOpenAIResponseAccount(ctx, stateStore, groupID, account, responseID, ttl))
 			}

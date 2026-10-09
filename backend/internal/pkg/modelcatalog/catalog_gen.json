@@ -1,6 +1,6 @@
 {
  "source": "https://models.dev/api.json",
- "fetched_at": "2026-10-06T10:09:23+00:00",
+ "fetched_at": "2026-10-09T06:13:08+00:00",
  "providers": [
   {
    "id": "openai",
@@ -1913,6 +1913,48 @@
      }
     },
     {
+     "id": "claude-haiku-5-5",
+     "name": "Claude Haiku 5.5",
+     "description": "Fast Claude model for responsive assistance, classification, and lightweight agents",
+     "family": "claude-haiku",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "knowledge": "2026-06",
+     "release_date": "2026-10-07",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1000000,
+      "output": 128000
+     },
+     "cost": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+       {
+        "input": 0.5,
+        "output": 2.5,
+        "cache_read": 0.05,
+        "cache_write": 0.625,
+        "context_over": 100000
+       }
+      ]
+     }
+    },
+    {
      "id": "claude-opus-4-5",
      "name": "Claude Opus 4.5 (latest)",
      "description": "Flagship Claude model for deep reasoning, coding, and long-horizon agents",
@@ -2166,7 +2208,7 @@
       ]
      },
      "limit": {
-      "context": 1000000,
+      "context": 200000,
       "output": 64000
      },
      "cost": {
@@ -2199,7 +2241,7 @@
       ]
      },
      "limit": {
-      "context": 1000000,
+      "context": 200000,
       "output": 64000
      },
      "cost": {
@@ -2304,7 +2346,7 @@
      "cost": {
       "input": 2,
       "output": 10,
-      "cache_read": 0.2,
+      "cache_read": 0.1,
       "cache_write": 2.5
      }
     }
@@ -4277,7 +4319,8 @@
      "cost": {
       "input": 3,
       "output": 15,
-      "cache_read": 0.3
+      "cache_read": 0.3,
+      "cache_write": 3
      }
     }
    ]
@@ -5474,7 +5517,7 @@
      "cost": {
       "input": 0.6,
       "output": 2.4,
-      "cache_read": 0.06,
+      "cache_read": 0.03,
       "cache_write": 0.375
      }
     },
@@ -6012,8 +6055,8 @@
       "output": 4096
      },
      "cost": {
-      "input": 0.72,
-      "output": 0.72
+      "input": 0.07,
+      "output": 0.16
      }
     },
     {
@@ -8005,6 +8048,35 @@
    "name": "Mistral",
    "models": [
     {
+     "id": "codestral-2508",
+     "name": "Codestral 25.08",
+     "description": "Mistral code model for low-latency completion, fill-in-the-middle, and code generation",
+     "family": "codestral",
+     "reasoning": false,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": false,
+     "open_weights": false,
+     "release_date": "2025-07-30",
+     "modalities": {
+      "input": [
+       "text"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 256000,
+      "output": 8192
+     },
+     "cost": {
+      "input": 0.3,
+      "output": 0.9,
+      "cache_read": 0.03
+     }
+    },
+    {
      "id": "codestral-latest",
      "name": "Codestral (latest)",
      "description": "Mistral code model for completions, refactors, and developer IDE workflows",
@@ -8202,6 +8274,35 @@
      }
     },
     {
+     "id": "glm-5-2",
+     "name": "GLM-5.2",
+     "description": "Open flagship GLM for long-horizon coding agents and million-token context work",
+     "family": "glm",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": false,
+     "open_weights": true,
+     "release_date": "2026-06-13",
+     "modalities": {
+      "input": [
+       "text"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 131072
+     },
+     "cost": {
+      "input": 1.4,
+      "output": 4.4,
+      "cache_read": 0.14
+     }
+    },
+    {
      "id": "labs-devstral-small-2512",
      "name": "Devstral Small 2",
      "description": "Legacy model retained for compatibility with older integrations",
@@ -8231,31 +8332,121 @@
      }
     },
     {
-     "id": "magistral-medium-latest",
-     "name": "Magistral Medium (latest)",
-     "description": "Mistral reasoning model for transparent analysis, math, and complex decisions",
-     "family": "magistral-medium",
+     "id": "labs-leanstral-1-5-1",
+     "name": "Leanstral 1.5",
+     "description": "An updated Lean 4 formal proof engineering model optimised for automated theorem proving and autoformalization. 119B total parameters, 6.5B active.",
+     "family": "leanstral",
      "reasoning": true,
      "tool_call": true,
-     "attachment": false,
+     "structured_output": true,
+     "attachment": true,
      "open_weights": true,
-     "knowledge": "2025-06",
-     "release_date": "2025-03-17",
+     "release_date": "2026-06-30",
      "modalities": {
       "input": [
-       "text"
+       "text",
+       "image"
       ],
       "output": [
        "text"
       ]
      },
      "limit": {
-      "context": 128000,
+      "context": 262144,
+      "output": 128000
+     },
+     "cost": {
+      "input": 0,
+      "output": 0
+     }
+    },
+    {
+     "id": "magistral-medium-latest",
+     "name": "Magistral Medium (latest)",
+     "description": "Mistral reasoning model for transparent analysis, math, and complex decisions",
+     "family": "magistral-medium",
+     "reasoning": true,
+     "tool_call": true,
+     "attachment": true,
+     "open_weights": true,
+     "knowledge": "2025-06",
+     "release_date": "2025-03-17",
+     "modalities": {
+      "input": [
+       "text",
+       "image"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 262144,
       "output": 16384
      },
      "cost": {
       "input": 2,
       "output": 5
+     }
+    },
+    {
+     "id": "ministral-14b-2512",
+     "name": "Ministral 3 14B",
+     "description": "Open vision-language model for efficient local deployment, instruction following, and tool use",
+     "family": "ministral",
+     "reasoning": false,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": true,
+     "release_date": "2025-12-02",
+     "modalities": {
+      "input": [
+       "text",
+       "image"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 262144,
+      "output": 262144
+     },
+     "cost": {
+      "input": 0.2,
+      "output": 0.2,
+      "cache_read": 0.02
+     }
+    },
+    {
+     "id": "ministral-3b-2512",
+     "name": "Ministral 3 3B",
+     "description": "Compact open vision-language model for edge deployment, instruction following, and tool use",
+     "family": "ministral",
+     "reasoning": false,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": true,
+     "release_date": "2025-12-02",
+     "modalities": {
+      "input": [
+       "text",
+       "image"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 131072,
+      "output": 262144
+     },
+     "cost": {
+      "input": 0.1,
+      "output": 0.1,
+      "cache_read": 0.01
      }
     },
     {
@@ -8265,25 +8456,56 @@
      "family": "ministral",
      "reasoning": false,
      "tool_call": true,
-     "attachment": false,
+     "attachment": true,
      "open_weights": true,
      "knowledge": "2024-10",
      "release_date": "2024-10-01",
      "modalities": {
       "input": [
-       "text"
+       "text",
+       "image"
       ],
       "output": [
        "text"
       ]
      },
      "limit": {
-      "context": 128000,
+      "context": 131072,
       "output": 128000
      },
      "cost": {
       "input": 0.04,
       "output": 0.04
+     }
+    },
+    {
+     "id": "ministral-8b-2512",
+     "name": "Ministral 3 8B",
+     "description": "Compact open vision-language model for edge deployment, instruction following, and tool use",
+     "family": "ministral",
+     "reasoning": false,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": true,
+     "release_date": "2025-12-02",
+     "modalities": {
+      "input": [
+       "text",
+       "image"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 262144,
+      "output": 262144
+     },
+     "cost": {
+      "input": 0.15,
+      "output": 0.15,
+      "cache_read": 0.015
      }
     },
     {
@@ -8293,20 +8515,21 @@
      "family": "ministral",
      "reasoning": false,
      "tool_call": true,
-     "attachment": false,
+     "attachment": true,
      "open_weights": true,
      "knowledge": "2024-10",
      "release_date": "2024-10-01",
      "modalities": {
       "input": [
-       "text"
+       "text",
+       "image"
       ],
       "output": [
        "text"
       ]
      },
      "limit": {
-      "context": 128000,
+      "context": 262144,
       "output": 128000
      },
      "cost": {
@@ -8397,6 +8620,36 @@
       "input": 0.5,
       "output": 1.5,
       "cache_read": 0.05
+     }
+    },
+    {
+     "id": "mistral-large-4",
+     "name": "Mistral Large 4",
+     "description": "Mistral's 1T-parameter multimodal MoE for reasoning, coding, and agentic work",
+     "family": "mistral-large",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "release_date": "2026-10-06",
+     "modalities": {
+      "input": [
+       "text",
+       "image"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 262144
+     },
+     "cost": {
+      "input": 0.68,
+      "output": 2.09,
+      "cache_read": 0.07
      }
     },
     {
@@ -8625,7 +8878,7 @@
       ]
      },
      "limit": {
-      "context": 256000,
+      "context": 262144,
       "output": 256000
      },
      "cost": {
@@ -8655,7 +8908,7 @@
       ]
      },
      "limit": {
-      "context": 256000,
+      "context": 262144,
       "output": 256000
      },
      "cost": {
@@ -8881,6 +9134,34 @@
      }
     },
     {
+     "id": "voxtral-small-2507",
+     "name": "Voxtral Small",
+     "description": "Instruct model with native audio input for speech understanding and tool use",
+     "family": "voxtral",
+     "reasoning": false,
+     "tool_call": true,
+     "attachment": true,
+     "open_weights": true,
+     "release_date": "2025-07-15",
+     "modalities": {
+      "input": [
+       "text",
+       "audio"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 32768,
+      "output": 32000
+     },
+     "cost": {
+      "input": 0.1,
+      "output": 0.4
+     }
+    },
+    {
      "id": "voxtral-small-latest",
      "name": "Voxtral Small (latest)",
      "description": "Instruct model with native audio input for speech understanding and tool use",
@@ -8900,7 +9181,7 @@
       ]
      },
      "limit": {
-      "context": 32000,
+      "context": 32768,
       "output": 32000
      },
      "cost": {
@@ -8928,7 +9209,7 @@
       ]
      },
      "limit": {
-      "context": 1000000,
+      "context": 1048576,
       "output": 131072
      },
      "cost": {
@@ -8957,7 +9238,7 @@
       ]
      },
      "limit": {
-      "context": 1000000,
+      "context": 1048576,
       "output": 131072
      },
      "cost": {

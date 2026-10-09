@@ -562,6 +562,7 @@ type OpenAIGatewayService struct {
 	billingCacheService    *BillingCacheService
 	userGroupRateResolver  *userGroupRateResolver
 	httpUpstream           HTTPUpstream
+	cnOAuthService         *CNOAuthService
 	pluginManager          *PluginManager
 	deferredService        *DeferredService
 	openAITokenProvider    *OpenAITokenProvider
@@ -581,6 +582,8 @@ type OpenAIGatewayService struct {
 	liveAttestationCipher  SecretEncryptor
 
 	openaiWSPoolOnce               sync.Once
+	openaiWSResourcesMu            sync.Mutex
+	openaiWSResourcesClosed        bool
 	openaiWSStateStoreOnce         sync.Once
 	openaiSchedulerOnce            sync.Once
 	openaiProxyStreamCircuitOnce   sync.Once
@@ -820,8 +823,15 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 // CloseOpenAIWSPool 关闭 OpenAI WebSocket 连接池的后台 worker 和空闲连接。
 // 应在应用优雅关闭时调用。
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
-	if s != nil && s.openaiWSPool != nil {
-		s.openaiWSPool.Close()
+	if s == nil {
+		return
+	}
+	s.openaiWSResourcesMu.Lock()
+	s.openaiWSResourcesClosed = true
+	pool := s.openaiWSPool
+	s.openaiWSResourcesMu.Unlock()
+	if pool != nil {
+		pool.Close()
 	}
 }
 
@@ -1336,6 +1346,9 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 			return "", "", err
 		}
 		account = credAccount
+	}
+	if account.IsDomesticOAuth() {
+		return account.GetCredential("access_token"), "oauth", nil
 	}
 	switch account.Type {
 	case AccountTypeOAuth:

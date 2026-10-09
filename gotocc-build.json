@@ -1,0 +1,9 @@
+{
+  "node_version": "20.19.4",
+  "node_heap_mb": 4096,
+  "frontend_install_args": ["--frozen-lockfile"],
+  "go_build_tags": ["embed"],
+  "go_trimpath": true,
+  "ci_timeout_minutes": 30,
+  "ci_runner": "ubuntu-latest"
+}

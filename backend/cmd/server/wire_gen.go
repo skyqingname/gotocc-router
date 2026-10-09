@@ -247,6 +247,11 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	antigravityOAuthHandler := admin.NewAntigravityOAuthHandler(antigravityOAuthService)
 	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, oAuthRefreshAPI, openAIGatewayService)
 	grokOAuthHandler := admin.NewGrokOAuthHandler(grokOAuthService, adminService, grokQuotaService, tokenRefreshService)
+	zhipuOAuthClient := repository.NewZhipuOAuthServiceClient()
+	zhipuOAuthService := service.ProvideZhipuOAuthService(proxyRepository, zhipuOAuthClient, redisClient)
+	zhipuOAuthHandler := admin.NewZhipuOAuthHandler(zhipuOAuthService, adminService)
+	cnoAuthService := service.ProvideCNOAuthService(proxyRepository, accountRepository, adminService, redisClient, oAuthRefreshAPI, openAIGatewayService, accountTestService)
+	cnoAuthHandler := admin.NewCNOAuthHandler(cnoAuthService)
 	cnProviderQuotaService := service.ProvideCNProviderQuotaService(accountRepository, proxyRepository, httpUpstream, configConfig)
 	cnProviderBalanceService := service.ProvideCNProviderBalanceService(accountRepository, proxyRepository, httpUpstream, configConfig)
 	cnProviderHandler := admin.NewCNProviderHandler(cnProviderQuotaService, cnProviderBalanceService)
@@ -321,7 +326,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openCodeGoUsageService := service.ProvideOpenCodeGoUsageService(accountRepository, httpUpstream, settingService, leaderLockCache, db)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	claudeResetCreditService := service.ProvideClaudeResetCreditService(accountRepository, claudeTokenProvider, proxyRepository, idempotencyCoordinator, leaderLockCache)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, reusableInvitationCodeHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, ipAccessControlHandler, teamHandler, canvasBridgeHandler, ollamaCloudUsageService, usageAlertService, openCodeGoUsageService, claudeResetCreditService)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, zhipuOAuthHandler, cnoAuthHandler, cnoAuthService, cnProviderHandler, proxyHandler, adminRedeemHandler, promoHandler, reusableInvitationCodeHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, pluginHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, auditLogHandler, ipAccessControlHandler, teamHandler, canvasBridgeHandler, ollamaCloudUsageService, usageAlertService, openCodeGoUsageService, claudeResetCreditService)
 	autoRouteCatalogRepository := repository.NewAutoRouteCatalogRepository(client)
 	autoGroupRoutingPolicyService := service.NewAutoGroupRoutingPolicyService(settingRepository, groupRepository)
 	autoGroupResolver := service.NewAutoGroupResolver(apiKeyService, autoRouteCatalogRepository, channelService, subscriptionService, autoGroupRoutingPolicyService, configConfig)
@@ -391,6 +396,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIVideoTaskRepository := repository.NewOpenAIVideoTaskRepository(db)
 	openAIVideoBillingRepository := repository.ProvideResellerVideoBillingRepository(client, db, billingCache)
 	openAIVideoTaskRuntime := service.ProvideOpenAIVideoTaskRuntime(openAIGatewayService, openAIVideoTaskRepository, openAIVideoBillingRepository, apiKeyRepository, apiKeyAuthCacheInvalidator, configConfig)
+	zhipuOffPeakClient := repository.NewZhipuOffPeakTicketClient()
+	zhipuOffPeakTicketManager := service.ProvideZhipuOffPeakTicketManager(zhipuOffPeakClient)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)
 	channelMonitorQuotaFetcher := service.NewChannelMonitorQuotaFetcher(accountUsageService, cnProviderQuotaService, cnProviderBalanceService, accountRepository, configConfig)
@@ -399,7 +406,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userPlatformQuotaUsageFlusher := service.ProvideUserPlatformQuotaUsageFlusher(configConfig, billingCache, serviceUserPlatformQuotaRepository, timingWheelService)
 	openAIGroupQuotaFollowResetRepository := repository.NewOpenAIGroupQuotaFollowResetRepository(client, db)
 	openAIGroupQuotaFollowResetService := service.ProvideOpenAIGroupQuotaFollowResetService(openAIGroupQuotaFollowResetRepository, billingCacheService)
-	v := provideCleanup(channelMonitorV3Service, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, openAIVideoTaskRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, ollamaCloudUsageService, usageAlertService, auditLogService, openAIQuotaAutoResetService, openAIGroupQuotaFollowResetService, promptService, pluginManager)
+	v := provideCleanup(channelMonitorV3Service, client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, cnProviderBalanceCheckService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, openAIVideoTaskRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, zhipuOffPeakTicketManager, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, ollamaCloudUsageService, usageAlertService, auditLogService, openAIQuotaAutoResetService, openAIGroupQuotaFollowResetService, promptService, pluginManager)
 	application := &Application{
 		Server:        httpServer,
 		PromptAudit:   promptService,
@@ -472,6 +479,7 @@ func provideCleanup(
 	geminiOAuth *service.GeminiOAuthService,
 	antigravityOAuth *service.AntigravityOAuthService,
 	grokOAuth *service.GrokOAuthService,
+	zhipuOffPeakTickets *service.ZhipuOffPeakTicketManager,
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
 	backupSvc *service.BackupService,
@@ -500,6 +508,12 @@ func provideCleanup(
 			{"OpenAIGroupQuotaFollowResetService", func() error {
 				if openAIGroupQuotaFollowReset != nil {
 					openAIGroupQuotaFollowReset.Stop()
+				}
+				return nil
+			}},
+			{"ZhipuOffPeakTicketManager", func() error {
+				if zhipuOffPeakTickets != nil {
+					zhipuOffPeakTickets.Stop()
 				}
 				return nil
 			}},
