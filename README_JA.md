@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **サブスクリプションクォータ配分向け AI API ゲートウェイ**

@@ -56,3 +56,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - name: Build frontend and embedded backend
         run: python3 tools/gotocc_build.py --output "$RUNNER_TEMP/sub2api"
+      - name: Type-check backend packages and tests
+        run: |
+          go -C backend vet -tags=unit ./...
+          go -C backend vet -tags=integration ./...

@@ -1,12 +1,11 @@
-# Validation-only image for push-cli and release-cli.
+# GoToCC build image: the operations workflow runs tools/gotocc_build.py in it.
+# Keep NODE_VERSION equal to node_version in gotocc-build.json, which CI uses.
 # Do not reuse this as an application runtime.
 FROM debian:bookworm-slim
 
 ARG GO_VERSION=1.27.0
 ARG NODE_VERSION=20.19.4
 ARG PNPM_VERSION=9.15.9
-ARG GOLANGCI_LINT_VERSION=2.13.1
-ARG GORELEASER_VERSION=2.17.1
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -43,8 +42,8 @@ RUN set -eu; \
         esac; \
     fi; \
     case "${arch}" in \
-        amd64|x86_64) goarch=amd64; nodearch=x64; goreleaser_arch=x86_64 ;; \
-        arm64|aarch64) goarch=arm64; nodearch=arm64; goreleaser_arch=arm64 ;; \
+        amd64|x86_64) goarch=amd64; nodearch=x64 ;; \
+        arm64|aarch64) goarch=arm64; nodearch=arm64 ;; \
         *) echo "unsupported architecture: ${arch}" >&2; exit 1 ;; \
     esac; \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${goarch}.tar.gz" \
@@ -54,10 +53,6 @@ RUN set -eu; \
     ln -s "/usr/local/node-v${NODE_VERSION}-linux-${nodearch}" /usr/local/node; \
     corepack enable; \
     corepack prepare "pnpm@${PNPM_VERSION}" --activate; \
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
-        | sh -s -- -b /usr/local/bin "v${GOLANGCI_LINT_VERSION}"; \
-    curl -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_${goreleaser_arch}.tar.gz" \
-        | tar -C /usr/local/bin -xz goreleaser; \
     mkdir -p /tmp/sub2api-home; \
     chmod 777 /tmp/sub2api-home; \
     printf 'sub2api-validation\n' >/etc/sub2api-validation

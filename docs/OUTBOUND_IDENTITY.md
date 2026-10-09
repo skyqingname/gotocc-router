@@ -840,9 +840,8 @@ Saving removes the legacy field. Merely opening and saving an account must not
 change its effective passthrough state.
 
 The `compress-cli` validator protects the root identity clauses against removal
-or weakening. Its tests already run in the repository-policy CI job and the
-local `submit-pr` checks. Those policy checks protect the written contract;
-the outbound behavior tests above remain required to verify implementation.
+or weakening. It protects the written contract; the outbound behavior tests
+above remain required to verify implementation.
 
 ## Upstream references
 

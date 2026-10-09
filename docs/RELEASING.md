@@ -8,7 +8,7 @@ accept it. After acceptance and a publication request, upload **that same
 package** to `skyqingname/gotocc-router` GitHub Releases. The owner then clicks
 update in the online owned-version panel and restarts when prompted.
 
-The vircs workspace owns the commands in `scripts/sub2api-plus-upgrade.sh`,
+The operations workspace owns the commands in `scripts/sub2api-plus-upgrade.sh`,
 parameters in `sub2api-plus-workflow.json`, and the procedure in
 `docs/sub2api-plus-upgrade-runbook.md`. Those paths belong to the containing
 operations workspace, not this product checkout. The product version is in
@@ -51,9 +51,7 @@ never reused or moved. A changed deliverable needs renewed acceptance of the
 changed behavior before publication.
 
 If an upload fails, retain the local package and draft and resume asset upload.
-Do not manufacture another build just to retry publication. The legacy
-`skills/push-cli` and `skills/release-cli` promotion workflows are outside this
-path and should not be invoked unless the owner explicitly requests that mode.
+Do not manufacture another build just to retry publication.
 
 ## Online update
 

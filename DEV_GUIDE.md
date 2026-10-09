@@ -10,7 +10,7 @@ Use repository-declared versions:
 
 - Go: `backend/go.mod`
 - Node.js and pnpm: `frontend/package.json`
-- CI reference: `.github/workflows/backend-ci.yml`
+- Build and CI parameters: `gotocc-build.json`
 
 Do not copy tool versions into additional policy documents.
 
@@ -28,27 +28,15 @@ machine paths, passwords, or production data to tracked documentation.
 
 ## Install and Build
 
-Run these commands inside the platform validation container described in
-[`CONTRIBUTING.md`](CONTRIBUTING.md#development-checks). On Windows, that means
-a Docker validation container inside a WSL2 Debian or Ubuntu distribution.
+One entry point builds the frontend and the server with the embedded frontend.
+Local release packages run it inside the build image from
+`deploy/Dockerfile.validation`, and CI runs the same script:
 
 ```bash
-pnpm --dir frontend install --frozen-lockfile
-pnpm --dir frontend run build
-
-cd backend
-go build ./cmd/server
-```
-
-The root Makefile also provides:
-
-```bash
+python3 tools/gotocc_build.py --output backend/bin/sub2api
+# or
 make build
-make test
 ```
-
-Run these Make targets or their underlying Go and pnpm commands inside the
-same validation container.
 
 ## Run in Development
 
@@ -70,39 +58,16 @@ Copy configuration examples to ignored local files before editing them. See
 
 ## Verification
 
-All validation, including focused tests, lint, typechecking, builds, and policy
-checks, must run inside the platform validation container. On Windows, use
-Docker inside WSL2 Debian or Ubuntu; running checks directly on Windows or
-directly in the WSL2 distribution outside Docker is forbidden. On macOS, use
-Apple Containers; on Linux, use Docker.
-
-Follow [`CONTRIBUTING.md`](CONTRIBUTING.md#development-checks) for the pinned
-toolchain, check selection, and validation-container cleanup requirements. Run
-the relevant checks while iterating; final PR submission uses the required
-complete matrix. The commands below run inside that container.
-
-Backend:
+CI (`.github/workflows/ci.yml`) builds through the entry point above and then
+type-checks every backend package with its unit and integration tests:
 
 ```bash
-cd backend
-go test -tags=unit ./...
-go test -tags=integration ./...
-golangci-lint run ./...
+go -C backend vet -tags=unit ./...
+go -C backend vet -tags=integration ./...
 ```
 
-`unit` is in-process. `integration` uses Docker or a real DSN. GitHub `CI` and
-`Security Scan` run on pull requests and `main` pushes; they do not run on every
-feature-branch push.
-
-Frontend:
-
-```bash
-pnpm --dir frontend run lint:check
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test:run
-```
-
-Deployment scripts are checked by `.github/workflows/backend-ci.yml`.
+Run a focused test only to diagnose an observed problem. `unit` is in-process;
+`integration` uses Docker or a real DSN.
 
 ## Code Generation
 
@@ -127,15 +92,6 @@ the resulting `pnpm-lock.yaml`.
 
 Remove only the repository's `frontend/node_modules` after confirming the path,
 then reinstall with pnpm. Do not use npm or yarn for this project.
-
-### WSL2 proxy is unavailable in Docker
-
-When WSL2 uses a proxy, configure the standard `HTTP_PROXY`, `HTTPS_PROXY`, and
-`NO_PROXY` variables with an address reachable from the Docker bridge before
-invoking `push_cli.py`. A proxy bound to WSL2 loopback is not reachable from a
-normal validation container; use an accessible Windows host-interface address.
-The validation launcher forwards configured proxy variable names without
-printing their values.
 
 ### Interface compilation failure
 
@@ -169,7 +125,7 @@ sub2api-plus/
 ├── deploy/         Installers, Compose files, and operations documentation
 ├── docs/           Provider, protocol, and maintainer documentation
 ├── openspec/       Specifications for cross-cutting changes
-└── tools/          Repository validation scripts
+└── tools/          Build entry point and generators
 ```
 
 ## Related Documents

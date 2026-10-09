@@ -15,7 +15,6 @@ TARGET = ROOT / "backend/internal/releasechannel/channel_gen.go"
 INSTALLER = ROOT / "deploy/install.sh"
 CHANNEL_TEXT_FILES = (
     ROOT / "Dockerfile",
-    ROOT / "Dockerfile.goreleaser",
     ROOT / "README.md",
     ROOT / "README_CN.md",
     ROOT / "README_JA.md",
@@ -34,12 +33,9 @@ CHANNEL_TEXT_FILES = (
     ROOT / "frontend/src/views/KeyUsageView.vue",
     ROOT / "frontend/src/views/admin/SettingsView.vue",
     ROOT / "frontend/src/views/admin/__tests__/SettingsView.spec.ts",
-    ROOT / "skills/push-cli/SKILL.md",
-    ROOT / "skills/release-cli/references/release-cli.md",
 )
 CHANNEL_IMAGE_FILES = (
     ROOT / "deploy/.env.example",
-    ROOT / "deploy/tests/fixtures/bin/container",
     ROOT / "deploy/docker-compose.yml",
     ROOT / "deploy/docker-compose.local.yml",
     ROOT / "deploy/docker-compose.standalone.yml",
@@ -104,11 +100,6 @@ def load_config() -> dict[str, object]:
 
     if "release-channel.json" not in seen:
         raise ValueError("runtime_files must include release-channel.json")
-    goreleaser = (ROOT / ".goreleaser.yaml").read_text(encoding="utf-8")
-    for path in seen:
-        source = path if path == "release-channel.json" else f"backend/{path}"
-        if f"- src: {source}" not in goreleaser:
-            raise ValueError(f".goreleaser.yaml does not package runtime file: {source}")
     return data
 
 

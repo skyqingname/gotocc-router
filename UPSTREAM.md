@@ -23,9 +23,18 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.13+custom.005`, based on the published GoToCC
-`0.2.13+custom.004`. Its Plus input remains `v0.2.13+custom.001`; no upstream
-merge is included in this change. This candidate has not been published.
+The owned candidate is `0.2.14+custom.003`, based on the published GoToCC
+`0.2.13+custom.006` and the accepted `0.2.13+custom.007` fixes. Its Plus input
+is `v0.2.14+custom.002` (`a7749f5826ec0a5c6493c47fde9474dc31525f14`). This
+candidate has not been published.
+
+## Removed Upstream Paths
+
+GoToCC builds through `tools/gotocc_build.py`, checks pull requests with
+`.github/workflows/ci.yml`, and publishes from the operations workflow. The
+upstream CI, release and validation tooling listed in
+`upstream-removed-paths.json` is not part of this tree; the operations
+`prepare` step removes those paths again after every upstream merge.
 
 ## Plus Baseline Version
 
