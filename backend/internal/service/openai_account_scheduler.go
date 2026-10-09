@@ -412,6 +412,12 @@ func (s *defaultOpenAIAccountScheduler) Select(
 			return nil, decision, err
 		}
 		if selection != nil && selection.Account != nil {
+			if overflow := s.overflowFullStickyAccount(ctx, req, selection); overflow != nil {
+				decision.Layer = openAIAccountScheduleLayerLoadBalance
+				decision.SelectedAccountID = overflow.Account.ID
+				decision.SelectedAccountType = overflow.Account.Type
+				return overflow, decision, nil
+			}
 			decision.Layer = openAIAccountScheduleLayerSessionSticky
 			decision.StickySessionHit = true
 			decision.StickyPreviousHit = req.StickyPreviousAccountID > 0 && req.StickyPreviousAccountID == selection.Account.ID
@@ -488,6 +494,12 @@ func (s *defaultOpenAIAccountScheduler) Select(
 			return nil, decision, err
 		}
 		if selection != nil && selection.Account != nil {
+			if overflow := s.overflowFullStickyAccount(ctx, req, selection); overflow != nil {
+				decision.Layer = openAIAccountScheduleLayerLoadBalance
+				decision.SelectedAccountID = overflow.Account.ID
+				decision.SelectedAccountType = overflow.Account.Type
+				return overflow, decision, nil
+			}
 			decision.Layer = openAIAccountScheduleLayerSessionSticky
 			decision.StickySessionHit = true
 			decision.SelectedAccountID = selection.Account.ID

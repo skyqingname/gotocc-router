@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"strings"
 	"time"
@@ -18,6 +19,35 @@ func useBalancedOpenAISelection(ctx context.Context, platform, previousResponseI
 		return false
 	}
 	return strings.TrimSpace(previousResponseID) == "" || previousResponseCanMove
+}
+
+// overflowFullStickyAccount serves one request on a same-priority account with a
+// free slot while the session's account is at its concurrency limit. The session
+// binding is preserved, so later requests return to that account and its prompt
+// cache. Without a free same-priority slot the caller keeps the session's wait plan.
+func (s *defaultOpenAIAccountScheduler) overflowFullStickyAccount(ctx context.Context, req OpenAIAccountScheduleRequest, sticky *AccountSelectionResult) *AccountSelectionResult {
+	if !req.BalanceSamePriority || sticky.Acquired || sticky.WaitPlan == nil {
+		return nil
+	}
+	overflowReq := req
+	overflowReq.PreserveStickyBinding = true
+	overflowReq.ExcludedIDs = cloneExcludedAccountIDs(req.ExcludedIDs)
+	if overflowReq.ExcludedIDs == nil {
+		overflowReq.ExcludedIDs = make(map[int64]struct{}, 1)
+	}
+	overflowReq.ExcludedIDs[sticky.Account.ID] = struct{}{}
+	selection, _, _, _, err := s.selectByLoadBalance(ctx, overflowReq)
+	if err != nil || selection == nil || selection.Account == nil {
+		return nil
+	}
+	if !selection.Acquired || selection.Account.Priority != sticky.Account.Priority {
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+		return nil
+	}
+	slog.Info("sticky_overflow_selected", "sticky_account_id", sticky.Account.ID, "account_id", selection.Account.ID)
+	return selection
 }
 
 func (s *OpenAIGatewayService) openAIAccountSchedulerCore() OpenAIAccountScheduler {
