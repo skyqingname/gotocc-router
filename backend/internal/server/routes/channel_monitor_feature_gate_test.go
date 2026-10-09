@@ -61,7 +61,7 @@ func TestChannelMonitorV2UserRoutesPreserveAuthenticatedVisibility(t *testing.T)
 				c.Next()
 			})
 			audit := middleware.AuditLogMiddleware(func(c *gin.Context) { c.Next() })
-			RegisterUserRoutes(router.Group("/api/v1"), handlers, auth, audit, settings, nil)
+			RegisterUserRoutes(router.Group("/api/v1"), handlers, auth, audit, middleware.StepUpAuthMiddleware(func(c *gin.Context) { c.Next() }), settings, nil)
 			for _, endpoint := range []string{"dimensions", "snapshot", "models", "matrix", "errors", "users"} {
 				// Invalid input stops before data dependencies; HTTP 400 proves that
 				// the real registered route passed the feature and access guards.

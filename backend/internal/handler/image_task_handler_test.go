@@ -26,6 +26,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type asyncImageObjectRepository struct {
+	object service.ImageObjectRecord
+}
+
+func (r *asyncImageObjectRepository) CreateMany(context.Context, []service.ImageObjectRecord) error {
+	return nil
+}
+
+func (r *asyncImageObjectRepository) GetOwned(_ context.Context, objectID string, userID int64) (*service.ImageObjectRecord, error) {
+	if objectID != r.object.ObjectID || userID != r.object.UserID {
+		return nil, service.ErrImageObjectNotFound
+	}
+	copy := r.object
+	return &copy, nil
+}
+
+type asyncImageSigningStorage struct{}
+
+func (asyncImageSigningStorage) Save(context.Context, string, string, []byte) (string, error) {
+	return "", nil
+}
+
+func (asyncImageSigningStorage) SignURL(_ context.Context, key string) (string, int64, error) {
+	return "https://signed.test/" + key, 1893456000, nil
+}
+
 type asyncImageDownloadStorage struct {
 	objects map[string][]byte
 	openErr error

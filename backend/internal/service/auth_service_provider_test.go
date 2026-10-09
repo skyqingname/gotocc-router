@@ -47,7 +47,7 @@ func TestProvideAuthServiceWiresReusableInvitationRepository(t *testing.T) {
 	authService := ProvideAuthService(
 		nil, nil, nil, nil, &config.Config{}, nil, nil, nil, nil, nil,
 		reusableRepo,
-		nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil,
 	)
 
 	require.Same(t, reusableRepo, authService.reusableInvitationRepo)
