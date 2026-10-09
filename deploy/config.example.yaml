@@ -384,7 +384,6 @@ gateway:
     responses_websockets_v2: true
     # 连接池参数（按账号池化复用）
     max_conns_per_account: 128
-    min_idle_per_account: 4
     max_idle_per_account: 12
     # 是否按账号并发动态计算连接池上限：
     # effective_max_conns = min(max_conns_per_account, ceil(account.concurrency * factor))
@@ -401,13 +400,10 @@ gateway:
     dial_timeout_seconds: 10
     read_timeout_seconds: 900
     write_timeout_seconds: 120
-    pool_target_utilization: 0.7
     queue_limit_per_conn: 64
     # 流式写出批量 flush 参数
     event_flush_batch_size: 1
     event_flush_interval_ms: 10
-    # 预热触发冷却（毫秒）
-    prewarm_cooldown_ms: 300
     # WS 回退到 HTTP 后的冷却时间（秒），用于避免 WS/HTTP 来回抖动；0 表示关闭冷却
     fallback_cooldown_seconds: 30
     # WS 重试退避参数（毫秒）

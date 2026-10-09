@@ -180,8 +180,6 @@ func (p *openAIWSConnPool) acquireFromPool(ctx context.Context, req openAIWSAcqu
 				return nil, errOpenAIWSConnClosed
 			}
 			if dialErr != nil {
-				ap.prewarmFails++
-				ap.prewarmFailAt = time.Now()
 				ap.mu.Unlock()
 				return nil, dialErr
 			}
@@ -192,8 +190,6 @@ func (p *openAIWSConnPool) acquireFromPool(ctx context.Context, req openAIWSAcqu
 			}
 			// The request that opened this connection owns its first lease.
 			ap.conns[conn.id] = conn
-			ap.prewarmFails = 0
-			ap.prewarmFailAt = time.Time{}
 			ap.mu.Unlock()
 			return p.deliverLease(ctx, req, generation, conn, false, pickDuration)
 		}
@@ -250,7 +246,6 @@ func (p *openAIWSConnPool) deliverLease(ctx context.Context, req openAIWSAcquire
 		p.metrics.acquireCreateTotal.Add(1)
 	}
 	p.recordLastSuccessfulAcquire(req.Account.ID, generation, req)
-	p.ensureTargetIdleAsync(req.Account.ID)
 	return lease, nil
 }
 

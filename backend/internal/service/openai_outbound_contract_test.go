@@ -605,7 +605,6 @@ func TestOpenAIIdentityContractPoolDoesNotReuseAnotherTriple(t *testing.T) {
 			changed := request
 			changed.Headers = request.Headers.Clone()
 			changed.Headers.Set(name, changed.Headers.Get(name)+"-changed")
-			require.False(t, sameOpenAIWSPrewarmTarget(request, changed), "prewarm must follow the new triple")
 			next, err := pool.Acquire(context.Background(), changed)
 			require.NoError(t, err)
 			require.False(t, next.Reused(), "a previous handshake cannot override the new identity")

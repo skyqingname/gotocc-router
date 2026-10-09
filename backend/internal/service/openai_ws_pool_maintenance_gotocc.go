@@ -1,8 +1,6 @@
 package service
 
 import (
-	"context"
-	"math"
 	"sort"
 	"time"
 
@@ -46,23 +44,6 @@ func (p *openAIWSConnPool) retireExpiredConnsLocked(ap *openAIWSAccountPool, now
 	return retired
 }
 
-func (p *openAIWSConnPool) prewarmNeededLocked(ap *openAIWSAccountPool) bool {
-	if ap.lastAcquire == nil {
-		return false
-	}
-	limit := p.effectiveMaxConnsByAccount(ap.lastAcquire.Account)
-	if len(ap.conns) >= p.targetConnCountLocked(ap, limit) {
-		return false
-	}
-	idle := 0
-	for id, conn := range ap.conns {
-		if !conn.isLeased() && !p.isConnPinnedLocked(ap, id) {
-			idle++
-		}
-	}
-	return idle < p.maxIdlePerAccount()
-}
-
 func (p *openAIWSConnPool) Close() {
 	if p == nil {
 		return
@@ -76,7 +57,6 @@ func (p *openAIWSConnPool) Close() {
 		// Dialing and queue waits observe lifecycle cancellation. No new worker
 		// can register after stopped is published under lifecycleMu.
 		p.acquireWG.Wait()
-		p.prewarmWG.Wait()
 		p.workerWg.Wait()
 		var idle []*openAIWSConn
 		p.accounts.Range(func(_, value any) bool {
@@ -294,169 +274,4 @@ func (p *openAIWSConnPool) cleanupAccountLocked(ap *openAIWSAccountPool, now tim
 		ap.signalChangedLocked()
 	}
 	return retired
-}
-
-func (p *openAIWSConnPool) ensureTargetIdleAsync(accountID int64) {
-	if p == nil || accountID <= 0 {
-		return
-	}
-
-	p.lifecycleMu.Lock()
-	defer p.lifecycleMu.Unlock()
-	if p.stopped.Load() {
-		return
-	}
-	var req openAIWSAcquireRequest
-	generation := uint64(0)
-	need := 0
-	ap, ok := p.getAccountPool(accountID)
-	if !ok || ap == nil {
-		return
-	}
-	ap.mu.Lock()
-	defer ap.mu.Unlock()
-	if ap.lastAcquire == nil {
-		return
-	}
-	if ap.prewarmActive {
-		return
-	}
-	now := time.Now()
-	if !ap.prewarmUntil.IsZero() && now.Before(ap.prewarmUntil) {
-		return
-	}
-	if p.shouldSuppressPrewarmLocked(ap, now) {
-		return
-	}
-	effectiveMaxConns := p.maxConnsHardCap()
-	if ap.lastAcquire != nil && ap.lastAcquire.Account != nil {
-		effectiveMaxConns = p.effectiveMaxConnsByAccount(ap.lastAcquire.Account)
-	}
-	if !p.prewarmNeededLocked(ap) {
-		return
-	}
-	target := p.targetConnCountLocked(ap, effectiveMaxConns)
-	current := len(ap.conns) + ap.creating
-	if current >= target {
-		return
-	}
-	need = target - current
-	if need <= 0 {
-		return
-	}
-	req = cloneOpenAIWSAcquireRequest(*ap.lastAcquire)
-	generation = ap.generation
-	ap.prewarmActive = true
-	if cooldown := p.prewarmCooldown(); cooldown > 0 {
-		ap.prewarmUntil = now.Add(cooldown)
-	}
-	ap.creating += need
-	p.metrics.scaleUpTotal.Add(int64(need))
-
-	p.prewarmWG.Add(1)
-	go func() { defer p.prewarmWG.Done(); p.prewarmConns(accountID, req, need, generation) }()
-}
-
-func (p *openAIWSConnPool) targetConnCountLocked(ap *openAIWSAccountPool, maxConns int) int {
-	if ap == nil {
-		return 0
-	}
-
-	if maxConns <= 0 {
-		return 0
-	}
-
-	minIdle := p.minIdlePerAccount()
-	if minIdle < 0 {
-		minIdle = 0
-	}
-	if minIdle > maxConns {
-		minIdle = maxConns
-	}
-
-	inflight, waiters := accountPoolLoadLocked(ap)
-	utilization := p.targetUtilization()
-	demand := inflight + waiters
-	if demand <= 0 {
-		return minIdle
-	}
-
-	target := 1
-	if demand > 1 {
-		target = int(math.Ceil(float64(demand) / utilization))
-	}
-	if waiters > 0 && target < len(ap.conns)+1 {
-		target = len(ap.conns) + 1
-	}
-	if target < minIdle {
-		target = minIdle
-	}
-	if target > maxConns {
-		target = maxConns
-	}
-	return target
-}
-
-func (p *openAIWSConnPool) prewarmConns(accountID int64, req openAIWSAcquireRequest, total int, generations ...uint64) {
-	generation := uint64(0)
-	if len(generations) > 0 {
-		generation = generations[0]
-	}
-	remaining := total
-	staleTarget := false
-	ap, _ := p.getAccountPool(accountID)
-	defer func() {
-		ap.mu.Lock()
-		ap.creating -= remaining
-		ap.prewarmActive = false
-		ap.signalChangedLocked()
-		ap.mu.Unlock()
-		if staleTarget {
-			p.ensureTargetIdleAsync(accountID)
-		}
-	}()
-	for remaining > 0 {
-		ap.mu.Lock()
-		if p.stopped.Load() || ap.generation != generation || ap.lastAcquire == nil {
-			ap.mu.Unlock()
-			return
-		}
-		if !sameOpenAIWSPrewarmTarget(req, *ap.lastAcquire) {
-			staleTarget = true
-			ap.mu.Unlock()
-			return
-		}
-		if !p.prewarmNeededLocked(ap) {
-			ap.mu.Unlock()
-			return
-		}
-		ap.mu.Unlock()
-		ctx, cancel := context.WithTimeout(p.lifecycleCtx, p.dialTimeout()+openAIWSConnPrewarmExtraDelay)
-		conn, err := p.dialConn(ctx, req)
-		cancel()
-		ap.mu.Lock()
-		remaining--
-		ap.creating--
-		ap.signalChangedLocked()
-		if err != nil {
-			ap.prewarmFails++
-			ap.prewarmFailAt = time.Now()
-			ap.mu.Unlock()
-			if p.stopped.Load() {
-				return
-			}
-			continue
-		}
-		currentTarget := ap.generation == generation && ap.lastAcquire != nil && sameOpenAIWSPrewarmTarget(req, *ap.lastAcquire)
-		if !currentTarget || p.stopped.Load() || !p.prewarmNeededLocked(ap) {
-			staleTarget = !currentTarget
-			ap.mu.Unlock()
-			conn.close()
-			return
-		}
-		ap.conns[conn.id] = conn
-		ap.prewarmFails = 0
-		ap.prewarmFailAt = time.Time{}
-		ap.mu.Unlock()
-	}
 }

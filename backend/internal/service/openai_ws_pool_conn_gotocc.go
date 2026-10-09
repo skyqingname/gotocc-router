@@ -40,7 +40,7 @@ type openAIWSAcquireRequest struct {
 	Headers http.Header
 	// HeadersFactory is evaluated inside dialConn. It exists so credentials
 	// whose authorization is per-dial (Agent Identity) are never cached in
-	// lastAcquire or delayed prewarm state.
+	// lastAcquire.
 	HeadersFactory  func(context.Context, http.Header) (http.Header, error)
 	ProxyURL        string
 	PreferredConnID string

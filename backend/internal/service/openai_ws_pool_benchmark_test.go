@@ -13,7 +13,6 @@ import (
 func BenchmarkOpenAIWSPoolAcquire(b *testing.B) {
 	cfg := &config.Config{}
 	cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 8
-	cfg.Gateway.OpenAIWS.MinIdlePerAccount = 1
 	cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 4
 	cfg.Gateway.OpenAIWS.QueueLimitPerConn = 256
 	cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 1
