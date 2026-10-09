@@ -15,7 +15,7 @@ func registerTeamRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth 
 		teams.GET("/:id/members", h.Admin.Team.ListMembers)
 		teams.GET("/:id/usage", h.Admin.Team.GetUsage)
 		teams.PATCH("/:id", h.Admin.Team.Update)
-		teams.PATCH("/:id/balance", h.Admin.Team.SetBalance)
+		teams.PATCH("/:id/balance", h.Admin.Team.AdjustBalance)
 		teams.POST("/:id/force-transfer", gin.HandlerFunc(stepUpAuth), h.Admin.Team.ForceTransfer)
 		teams.DELETE("/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Team.Dissolve)
 	}
