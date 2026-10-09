@@ -73,7 +73,5 @@ results, retained application images, and cleanup outcome. Project safe fields
 from runtime JSON; do not print full inspect output, environment files, resolved
 Compose configuration, or unsanitized application logs.
 
-Deployment verification is a runtime smoke check. Use `push-cli check` or
-`submit-pr` separately when the repository validation matrix is requested;
-deployment checks do not create its proof. Release publication stays with
-`release-cli` and requires its own explicit request.
+Deployment verification is a runtime smoke check. Release publication follows
+`docs/RELEASING.md` and requires its own explicit request.

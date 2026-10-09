@@ -48,7 +48,6 @@ REQUIRED_PATHS = (
     "backend/go.mod",
     "frontend/package.json",
     "frontend/pnpm-lock.yaml",
-    ".tool-versions",
     "CONTRIBUTING.md",
     "docs/RELEASING.md",
     "UPSTREAM.md",
@@ -60,8 +59,6 @@ REQUIRED_PATHS = (
     "docs/SECURITY_AUDIT_CONTENT_COVERAGE.md",
     "docs/OUTBOUND_IDENTITY.md",
     "skills/compress-cli",
-    "skills/push-cli",
-    "skills/release-cli",
 )
 
 PROTECTED_FRAGMENTS = {
@@ -140,7 +137,6 @@ PROTECTED_FRAGMENTS = {
     ),
     "Push": (
         "Never target the repository default branch",
-        "not the default publication path",
     ),
     "Submit PR": (
         "Publication merges the accepted candidate branch into main through a PR",

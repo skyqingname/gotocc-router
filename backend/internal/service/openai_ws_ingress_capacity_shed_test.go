@@ -81,7 +81,6 @@ func TestProxyResponsesWebSocketFromClient_RewritesCapacityShedCodeForClient(t *
 			cfg.Security.URLAllowlist.Enabled = false
 			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 			cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 1
-			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
 			cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 1
 			cfg.Gateway.OpenAIWS.QueueLimitPerConn = 8
 			cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 3
@@ -221,7 +220,6 @@ func TestProxyResponsesWebSocketFromClient_MarksCyberPolicyBeforeEarlyReturn(t *
 			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
 			cfg.Gateway.OpenAIWS.ModeRouterV2Enabled = true
 			cfg.Gateway.OpenAIWS.IngressModeDefault = OpenAIWSIngressModeCtxPool
-			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
 
 			captureConn := &openAIWSCaptureConn{events: [][]byte{append([]byte(nil), tt.upstreamEvent...)}}
 			pool := newOpenAIWSConnPool(cfg)

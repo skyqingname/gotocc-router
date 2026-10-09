@@ -21,13 +21,9 @@ const (
 	// 不在请求热路径上的探活（后台巡检、轮次间预检）给经代理链路的 pong 留足余量，
 	// 实测最大往返约 1.7s；误判的代价是换连甚至断会话，比多等几秒重得多。
 	openAIWSProbePingTO            = 10 * time.Second
-	openAIWSConnPrewarmExtraDelay  = 2 * time.Second
 	openAIWSAcquireCleanupInterval = 3 * time.Second
 	openAIWSBackgroundPingInterval = 30 * time.Second
 	openAIWSBackgroundSweepTicker  = 30 * time.Second
-
-	openAIWSPrewarmFailureWindow   = 30 * time.Second
-	openAIWSPrewarmFailureSuppress = 2
 )
 
 var (
@@ -46,10 +42,6 @@ type openAIWSAccountPool struct {
 	generation    uint64
 	lastCleanupAt time.Time
 	lastAcquire   *openAIWSAcquireRequest
-	prewarmActive bool
-	prewarmUntil  time.Time
-	prewarmFails  int
-	prewarmFailAt time.Time
 }
 
 func (ap *openAIWSAccountPool) changeChannelLocked() chan struct{} {
@@ -77,7 +69,6 @@ type OpenAIWSPoolMetricsSnapshot struct {
 	AcquireQueueWaitMsTotal int64
 	ConnPickTotal           int64
 	ConnPickMsTotal         int64
-	ScaleUpTotal            int64
 	ScaleDownTotal          int64
 }
 
@@ -89,7 +80,6 @@ type openAIWSPoolMetrics struct {
 	acquireQueueWaitMs    atomic.Int64
 	connPickTotal         atomic.Int64
 	connPickMs            atomic.Int64
-	scaleUpTotal          atomic.Int64
 	scaleDownTotal        atomic.Int64
 }
 
@@ -108,7 +98,6 @@ type openAIWSConnPool struct {
 	cancelLifecycle context.CancelFunc
 	stopped         atomic.Bool
 	acquireWG       sync.WaitGroup
-	prewarmWG       sync.WaitGroup
 	cleanupWakeCh   chan struct{}
 	workerStopCh    chan struct{}
 	workerWg        sync.WaitGroup
@@ -141,7 +130,6 @@ func (p *openAIWSConnPool) SnapshotMetrics() OpenAIWSPoolMetricsSnapshot {
 		AcquireQueueWaitMsTotal: p.metrics.acquireQueueWaitMs.Load(),
 		ConnPickTotal:           p.metrics.connPickTotal.Load(),
 		ConnPickMsTotal:         p.metrics.connPickMs.Load(),
-		ScaleUpTotal:            p.metrics.scaleUpTotal.Load(),
 		ScaleDownTotal:          p.metrics.scaleDownTotal.Load(),
 	}
 }
@@ -163,7 +151,6 @@ func (p *openAIWSConnPool) setClientDialerForTest(dialer openAIWSClientDialer) {
 	p.clientDialer = dialer
 }
 
-// Close 停止后台 worker 并关闭所有空闲连接，应在优雅关闭时调用。
 func (p *openAIWSConnPool) Acquire(ctx context.Context, req openAIWSAcquireRequest) (*openAIWSConnLease, error) {
 	if p == nil {
 		return nil, errors.New("invalid ws acquire request")
@@ -301,9 +288,9 @@ func (p *openAIWSConnPool) AccountPoolLoad(accountID int64) (inflight int, waite
 	return inflight, waiters, len(ap.conns)
 }
 
-// ClearAccount closes all pooled connections and discards delayed prewarm
-// state for one account. The generation guard prevents an in-flight prewarm
-// started before credential recovery from re-entering the pool afterwards.
+// ClearAccount closes all pooled connections for one account. The generation
+// guard prevents a dial started before credential recovery from entering the
+// pool afterwards.
 func (p *openAIWSConnPool) ClearAccount(accountID int64) {
 	if p == nil || accountID <= 0 {
 		return
@@ -323,9 +310,6 @@ func (p *openAIWSConnPool) ClearAccount(accountID int64) {
 		}
 	}
 	ap.lastAcquire = nil
-	ap.prewarmUntil = time.Time{}
-	ap.prewarmFails = 0
-	ap.prewarmFailAt = time.Time{}
 	ap.signalChangedLocked()
 	ap.mu.Unlock()
 	closeOpenAIWSConns(conns)

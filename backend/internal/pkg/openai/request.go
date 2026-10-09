@@ -149,8 +149,7 @@ const CodexCLIOriginator = "codex_cli_rs"
 const CodexTUIOriginator = "codex-tui"
 
 // CodexDefaultOriginator 是网关未配置账号/全局 UA 时使用的官方 CLI originator。
-// 与 CodexCLIOriginator 同值；保持字面量声明以供 check_openai_codex_identity.py
-// 的编译期默认锚点比对（两个声明必须一起改）。
+// 与 CodexCLIOriginator 同值，两个声明必须一起改。
 const CodexDefaultOriginator = "codex_cli_rs"
 
 // CodexUserAgentVersion 提取 Codex UA 的完整版本段，即 `{client}/{version} (...` 中的 version。

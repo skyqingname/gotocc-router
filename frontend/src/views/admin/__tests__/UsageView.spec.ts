@@ -908,18 +908,15 @@ describe('admin UsageView Excel export latency fields', () => {
 
 // xlsx@0.20.3 由 frontend/third-party/xlsx-0.20.3.tgz 提供(Apache-2.0,
 // dependencies: {},见 SECURITY.md《Dependency Audit Exceptions》)。
-// 该版本已修复 CVE-2023-30533 / CVE-2024-22363,因此不再需要任何审计例外;
-// 例外现在只能通过 .github/audit-exceptions.yml 登记,并由
-// tools/check_pnpm_audit_exceptions.py 强制执行。
-// 本测试守护三条不变量:仓库源码只用 writer API、package.json 不再 pin 例外、
-// 例外清单里没有 xlsx。改动任一侧都需重新评估该依赖。
+// 该版本已修复 CVE-2023-30533 / CVE-2024-22363,因此不再需要任何审计例外。
+// 本测试守护两条不变量:仓库源码只用 writer API、package.json 不再 pin 例外。
+// 改动任一侧都需重新评估该依赖。
 describe('UsageView xlsx audit exception', () => {
   const here = dirname(fileURLToPath(import.meta.url))
   // spec lives at <frontend>/src/views/admin/__tests__/
   const frontendRoot = resolve(here, '../../../..')
   const srcRoot = resolve(frontendRoot, 'src')
   const packageJsonPath = resolve(frontendRoot, 'package.json')
-  const auditExceptionsPath = resolve(frontendRoot, '../.github/audit-exceptions.yml')
   // 守卫文件自身不参与扫描:否则它会命中自己的正则字面量。
   const guardFile = resolve(here, 'UsageView.spec.ts')
 
@@ -960,11 +957,5 @@ describe('UsageView xlsx audit exception', () => {
     const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
     expect(pkg.pnpm?.auditConfig?.ignoreCves ?? []).toEqual([])
     expect(pkg.dependencies.xlsx).toBe('file:third-party/xlsx-0.20.3.tgz')
-  })
-
-  it('keeps xlsx out of the audit exception ledger', () => {
-    const ledger = readFileSync(auditExceptionsPath, 'utf8')
-    expect(ledger).toMatch(/^version:\s*1$/m)
-    expect(ledger).not.toMatch(/\bxlsx\b/i)
   })
 })

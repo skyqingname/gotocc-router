@@ -43,7 +43,6 @@ func TestForwardOpenAIWSV2_KeepsOutboundAndObservedServiceTiersSeparate(t *testi
 			cfg.Gateway.OpenAIWS.APIKeyEnabled = true
 			cfg.Gateway.OpenAIWS.ResponsesWebsocketsV2 = true
 			cfg.Gateway.OpenAIWS.MaxConnsPerAccount = 1
-			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
 			cfg.Gateway.OpenAIWS.MaxIdlePerAccount = 1
 			cfg.Gateway.OpenAIWS.QueueLimitPerConn = 8
 			cfg.Gateway.OpenAIWS.DialTimeoutSeconds = 3
@@ -132,7 +131,6 @@ func TestForwardOpenAIWSV2_MarksCyberPolicyForFailureEventShapes(t *testing.T) {
 			cfg := newOpenAIWSV2TestConfig()
 			cfg.Security.URLAllowlist.Enabled = false
 			cfg.Security.URLAllowlist.AllowInsecureHTTP = true
-			cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
 			captureConn := &openAIWSCaptureConn{events: [][]byte{append([]byte(nil), tt.upstreamEvent...)}}
 			pool := newOpenAIWSConnPool(cfg)
 			pool.setClientDialerForTest(&openAIWSCaptureDialer{conn: captureConn})

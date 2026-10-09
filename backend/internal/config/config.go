@@ -1311,7 +1311,6 @@ type GatewayOpenAIWSConfig struct {
 
 	// 连接池参数
 	MaxConnsPerAccount int `mapstructure:"max_conns_per_account"`
-	MinIdlePerAccount  int `mapstructure:"min_idle_per_account"`
 	MaxIdlePerAccount  int `mapstructure:"max_idle_per_account"`
 	// DynamicMaxConnsByAccountConcurrencyEnabled: 是否按账号并发动态计算连接池上限。
 	// 旧版及 mode_router_v2 的 ctx_pool 共用此开关和类型系数；关闭后使用 max_conns_per_account。
@@ -1322,18 +1321,15 @@ type GatewayOpenAIWSConfig struct {
 	// 在飞请求数另由账号并发槽限制；系数 1.0 会让存活会话数一到并发数就返回 1013 busy，默认 5.0。
 	OAuthMaxConnsFactor float64 `mapstructure:"oauth_max_conns_factor"`
 	// APIKeyMaxConnsFactor: API Key 账号连接池系数，含义与 OAuthMaxConnsFactor 相同，默认 5.0。
-	APIKeyMaxConnsFactor  float64 `mapstructure:"apikey_max_conns_factor"`
-	DialTimeoutSeconds    int     `mapstructure:"dial_timeout_seconds"`
-	ReadTimeoutSeconds    int     `mapstructure:"read_timeout_seconds"`
-	WriteTimeoutSeconds   int     `mapstructure:"write_timeout_seconds"`
-	PoolTargetUtilization float64 `mapstructure:"pool_target_utilization"`
-	QueueLimitPerConn     int     `mapstructure:"queue_limit_per_conn"`
+	APIKeyMaxConnsFactor float64 `mapstructure:"apikey_max_conns_factor"`
+	DialTimeoutSeconds   int     `mapstructure:"dial_timeout_seconds"`
+	ReadTimeoutSeconds   int     `mapstructure:"read_timeout_seconds"`
+	WriteTimeoutSeconds  int     `mapstructure:"write_timeout_seconds"`
+	QueueLimitPerConn    int     `mapstructure:"queue_limit_per_conn"`
 	// EventFlushBatchSize: WS 流式写出批量 flush 阈值（事件条数）
 	EventFlushBatchSize int `mapstructure:"event_flush_batch_size"`
 	// EventFlushIntervalMS: WS 流式写出最大等待时间（毫秒）；0 表示仅按 batch 触发
 	EventFlushIntervalMS int `mapstructure:"event_flush_interval_ms"`
-	// PrewarmCooldownMS: 连接池预热触发冷却时间（毫秒）
-	PrewarmCooldownMS int `mapstructure:"prewarm_cooldown_ms"`
 	// FallbackCooldownSeconds: WS 回退冷却窗口，避免 WS/HTTP 抖动；0 表示关闭冷却
 	FallbackCooldownSeconds int `mapstructure:"fallback_cooldown_seconds"`
 	// RetryBackoffInitialMS: WS 重试初始退避（毫秒）；<=0 表示关闭退避
@@ -2487,7 +2483,6 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.responses_websockets", false)
 	viper.SetDefault("gateway.openai_ws.responses_websockets_v2", true)
 	viper.SetDefault("gateway.openai_ws.max_conns_per_account", 128)
-	viper.SetDefault("gateway.openai_ws.min_idle_per_account", 4)
 	viper.SetDefault("gateway.openai_ws.max_idle_per_account", 12)
 	viper.SetDefault("gateway.openai_ws.dynamic_max_conns_by_account_concurrency_enabled", true)
 	viper.SetDefault("gateway.openai_ws.oauth_max_conns_factor", 5.0)
@@ -2495,11 +2490,9 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.dial_timeout_seconds", 10)
 	viper.SetDefault("gateway.openai_ws.read_timeout_seconds", 900)
 	viper.SetDefault("gateway.openai_ws.write_timeout_seconds", 120)
-	viper.SetDefault("gateway.openai_ws.pool_target_utilization", 0.7)
 	viper.SetDefault("gateway.openai_ws.queue_limit_per_conn", 64)
 	viper.SetDefault("gateway.openai_ws.event_flush_batch_size", 1)
 	viper.SetDefault("gateway.openai_ws.event_flush_interval_ms", 10)
-	viper.SetDefault("gateway.openai_ws.prewarm_cooldown_ms", 300)
 	viper.SetDefault("gateway.openai_ws.fallback_cooldown_seconds", 30)
 	viper.SetDefault("gateway.openai_ws.retry_backoff_initial_ms", 120)
 	viper.SetDefault("gateway.openai_ws.retry_backoff_max_ms", 2000)
@@ -3542,14 +3535,8 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIWS.MaxIngressConnectionsPerAPIKey < 0 {
 		return fmt.Errorf("gateway.openai_ws.max_ingress_connections_per_api_key must be non-negative")
 	}
-	if c.Gateway.OpenAIWS.MinIdlePerAccount < 0 {
-		return fmt.Errorf("gateway.openai_ws.min_idle_per_account must be non-negative")
-	}
 	if c.Gateway.OpenAIWS.MaxIdlePerAccount < 0 {
 		return fmt.Errorf("gateway.openai_ws.max_idle_per_account must be non-negative")
-	}
-	if c.Gateway.OpenAIWS.MinIdlePerAccount > c.Gateway.OpenAIWS.MaxIdlePerAccount {
-		return fmt.Errorf("gateway.openai_ws.min_idle_per_account must be <= max_idle_per_account")
 	}
 	if c.Gateway.OpenAIWS.MaxIdlePerAccount > c.Gateway.OpenAIWS.MaxConnsPerAccount {
 		return fmt.Errorf("gateway.openai_ws.max_idle_per_account must be <= max_conns_per_account")
@@ -3569,9 +3556,6 @@ func (c *Config) Validate() error {
 	if c.Gateway.OpenAIWS.WriteTimeoutSeconds <= 0 {
 		return fmt.Errorf("gateway.openai_ws.write_timeout_seconds must be positive")
 	}
-	if c.Gateway.OpenAIWS.PoolTargetUtilization <= 0 || c.Gateway.OpenAIWS.PoolTargetUtilization > 1 {
-		return fmt.Errorf("gateway.openai_ws.pool_target_utilization must be within (0,1]")
-	}
 	if c.Gateway.OpenAIWS.QueueLimitPerConn <= 0 {
 		return fmt.Errorf("gateway.openai_ws.queue_limit_per_conn must be positive")
 	}
@@ -3580,9 +3564,6 @@ func (c *Config) Validate() error {
 	}
 	if c.Gateway.OpenAIWS.EventFlushIntervalMS < 0 {
 		return fmt.Errorf("gateway.openai_ws.event_flush_interval_ms must be non-negative")
-	}
-	if c.Gateway.OpenAIWS.PrewarmCooldownMS < 0 {
-		return fmt.Errorf("gateway.openai_ws.prewarm_cooldown_ms must be non-negative")
 	}
 	if c.Gateway.OpenAIWS.ClientReadLimitBytes <= 0 {
 		return fmt.Errorf("gateway.openai_ws.client_read_limit_bytes must be positive")

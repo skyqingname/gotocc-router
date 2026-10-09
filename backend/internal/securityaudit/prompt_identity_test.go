@@ -56,7 +56,7 @@ func TestPromptProbeAndScanSupplierIdentity(t *testing.T) {
 	require.True(t, result.OK, result.Message)
 	assertPromptSupplierHeaders(t, <-captured, "3.9.1", "supplier-token")
 	assertPromptSupplierHeaders(t, <-captured, "3.9.1", "supplier-token")
-	_, err := NewOpenAICompatibleScanner().Scan(ctx, ActiveEndpoint{ID: "fresh", BaseURL: server.URL, Model: DefaultGuardModel, Token: "supplier-token", TimeoutMS: 1000}, "hello", AllScannerIDs)
+	_, err := NewOpenAICompatibleScanner().Scan(ctx, ActiveEndpoint{ID: "fresh", BaseURL: server.URL, Model: DefaultGuardModel, Token: "supplier-token", TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	require.NoError(t, err)
 	assertPromptSupplierHeaders(t, <-captured, "3.9.2", "supplier-token")
 }
@@ -104,7 +104,7 @@ func TestPromptScannerCompiledIdentity(t *testing.T) {
 	}))
 	defer server.Close()
 	ctx := outboundidentity.WithResolver(context.Background(), func(context.Context, string) outboundidentity.Identity { return outboundidentity.Identity{} })
-	_, err := NewOpenAICompatibleScanner().Scan(ctx, ActiveEndpoint{BaseURL: server.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, "hello", AllScannerIDs)
+	_, err := NewOpenAICompatibleScanner().Scan(ctx, ActiveEndpoint{BaseURL: server.URL, Model: DefaultGuardModel, TimeoutMS: 1000}, DefaultAuditPrompt, "hello", AllScannerIDs)
 	require.NoError(t, err)
 	headers := <-captured
 	require.Equal(t, service.DefaultOpenAICodexUserAgent, headers.Get("User-Agent"))

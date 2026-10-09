@@ -77,9 +77,6 @@ deploy/redis_data/
 # image. Excluding them keeps Apple container context synchronization bounded.
 deploy/.local/
 
-# GoReleaser
-.goreleaser.yaml
-
 # GitHub
 .github/
 

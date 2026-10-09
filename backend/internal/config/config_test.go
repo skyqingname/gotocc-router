@@ -529,9 +529,6 @@ func TestLoadDefaultOpenAIWSConfig(t *testing.T) {
 	if cfg.Gateway.OpenAIWS.EventFlushIntervalMS != 10 {
 		t.Fatalf("Gateway.OpenAIWS.EventFlushIntervalMS = %d, want 10", cfg.Gateway.OpenAIWS.EventFlushIntervalMS)
 	}
-	if cfg.Gateway.OpenAIWS.PrewarmCooldownMS != 300 {
-		t.Fatalf("Gateway.OpenAIWS.PrewarmCooldownMS = %d, want 300", cfg.Gateway.OpenAIWS.PrewarmCooldownMS)
-	}
 	if cfg.Gateway.OpenAIWS.ClientReadLimitBytes != 64*1024*1024 {
 		t.Fatalf("Gateway.OpenAIWS.ClientReadLimitBytes = %d, want %d", cfg.Gateway.OpenAIWS.ClientReadLimitBytes, 64*1024*1024)
 	}
@@ -2304,28 +2301,14 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 			wantErr: "gateway.openai_ws.max_ingress_connections_per_api_key",
 		},
 		{
-			name:    "min_idle_per_account 不能为负数",
-			mutate:  func(c *Config) { c.Gateway.OpenAIWS.MinIdlePerAccount = -1 },
-			wantErr: "gateway.openai_ws.min_idle_per_account",
-		},
-		{
 			name:    "max_idle_per_account 不能为负数",
 			mutate:  func(c *Config) { c.Gateway.OpenAIWS.MaxIdlePerAccount = -1 },
 			wantErr: "gateway.openai_ws.max_idle_per_account",
 		},
 		{
-			name: "min_idle_per_account 不能大于 max_idle_per_account",
-			mutate: func(c *Config) {
-				c.Gateway.OpenAIWS.MinIdlePerAccount = 3
-				c.Gateway.OpenAIWS.MaxIdlePerAccount = 2
-			},
-			wantErr: "gateway.openai_ws.min_idle_per_account must be <= max_idle_per_account",
-		},
-		{
 			name: "max_idle_per_account 不能大于 max_conns_per_account",
 			mutate: func(c *Config) {
 				c.Gateway.OpenAIWS.MaxConnsPerAccount = 2
-				c.Gateway.OpenAIWS.MinIdlePerAccount = 1
 				c.Gateway.OpenAIWS.MaxIdlePerAccount = 3
 			},
 			wantErr: "gateway.openai_ws.max_idle_per_account must be <= max_conns_per_account",
@@ -2344,11 +2327,6 @@ func TestValidateConfig_OpenAIWSRules(t *testing.T) {
 			name:    "write_timeout_seconds 必须为正数",
 			mutate:  func(c *Config) { c.Gateway.OpenAIWS.WriteTimeoutSeconds = 0 },
 			wantErr: "gateway.openai_ws.write_timeout_seconds",
-		},
-		{
-			name:    "pool_target_utilization 必须在 (0,1]",
-			mutate:  func(c *Config) { c.Gateway.OpenAIWS.PoolTargetUtilization = 0 },
-			wantErr: "gateway.openai_ws.pool_target_utilization",
 		},
 		{
 			name:    "queue_limit_per_conn 必须为正数",

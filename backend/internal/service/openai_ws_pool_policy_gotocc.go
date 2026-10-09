@@ -75,13 +75,6 @@ func (p *openAIWSConnPool) effectiveMaxConnsByAccount(account *Account) int {
 	return effective
 }
 
-func (p *openAIWSConnPool) minIdlePerAccount() int {
-	if p != nil && p.cfg != nil && p.cfg.Gateway.OpenAIWS.MinIdlePerAccount >= 0 {
-		return p.cfg.Gateway.OpenAIWS.MinIdlePerAccount
-	}
-	return 0
-}
-
 func (p *openAIWSConnPool) maxIdlePerAccount() int {
 	if p != nil && p.cfg != nil && p.cfg.Gateway.OpenAIWS.MaxIdlePerAccount >= 0 {
 		return p.cfg.Gateway.OpenAIWS.MaxIdlePerAccount
@@ -98,42 +91,6 @@ func (p *openAIWSConnPool) queueLimitPerConn() int {
 		return p.cfg.Gateway.OpenAIWS.QueueLimitPerConn
 	}
 	return 256
-}
-
-func (p *openAIWSConnPool) targetUtilization() float64 {
-	if p != nil && p.cfg != nil {
-		ratio := p.cfg.Gateway.OpenAIWS.PoolTargetUtilization
-		if ratio > 0 && ratio <= 1 {
-			return ratio
-		}
-	}
-	return 0.7
-}
-
-func (p *openAIWSConnPool) prewarmCooldown() time.Duration {
-	if p != nil && p.cfg != nil && p.cfg.Gateway.OpenAIWS.PrewarmCooldownMS > 0 {
-		return time.Duration(p.cfg.Gateway.OpenAIWS.PrewarmCooldownMS) * time.Millisecond
-	}
-	return 0
-}
-
-func (p *openAIWSConnPool) shouldSuppressPrewarmLocked(ap *openAIWSAccountPool, now time.Time) bool {
-	if ap == nil {
-		return true
-	}
-	if ap.prewarmFails <= 0 {
-		return false
-	}
-	if ap.prewarmFailAt.IsZero() {
-		ap.prewarmFails = 0
-		return false
-	}
-	if now.Sub(ap.prewarmFailAt) > openAIWSPrewarmFailureWindow {
-		ap.prewarmFails = 0
-		ap.prewarmFailAt = time.Time{}
-		return false
-	}
-	return ap.prewarmFails >= openAIWSPrewarmFailureSuppress
 }
 
 func (p *openAIWSConnPool) dialTimeout() time.Duration {
@@ -158,10 +115,6 @@ func cloneOpenAIWSAcquireRequestPtr(req *openAIWSAcquireRequest) *openAIWSAcquir
 	}
 	copied := cloneOpenAIWSAcquireRequest(*req)
 	return &copied
-}
-
-func sameOpenAIWSPrewarmTarget(a, b openAIWSAcquireRequest) bool {
-	return openAIWSKeyForRequest(a) == openAIWSKeyForRequest(b)
 }
 
 func normalizeOpenAIWSBetaFeatures(headers http.Header) string {

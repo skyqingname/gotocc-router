@@ -1,0 +1,20 @@
+[
+  ":(glob).github/workflows/*",
+  ":(exclude).github/workflows/ci.yml",
+  ".github/actions",
+  ".github/release-tools",
+  ".github/audit-exceptions.yml",
+  ".goreleaser.yaml",
+  "Dockerfile.goreleaser",
+  ".tool-versions",
+  "deploy/tests",
+  "skills/push-cli",
+  "skills/release-cli",
+  "tools/fixtures",
+  ":(glob)tools/check_*.py",
+  ":(glob)tools/release_*.py",
+  ":(glob)tools/test_*.py",
+  "tools/update_release_docs.py",
+  "tools/validation_runtime.py",
+  "tools/workflow_provenance.py"
+]
