@@ -285,7 +285,7 @@ func defaultModelsListCandidateIDs(platform string) []string {
 	switch platform {
 	case PlatformVideo:
 		return []string{}
-	case PlatformDeepseek, PlatformKimi, PlatformZhipu, PlatformMiniMax:
+	case PlatformDeepseek, PlatformKimi, PlatformZhipu, PlatformMiniMax, PlatformStepFun:
 		return cnmodels.DefaultModelIDs(platform)
 	case PlatformOpenAI:
 		return openai.DefaultModelIDs()
@@ -333,7 +333,7 @@ func compositeDefaultModelsListCandidateIDs() []string {
 	// TypeSafe stays out of the static composite candidates (jev-latest only works
 	// through /v1/systemone); groups with TypeSafe accounts still get it from the
 	// account model mappings collected by GetGroupModelsListCandidates.
-	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformOpenCodeGo} {
+	for _, platform := range []string{PlatformAnthropic, PlatformGemini, PlatformOpenAI, PlatformAntigravity, PlatformGrok, PlatformKimi, PlatformZhipu, PlatformDeepseek, PlatformMiniMax, PlatformStepFun, PlatformOpenCodeGo} {
 		for _, id := range defaultModelsListCandidateIDs(platform) {
 			if _, ok := seen[id]; ok {
 				continue

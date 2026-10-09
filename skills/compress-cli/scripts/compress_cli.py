@@ -30,6 +30,7 @@ REQUIRED_CATEGORIES = (
     "Documented Commands",
     "Implementation",
     "Design",
+    "Test Design",
     "Verification",
     "Push",
     "Submit PR",
@@ -121,6 +122,15 @@ PROTECTED_FRAGMENTS = {
         "repository scripts or Make targets",
         "verify syntax, supported version, and execution environment",
     ),
+    "Test Design": (
+        "Derive test scenarios and expected results independently from business requirements, acceptance criteria, and authoritative contracts",
+        "Do not infer correctness from current implementation or compute expected results with the code under test",
+        "Cover applicable success, failure, boundary, and required/forbidden side effects",
+        "When implementation conflicts with requirements, fix the implementation; never weaken assertions or change expectations merely to make tests pass",
+        "Defect regressions must detect the original incorrect behavior",
+        "Passing tests or coverage percentages alone do not establish business correctness",
+        "Follow CONTRIBUTING.md#requirement-based-test-design",
+    ),
     "Verification": (
         "Build the final release package locally in Docker",
         "user manual acceptance",
@@ -133,7 +143,7 @@ PROTECTED_FRAGMENTS = {
         "not the default publication path",
     ),
     "Submit PR": (
-        "PRs are optional source collaboration, not a release prerequisite",
+        "Publication merges the accepted candidate branch into main through a PR",
         "actual local runtime and user acceptance evidence",
     ),
     "Release Promotion": (
@@ -144,7 +154,7 @@ PROTECTED_FRAGMENTS = {
         "Never push or commit release changes directly to main",
         "Tag the source commit recorded in the accepted local package",
         "Upload all archives and pricing assets to a draft before publishing",
-        "No preparation or finalization PR is required",
+        "no separate preparation or finalization PR",
     ),
     "Publication Safety": (
         "release tags, Releases, or publication images",

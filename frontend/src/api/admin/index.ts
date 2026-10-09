@@ -21,6 +21,7 @@ import geminiAPI from './gemini'
 import antigravityAPI from './antigravity'
 import grokAPI from './grok'
 import cnProvidersAPI from './cnProviders'
+import zhipuAPI from './zhipu'
 import userAttributesAPI from './userAttributes'
 import opsAPI from './ops'
 import errorPassthroughAPI from './errorPassthrough'
@@ -101,6 +102,7 @@ export {
   antigravityAPI,
   grokAPI,
   cnProvidersAPI,
+  zhipuAPI,
   userAttributesAPI,
   opsAPI,
   errorPassthroughAPI,

@@ -58,6 +58,10 @@
     <rect x="3" y="5" width="13" height="14" rx="2" />
     <path stroke-linejoin="round" d="m16 10 5-3v10l-5-3" />
   </svg>
+  <!-- StepFun platform mark -->
+  <svg v-else-if="platform === 'stepfun'" :class="sizeClass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+    <path stroke-linecap="square" d="M3 20h6v-6h6V8h6V3" />
+  </svg>
   <!-- Composite group icon -->
   <svg v-else-if="platform === 'composite'" :class="sizeClass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <circle cx="6" cy="12" r="3" />
