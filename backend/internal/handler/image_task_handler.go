@@ -32,12 +32,11 @@ import (
 )
 
 const (
-	asyncImageEditMaxInputImages    = 4
 	asyncImageEditMaxMultipartBytes = int64(40 << 20) // 40 MiB across images and mask
 )
 
 var (
-	errAsyncImageEditTooManyInputImages = errors.New("async image edits support at most 4 input images")
+	errAsyncImageEditTooManyInputImages = errors.New("async image edits exceed the input image limit")
 	errAsyncImageEditTooManyMasks       = errors.New("async image edits support at most one mask image")
 	errAsyncImageEditMultipartTooLarge  = errors.New("async image edit uploads exceed the allowed total size of 40 MiB")
 	errAsyncImageEditInvalidImage       = errors.New("async image edits require PNG, JPEG, or WebP image files")
@@ -147,7 +146,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		imageTaskJSONError(c, http.StatusBadRequest, "invalid_request_error", "streaming image requests cannot be submitted as asynchronous tasks")
 		return
 	}
-	if err := validateAsyncImageEditUploadLimits(c.Request.URL.Path, c.GetHeader("Content-Type"), body); err != nil {
+	if err := validateAsyncImageEditUploadLimits(c.Request.URL.Path, c.GetHeader("Content-Type"), body, h.openAI.cfg.AsyncImage.EditMaxInputImages); err != nil {
 		status := http.StatusBadRequest
 		var uploadTooLarge *service.OpenAIImageUploadTooLargeError
 		if errors.Is(err, errAsyncImageEditMultipartTooLarge) || errors.As(err, &uploadTooLarge) {
@@ -417,7 +416,7 @@ func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, bod
 // validateAsyncImageEditUploadLimits keeps detached multipart edit requests
 // within a bounded memory envelope. The same body is held by the submit
 // request, copied into the background context, and parsed before forwarding.
-func validateAsyncImageEditUploadLimits(path, contentType string, body []byte) error {
+func validateAsyncImageEditUploadLimits(path, contentType string, body []byte, maxInputImages int) error {
 	if !strings.Contains(path, "/images/edits/") || !isMultipartImagesContentType(contentType) {
 		return nil
 	}
@@ -465,8 +464,8 @@ func validateAsyncImageEditUploadLimits(path, contentType string, body []byte) e
 				return errAsyncImageEditInvalidImage
 			}
 			inputImages++
-			if inputImages > asyncImageEditMaxInputImages {
-				return errAsyncImageEditTooManyInputImages
+			if inputImages > maxInputImages {
+				return fmt.Errorf("%w (at most %d input images)", errAsyncImageEditTooManyInputImages, maxInputImages)
 			}
 			if firstImageSize == nil {
 				firstImageSize = &upload

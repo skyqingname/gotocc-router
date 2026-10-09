@@ -110,6 +110,7 @@ type Config struct {
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 	Plugins                 PluginConfig                  `mapstructure:"plugins"`
 	Team                    TeamConfig                    `mapstructure:"team"`
+	AsyncImage              AsyncImageConfig              `mapstructure:"async_image"`
 
 	// Enforce only API-key spending windows in simple mode.
 	SimpleModeKeyRateLimitEnabled bool `mapstructure:"simple_mode_key_rate_limit_enabled" yaml:"simple_mode_key_rate_limit_enabled"`
@@ -2251,6 +2252,7 @@ func setDefaults() {
 	viper.SetDefault("team.enabled", true)
 	viper.SetDefault("team.self_service_enabled", true)
 	viper.SetDefault("team.default_member_limit", 10)
+	viper.SetDefault("async_image.edit_max_input_images", 16)
 
 	// Batch Image queue
 	viper.SetDefault("batch_image.enabled", false)
@@ -3246,6 +3248,9 @@ func (c *Config) Validate() error {
 		if c.BatchImage.VertexOutputRetentionHours <= 0 {
 			return fmt.Errorf("batch_image.vertex_output_retention_hours must be positive")
 		}
+	}
+	if c.AsyncImage.EditMaxInputImages <= 0 {
+		return fmt.Errorf("async_image.edit_max_input_images must be positive")
 	}
 	if c.VideoTask.Enabled {
 		if c.VideoTask.ScanIntervalSeconds <= 0 {

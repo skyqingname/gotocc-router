@@ -20,7 +20,7 @@
 
 - OpenAI 流在输出前收到裸 `internal_error` / `server_error` 时按既有流程换号。
 - 异步图片编辑输入张数通过已有运行参数配置，默认 16。
-- Codex 一键接入默认选择 WebSocket 配置，保留 HTTP 配置。
+- Codex 一键接入默认选择 WebSocket 配置，保留 HTTP 配置；已有客户端配置仍需手动加入 `supports_websockets = true` 或重新复制。
 
 ## CI 与发行
 

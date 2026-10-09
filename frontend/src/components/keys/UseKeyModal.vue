@@ -325,7 +325,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { buildCodexModelCatalogUrl, fetchCodexModelsManifest } from '@/api/codex'
 import { keysAPI } from '@/api/keys'
-import { OPENAI_CC_SWITCH_CODEX_MODEL } from '@/utils/ccswitchImport'
+import { OPENAI_CC_SWITCH_CODEX_MODEL, OPENAI_CODEX_DEFAULT_CLIENT_TAB } from '@/utils/ccswitchImport'
 import type { ApiKeyRoutingCapabilities, ApiKeyRoutingMode, GroupPlatform } from '@/types'
 import {
   findCodexCatalogModel,
@@ -478,7 +478,7 @@ const defaultClientTab = computed(() => {
   if (props.claudeCodeOnly) return 'claude'
   switch (props.platform) {
     case 'openai':
-      return 'codex'
+      return OPENAI_CODEX_DEFAULT_CLIENT_TAB
     case 'grok':
       return 'grok'
     case 'gemini':
