@@ -47,7 +47,17 @@ func (s *defaultOpenAIAccountScheduler) overflowFullStickyAccount(ctx context.Co
 		return nil
 	}
 	slog.Info("sticky_overflow_selected", "sticky_account_id", sticky.Account.ID, "account_id", selection.Account.ID)
+	selection.PreserveStickyBinding = true
 	return selection
+}
+
+// BindStickySessionAfterSelection carries the scheduler's ownership decision
+// through the handler's final admission step for both HTTP and WebSocket.
+func (s *OpenAIGatewayService) BindStickySessionAfterSelection(ctx context.Context, groupID *int64, sessionHash string, selection *AccountSelectionResult) error {
+	if selection.PreserveStickyBinding {
+		return nil
+	}
+	return s.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, selection.Account.ID)
 }
 
 func (s *OpenAIGatewayService) openAIAccountSchedulerCore() OpenAIAccountScheduler {

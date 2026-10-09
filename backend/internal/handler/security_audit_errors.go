@@ -128,7 +128,7 @@ func googleSecurityAuditError(c *gin.Context, decision *securityaudit.Decision) 
 	}})
 }
 
-func writeSecurityAuditWSError(ctx context.Context, conn *coderws.Conn, decision *securityaudit.Decision) {
+func writeSecurityAuditWSError(ctx context.Context, conn service.OpenAIWSIngressConn, decision *securityaudit.Decision) {
 	if conn == nil || decision == nil {
 		return
 	}

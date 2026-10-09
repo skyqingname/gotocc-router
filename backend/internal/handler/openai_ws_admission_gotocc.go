@@ -10,7 +10,7 @@ import (
 
 // WebSocket 每轮准入与 HTTP 一致：用户或账号并发已满时在同一等待队列和上限内排队，
 // 超时或队列满才关闭连接。排队期间连接由 keepalive 保活；c.Request 携带连接级
-// context，连接租约失效时等待随之结束。
+// context，客户端断开或连接租约失效时等待随之结束。
 
 // acquireUserSlotWithWaitForAPIKey 按 HTTP 的用户槽规则排队；API Key 计数使用调用方
 // 给出的 Key，与建连时登记的 Key 保持一致。

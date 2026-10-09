@@ -4,6 +4,22 @@ Sub2API Plus accepts OpenAI-compatible Responses requests over HTTP and
 client-facing WebSocket ingress. Account routing can use an upstream WebSocket
 or bridge the client WebSocket to an HTTP/SSE upstream.
 
+## CC Switch usage and client lifecycle
+
+`GET /v1/usage` returns the authenticated API key's usage and applicable
+quota, subscription or wallet view without generating model output. Existing
+CC Switch imports that append `/v1/usage` to a base URL already ending in
+`/v1` may also use `GET /v1/v1/usage`. This explicit read-only alias is
+normalized before the same authentication and non-consuming billing checks.
+New imports normalize the base URL in their supplied usage script. Entering
+only a URL in CC Switch does not enable or configure its usage-query script.
+
+WebSocket admission and all forwarding modes share one client reader. Client
+disconnects cancel pending user/account admission; messages remain ordered
+and pass through the existing per-turn validation and audit. A temporary
+same-priority account overflow retains its original session binding through
+the handler's final admission step.
+
 The **Use Key** dialog enables `api_key_model_discovery = true` under `[features]`
 when generating a remote Codex model catalog configuration. This applies to
 OpenAI HTTP/WebSocket, Grok, and all routed Codex groups, including StepFun and
