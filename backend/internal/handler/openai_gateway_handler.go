@@ -468,7 +468,7 @@ func (h *OpenAIGatewayHandler) watchOpenAIWSIPAccessWithInterval(parent context.
 	return ctx, func() { cancel(nil) }
 }
 
-func closeOpenAIWSForIPPolicyCause(conn *coderws.Conn, ctx context.Context) bool {
+func closeOpenAIWSForIPPolicyCause(conn service.OpenAIWSIngressConn, ctx context.Context) bool {
 	if conn == nil || ctx == nil {
 		return false
 	}
@@ -1969,7 +1969,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		// 调度器已抢槽路径无门时由选号内部完成 eager 绑定；门下选号内部
 		// 推迟绑定，这里在终检通过后补准入后绑定。
 		if selection.ProfitGateActive() {
-			if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, account.ID); err != nil {
+			if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
 				reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 			}
 		}
@@ -2005,7 +2005,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		}
 		account = latest
 		selection.Account = latest
-		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, account.ID); err != nil {
+		if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
 			reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		}
 		return wrapReleaseOnDone(ctx, fastReleaseFunc), openAISlotAcquireOK
@@ -2061,7 +2061,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	}
 	account = latest
 	selection.Account = latest
-	if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, groupID, sessionHash, account.ID); err != nil {
+	if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
 		reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 	}
 	return wrapReleaseOnDone(ctx, accountReleaseFunc), openAISlotAcquireOK
@@ -2110,7 +2110,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		h.gatewayService.ApplyCodexLocalGroupQuotaHeadersForRequest(c)
 	}
 
-	wsConn, err := coderws.Accept(c.Writer, c.Request, &coderws.AcceptOptions{
+	acceptedConn, err := coderws.Accept(c.Writer, c.Request, &coderws.AcceptOptions{
 		CompressionMode: coderws.CompressionContextTakeover,
 	})
 	if err != nil {
@@ -2125,6 +2125,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		)
 		return
 	}
+	acceptedConn.SetReadLimit(service.ResolveOpenAIWSClientReadLimitBytes(h.cfg))
+	clientLifecycleCtx, wsConn := service.NewOpenAIWSIngressReader(clientLifecycleCtx, acceptedConn)
+	ctx = clientLifecycleCtx
+	c.Request = c.Request.WithContext(ctx)
 	defer func() {
 		// Policy checks run in a background watcher. Every return path, including
 		// account selection and credential acquisition, funnels through here so a
@@ -2133,7 +2137,6 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		_ = closeOpenAIWSForIPPolicyCause(wsConn, ctx)
 		_ = wsConn.CloseNow()
 	}()
-	wsConn.SetReadLimit(service.ResolveOpenAIWSClientReadLimitBytes(h.cfg))
 	stopClientKeepalive := startOpenAIWSClientKeepalive(ctx, wsConn, h.openAICompactKeepaliveInterval())
 	defer stopClientKeepalive()
 	if policyErr := h.enforceOpenAIWSIPAccess(ctx, trustedClientIdentity); policyErr != nil {
@@ -2630,7 +2633,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		// captured by the previous failover account before credential lookup.
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 		currentAccountRelease = wrapReleaseOnDone(ctx, accountReleaseFunc)
-		if err := h.gatewayService.BindStickySessionAfterProfitAdmission(ctx, apiKey.GroupID, sessionHash, account.ID); err != nil {
+		if err := h.gatewayService.BindStickySessionAfterSelection(ctx, apiKey.GroupID, sessionHash, selection); err != nil {
 			reqLog.Warn("openai.websocket_bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		}
 
@@ -3911,7 +3914,7 @@ func blockedModelAllowlistCandidate(group *service.Group, candidates []string) s
 	return ""
 }
 
-func closeOpenAIClientWS(conn *coderws.Conn, status coderws.StatusCode, reason string) {
+func closeOpenAIClientWS(conn service.OpenAIWSIngressConn, status coderws.StatusCode, reason string) {
 	if conn == nil {
 		return
 	}
@@ -3933,7 +3936,7 @@ func openAIWSNextAttemptMessage(current, retryPayload []byte, retryCurrentTurn b
 	return append([]byte(nil), retryPayload...), true
 }
 
-func closeOpenAIWSFailoverExhausted(c *gin.Context, conn *coderws.Conn, failoverErr *service.UpstreamFailoverError) {
+func closeOpenAIWSFailoverExhausted(c *gin.Context, conn service.OpenAIWSIngressConn, failoverErr *service.UpstreamFailoverError) {
 	if failoverErr != nil && failoverErr.IsOpenAICapacityShed() {
 		message := strings.TrimSpace(failoverErr.ClientMessage)
 		if message == "" {
@@ -4000,7 +4003,7 @@ func closeOpenAIWSFailoverExhausted(c *gin.Context, conn *coderws.Conn, failover
 	closeOpenAIClientWS(conn, closeStatus, message)
 }
 
-func writeContentModerationWSError(ctx context.Context, conn *coderws.Conn, decision *service.ContentModerationDecision) {
+func writeContentModerationWSError(ctx context.Context, conn service.OpenAIWSIngressConn, decision *service.ContentModerationDecision) {
 	if conn == nil || decision == nil {
 		return
 	}
@@ -4030,7 +4033,7 @@ func writeContentModerationWSError(ctx context.Context, conn *coderws.Conn, deci
 
 // writeCyberSessionBlockedWSError sends an error frame telling the client this
 // session is blocked by the cyber session block (F5a) before closing.
-func writeCyberSessionBlockedWSError(ctx context.Context, conn *coderws.Conn) {
+func writeCyberSessionBlockedWSError(ctx context.Context, conn service.OpenAIWSIngressConn) {
 	if conn == nil {
 		return
 	}

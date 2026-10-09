@@ -23,10 +23,12 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.14+custom.003`, based on the published GoToCC
-`0.2.13+custom.006` and the accepted `0.2.13+custom.007` fixes. Its Plus input
-is `v0.2.14+custom.002` (`a7749f5826ec0a5c6493c47fde9474dc31525f14`). This
-candidate has not been published.
+The owned candidate is `0.2.14+custom.004`, based on the published GoToCC
+`0.2.14+custom.003`. It fixes WebSocket admission cancellation, preserves
+session bindings during temporary overflow, and supports old CC Switch usage
+URLs. Its unchanged Plus input is `v0.2.14+custom.002`
+(`a7749f5826ec0a5c6493c47fde9474dc31525f14`). Publication uses the accepted
+local package; it does not deploy production.
 
 ## Removed Upstream Paths
 
@@ -39,9 +41,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.14+custom.003
-Application: 0.2.14+custom.003
-GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.14-custom.003
+Git/GitHub: v0.2.14+custom.004
+Application: 0.2.14+custom.004
+GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.14-custom.004
 ```
 
 ## Release Mapping

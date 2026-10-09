@@ -21,7 +21,7 @@ import (
 )
 
 type openAIWSClientFrameConn struct {
-	conn                 *coderws.Conn
+	conn                 OpenAIWSIngressConn
 	controlCtx           context.Context
 	interTurnIdleTimeout time.Duration
 	interTurnStarted     chan struct{}
@@ -677,7 +677,7 @@ func (c *openAIWSClientFrameConn) Close() error {
 func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	ctx context.Context,
 	c *gin.Context,
-	clientConn *coderws.Conn,
+	clientConn OpenAIWSIngressConn,
 	account *Account,
 	token string,
 	firstClientMessage []byte,

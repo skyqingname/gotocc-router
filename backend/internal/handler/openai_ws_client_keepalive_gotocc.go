@@ -4,14 +4,13 @@ import (
 	"context"
 	"time"
 
-	coderws "github.com/coder/websocket"
+	"github.com/LuckyKuang/sub2api-plus/internal/service"
 )
 
 // startOpenAIWSClientKeepalive 按 gateway.stream_keepalive_interval 向下游 WebSocket 发送 ping，
-// 与 HTTP/SSE 下游 keepalive 使用同一参数。Cloudflare 对约 125 秒无流量的 WebSocket
-// 直接断开，上游长时间推理或回合间隔都会触发。回合进行中核心不读取客户端帧，pong
-// 留到下次读取时处理；Ping 在一个间隔内等不到 pong 只返回错误，不关闭连接。
-func startOpenAIWSClientKeepalive(ctx context.Context, conn *coderws.Conn, interval time.Duration) context.CancelFunc {
+// 与 HTTP/SSE 下游 keepalive 使用同一参数。连接级读循环持续处理 pong 和断连，
+// 不依赖当前轮次是否正在排队或等待上游。
+func startOpenAIWSClientKeepalive(ctx context.Context, conn service.OpenAIWSIngressConn, interval time.Duration) context.CancelFunc {
 	ctx, cancel := context.WithCancel(ctx)
 	if interval <= 0 {
 		return cancel

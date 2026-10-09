@@ -18,7 +18,7 @@ type openAIWSClientReadResult struct {
 // their close frame, then closes the transport and joins that reader.
 func ReadOpenAIWSClientMessage(
 	controlCtx context.Context,
-	conn *coderws.Conn,
+	conn OpenAIWSIngressConn,
 	timeout time.Duration,
 	timeoutStatus coderws.StatusCode,
 	timeoutReason string,
@@ -39,7 +39,7 @@ func ReadOpenAIWSClientMessage(
 // timeoutActive is nil, a positive timeout starts immediately.
 func readOpenAIWSClientMessageWithTimeoutStart(
 	controlCtx context.Context,
-	conn *coderws.Conn,
+	conn OpenAIWSIngressConn,
 	timeout time.Duration,
 	timeoutStatus coderws.StatusCode,
 	timeoutReason string,
