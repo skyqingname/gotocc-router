@@ -498,7 +498,7 @@
       :show="showCreateModal || showEditModal"
       :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
       width="normal"
-      @close="closeModals"
+      @close="!submitting && closeModals()"
     >
       <form v-support-readonly id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
         <div>
@@ -607,6 +607,9 @@
         <RoutingPriorityPanel
           v-if="(showCreateModal || showEditModal) && formData.routing_mode === 'auto'"
           :key="showEditModal ? selectedKey?.id : 'create'"
+          ref="routingPriorityPanel"
+          :key-id="showEditModal ? selectedKey?.id : undefined"
+          :disabled="submitting"
           :scope="scope"
         />
 
@@ -1296,6 +1299,8 @@ import Toggle from '@/components/common/Toggle.vue'
 import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import RoutingPriorityPanel from '@/components/keys/RoutingPriorityPanel.vue'
+const routingPriorityPanel = ref<InstanceType<typeof RoutingPriorityPanel> | null>(null)
+const createdKeyForRetry = ref<ApiKey | null>(null)
 
 const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
@@ -1690,6 +1695,7 @@ const isAutoRouting = (key: Pick<ApiKey, 'routing_mode'> | null | undefined) =>
   key?.routing_mode === 'auto'
 
 const setFormRoutingMode = (routingMode: ApiKeyRoutingMode) => {
+  if (submitting.value) return
   formData.value.routing_mode = routingMode
   if (routingMode === 'auto') {
     formData.value.group_id = null
@@ -1961,6 +1967,8 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
+  if (submitting.value) return
+  if (formData.value.routing_mode === 'auto' && routingPriorityPanel.value?.validate?.() === false) return
   // Fixed routing keeps the existing group requirement. Auto routing uses the
   // explicit null/group contract and lets the server resolve a group per request.
   if (formData.value.routing_mode === 'fixed' && formData.value.group_id === null) {
@@ -2016,9 +2024,11 @@ const handleSubmit = async () => {
   } : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 }
 
   submitting.value = true
+  let keyFieldsSaved = false
   try {
     const groupID = formData.value.routing_mode === 'auto' ? null : formData.value.group_id
-    if (showEditModal.value && selectedKey.value) {
+    const targetKey = showEditModal.value ? selectedKey.value : createdKeyForRetry.value
+    if (targetKey) {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: groupID,
@@ -2031,15 +2041,17 @@ const handleSubmit = async () => {
         rate_limit_1d: rateLimitData.rate_limit_1d,
         rate_limit_7d: rateLimitData.rate_limit_7d,
       }
-      if (shouldSubmitEditStatus(selectedKey.value, formData.value.status)) {
+      if (shouldSubmitEditStatus(targetKey, formData.value.status)) {
         updates.status = formData.value.status
       }
-      await keysAPI.update(selectedKey.value.id, updates)
+      await keysAPI.update(targetKey.id, updates)
+      keyFieldsSaved = true
+      if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(targetKey.id)
       clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
     } else {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
-      await keysAPI.create(
+      const created = await keysAPI.create(
         formData.value.name,
         groupID,
         customKey,
@@ -2052,6 +2064,9 @@ const handleSubmit = async () => {
         formData.value.routing_mode,
       )
       clearAutoRoutingCapabilities()
+      keyFieldsSaved = true
+      createdKeyForRetry.value = created
+      if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(created.id)
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
       if (onboardingStore.isCurrentStep('[data-tour="key-form-submit"]')) {
@@ -2061,7 +2076,8 @@ const handleSubmit = async () => {
     closeModals()
     loadApiKeys()
   } catch (error: any) {
-    const errorMsg = error.response?.data?.detail || t('keys.failedToSave')
+    if (keyFieldsSaved) void loadApiKeys()
+    const errorMsg = error.response?.data?.detail || error.message || t('keys.failedToSave')
     appStore.showError(errorMsg)
     // Don't advance tour on error
   } finally {
@@ -2101,6 +2117,7 @@ const handleDelete = async () => {
 }
 
 const closeModals = () => {
+  createdKeyForRetry.value = null
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null

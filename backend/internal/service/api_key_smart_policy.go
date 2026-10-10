@@ -19,6 +19,8 @@ type AutoGroupRoutingRule struct {
 }
 
 type AutoGroupRoutingPolicy struct {
+	AllowUserOverride bool `json:"allow_user_override,omitempty"`
+	userPreference    *AutoGroupRoutingPolicy
 	DefaultGroupOrder []int64                `json:"default_group_order"`
 	ModelRules        []AutoGroupRoutingRule `json:"model_rules"`
 }
@@ -170,6 +172,9 @@ func (p *AutoGroupRoutingPolicy) OrderGroups(groups []Group, model string) []Gro
 		return len(ranks)
 	}
 	sort.SliceStable(result, func(i, j int) bool { return rank(result[i].ID) < rank(result[j].ID) })
+	if p.userPreference != nil {
+		return p.userPreference.OrderGroups(result, model)
+	}
 	return result
 }
 
@@ -196,11 +201,22 @@ func (p *AutoGroupRoutingPolicy) modelRule(model string) *AutoGroupRoutingRule {
 	return selected
 }
 
-func (s *AutoGroupResolver) routingPolicy(ctx context.Context, locked bool) (*AutoGroupRoutingPolicy, error) {
+func (s *AutoGroupResolver) routingPolicy(ctx context.Context, locked bool, keys ...*APIKey) (*AutoGroupRoutingPolicy, error) {
 	if locked || s.policy == nil {
 		return emptyAutoGroupRoutingPolicy(), nil
 	}
-	return s.policy.Get(ctx)
+	policy, err := s.policy.Get(ctx)
+	if err != nil || !policy.AllowUserOverride || len(keys) == 0 || keys[0] == nil {
+		return policy, err
+	}
+	preference, err := s.policy.getKeyPreference(ctx, keys[0].ID)
+	if err != nil {
+		return nil, err
+	}
+	if preference != nil {
+		policy.userPreference = preference.policy()
+	}
+	return policy, nil
 }
 
 func (s *AutoGroupResolver) GetRoutingPolicy(ctx context.Context) (*AutoGroupRoutingPolicy, error) {

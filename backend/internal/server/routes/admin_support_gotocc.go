@@ -8,6 +8,7 @@ import (
 func registerAdminSupportGotoccRoutes(support *gin.RouterGroup, h *handler.Handlers) {
 	support.GET("/user/agent", h.Agent.Overview)
 	support.GET("/keys/:id/routing-capabilities", h.Gateway.UserRoutingCapabilities)
+	support.GET("/keys/:id/routing-policy", h.Gateway.UserGetKeyRoutingPreference)
 	support.GET("/groups/routing-priorities", h.Gateway.UserRoutingPriorities)
 	support.GET("/team", h.Team.GetCurrent)
 	support.GET("/team/keys", h.Team.ListTeamKeys)

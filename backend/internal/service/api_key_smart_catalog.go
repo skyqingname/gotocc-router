@@ -265,7 +265,7 @@ func (s *AutoGroupResolver) loadCatalogState(ctx context.Context, authenticated 
 	if catalog == nil {
 		return nil, ErrAutoRouteUnavailable
 	}
-	policy, err := s.routingPolicy(ctx, input.RequiredGroupID != nil)
+	policy, err := s.routingPolicy(ctx, input.RequiredGroupID != nil, key)
 	if err != nil {
 		return nil, err
 	}

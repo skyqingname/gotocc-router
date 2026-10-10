@@ -159,6 +159,20 @@ export default {
       autoHint: 'Choose an eligible group automatically for each request.'
     },
     routingPriority: {
+      editable: "Customizable",
+      customized: "Custom",
+      editNotice: "Your administrator allows custom priorities. Changes apply only to this API key.",
+      customSource: "This key uses a custom order",
+      followAdmin: "Following administrator defaults",
+      customize: "Customize priorities",
+      reset: "Restore administrator defaults",
+      disabledNotice: "Custom priorities are disabled by your administrator. Your saved configuration is retained and resumes when permission is enabled.",
+      fallbackHint: "Custom order comes first. Remaining groups follow administrator rules. Reordering does not grant group access.",
+      modelHint: "Set a model order, such as gpt-5 or gpt-*. Exact matches win, then the longest prefix, then default ordering.",
+      unsaved: "Unsaved changes · Applied when you create or update the key",
+      invalidRules: "Enter unique model names. A single wildcard * is allowed only at the end.",
+      saveFailed: "Priority save failed; other key fields may have been saved. Keep this dialog open to retry. Your administrator may have disabled permission.",
+
       title: 'Smart routing group priority',
       readOnly: 'Read only',
       notice: 'You can now view group priorities here. Rankings include only groups that share a model with another eligible group. Models with a single eligible group are omitted.',

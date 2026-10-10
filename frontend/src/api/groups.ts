@@ -13,6 +13,8 @@ export interface RoutingPriorityGroup {
 }
 
 export interface RoutingPriorities {
+  allow_user_override?: boolean
+  available_groups?: RoutingPriorityGroup[]
   default_source: 'administrator' | 'group_sort'
   groups: RoutingPriorityGroup[]
   model_rules: Array<{
