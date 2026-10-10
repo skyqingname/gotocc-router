@@ -772,7 +772,7 @@ let abortController: AbortController | null = null
 // 平台清单中的全部具体平台（展示顺序），另加自有 Video 平台。
 const platformOrder = computed<GroupPlatform[]>(() => [...listPlatformIds(), 'video'])
 // Composite pricing/mapping may target every concrete schedulable provider.
-const compositePlatforms = platformOrder
+const compositePlatforms = computed<GroupPlatform[]>(() => listPlatformIds())
 
 // ── Helpers ──
 function formatDate(value: string): string {
