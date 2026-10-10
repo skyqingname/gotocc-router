@@ -3,7 +3,7 @@
 # Do not reuse this as an application runtime.
 FROM debian:bookworm-slim
 
-ARG GO_VERSION=1.27.0
+ARG GO_VERSION=1.27.2
 ARG NODE_VERSION=20.19.4
 ARG PNPM_VERSION=9.15.9
 ARG TARGETARCH
