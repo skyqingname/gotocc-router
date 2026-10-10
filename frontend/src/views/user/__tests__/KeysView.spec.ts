@@ -12,6 +12,7 @@ import zh from '@/i18n/locales/zh'
 let statusLocale: 'en' | 'zh' = 'en'
 
 const {
+  savePriority,
   listKeys,
   updateKey,
   createKey,
@@ -27,6 +28,7 @@ const {
   replaceRoute,
   routeQuery,
 } = vi.hoisted(() => ({
+  savePriority: vi.fn(),
   listKeys: vi.fn(),
   updateKey: vi.fn(),
   createKey: vi.fn(),
@@ -254,7 +256,8 @@ const IconStub = {
 const BaseDialogStub = {
   name: 'BaseDialog',
   props: ['show', 'title'],
-  template: '<div v-if="show"><slot /><slot name="footer" /></div>',
+  emits: ['close'],
+  template: `<div v-if="show"><button data-test="close-dialog" @click="$emit('close')">Close</button><slot /><slot name="footer" /></div>`,
 }
 
 const UseKeyModalStub = {
@@ -280,7 +283,7 @@ const mountView = async () => {
         UseKeyModal: UseKeyModalStub,
         BulkEditKeysModal: true,
         EndpointPopover: true,
-        RoutingPriorityPanel: { props: ['scope'], template: '<div data-test="priority-panel-stub">{{ scope }}</div>' },
+        RoutingPriorityPanel: { props: ['scope', 'keyId'], methods: { save: savePriority, validate: () => true }, template: '<div data-test="priority-panel-stub">{{ scope }}</div>' },
         GroupBadge: true,
         GroupOptionItem: true,
         Teleport: true,
@@ -312,6 +315,7 @@ describe('user KeysView column settings', () => {
     statusLocale = 'en'
     localStorage.clear()
 
+    savePriority.mockReset().mockResolvedValue(undefined)
     listKeys.mockReset()
     updateKey.mockReset()
     vi.mocked(keysAPI.create).mockReset()
@@ -380,7 +384,7 @@ describe('user KeysView column settings', () => {
     expect(getButtonByText(wrapper, 'common.delete').attributes()).toHaveProperty('disabled')
     await wrapper.get('button[title="keys.copyToClipboard"]').trigger('click')
     expect(copyToClipboard).toHaveBeenCalledWith('sk-test-key', 'keys.copied')
-    await getButtonByText(wrapper, 'keys.useKey').trigger('click')
+    await wrapper.get('[data-test="use-key-action"]').trigger('click')
     await flushPromises()
     const guide = wrapper.findComponent({ name: 'UseKeyModal' })
     expect(guide.props('show')).toBe(true)
@@ -746,6 +750,26 @@ describe('user KeysView column settings', () => {
       expect.objectContaining({ scope: 'team' }),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
+  })
+
+  it('refreshes a partially created key and retries its priority without creating a duplicate', async () => {
+    savePriority.mockRejectedValueOnce(new Error('priority save failed')).mockResolvedValueOnce(undefined)
+    const wrapper = await mountView()
+    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
+    await wrapper.get('[data-tour="key-form-name"]').setValue('new-auto-key')
+    await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
+    const listCalls = listKeys.mock.calls.length
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(createKey).toHaveBeenCalledTimes(1)
+    expect(listKeys.mock.calls.length).toBeGreaterThan(listCalls)
+    expect(wrapper.find('#key-form').exists()).toBe(true)
+    await wrapper.get('#key-form').trigger('submit')
+    await flushPromises()
+    expect(createKey).toHaveBeenCalledTimes(1)
+    expect(updateKey).toHaveBeenCalledWith(createApiKey().id, expect.objectContaining({ name: 'new-auto-key', routing_mode: 'auto' }))
+    expect(savePriority).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
   })
 
   it('creates an automatic-routing team key with an explicit null group contract', async () => {

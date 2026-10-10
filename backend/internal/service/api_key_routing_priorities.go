@@ -23,9 +23,11 @@ type AutoRouteModelPriority struct {
 }
 
 type AutoRoutePriorities struct {
-	DefaultSource string                   `json:"default_source"`
-	Groups        []AutoRoutePriorityGroup `json:"groups"`
-	ModelRules    []AutoRouteModelPriority `json:"model_rules"`
+	AvailableGroups   []AutoRoutePriorityGroup `json:"available_groups,omitempty"`
+	AllowUserOverride bool                     `json:"allow_user_override,omitempty"`
+	DefaultSource     string                   `json:"default_source"`
+	Groups            []AutoRoutePriorityGroup `json:"groups"`
+	ModelRules        []AutoRouteModelPriority `json:"model_rules"`
 }
 
 // GetRoutingPriorities previews settings for creation as well as existing keys.
@@ -83,7 +85,18 @@ func (s *AutoGroupResolver) GetRoutingPriorities(ctx context.Context, userID int
 	// This key is only a container for matchGroup's metadata result. Authorized
 	// candidates above already reflect the personal user or team payer's scope.
 	state := &autoRouteCatalogState{key: &APIKey{User: user}, groups: active, catalog: catalog, policy: policy}
-	return s.routingPrioritiesFromState(ctx, state)
+	result, err := s.routingPrioritiesFromState(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	if policy.AllowUserOverride {
+		included := make(map[int64]bool, len(active))
+		for _, group := range active {
+			included[group.ID] = true
+		}
+		result.AvailableGroups = priorityGroups(active, included)
+	}
+	return result, nil
 }
 
 func (s *AutoGroupResolver) routingPrioritiesFromState(ctx context.Context, state *autoRouteCatalogState) (*AutoRoutePriorities, error) {
@@ -145,9 +158,10 @@ func (s *AutoGroupResolver) routingPrioritiesFromState(ctx context.Context, stat
 	}
 	defaults := &AutoGroupRoutingPolicy{DefaultGroupOrder: state.policy.DefaultGroupOrder}
 	result := &AutoRoutePriorities{
-		DefaultSource: "group_sort",
-		Groups:        priorityGroups(defaults.OrderGroups(state.groups, ""), competing),
-		ModelRules:    []AutoRouteModelPriority{},
+		AllowUserOverride: state.policy.AllowUserOverride,
+		DefaultSource:     "group_sort",
+		Groups:            priorityGroups(defaults.OrderGroups(state.groups, ""), competing),
+		ModelRules:        []AutoRouteModelPriority{},
 	}
 	for _, id := range defaults.DefaultGroupOrder {
 		if competing[id] {

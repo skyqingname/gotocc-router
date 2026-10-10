@@ -24,7 +24,7 @@ const personalReads = [
   /^\/user\/(profile|platform-quotas|aff|agent|passkeys|totp\/(status|verification-method))$/,
   /^\/user\/api-keys\/\d+\/usage\/daily$/,
   /^\/keys(?:\/\d+)?$/,
-  /^\/keys\/\d+\/routing-capabilities$/,
+  /^\/keys\/\d+\/(routing-capabilities|routing-policy)$/,
   /^\/groups\/(available|rates|routing-priorities)$/,
   /^\/team(?:\/(keys|members|usage\/members))?$/,
   /^\/channels\/available$/,

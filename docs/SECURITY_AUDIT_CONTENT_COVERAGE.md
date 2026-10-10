@@ -20,6 +20,14 @@ view adds no inference endpoint, extraction input or alternative audit path;
 actual model requests still enter both audit engines through the existing
 HTTP/WS handlers before their side effects.
 
+The [per-key smart routing preferences](USER_ROUTING_PRIORITIES.md) endpoints
+are authenticated panel settings. GET uses the validated read subject and PUT
+uses the real authenticated owner. The read-only support surface exposes only
+GET. Preferences reorder existing authorized candidates inside the existing
+resolver; no inference payload, audit extraction, content rule, account selection
+side effect, or required-group lock is changed. Model discovery and HTTP/WS
+resolution retain the same canonical policy and ingress audit boundaries.
+
 ## Boundary And Ordering
 
 Cline and Command Code API-key accounts reuse the Responses, Chat Completions

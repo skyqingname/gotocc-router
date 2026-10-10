@@ -21,11 +21,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AdminGroup } from '@/types'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 
-const props = defineProps<{ modelValue: number[]; groups: Pick<AdminGroup, 'id' | 'name' | 'platform'>[]; disabled?: boolean }>()
+const props = defineProps<{ modelValue: number[]; groups: Array<{ id: number; name: string; platform: string }>; disabled?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: number[]] }>()
 const { t } = useI18n()
 const selected = ref<number | string | null>(null)

@@ -111,6 +111,8 @@ func RegisterUserRoutes(
 			keys.GET("", h.APIKey.List)
 			keys.GET("/:id", h.APIKey.GetByID)
 			keys.GET("/:id/routing-capabilities", h.Gateway.UserRoutingCapabilities)
+			keys.GET("/:id/routing-policy", h.Gateway.UserGetKeyRoutingPreference)
+			keys.PUT("/:id/routing-policy", h.Gateway.UserUpdateKeyRoutingPreference)
 			keys.POST("", h.APIKey.Create)
 			keys.PUT("/:id", h.APIKey.Update)
 			keys.DELETE("/:id", h.APIKey.Delete)

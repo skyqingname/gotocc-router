@@ -4,6 +4,8 @@ import RoutingPriorityPanel from '../RoutingPriorityPanel.vue'
 
 const { getRoutingPriorities } = vi.hoisted(() => ({ getRoutingPriorities: vi.fn() }))
 vi.mock('@/api/groups', () => ({ getRoutingPriorities }))
+const { getKeyRoutingPreference, updateKeyRoutingPreference } = vi.hoisted(() => ({ getKeyRoutingPreference: vi.fn(), updateKeyRoutingPreference: vi.fn() }))
+vi.mock('@/api/keyRoutingPolicy', () => ({ getKeyRoutingPreference, updateKeyRoutingPreference }))
 vi.mock('vue-i18n', async () => {
   const { default: zh } = await import('@/i18n/locales/zh/dashboard')
   return { useI18n: () => ({
@@ -91,5 +93,58 @@ describe('RoutingPriorityPanel', () => {
     const currentSignal = getRoutingPriorities.mock.calls[1][1] as AbortSignal
     wrapper.unmount()
     expect(currentSignal.aborted).toBe(true)
+  })
+})
+
+// Requirement: an administrator can enable per-key priority editing; disabled
+// users must retain the read-only explanation and cannot submit preferences.
+describe('user priority permission', () => {
+  it('offers customization only when the administrator enables it', async () => {
+    getRoutingPriorities.mockResolvedValue({ ...response, allow_user_override: true })
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.find('[data-test="customize-priority"]').exists()).toBe(true)
+    await wrapper.get('[data-test="customize-priority"]').trigger('click')
+    expect(wrapper.findAll('[data-action="up"]')).toHaveLength(2)
+    wrapper.unmount()
+  })
+  it('does not offer customization when permission is disabled', async () => {
+    getRoutingPriorities.mockResolvedValue({ ...response, allow_user_override: false })
+    const wrapper = render()
+    await flushPromises()
+    expect(wrapper.find('[data-test="customize-priority"]').exists()).toBe(false)
+    expect(wrapper.find('[data-action="up"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('preference drafts', () => {
+  beforeEach(() => {
+    getRoutingPriorities.mockResolvedValue({ ...response, allow_user_override: true })
+    getKeyRoutingPreference.mockReset()
+    updateKeyRoutingPreference.mockReset().mockResolvedValue(undefined)
+  })
+  it('saves only when the parent form is submitted and can reset to administrator defaults', async () => {
+    const saved = { default_group_order: [1,2], model_rules: [] }
+    getKeyRoutingPreference.mockResolvedValue({allow_user_override: true, preference: saved, available_groups: groups})
+    const wrapper = mount(RoutingPriorityPanel, { props: { scope: 'personal', keyId: 101 } })
+    await flushPromises()
+    await wrapper.get('[data-test="reset-priority"]').trigger('click')
+    expect(updateKeyRoutingPreference).not.toHaveBeenCalled()
+    await wrapper.vm.save(101)
+    expect(updateKeyRoutingPreference).toHaveBeenCalledWith(101, null)
+    wrapper.unmount()
+  })
+  it('retains a local draft after a failed save so retry uses the same preference', async () => {
+    updateKeyRoutingPreference.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(undefined)
+    const wrapper = render()
+    await flushPromises()
+    await wrapper.get('[data-test="customize-priority"]').trigger('click')
+    await wrapper.findAll('[data-action="down"]')[0].trigger('click')
+    expect(updateKeyRoutingPreference).not.toHaveBeenCalled()
+    await expect(wrapper.vm.save(101)).rejects.toThrow('offline')
+    await wrapper.vm.save(101)
+    expect(updateKeyRoutingPreference).toHaveBeenLastCalledWith(101, { default_group_order: [1,2], model_rules: [] })
+    wrapper.unmount()
   })
 })

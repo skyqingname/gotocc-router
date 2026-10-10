@@ -1,5 +1,10 @@
 export default {
     smartRoutingPolicy: {
+      allowUserOverride: "允许用户自定义优先级",
+      allowUserOverrideHint: "开启后，用户可为每个 API Key 调整默认分组顺序和模型独立顺序。关闭后统一使用管理员规则，用户配置会被保留。",
+      userOverrideEnabled: "已开启 · 用户可在 API Key 设置中自定义",
+      userOverrideDisabled: "已关闭 · 所有密钥遵循管理员顺序",
+
       title: '智能路由优先级', defaultOrder: '默认分组顺序', modelRules: '模型独立顺序',
       model: '模型或前缀', modelPlaceholder: 'gpt-5 或 gpt-*', selectGroup: '选择分组',
       moveUp: '上移分组', moveDown: '下移分组', addRule: '添加模型规则', removeRule: '删除模型规则',

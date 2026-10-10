@@ -8,6 +8,7 @@ import type { ApiKeyRoutingCapabilities, ApiKeyRoutingMode } from '@/types'
 import type { AdminAPIKeySummary } from './apiKeySummary'
 
 export interface AutoGroupRoutingPolicy {
+  allow_user_override?: boolean
   default_group_order: number[]
   model_rules: Array<{ model: string; group_ids: number[] }>
 }
