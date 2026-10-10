@@ -14,6 +14,9 @@
 - 自有 Video 平台继续独立于上游平台清单，Video 分组、账号、调度和 `/v1/videos` 行为不变。
 - 上游新增的 CI 验证工具不属于 GoToCC 构建流程，已加入 `upstream-removed-paths.json`。
 - 构建镜像升级到 Go 1.27.2。
+- 修复 Command Code / OpenCode 账号未显式设置协议时，编辑保存会把自动分流改为 Chat Completions 的问题。
+- 修复渠道 Video 配置错误列出组合分组的问题，Video 继续只绑定 Video 分组。
+- 修复 Cline 余额或订阅探测覆盖仍有效的组织限额等独立冷却原因，避免余额恢复后提前解除限额。
 
 ## 迁移与升级
 

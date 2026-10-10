@@ -378,6 +378,9 @@ func clinePassWalletState(subscribed bool, tiers []CNQuotaTier, now, fallback ti
 
 // setClineWalletLimit 写钱包冷却；until 不晚于 now 时即解除。
 func (s *CNProviderQuotaService) setClineWalletLimit(ctx context.Context, account *Account, scope string, until time.Time, reason string, now time.Time) {
+	if !clineWalletProbeMayReplaceCooldown(account, scope, now) {
+		return
+	}
 	setAccountModelRateLimitSnapshot(account, scope, until, reason, now)
 	if err := s.accountRepo.SetModelRateLimit(ctx, account.ID, scope, until, reason); err != nil {
 		slog.Warn("cline_wallet_limit_set_failed", "account_id", account.ID, "scope", scope, "error", err)
