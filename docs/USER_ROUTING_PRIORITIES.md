@@ -31,16 +31,3 @@ Preferences reuse the indexed settings repository under
 ordering, never API key secrets. Deleted keys are inaccessible; their ordering
 metadata is inert and IDs are never reused. No new repository interface or
 generated Ent/Wire changes are required.
-
-## Interactive preview
-
-From `frontend`, run `pnpm exec vite --config vite.preview.config.ts` and open
-`http://127.0.0.1:4173/routing-preview.html`. On Windows,
-`start-routing-preview.cmd` starts this preview with the existing pnpm install.
-Install the locked dependencies first if this is a new checkout.
-
-The preview uses the production priority components and an in-memory Axios
-adapter with demonstration groups. Its administrator switch starts enabled
-only for demonstration; the real setting defaults to disabled. Changes in the
-preview are local to that browser page and reset on reload. This entry is not
-imported or bundled into the normal application, and contains no live API keys.
