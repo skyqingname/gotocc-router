@@ -6,11 +6,11 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current tree integrates official `v0.2.14`: tag object
-`1400a7b482974d98db5b284a8b2afbe3eaf9aaef`, peeled commit
-`0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d`. The merge base is the previously
-integrated official `v0.2.13` commit
-`3040209f205472038c1ba745a1bedd2edd9053b1`. Importing source does not publish a
+The current tree integrates official `v0.2.15`: tag object
+`86a80c13dcba86f52f9ca815b5a471cecc236227`, peeled commit
+`f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`. The merge base is the previously
+integrated official `v0.2.14` commit
+`0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d`. Importing source does not publish a
 Plus release or change its embedded version.
 
 Preserve intentional Plus behavior during every import. Current contracts live
@@ -23,12 +23,11 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.14+custom.004`, based on the published GoToCC
-`0.2.14+custom.003`. It fixes WebSocket admission cancellation, preserves
-session bindings during temporary overflow, and supports old CC Switch usage
-URLs. Its unchanged Plus input is `v0.2.14+custom.002`
-(`a7749f5826ec0a5c6493c47fde9474dc31525f14`). Publication uses the accepted
-local package; it does not deploy production.
+The owned candidate is `0.2.15+custom.002`, based on the published GoToCC
+`0.2.14+custom.004`. It integrates the unchanged Plus input
+`v0.2.15+custom.001` (`4803d994c2a4cb67612e1472b5ccfdccfd7a9c4d`) and keeps
+the GoToCC Video platform outside the shared platform catalog. Publication uses
+the accepted local package; it does not deploy production.
 
 ## Removed Upstream Paths
 
@@ -41,9 +40,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.14+custom.004
-Application: 0.2.14+custom.004
-GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.14-custom.004
+Git/GitHub: v0.2.15+custom.001
+Application: 0.2.15+custom.001
+GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.15-custom.001
 ```
 
 ## Release Mapping
@@ -114,8 +113,10 @@ GHCR: ghcr.io/skyqingname/sub2api-plus:v0.2.14-custom.004
 | `v0.2.11+custom.002` | `v0.2.11` | `96f4c115c9749078f90cbf210a01d39baf3f53b6` | published |
 | `v0.2.13+custom.001` | `v0.2.13` | `3040209f205472038c1ba745a1bedd2edd9053b1` | published |
 | `v0.2.14+custom.001` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | published |
-| `v0.2.14+custom.002` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | planned |
-| `v0.2.14+custom.003` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | planned |
+| `v0.2.14+custom.002` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | published |
+| `v0.2.14+custom.003` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | published |
+| `v0.2.14+custom.004` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | published |
+| `v0.2.15+custom.001` | `v0.2.15` | `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2` | planned |
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 

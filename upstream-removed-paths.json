@@ -16,5 +16,8 @@
   ":(glob)tools/test_*.py",
   "tools/update_release_docs.py",
   "tools/validation_runtime.py",
-  "tools/workflow_provenance.py"
+  "tools/workflow_provenance.py",
+  "docs/CI_VALIDATION.md",
+  "tools/ci_validation.py",
+  "tools/validation_checks.py"
 ]
