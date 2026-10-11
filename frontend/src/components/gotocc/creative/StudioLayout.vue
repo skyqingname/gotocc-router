@@ -5,7 +5,7 @@
         <div class="flex min-w-0 items-center gap-4">
           <router-link :to="homePath" class="flex min-w-0 items-center gap-2.5" :aria-label="app.siteName">
             <img :src="app.siteLogo || '/logo.svg'" alt="" class="h-8 w-8 flex-shrink-0 rounded-lg object-contain" />
-            <span class="max-w-48 truncate text-base font-semibold text-gray-900 dark:text-white max-sm:max-w-20">{{ app.siteName }}</span>
+            <span class="hidden max-w-48 truncate text-base font-semibold text-gray-900 dark:text-white sm:inline">{{ app.siteName }}</span>
           </router-link>
           <router-link :to="homePath" :aria-label="t('studioGotocc.backHome')" :title="t('studioGotocc.backHome')" class="flex h-8 w-8 flex-shrink-0 items-center justify-center text-gray-500 hover:text-primary-600"><Icon name="home" size="md" /></router-link>
         </div>
