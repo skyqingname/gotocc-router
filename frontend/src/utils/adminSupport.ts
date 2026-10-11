@@ -59,7 +59,7 @@ export function supportResourceForPersonalPath(path: string): AdminSupportResour
   if (path === '/redeem' || path.startsWith('/redeem/')) return 'redeem'
   if (path === '/affiliate' || path.startsWith('/affiliate/')) return 'affiliate'
   if (path.startsWith('/custom/')) return 'custom'
-  if (path === '/async-image' || path.startsWith('/async-image/')) return 'async-images'
+  if (path === '/creative' || path === '/async-image' || path.startsWith('/async-image/')) return 'async-images'
   if (path === '/usage' || path.startsWith('/usage/')) return 'usage'
   if (path === '/available-channels' || path.startsWith('/available-channels/')) return 'channels'
   if (path === '/monitor' || path.startsWith('/monitor/')) return 'channel-status'
@@ -84,6 +84,7 @@ export function accountSelectionDestination(
 }
 
 export function supportPathForPersonalPath(userId: number, path: string): string | null {
+  if (path === '/creative') return adminSupportPath(userId, 'async-images')
   const entry = Object.entries(selfPaths).find(([, self]) => self === path || (self === '/custom/:id' && path.startsWith('/custom/')))
   if (!entry) return null
   const resource = entry[0] as AdminSupportResource

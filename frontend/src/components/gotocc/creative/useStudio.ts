@@ -74,10 +74,14 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
       keys.value = all.filter(keyCanManageAsyncImage)
       const draft = await local.loadSetting<{ keyID: number; form: typeof form }>('draft')
       params.value = await local.loadRunParamsMap()
+      if (draft) Object.assign(form, draft.form)
       keyID.value = draft && keys.value.some(key => key.id === draft.keyID) ? draft.keyID : 0
       if (keyID.value) {
         await selectKey()
-        if (draft && models.value.includes(draft.form.model)) Object.assign(form, draft.form)
+        if (draft) {
+          Object.assign(form, draft.form)
+          if (!models.value.includes(form.model)) form.model = ''
+        }
         if (!canInpaint.value && form.operation === 'inpaint') form.operation = 'edit'
         onModelChanged()
       }

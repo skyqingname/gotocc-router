@@ -8,11 +8,11 @@
         <Select v-model="keyID" :options="keyOptions" :disabled="submitting || loadingModels" searchable="auto" class="studio-key-select" :aria-label="t('asyncImage.filters.apiKey')" @change="studio.selectKey" />
       </div>
 
-      <button v-if="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full px-3 text-sm" type="button" :aria-expanded="historyOpen" @click="historyOpen = true">
+      <button v-if="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full px-3 text-sm" type="button" :aria-expanded="historyOpen" :aria-label="t('studioGotocc.history')" @click="historyOpen = true">
         <Icon name="clock" size="sm" /><span class="hidden sm:inline">{{ t('studioGotocc.history') }}</span><span v-if="activityCount" class="studio-count">{{ activityCount }}</span>
       </button>
 
-      <div v-if="canvas?.sceneReady && canvas.imageCount === 0" class="pointer-events-none absolute inset-x-6 top-[32%] flex flex-col items-center text-center">
+      <div v-if="canvas?.sceneReady && canvas.imageCount === 0" class="studio-empty-guide pointer-events-none absolute inset-x-6 top-[32%] flex flex-col items-center text-center">
         <span class="mb-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">GOTOCC / CREATIVE STUDIO</span>
         <h1 class="text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-100">{{ t('creative.empty.title') }}</h1>
         <p class="mt-3 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('creative.empty.description') }}</p>
