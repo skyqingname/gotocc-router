@@ -11,7 +11,7 @@ backend.write_text(
     'package service\n\n'
     f'const accountFingerprintMaxOutputTokens = {config["max_output_tokens"]}\n'
     f'const accountFingerprintTimeoutSeconds = {config["request_timeout_seconds"]}\n'
-    f'const accountFingerprintNonTextModelPattern = {json.dumps(config["non_text_model_pattern"])}\n'
+    f'const accountFingerprintNonTextModelPattern = {json.dumps(config["non_text_model_pattern"])}\n\n'
     'var accountFingerprintUnsupportedPlatforms = []string{'
     + ', '.join(json.dumps(value) for value in config['unsupported_platforms']) + '}\n'
 )

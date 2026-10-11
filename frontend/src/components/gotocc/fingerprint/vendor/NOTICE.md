@@ -13,6 +13,7 @@ standalone type declarations; a paired-bank mismatch reports an error instead
 of invoking the legacy ranker; `bank.json` retains only the metadata used by the
 v2 ranker. `detector.json.gz` contains the original trained artifact, serialized
 compactly and gzip-compressed without altering its numbers or calibration.
+Source modules also carry the full MIT notice as preserved browser-bundle comments.
 
 The trained numerical constants are part of the frozen reference protocol, not
 site settings. Site execution parameters come from `model-fingerprint.json`.

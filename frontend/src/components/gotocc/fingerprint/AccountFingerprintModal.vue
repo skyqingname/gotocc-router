@@ -32,7 +32,7 @@
         </div>
       </div>
       <p v-if="!loadingModels && !modelOptions.length" class="text-sm text-amber-700 dark:text-amber-300">{{ t('fingerprint.noModels') }}</p>
-      <p v-if="errorMessage" role="alert" class="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage }}</p>
+      <p v-if="errorMessage" role="alert" class="break-words rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ errorMessage }}</p>
 
       <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div class="space-y-3">
@@ -53,7 +53,7 @@
                 </div>
               </div>
             </div>
-            <p v-if="sample.error" class="border-t border-red-100 bg-red-50 px-4 py-2 text-xs leading-relaxed text-red-700 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300">{{ sample.error }}</p>
+            <p v-if="sample.error" class="break-words border-t border-red-100 bg-red-50 px-4 py-2 text-xs leading-relaxed text-red-700 dark:border-red-950 dark:bg-red-950/20 dark:text-red-300">{{ sample.error }}</p>
             <details class="border-t border-gray-100 dark:border-dark-700">
               <summary class="cursor-pointer px-4 py-2 text-xs text-gray-500 hover:text-sky-700 dark:text-dark-400 dark:hover:text-sky-300">{{ t('fingerprint.detail') }}</summary>
               <div class="space-y-3 px-4 pb-4">
