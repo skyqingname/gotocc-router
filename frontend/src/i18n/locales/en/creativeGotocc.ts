@@ -8,7 +8,7 @@ export default {
     "selectKey": "Select an API key to use its group and balance.",
     "readOnlyKey": "This key can currently read history only. Select an active image key to generate.",
     "storageHint": "Results are stored on this site. The canvas and uploads are stored in this user’s browser.",
-    "resetHint": "Clear the current canvas layout. Your saved results and server history will remain.",
+    "resetHint": "Clear the current canvas and unused local image cache. Download a backup of uploaded images first. Server results and task history will remain.",
     "toCanvas": "Add to canvas",
     "reuse": "Use prompt and settings",
     "partial": "Generated {actual} of {requested} requested images.",
@@ -119,6 +119,7 @@ export default {
       "clearFailed": "Failed to clear local data.",
       "loadImageFailed": "Failed to load the image.",
       "quotaExceeded": "Local storage is full. Please download your assets before continuing.",
+      "saveFailed": "The canvas could not be saved locally. Download your assets before trying again later.",
       "dropInvalid": "The dropped history image could not be recognized.",
       "dropUnsupported": "Only PNG, JPEG, or WebP images are supported.",
       "dropHistoryUnavailable": "This history image is no longer available in this browser."

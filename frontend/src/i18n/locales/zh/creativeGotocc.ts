@@ -8,7 +8,7 @@ export default {
     "selectKey": "先选择 API Key，使用其对应分组与额度。",
     "readOnlyKey": "此 Key 当前仅可查看历史；生成需要可用的生图 Key。",
     "storageHint": "作品保存在本站；画布和上传素材保存在当前用户的本机浏览器。",
-    "resetHint": "清空当前画布布局，服务端作品与任务记录仍然保留。",
+    "resetHint": "清空当前画布和不再使用的本机图片缓存。上传素材请先下载备份；服务端作品与任务记录仍然保留。",
     "toCanvas": "放入画布",
     "reuse": "填入输入框",
     "partial": "请求 {requested} 张，实际生成 {actual} 张。",
@@ -119,6 +119,7 @@ export default {
       "clearFailed": "清空本机数据失败。",
       "loadImageFailed": "图片加载失败。",
       "quotaExceeded": "本地存储空间不足，请先下载备份素材。",
+      "saveFailed": "画布未能保存到本机，请先下载备份素材，稍后重试。",
       "dropInvalid": "无法识别拖入的历史图片。",
       "dropUnsupported": "仅支持 PNG、JPEG 或 WebP 图片。",
       "dropHistoryUnavailable": "历史图片已不在本机，无法拖入画布。"

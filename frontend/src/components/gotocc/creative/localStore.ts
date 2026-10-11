@@ -159,27 +159,36 @@ function openStore(): Promise<IDBDatabase> {
   return dbPromise
 }
 
-// 便捷封装：在指定 store 上执行一个读写操作
-async function withStore<T>(
-  storeName: string,
+// 请求成功后事务仍可能回滚；所有写入都等待事务提交后再向调用方确认。
+async function withTransaction<T>(
+  storeNames: string[],
   mode: IDBTransactionMode,
-  run: (store: IDBObjectStore) => IDBRequest<T>,
+  run: (transaction: IDBTransaction) => Promise<T>,
 ): Promise<T> {
   const db = await openStore()
+  const transaction = db.transaction(storeNames, mode)
+  const completed = new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = () => reject(toLocalStoreError(transaction.error))
+  })
   try {
-    return await idbRequest(run(db.transaction(storeName, mode).objectStore(storeName)))
+    const [result] = await Promise.all([run(transaction), completed])
+    return result
   } catch (error) {
     throw toLocalStoreError(error)
   }
 }
 
-// ==================== assets API ====================
-
-// 保存素材（同 key 覆盖写，天然幂等）
-async function saveAsset(asset: LocalAsset): Promise<LocalAsset> {
-  await withStore(STORE_ASSETS, 'readwrite', (store) => store.put(asset))
-  return asset
+// 便捷封装：在指定 store 上执行一个读写操作。
+async function withStore<T>(
+  storeName: string,
+  mode: IDBTransactionMode,
+  run: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
+  return withTransaction([storeName], mode, async transaction => idbRequest(run(transaction.objectStore(storeName))))
 }
+
+// ==================== assets API ====================
 
 // 读取单个素材，不存在时返回 null
 async function loadAsset(key: string): Promise<LocalAsset | null> {
@@ -215,24 +224,41 @@ async function deleteAsset(key: string): Promise<void> {
 
 // 清空某个种类的全部素材
 async function clearKind(kind: LocalAssetKind): Promise<void> {
-  const assets = await listAssets(kind)
-  const db = await openStore()
-  try {
-    const store = db.transaction(STORE_ASSETS, 'readwrite').objectStore(STORE_ASSETS)
+  await withTransaction([STORE_ASSETS], 'readwrite', async transaction => {
+    const store = transaction.objectStore(STORE_ASSETS)
+    const assets = await idbRequest(store.index('kind').getAll(kind) as IDBRequest<LocalAsset[]>)
     for (const asset of assets) {
       await idbRequest(store.delete(asset.key))
     }
-  } catch (error) {
-    throw toLocalStoreError(error)
-  }
+  })
 }
 
 // ==================== scenes API ====================
 
-// 保存画布场景 JSON 快照
-async function saveSceneJson(key: string, json: string): Promise<void> {
+// 场景、所需图片和缓存回收一起提交。历史作品可从服务端重新下载，不永久缓存孤立 Blob。
+async function saveSceneJson(key: string, json: string, assets: LocalAsset[]): Promise<void> {
   const record: LocalSceneRecord = { key, json, updatedAt: Date.now() }
-  await withStore(STORE_SCENES, 'readwrite', (store) => store.put(record))
+  await withTransaction([STORE_SCENES, STORE_ASSETS], 'readwrite', async transaction => {
+    const sceneStore = transaction.objectStore(STORE_SCENES)
+    const assetStore = transaction.objectStore(STORE_ASSETS)
+    const scenes = await idbRequest(sceneStore.getAll() as IDBRequest<LocalSceneRecord[]>)
+    const retained = new Set(assets.map(asset => asset.key))
+    for (const scene of scenes) {
+      if (scene.key === key) continue
+      const snapshot = JSON.parse(scene.json) as { objects?: Array<{ data?: { assetKey?: string } }> }
+      for (const object of snapshot.objects ?? []) {
+        if (object.data?.assetKey) retained.add(object.data.assetKey)
+      }
+    }
+    const existing = new Set(await idbRequest(assetStore.getAllKeys()))
+    await idbRequest(sceneStore.put(record))
+    for (const assetKey of existing) {
+      if (!retained.has(String(assetKey))) await idbRequest(assetStore.delete(assetKey))
+    }
+    for (const asset of assets) {
+      if (!existing.has(asset.key)) await idbRequest(assetStore.put(asset))
+    }
+  })
 }
 
 // 读取场景 JSON，不存在时返回 null
@@ -277,9 +303,8 @@ async function saveRunParams(params: LocalRunParams): Promise<void> {
     value: params,
     updatedAt: Date.now(),
   }
-  const db = await openStore()
-  try {
-    const store = db.transaction(STORE_SETTINGS, 'readwrite').objectStore(STORE_SETTINGS)
+  await withTransaction([STORE_SETTINGS], 'readwrite', async transaction => {
+    const store = transaction.objectStore(STORE_SETTINGS)
     await idbRequest(store.put(record))
     const records = await idbRequest(store.getAll(runParamsKeyRange()) as IDBRequest<LocalSettingRecord[]>)
     if (records.length <= MAX_RUN_PARAMS_RECORDS) return
@@ -287,9 +312,7 @@ async function saveRunParams(params: LocalRunParams): Promise<void> {
     for (const stale of records.slice(0, records.length - MAX_RUN_PARAMS_RECORDS)) {
       await idbRequest(store.delete(stale.key))
     }
-  } catch (error) {
-    throw toLocalStoreError(error)
-  }
+  })
 }
 
 // 读取全部任务参数快照，按 runId 建索引。
@@ -309,16 +332,14 @@ async function loadRunParamsMap(): Promise<Map<string, LocalRunParams>> {
 
 // 清空创作台全部本地数据（素材、场景、设置和任务参数）
 async function clearAll(): Promise<void> {
-  const db = await openStore()
-  try {
-    for (const storeName of [STORE_ASSETS, STORE_SCENES, STORE_SETTINGS]) {
-      await idbRequest(db.transaction(storeName, 'readwrite').objectStore(storeName).clear())
+  const stores = [STORE_ASSETS, STORE_SCENES, STORE_SETTINGS]
+  await withTransaction(stores, 'readwrite', async transaction => {
+    for (const storeName of stores) {
+      await idbRequest(transaction.objectStore(storeName).clear())
     }
-  } catch (error) {
-    throw toLocalStoreError(error)
-  }
+  })
 }
 
 
-return { saveAsset, loadAsset, listAssets, deleteAsset, saveSceneJson, loadSceneJson, saveSetting, loadSetting, saveRunParams, loadRunParamsMap, clearAll, clearKind }
+return { loadAsset, listAssets, deleteAsset, saveSceneJson, loadSceneJson, saveSetting, loadSetting, saveRunParams, loadRunParamsMap, clearAll, clearKind }
 }
