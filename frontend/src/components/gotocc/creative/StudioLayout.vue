@@ -23,7 +23,7 @@ import { useUserView } from '@/composables/useUserView'
 import { adminSupportContext } from '@/utils/adminSupportContext'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AdminSupportBanner from '@/components/admin/support/AdminSupportBanner.vue'
-import Icon from '@/components/icons/Icon.vue'
+import Icon from './StudioIcon.vue'
 const { t } = useI18n()
 const app = useAppStore()
 const auth = useAuthStore()

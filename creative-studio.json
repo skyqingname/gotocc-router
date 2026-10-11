@@ -88,5 +88,9 @@
     }
   },
   "default_resolution": "1K",
-  "default_aspect_ratio": "1:1"
+  "default_aspect_ratio": "1:1",
+  "motion": {
+    "submission_duration_ms": 450,
+    "submission_ease": "cubic-bezier(0.2, 0.8, 0.2, 1)"
+  }
 }

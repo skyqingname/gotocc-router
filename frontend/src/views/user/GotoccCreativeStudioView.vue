@@ -1,13 +1,14 @@
 <template>
   <StudioLayout>
-    <div class="gotocc-creative relative h-full min-h-0 overflow-hidden" :class="historyOpen && 'history-open'">
+    <div ref="stage" class="gotocc-creative relative h-full min-h-0 overflow-hidden" :class="historyOpen && 'history-open'" :style="{ '--submission-duration': `${config.motion.submission_duration_ms}ms`, '--submission-ease': config.motion.submission_ease }">
       <CreativeCanvas ref="canvas" class="absolute inset-0" :operation="form.operation" :resolve-output="studio.resolveOutput" :allowed-mimes="config.allowed_mime_types" @error="error = $event" />
 
       <div ref="settingsRoot" class="studio-settings absolute left-3 top-3 z-20">
         <div class="canvas-island rounded-xl p-1">
           <button type="button" class="canvas-tool-btn" :title="t('studioGotocc.settings')" :aria-label="t('studioGotocc.settings')" :aria-expanded="settingsOpen" @click="settingsOpen = !settingsOpen"><Icon name="cog" size="md" /></button>
         </div>
-        <div v-if="settingsOpen" class="absolute left-0 top-12 w-72 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-dark-600 dark:bg-dark-900">
+        <StudioTransition name="pop-float">
+        <div v-if="settingsOpen" class="studio-settings-popover absolute left-0 top-12 w-72 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-dark-600 dark:bg-dark-900">
           <label class="block"><span class="input-label">{{ t('asyncImage.filters.apiKey') }}</span><Select v-model="keyID" :options="keyOptions" :disabled="submitting || loadingModels" searchable="auto" :aria-label="t('asyncImage.filters.apiKey')" @change="studio.selectKey" /></label>
           <p v-if="!keyID || (!canSubmit && !loadingModels)" class="text-xs leading-5 text-gray-500">{{ !keyID ? t('studioGotocc.selectKey') : t('studioGotocc.readOnlyKey') }}</p>
           <label class="block"><span class="input-label">{{ t('asyncImage.create.count') }}</span><input v-model.number="form.n" type="number" min="1" :max="config.max_image_count" class="input w-full" /></label>
@@ -21,12 +22,14 @@
           </details>
           <button type="button" class="menu-item" @click="resetConfirm = true; settingsOpen = false"><Icon name="trash" size="sm" />{{ t('creative.canvas.reset') }}</button>
         </div>
+        </StudioTransition>
       </div>
 
-      <button v-if="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-[42px] w-[42px] items-center justify-center rounded-xl" type="button" :aria-expanded="historyOpen" :aria-label="t('studioGotocc.history')" @click="historyOpen = true">
-        <StudioIcon name="history" size="md" /><span v-if="activityCount" class="studio-count">{{ activityCount }}</span>
+      <button ref="historyToggle" v-show="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-[42px] w-[42px] items-center justify-center rounded-xl" :class="historyBumping && 'studio-history-bump'" type="button" :aria-expanded="historyOpen" :aria-label="t('studioGotocc.history')" @click="historyOpen = true" @animationend.self="historyBumping = false">
+        <Icon name="history" size="md" /><span v-if="activityCount" class="studio-count">{{ activityCount }}</span>
       </button>
 
+      <StudioTransition name="fade">
       <div v-if="canvas?.sceneReady && canvas.imageCount === 0" class="studio-empty-guide pointer-events-none absolute inset-x-6 top-1/3 flex flex-col items-center text-center">
         <h1 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ t('creative.empty.title') }}</h1>
         <p class="mt-1 max-w-xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('creative.empty.description') }}</p>
@@ -35,14 +38,18 @@
           <button v-for="example in examples" :key="example" type="button" class="canvas-island studio-example" @click="composer?.fillPrompt(t(`creative.empty.examples.${example}.prompt`))"><Icon name="sparkles" size="sm" class="text-primary-500" />{{ t(`creative.empty.examples.${example}.label`) }}</button>
         </div>
       </div>
+      </StudioTransition>
 
       <div v-support-readonly class="studio-composer-dock absolute bottom-4 z-30 -translate-x-1/2">
         <StudioComposer ref="composer" :studio="composerState" :guide="canvas?.guideKey" @generate="generate" />
       </div>
 
-      <button v-if="historyOpen" type="button" class="absolute inset-0 z-30 bg-black/15 md:hidden" :aria-label="t('common.close')" @click="historyOpen = false" />
+      <StudioTransition name="fade">
+        <button v-if="historyOpen" type="button" class="absolute inset-0 z-30 bg-black/15 md:hidden" :aria-label="t('common.close')" @click="historyOpen = false" />
+      </StudioTransition>
+      <StudioTransition name="history-drawer">
       <aside v-if="historyOpen" class="studio-history absolute bottom-3 right-3 top-3 z-40 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-lg backdrop-blur-xl dark:border-dark-700 dark:bg-dark-900/95">
-        <div class="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-dark-700"><h2 class="font-medium">{{ t('studioGotocc.history') }}</h2><div class="flex gap-1"><button type="button" class="canvas-tool-btn" :disabled="loading" :title="t('asyncImage.actions.refresh')" @click="studio.refreshHistory"><Icon name="refresh" size="sm" :class="loading && 'animate-spin'" /></button><button type="button" class="canvas-tool-btn" :title="t('common.close')" @click="historyOpen = false"><Icon name="x" size="sm" /></button></div></div>
+        <div class="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-dark-700"><h2 class="flex items-center gap-2 font-medium"><span ref="historyHeading" class="inline-flex" :class="historyBumping && 'studio-history-bump'" @animationend.self="historyBumping = false"><Icon name="history" size="sm" :animate-on-hover="false" /></span>{{ t('studioGotocc.history') }}</h2><div class="flex gap-1"><button type="button" class="canvas-tool-btn" :disabled="loading" :title="t('asyncImage.actions.refresh')" @click="studio.refreshHistory"><Icon name="refresh" size="sm" :class="loading && 'animate-spin'" /></button><button type="button" class="canvas-tool-btn" :title="t('common.close')" @click="historyOpen = false"><Icon name="x" size="sm" /></button></div></div>
         <div class="px-3 py-2"><Select v-model="status" :options="statusOptions" :searchable="false" :aria-label="t('asyncImage.filters.allStatuses')" @change="studio.filter" /></div>
         <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3">
           <p v-if="!tasks.length && !loading" class="px-4 py-12 text-center text-sm text-gray-400">{{ keyID ? t('asyncImage.list.empty') : t('studioGotocc.selectKey') }}</p>
@@ -57,13 +64,19 @@
             </div>
             <div v-if="task.status === 'failed'" class="px-3 pb-3 text-xs leading-5 text-red-500">{{ task.error?.message }}</div>
             <div v-if="task.status === 'processing'" class="flex items-center gap-2 px-3 pb-3 text-xs text-gray-400"><Icon name="refresh" size="sm" class="animate-spin" />{{ t('studioGotocc.processing') }}</div>
-            <div v-if="expandedTask === task.task_id" class="space-y-2 border-t border-gray-100 px-3 py-3 dark:border-dark-700">
+            <StudioTransition name="history-details">
+            <div v-if="expandedTask === task.task_id" class="studio-history-details-grid">
+            <div class="min-h-0 overflow-hidden">
+            <div class="space-y-2 border-t border-gray-100 px-3 py-3 dark:border-dark-700">
               <p class="whitespace-pre-wrap break-words text-xs leading-5">{{ params.get(task.task_id)?.prompt || task.prompt_preview }}</p>
               <p v-if="params.has(task.task_id)" class="text-[10px] text-gray-400">{{ params.get(task.task_id)?.imageSize }} · {{ params.get(task.task_id)?.quality }} · {{ t('creative.operations.' + params.get(task.task_id)?.operation) }}</p>
               <p class="break-all font-mono text-[10px] text-gray-400">{{ task.task_id }}</p>
               <p v-if="task.status === 'completed' && task.actual_images != null && task.actual_images < (task.requested_images || 1)" class="text-xs text-amber-600">{{ t('studioGotocc.partial', { actual: task.actual_images, requested: task.requested_images }) }}</p>
               <button type="button" class="studio-link" @click="studio.reuseTask(task)">{{ t('studioGotocc.reuse') }}</button>
             </div>
+            </div>
+            </div>
+            </StudioTransition>
             <div v-if="task.status === 'completed'" class="flex items-center gap-3 px-3 py-2.5"><button type="button" class="studio-link" :disabled="importingTask === task.task_id" @click="importResult(task)"><Icon name="plus" size="xs" />{{ importingTask === task.task_id ? t('common.loading') : t('studioGotocc.toCanvas') }}</button><button type="button" class="studio-link ml-auto" :title="t('asyncImage.actions.downloadAll')" @click="studio.downloadTask(task)"><Icon name="download" size="sm" /></button></div>
             <div v-if="task.status === 'failed'" class="flex justify-end px-3 pb-2"><button v-support-readonly type="button" class="studio-link text-red-500" @click="deleteTarget = task">{{ t('asyncImage.actions.delete') }}</button></div>
           </article>
@@ -71,6 +84,8 @@
         <div v-if="tasks.length || offset" class="flex items-center justify-between border-t border-gray-100 px-3 py-2 text-xs dark:border-dark-700"><button type="button" class="studio-link" :disabled="loading || !offset" @click="studio.page(-1)">{{ t('asyncImage.list.previous') }}</button><span class="text-gray-400">{{ Math.floor(offset / config.history_page_size) + 1 }}</span><button type="button" class="studio-link" :disabled="loading || !hasMore" @click="studio.page(1)">{{ t('asyncImage.list.next') }}</button></div>
         <p class="border-t border-gray-100 px-4 py-2 text-[10px] leading-4 text-gray-400 dark:border-dark-700">{{ t('studioGotocc.storageHint') }}</p>
       </aside>
+      </StudioTransition>
+      <div v-if="submissionFlight" :key="submissionFlight.id" class="studio-submit-flight pointer-events-none absolute z-50 h-2 w-2 rounded-full bg-primary-500 ring-4 ring-primary-500/30" :style="submissionFlight.style" aria-hidden="true" @animationend.self="finishSubmissionFlight" />
     </div>
     <ConfirmDialog :show="resetConfirm" :title="t('creative.canvas.reset')" :message="t('studioGotocc.resetHint')" @confirm="resetCanvas" @cancel="resetConfirm = false" />
     <ConfirmDialog :show="!!deleteTarget" :title="t('asyncImage.actions.delete')" :message="t('asyncImage.delete.confirm', { taskId: deleteTarget?.task_id })" danger @confirm="deleteFailed" @cancel="deleteTarget = null" />
@@ -78,16 +93,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside, useMediaQuery } from '@vueuse/core'
 import StudioLayout from '@/components/gotocc/creative/StudioLayout.vue'
 import StudioComposer from '@/components/gotocc/creative/StudioComposer.vue'
-import StudioIcon from '@/components/gotocc/creative/StudioIcon.vue'
+import Icon from '@/components/gotocc/creative/StudioIcon.vue'
+import StudioTransition from '@/components/gotocc/creative/StudioTransition.vue'
 import { createComposerState } from '@/components/gotocc/creative/composerState'
 import Select from '@/components/common/Select.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import Icon from '@/components/icons/Icon.vue'
 import CreativeCanvas from '@/components/gotocc/creative/CreativeCanvas.vue'
 import { useStudio } from '@/components/gotocc/creative/useStudio'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
@@ -103,6 +118,12 @@ const { config, keys, keyID, loading, loadingModels, submitting, tasks, form, st
 const composerState = createComposerState(studio)
 const composer = ref<InstanceType<typeof StudioComposer> | null>(null)
 const historyOpen = ref(false)
+const stage = ref<HTMLElement | null>(null)
+const historyToggle = ref<HTMLElement | null>(null)
+const historyHeading = ref<HTMLElement | null>(null)
+const historyBumping = ref(false)
+const submissionFlight = ref<{ id: number; style: Record<string, string> } | null>(null)
+let flightID = 0
 const settingsOpen = ref(false)
 const settingsRoot = ref<HTMLElement | null>(null)
 const resetConfirm = ref(false)
@@ -112,6 +133,22 @@ const importingTask = ref('')
 const narrow = useMediaQuery('(max-width: 767px)')
 const examples = ['poster', 'product', 'illustration'] as const
 onClickOutside(settingsRoot, () => { settingsOpen.value = false })
+watch(submitting, (started) => { if (started) playSubmissionFlight() })
+
+function playSubmissionFlight() {
+  const stageRect = stage.value!.getBoundingClientRect()
+  const sourceRect = composer.value!.sendButtonRef!.getBoundingClientRect()
+  const targetRect = (historyOpen.value ? historyHeading.value! : historyToggle.value!).getBoundingClientRect()
+  const startX = sourceRect.left + sourceRect.width / 2
+  const startY = sourceRect.top + sourceRect.height / 2
+  historyBumping.value = false
+  submissionFlight.value = { id: ++flightID, style: {
+    left: `${startX - stageRect.left}px`, top: `${startY - stageRect.top}px`,
+    '--flight-x': `${targetRect.left + targetRect.width / 2 - startX}px`,
+    '--flight-y': `${targetRect.top + targetRect.height / 2 - startY}px`,
+  } }
+}
+function finishSubmissionFlight() { submissionFlight.value = null; historyBumping.value = true }
 
 const keyOptions = computed(() => [{ value: 0, label: t('asyncImage.filters.selectKey') }, ...keys.value.map(key => ({ value: key.id, label: key.name }))])
 const statusOptions = computed(() => [{ value: '', label: t('asyncImage.filters.allStatuses') }, ...['processing', 'completed', 'failed'].map(value => ({ value, label: statusText(value) }))])
@@ -142,6 +179,7 @@ async function generate() {
       mask = await canvas.value!.getMaskBlob()
     }
     if (await studio.submit(sources, mask)) { historyOpen.value = !narrow.value; settingsOpen.value = false }
+    else submissionFlight.value = null
   } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause) }
 }
 onMounted(studio.init)
