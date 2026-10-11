@@ -1,0 +1,8 @@
+{
+  "defaults": {
+    "enabled": false,
+    "minimum_amount": 0,
+    "percent": 0
+  },
+  "amount_decimal_places": 8
+}

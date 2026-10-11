@@ -7,6 +7,7 @@ import { apiClient } from './client'
 import type { PaginatedResponse, RedeemCodeRequest } from '@/types'
 
 export interface RedeemHistoryItem {
+  cashback_amount?: number
   id: number
   code: string
   type: string

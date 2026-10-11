@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from "../client";
+import type { BalanceCashbackSettings } from '@/utils/balanceCashback';
 import { listPlatformIds } from "@/constants/platformCatalog";
 import type {
   AccountPlatform,
@@ -403,6 +404,7 @@ export function deriveWeChatConnectStoredMode(
  * System settings interface
  */
 export interface SystemSettings {
+  balance_cashback: BalanceCashbackSettings;
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
@@ -772,6 +774,7 @@ export interface SystemSettings {
 }
 
 export interface UpdateSettingsRequest {
+  balance_cashback?: BalanceCashbackSettings;
   registration_enabled?: boolean;
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];

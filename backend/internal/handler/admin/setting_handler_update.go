@@ -23,6 +23,7 @@ import (
 
 // UpdateSettingsRequest 更新设置请求
 type UpdateSettingsRequest struct {
+	BalanceCashback *service.BalanceCashbackSettings `json:"balance_cashback"`
 	// 注册设置
 	RegistrationEnabled                 bool                         `json:"registration_enabled"`
 	EmailVerifyEnabled                  bool                         `json:"email_verify_enabled"`
@@ -536,6 +537,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	balanceCashback := previousSettings.BalanceCashback
+	if req.BalanceCashback != nil {
+		balanceCashback = *req.BalanceCashback
 	}
 
 	// 两个安全开关的请求字段为指针：省略字段=保持现值，避免旧客户端/脚本
@@ -1768,6 +1773,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                        customEndpointsJSON,
 		DefaultConcurrency:                     req.DefaultConcurrency,
 		DefaultBalance:                         req.DefaultBalance,
+		BalanceCashback:                        balanceCashback,
 		AffiliateRebateRate:                    affiliateRebateRate,
 		AffiliateRebateRateL2:                  affiliateRebateRateL2,
 		AffiliateRebateRateL3:                  affiliateRebateRateL3,
@@ -2466,6 +2472,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		CustomEndpoints:                                        dto.ParseCustomEndpoints(updatedSettings.CustomEndpoints),
 		DefaultConcurrency:                                     updatedSettings.DefaultConcurrency,
 		DefaultBalance:                                         updatedSettings.DefaultBalance,
+		BalanceCashback:                                        updatedSettings.BalanceCashback,
 		AffiliateRebateRate:                                    updatedSettings.AffiliateRebateRate,
 		AffiliateRebateRateL2:                                  updatedSettings.AffiliateRebateRateL2,
 		AffiliateRebateRateL3:                                  updatedSettings.AffiliateRebateRateL3,

@@ -1838,7 +1838,7 @@ export interface UsageCleanupTask {
 export interface RedeemCode {
   id: number
   code: string
-  type: RedeemCodeType
+  type: RedeemCodeType | 'balance_cashback'
   value: number
   status: 'active' | 'used' | 'expired' | 'unused' | 'disabled'
   used_by: number | null

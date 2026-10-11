@@ -291,6 +291,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		CustomEndpoints:                                        dto.ParseCustomEndpoints(settings.CustomEndpoints),
 		DefaultConcurrency:                                     settings.DefaultConcurrency,
 		DefaultBalance:                                         settings.DefaultBalance,
+		BalanceCashback:                                        settings.BalanceCashback,
 		RiskControlEnabled:                                     settings.RiskControlEnabled,
 		ClientDisconnectConsecutiveBanEnabled:                  settings.ClientDisconnectConsecutiveBanEnabled,
 		ClientDisconnectConsecutiveBanThreshold:                settings.ClientDisconnectConsecutiveBanThreshold,

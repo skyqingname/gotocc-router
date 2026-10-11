@@ -9,6 +9,7 @@
               :sequence="celebration?.sequence ?? 0"
               :title="celebration?.title ?? ''"
               :detail="celebration?.detail ?? ''"
+              @finished="onCelebrationFinished"
             >
               <dl class="grid grid-cols-2 gap-4">
                 <div>
@@ -203,6 +204,7 @@
         </div>
       </section>
     </div>
+    <BalanceCashbackNotice :amount="cashbackNoticeAmount" @close="cashbackNoticeAmount = 0" />
   </AppLayout>
 </template>
 
@@ -217,9 +219,11 @@ import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RedeemCelebration from '@/components/user/RedeemCelebration.vue'
+import BalanceCashbackNotice from '@/components/gotocc/cashback/BalanceCashbackNotice.vue'
+import { formatCashbackAmount } from '@/utils/balanceCashback'
 import { formatDateTime } from '@/utils/format'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
@@ -228,7 +232,8 @@ const user = computed(() => authStore.user)
 
 const redeemCode = ref('')
 const submitting = ref(false)
-const celebration = ref<{ sequence: number; title: string; detail: string } | null>(null)
+const celebration = ref<{ sequence: number; title: string; detail: string; cashbackAmount: number } | null>(null)
+const cashbackNoticeAmount = ref(0)
 let celebrationSequence = 0
 const errorMessage = ref('')
 
@@ -244,7 +249,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
+  return type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -282,7 +287,9 @@ const getCelebrationDetail = (result: RedeemHistoryItem) => {
 }
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
-  if (item.type === 'balance') {
+  if (item.type === 'balance_cashback') {
+    return t('balanceCashback.historyTitle')
+  } else if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
@@ -303,6 +310,7 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
+  if (item.type === 'balance_cashback') return `+$${formatCashbackAmount(item.value, locale.value)}`
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`
@@ -348,6 +356,7 @@ const handleRedeem = async () => {
   submitting.value = true
   errorMessage.value = ''
   celebration.value = null
+  cashbackNoticeAmount.value = 0
 
   try {
     const result = await redeemAPI.redeem(redeemCode.value.trim())
@@ -355,7 +364,8 @@ const handleRedeem = async () => {
     celebration.value = {
       sequence: ++celebrationSequence,
       title: t('redeem.redeemSuccess'),
-      detail: getCelebrationDetail(result)
+      detail: getCelebrationDetail(result),
+      cashbackAmount: result.cashback_amount ?? 0,
     }
     redeemCode.value = ''
 
@@ -388,6 +398,12 @@ const handleRedeem = async () => {
     appStore.showError(t('redeem.redeemFailed'))
   } finally {
     submitting.value = false
+  }
+}
+
+function onCelebrationFinished(sequence: number) {
+  if (celebration.value?.sequence === sequence && celebration.value.cashbackAmount > 0) {
+    cashbackNoticeAmount.value = celebration.value.cashbackAmount
   }
 }
 
