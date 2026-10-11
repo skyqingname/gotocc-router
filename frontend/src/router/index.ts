@@ -268,15 +268,16 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/async-image',
+    alias: '/creative',
     name: 'AsyncImage',
-    component: () => import('@/views/user/AsyncImageView.vue'),
+    component: () => import('@/views/user/GotoccCreativeStudioView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
       requiresAsyncImageAccess: true,
       title: 'Async Images',
-      titleKey: 'asyncImage.title',
-      descriptionKey: 'asyncImage.description'
+      titleKey: 'creative.title',
+      descriptionKey: 'studioGotocc.description'
     }
   },
   {

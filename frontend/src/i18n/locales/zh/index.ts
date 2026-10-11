@@ -1,3 +1,4 @@
+import creativeGotocc from './creativeGotocc'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -12,6 +13,7 @@ import gotocc from './gotocc'
 import fingerprint from './fingerprint'
 
 export default {
+  ...creativeGotocc,
   ...landing,
   ...common,
   ...dashboard,

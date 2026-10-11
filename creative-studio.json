@@ -1,0 +1,50 @@
+{
+  "poll_interval_ms": 3000,
+  "history_page_size": 20,
+  "keys_page_size": 100,
+  "default_quality": "auto",
+  "default_size": "1024x1024",
+  "default_image_count": 1,
+  "max_image_count": 10,
+  "max_reference_images": 16,
+  "max_upload_file_bytes": 20971520,
+  "max_upload_total_bytes": 41943040,
+  "allowed_mime_types": [
+    "image/png",
+    "image/jpeg",
+    "image/webp"
+  ],
+  "qualities": [
+    "auto",
+    "low",
+    "medium",
+    "high"
+  ],
+  "backgrounds": [
+    "auto",
+    "opaque",
+    "transparent"
+  ],
+  "standard_sizes": [
+    "1024x1024",
+    "1536x1024",
+    "1024x1536"
+  ],
+  "gpt_image_2_sizes": [
+    "auto",
+    "1024x1024",
+    "1536x1024",
+    "1024x1536",
+    "2048x2048",
+    "2048x1152",
+    "2560x1440",
+    "3840x2160",
+    "2160x3840",
+    "custom"
+  ],
+  "local_store_name": "gotocc-creative-studio",
+  "local_history_limit": 200,
+  "image_url_refresh_skew_seconds": 60,
+  "draft_save_debounce_ms": 300,
+  "default_background": "auto"
+}
