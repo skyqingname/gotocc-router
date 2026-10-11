@@ -1,0 +1,14 @@
+{
+  "reference_repository": "https://github.com/Ikaleio/lm-detector",
+  "reference_commit": "97eb41f78722d32524265bb259fe6258856ca470",
+  "reference_website": "https://lm.ikale.io/",
+  "challenge_count": 3,
+  "max_output_tokens": 8192,
+  "request_timeout_seconds": 250,
+  "top_candidates": 5,
+  "unsupported_platforms": [
+    "video",
+    "typesafe"
+  ],
+  "non_text_model_pattern": "(?i)(image|imagine|video|embedding|tts|speech|audio|realtime|transcrib|whisper|moderation)"
+}

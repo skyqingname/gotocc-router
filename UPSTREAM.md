@@ -23,8 +23,8 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.15+custom.002`, based on the published GoToCC
-`0.2.14+custom.004`. It integrates the unchanged Plus input
+The owned candidate is `0.2.15+custom.003`, based on the published GoToCC
+`0.2.15+custom.002`. It integrates the unchanged Plus input
 `v0.2.15+custom.001` (`4803d994c2a4cb67612e1472b5ccfdccfd7a9c4d`) and keeps
 the GoToCC Video platform outside the shared platform catalog. Publication uses
 the accepted local package; it does not deploy production.

@@ -9,6 +9,7 @@ import admin from './admin'
 import misc from './misc'
 import team from './team'
 import gotocc from './gotocc'
+import fingerprint from './fingerprint'
 
 export default {
   ...landing,
@@ -22,4 +23,5 @@ export default {
   ...misc,
   ...team,
   ...gotocc,
+  ...fingerprint,
 }
