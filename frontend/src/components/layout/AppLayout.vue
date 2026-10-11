@@ -1,18 +1,18 @@
 <template>
-  <div class="bg-canvas dark:bg-dark-950" :class="fullViewport ? 'h-dvh overflow-hidden' : 'min-h-screen'">
+  <div class="min-h-screen bg-canvas dark:bg-dark-950">
     <!-- Sidebar -->
     <AppSidebar />
 
     <!-- Main Content Area -->
     <div
-      class="relative transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64', fullViewport ? 'flex h-full min-h-0 flex-col' : 'min-h-screen']"
+      class="relative min-h-screen transition-all duration-300"
+      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
     >
       <!-- Header -->
       <AppHeader />
 
       <!-- Main Content -->
-      <main :class="fullViewport ? 'relative flex min-h-0 flex-1 flex-col' : 'p-4 md:p-6 lg:p-8'">
+      <main class="p-4 md:p-6 lg:p-8">
         <AdminSupportBanner v-if="supportUser" :target="supportUser" class="mb-5" />
         <slot />
       </main>
@@ -32,8 +32,6 @@ import { useUserView } from '@/composables/useUserView'
 import { adminSupportContext } from '@/utils/adminSupportContext'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
-
-withDefaults(defineProps<{ fullViewport?: boolean }>(), { fullViewport: false })
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

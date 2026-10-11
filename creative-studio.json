@@ -2,7 +2,7 @@
   "poll_interval_ms": 3000,
   "history_page_size": 20,
   "keys_page_size": 100,
-  "default_quality": "auto",
+  "default_quality": "medium",
   "default_size": "1024x1024",
   "default_image_count": 1,
   "max_image_count": 10,
@@ -15,10 +15,10 @@
     "image/webp"
   ],
   "qualities": [
-    "auto",
     "low",
     "medium",
-    "high"
+    "high",
+    "auto"
   ],
   "backgrounds": [
     "auto",
@@ -40,11 +40,53 @@
     "2560x1440",
     "3840x2160",
     "2160x3840",
-    "custom"
+    "custom",
+    "1152x864",
+    "864x1152",
+    "1280x720",
+    "720x1280",
+    "2048x1536",
+    "1536x2048",
+    "1152x2048",
+    "2880x2880",
+    "3264x2448",
+    "2448x3264"
   ],
   "local_store_name": "gotocc-creative-studio",
   "local_history_limit": 200,
   "image_url_refresh_skew_seconds": 60,
   "draft_save_debounce_ms": 300,
-  "default_background": "auto"
+  "default_background": "auto",
+  "gpt_image_2_dimensions": {
+    "1K": {
+      "1:1": "1024x1024",
+      "4:3": "1152x864",
+      "3:4": "864x1152",
+      "16:9": "1280x720",
+      "9:16": "720x1280"
+    },
+    "2K": {
+      "1:1": "2048x2048",
+      "4:3": "2048x1536",
+      "3:4": "1536x2048",
+      "16:9": "2048x1152",
+      "9:16": "1152x2048"
+    },
+    "4K": {
+      "1:1": "2880x2880",
+      "4:3": "3264x2448",
+      "3:4": "2448x3264",
+      "16:9": "3840x2160",
+      "9:16": "2160x3840"
+    }
+  },
+  "standard_dimensions": {
+    "1K": {
+      "1:1": "1024x1024",
+      "3:2": "1536x1024",
+      "2:3": "1024x1536"
+    }
+  },
+  "default_resolution": "1K",
+  "default_aspect_ratio": "1:1"
 }

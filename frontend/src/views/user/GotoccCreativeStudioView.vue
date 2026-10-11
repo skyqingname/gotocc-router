@@ -1,55 +1,44 @@
 <template>
-  <AppLayout full-viewport>
+  <StudioLayout>
     <div class="gotocc-creative relative h-full min-h-0 overflow-hidden" :class="historyOpen && 'history-open'">
       <CreativeCanvas ref="canvas" class="absolute inset-0" :operation="form.operation" :resolve-output="studio.resolveOutput" :allowed-mimes="config.allowed_mime_types" @error="error = $event" />
 
-      <div class="studio-account canvas-island absolute left-3 top-3 z-20 flex items-center gap-1 rounded-full p-1">
-        <button class="canvas-tool-btn" type="button" :title="t('creative.canvas.reset')" @click="resetConfirm = true"><Icon name="trash" size="sm" /></button>
-        <Select v-model="keyID" :options="keyOptions" :disabled="submitting || loadingModels" searchable="auto" class="studio-key-select" :aria-label="t('asyncImage.filters.apiKey')" @change="studio.selectKey" />
+      <div ref="settingsRoot" class="studio-settings absolute left-3 top-3 z-20">
+        <div class="canvas-island rounded-xl p-1">
+          <button type="button" class="canvas-tool-btn" :title="t('studioGotocc.settings')" :aria-label="t('studioGotocc.settings')" :aria-expanded="settingsOpen" @click="settingsOpen = !settingsOpen"><Icon name="cog" size="md" /></button>
+        </div>
+        <div v-if="settingsOpen" class="absolute left-0 top-12 w-72 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-dark-600 dark:bg-dark-900">
+          <label class="block"><span class="input-label">{{ t('asyncImage.filters.apiKey') }}</span><Select v-model="keyID" :options="keyOptions" :disabled="submitting || loadingModels" searchable="auto" :aria-label="t('asyncImage.filters.apiKey')" @change="studio.selectKey" /></label>
+          <p v-if="!keyID || (!canSubmit && !loadingModels)" class="text-xs leading-5 text-gray-500">{{ !keyID ? t('studioGotocc.selectKey') : t('studioGotocc.readOnlyKey') }}</p>
+          <label class="block"><span class="input-label">{{ t('asyncImage.create.count') }}</span><input v-model.number="form.n" type="number" min="1" :max="config.max_image_count" class="input w-full" /></label>
+          <details v-if="isGPTImage2(form.model)" class="text-xs text-gray-500">
+            <summary class="cursor-pointer">{{ t('studioGotocc.customSize') }}</summary>
+            <div class="mt-3 grid grid-cols-2 gap-2">
+              <label>{{ t('asyncImage.create.width') }}<input v-model.number="form.customWidth" type="number" class="input w-full" @change="form.size = 'custom'" /></label>
+              <label>{{ t('asyncImage.create.height') }}<input v-model.number="form.customHeight" type="number" class="input w-full" @change="form.size = 'custom'" /></label>
+            </div>
+            <p v-if="customSizeError" class="mt-2 text-red-500">{{ customSizeError }}</p>
+          </details>
+          <button type="button" class="menu-item" @click="resetConfirm = true; settingsOpen = false"><Icon name="trash" size="sm" />{{ t('creative.canvas.reset') }}</button>
+        </div>
       </div>
 
-      <button v-if="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full px-3 text-sm" type="button" :aria-expanded="historyOpen" :aria-label="t('studioGotocc.history')" @click="historyOpen = true">
-        <Icon name="clock" size="sm" /><span class="hidden sm:inline">{{ t('studioGotocc.history') }}</span><span v-if="activityCount" class="studio-count">{{ activityCount }}</span>
+      <button v-if="!historyOpen" class="studio-history-toggle canvas-island absolute right-3 top-3 z-20 flex h-[42px] w-[42px] items-center justify-center rounded-xl" type="button" :aria-expanded="historyOpen" :aria-label="t('studioGotocc.history')" @click="historyOpen = true">
+        <StudioIcon name="history" size="md" /><span v-if="activityCount" class="studio-count">{{ activityCount }}</span>
       </button>
 
-      <div v-if="canvas?.sceneReady && canvas.imageCount === 0" class="studio-empty-guide pointer-events-none absolute inset-x-6 top-[32%] flex flex-col items-center text-center">
-        <span class="mb-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-gray-400">GOTOCC / CREATIVE STUDIO</span>
-        <h1 class="text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-100">{{ t('creative.empty.title') }}</h1>
-        <p class="mt-3 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('creative.empty.description') }}</p>
-        <div class="pointer-events-auto mt-5 flex max-w-xl flex-wrap justify-center gap-2">
+      <div v-if="canvas?.sceneReady && canvas.imageCount === 0" class="studio-empty-guide pointer-events-none absolute inset-x-6 top-1/3 flex flex-col items-center text-center">
+        <h1 class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ t('creative.empty.title') }}</h1>
+        <p class="mt-1 max-w-xl text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('creative.empty.description') }}</p>
+        <div class="pointer-events-auto mt-4 flex max-w-xl flex-wrap justify-center gap-2">
           <button type="button" class="canvas-island studio-example" @click="canvas?.openFilePicker()"><Icon name="upload" size="sm" />{{ t('creative.empty.upload') }}</button>
-          <button v-for="example in examples" :key="example" type="button" class="canvas-island studio-example" @click="form.prompt = t(`creative.empty.examples.${example}.prompt`)">{{ t(`creative.empty.examples.${example}.label`) }}</button>
+          <button v-for="example in examples" :key="example" type="button" class="canvas-island studio-example" @click="composer?.fillPrompt(t(`creative.empty.examples.${example}.prompt`))"><Icon name="sparkles" size="sm" class="text-primary-500" />{{ t(`creative.empty.examples.${example}.label`) }}</button>
         </div>
       </div>
 
-      <form v-support-readonly class="studio-composer canvas-island absolute bottom-5 z-20 rounded-2xl" @submit.prevent="generate">
-        <div v-if="error || guide || activityCount" class="studio-status flex items-center gap-2 border-b border-gray-200/60 px-4 py-2 text-xs dark:border-dark-600" :class="error ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-300'" role="status">
-          <Icon :name="error ? 'exclamationCircle' : activityCount ? 'refresh' : 'infoCircle'" size="sm" :class="!error && activityCount ? 'animate-spin' : ''" />
-          <span class="min-w-0 flex-1 break-words">{{ error || guide || t('studioGotocc.active', { count: activityCount }) }}</span>
-          <button v-if="error" type="button" :aria-label="t('common.close')" @click="error = ''"><Icon name="x" size="sm" /></button>
-        </div>
-        <textarea v-model="form.prompt" rows="2" class="studio-prompt block w-full resize-none bg-transparent px-4 pb-2 pt-4 text-sm outline-none" :placeholder="t('creative.panel.promptPlaceholder')" :aria-label="t('asyncImage.create.prompt')" :disabled="submitting" @keydown.ctrl.enter.prevent="generate" @keydown.meta.enter.prevent="generate" />
-        <div class="flex min-w-0 items-center gap-1 px-2 pb-2">
-          <Select v-model="form.model" :options="modelOptions" :disabled="loadingModels || !models.length || submitting" searchable="auto" class="studio-model-select" :aria-label="t('asyncImage.create.model')" @change="studio.onModelChanged" />
-          <div ref="parameterRoot" class="relative">
-            <button type="button" class="studio-chip" :class="parametersOpen && 'studio-chip-active'" :aria-expanded="parametersOpen" :title="t('creative.composer.params')" @click="parametersOpen = !parametersOpen"><Icon name="cog" size="sm" /><span>{{ t('creative.composer.params') }}</span></button>
-            <div v-if="parametersOpen" class="studio-parameters absolute bottom-11 left-1/2 w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-dark-600 dark:bg-dark-800">
-              <label class="block"><span class="input-label">{{ t('asyncImage.create.size') }}</span><Select v-model="form.size" :options="sizeOptions" :searchable="false" :aria-label="t('asyncImage.create.size')" /></label>
-              <div v-if="form.size === 'custom'" class="mt-3 grid grid-cols-2 gap-2">
-                <label><span class="input-label">{{ t('asyncImage.create.width') }}</span><input v-model.number="form.customWidth" type="number" class="input w-full" /></label>
-                <label><span class="input-label">{{ t('asyncImage.create.height') }}</span><input v-model.number="form.customHeight" type="number" class="input w-full" /></label>
-              </div>
-              <p v-if="customSizeError" class="mt-2 text-xs text-red-500">{{ customSizeError }}</p>
-              <label v-if="isGPTImage2(form.model)" class="mt-3 block"><span class="input-label">{{ t('creative.panel.quality') }}</span><Select v-model="form.quality" :options="qualityOptions" :searchable="false" :aria-label="t('creative.panel.quality')" /></label>
-              <label v-if="isGPTImage2(form.model)" class="mt-3 block"><span class="input-label">{{ t('creative.panel.background') }}</span><Select v-model="form.background" :options="backgroundOptions" :searchable="false" :aria-label="t('creative.panel.background')" /></label>
-              <label class="mt-3 block"><span class="input-label">{{ t('asyncImage.create.count') }}</span><input v-model.number="form.n" type="number" min="1" :max="config.max_image_count" class="input w-full" /></label>
-            </div>
-          </div>
-          <Select v-model="form.operation" :options="operationOptions" :disabled="submitting" :searchable="false" class="studio-operation-select" :aria-label="t('creative.composer.operation')" />
-          <button type="submit" class="studio-send ml-auto flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary-600 text-white transition hover:bg-primary-500 disabled:opacity-40" :disabled="!ready" :title="t('creative.composer.send')" :aria-label="t('creative.composer.send')"><Icon :name="submitting ? 'refresh' : 'arrowUp'" size="md" :class="submitting && 'animate-spin'" /></button>
-        </div>
-        <div v-if="!keyID || (keyID && !canSubmit && !loadingModels)" class="border-t border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-dark-700">{{ !keyID ? t('studioGotocc.selectKey') : t('studioGotocc.readOnlyKey') }}</div>
-      </form>
+      <div v-support-readonly class="studio-composer-dock absolute bottom-4 z-30 -translate-x-1/2">
+        <StudioComposer ref="composer" :studio="composerState" :guide="canvas?.guideKey" @generate="generate" />
+      </div>
 
       <button v-if="historyOpen" type="button" class="absolute inset-0 z-30 bg-black/15 md:hidden" :aria-label="t('common.close')" @click="historyOpen = false" />
       <aside v-if="historyOpen" class="studio-history absolute bottom-3 right-3 top-3 z-40 flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 shadow-lg backdrop-blur-xl dark:border-dark-700 dark:bg-dark-900/95">
@@ -85,14 +74,17 @@
     </div>
     <ConfirmDialog :show="resetConfirm" :title="t('creative.canvas.reset')" :message="t('studioGotocc.resetHint')" @confirm="resetCanvas" @cancel="resetConfirm = false" />
     <ConfirmDialog :show="!!deleteTarget" :title="t('asyncImage.actions.delete')" :message="t('asyncImage.delete.confirm', { taskId: deleteTarget?.task_id })" danger @confirm="deleteFailed" @cancel="deleteTarget = null" />
-  </AppLayout>
+  </StudioLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onClickOutside, useMediaQuery } from '@vueuse/core'
-import AppLayout from '@/components/layout/AppLayout.vue'
+import StudioLayout from '@/components/gotocc/creative/StudioLayout.vue'
+import StudioComposer from '@/components/gotocc/creative/StudioComposer.vue'
+import StudioIcon from '@/components/gotocc/creative/StudioIcon.vue'
+import { createComposerState } from '@/components/gotocc/creative/composerState'
 import Select from '@/components/common/Select.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -107,26 +99,22 @@ import '@/components/gotocc/creative/studio.css'
 const { t } = useI18n()
 const canvas = ref<InstanceType<typeof CreativeCanvas> | null>(null)
 const studio = useStudio(async output => { await canvas.value?.placeOutput(output) })
-const { config, keys, keyID, loading, loadingModels, submitting, tasks, models, form, status, offset, hasMore, error, activityCount, params, canSubmit, canInpaint, ready, sizes, customSizeError } = studio
+const { config, keys, keyID, loading, loadingModels, submitting, tasks, form, status, offset, hasMore, error, activityCount, params, canSubmit, ready, customSizeError } = studio
+const composerState = createComposerState(studio)
+const composer = ref<InstanceType<typeof StudioComposer> | null>(null)
 const historyOpen = ref(false)
-const parametersOpen = ref(false)
-const parameterRoot = ref<HTMLElement | null>(null)
+const settingsOpen = ref(false)
+const settingsRoot = ref<HTMLElement | null>(null)
 const resetConfirm = ref(false)
 const deleteTarget = ref<AsyncImageTask | null>(null)
 const expandedTask = ref('')
 const importingTask = ref('')
 const narrow = useMediaQuery('(max-width: 767px)')
 const examples = ['poster', 'product', 'illustration'] as const
-onClickOutside(parameterRoot, () => { parametersOpen.value = false })
+onClickOutside(settingsRoot, () => { settingsOpen.value = false })
 
 const keyOptions = computed(() => [{ value: 0, label: t('asyncImage.filters.selectKey') }, ...keys.value.map(key => ({ value: key.id, label: key.name }))])
-const modelOptions = computed(() => models.value.length ? models.value.map(model => ({ value: model, label: model })) : [{ value: '', label: loadingModels.value ? t('asyncImage.create.modelsLoading') : t('asyncImage.create.model') }])
-const operationOptions = computed(() => ['generate', 'edit', ...(canInpaint.value ? ['inpaint'] : [])].map(value => ({ value, label: t(`creative.operations.${value}`) })))
-const sizeOptions = computed(() => sizes.value.map(value => ({ value, label: value === 'auto' ? t('asyncImage.create.sizeAuto') : value === 'custom' ? t('asyncImage.create.sizeCustom') : value.replace('x', ' × ') })))
-const qualityOptions = computed(() => config.qualities.map(value => ({ value, label: t(`studioGotocc.quality.${value}`) })))
-const backgroundOptions = computed(() => config.backgrounds.map(value => ({ value, label: t(`studioGotocc.background.${value}`) })))
 const statusOptions = computed(() => [{ value: '', label: t('asyncImage.filters.allStatuses') }, ...['processing', 'completed', 'failed'].map(value => ({ value, label: statusText(value) }))])
-const guide = computed(() => canvas.value?.guideKey === 'maskPaint' ? t('creative.panel.maskHint') : canvas.value?.guideKey ? t('creative.panel.selectImageHint') : '')
 function statusText(value: string) { return t(`asyncImage.status.${value}`) }
 function statusColor(value: string) { return value === 'completed' ? 'text-emerald-600 dark:text-emerald-400' : value === 'failed' ? 'text-red-500' : 'text-primary-500' }
 function formatDate(value: number) { return new Date(value * 1000).toLocaleString() }
@@ -153,7 +141,7 @@ async function generate() {
       if (source) sources = [source]
       mask = await canvas.value!.getMaskBlob()
     }
-    if (await studio.submit(sources, mask)) { historyOpen.value = !narrow.value; parametersOpen.value = false }
+    if (await studio.submit(sources, mask)) { historyOpen.value = !narrow.value; settingsOpen.value = false }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : String(cause) }
 }
 onMounted(studio.init)

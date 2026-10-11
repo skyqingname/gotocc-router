@@ -22,7 +22,12 @@ export default {
       "auto": "Auto",
       "opaque": "Opaque",
       "transparent": "Transparent"
-    }
+    },
+    "chooseKeyInSettings": "Select an API key in the settings at the top left.",
+    "actualUsagePricing": "Billed by usage",
+    "settings": "Studio settings",
+    "customSize": "Custom pixel size",
+    "backHome": "Back to home"
   },
   "creative": {
     "title": "Creative Studio",
@@ -117,6 +122,26 @@ export default {
       "dropInvalid": "The dropped history image could not be recognized.",
       "dropUnsupported": "Only PNG, JPEG, or WebP images are supported.",
       "dropHistoryUnavailable": "This history image is no longer available in this browser."
+    },
+    "operationsDesc": {
+      "generate": "Generate an image from the prompt alone",
+      "edit": "Edit using the selected canvas image as reference",
+      "inpaint": "Paint over the selected image to redraw that area"
+    },
+    "qualities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "auto": "Auto"
+    },
+    "backgrounds": {
+      "auto": "Auto",
+      "opaque": "Opaque",
+      "transparent": "Transparent"
+    },
+    "thinkingLevels": {
+      "minimal": "Minimal",
+      "high": "High"
     }
   }
 }

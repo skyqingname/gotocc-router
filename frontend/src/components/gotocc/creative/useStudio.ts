@@ -107,7 +107,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
       const capabilities = isAutoRoutingKey(key) ? await getAutoRoutingCapabilities(key) : undefined
       if (version !== selectionVersion || disposed) return
       canSubmit.value = keyAllowsAsyncImage(key, capabilities || undefined)
-      if (canSubmit.value) {
+      if (key.status === 'active') {
         const available = await listAsyncImageModels(key.key)
         if (version !== selectionVersion || disposed) return
         models.value = available

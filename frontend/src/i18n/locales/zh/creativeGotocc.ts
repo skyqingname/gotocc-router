@@ -22,7 +22,12 @@ export default {
       "auto": "自动",
       "opaque": "不透明",
       "transparent": "透明"
-    }
+    },
+    "chooseKeyInSettings": "请先在左上角设置中选择 API Key。",
+    "actualUsagePricing": "按实际用量",
+    "settings": "创作台设置",
+    "customSize": "自定义像素尺寸",
+    "backHome": "返回首页"
   },
   "creative": {
     "title": "创作台",
@@ -117,6 +122,26 @@ export default {
       "dropInvalid": "无法识别拖入的历史图片。",
       "dropUnsupported": "仅支持 PNG、JPEG 或 WebP 图片。",
       "dropHistoryUnavailable": "历史图片已不在本机，无法拖入画布。"
+    },
+    "operationsDesc": {
+      "generate": "直接根据提示词生成图片",
+      "edit": "以画布中选中的图片为参考进行编辑",
+      "inpaint": "涂抹选中图片的区域并重新绘制"
+    },
+    "qualities": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "auto": "自动"
+    },
+    "backgrounds": {
+      "auto": "自动",
+      "opaque": "不透明",
+      "transparent": "透明"
+    },
+    "thinkingLevels": {
+      "minimal": "最少",
+      "high": "高"
     }
   }
 }
