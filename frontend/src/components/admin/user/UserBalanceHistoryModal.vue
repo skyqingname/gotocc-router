@@ -204,6 +204,7 @@ const typeOptions = computed(() => [
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
   { value: 'balance_cashback', label: t('balanceCashback.historyTitle') },
   { value: 'team_transfer', label: t('redeem.balanceTeamTransfer') },
+  { value: 'canvas_card', label: t('canvasCard.historyTitle') },
   { value: 'canvas_transfer', label: t('admin.users.typeCanvasTransfer') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
   { value: 'admin_concurrency', label: t('admin.users.typeAdminConcurrency') },
@@ -243,7 +244,7 @@ const loadHistory = async (page: number) => {
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
+const isBalanceType = (type: string) => type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'affiliate_balance' || type === 'team_transfer' || type === 'canvas_card' || type === 'canvas_transfer' || type === 'canvas_reversal'
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -307,6 +308,8 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
     case 'team_transfer':
       return t('redeem.balanceTeamTransfer')
+    case 'canvas_card':
+      return t('canvasCard.historyTitle')
     case 'canvas_transfer':
       return t('redeem.balanceCanvasTransfer')
     case 'canvas_reversal':

@@ -1,5 +1,6 @@
 <template>
   <AppLayout>
+    <CanvasCardExchange v-if="!adminSupportContext" @exchanged="onCanvasCardExchanged" />
     <!-- 宽屏左栏放余额、兑换与说明，右栏放兑换记录；窄屏按兑换、说明、记录顺序堆叠。 -->
     <div class="grid w-full gap-6 lg:grid-cols-[22.5rem_minmax(0,1fr)] lg:items-start">
       <div class="flex min-w-0 flex-col gap-6">
@@ -219,6 +220,8 @@ import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RedeemCelebration from '@/components/user/RedeemCelebration.vue'
+import CanvasCardExchange from '@/components/gotocc/canvas-cards/CanvasCardExchange.vue'
+import { adminSupportContext } from '@/utils/adminSupportContext'
 import BalanceCashbackNotice from '@/components/gotocc/cashback/BalanceCashbackNotice.vue'
 import { formatCashbackAmount } from '@/utils/balanceCashback'
 import { formatDateTime } from '@/utils/format'
@@ -249,7 +252,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
+  return type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_card' || type === 'canvas_transfer' || type === 'canvas_reversal'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -293,6 +296,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+  } else if (item.type === 'canvas_card') {
+    return t('canvasCard.historyTitle')
   } else if (item.type === 'team_transfer') {
     return t('redeem.balanceTeamTransfer')
   } else if (item.type === 'canvas_transfer') {
@@ -416,4 +421,8 @@ onMounted(async () => {
     console.error('Failed to load contact info:', error)
   }
 })
+async function onCanvasCardExchanged() {
+  try { await Promise.all([authStore.refreshUser(), fetchHistory(1)]) }
+  catch { appStore.showError(t('common.error')) }
+}
 </script>

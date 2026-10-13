@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 
 		// 卡密管理
 		registerRedeemCodeRoutes(admin, h)
+		admin.GET("/canvas-cards/stock", h.CanvasCard.Stock)
+		admin.GET("/canvas-cards", h.CanvasCard.Inventory)
+		admin.POST("/canvas-cards/import", h.CanvasCard.Import)
 
 		// 优惠码管理
 		registerPromoCodeRoutes(admin, h)

@@ -36,6 +36,7 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
+            <RouterLink to="/admin/redeem/canvas-cards" class="btn btn-secondary">{{ t('canvasCard.adminEntry') }}</RouterLink>
             <button @click="handleExportCodes" class="btn btn-secondary">
               {{ t('admin.redeem.exportCsv') }}
             </button>

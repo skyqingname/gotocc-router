@@ -1,3 +1,4 @@
+import canvasCard from './canvasCard'
 import creativeGotocc from './creativeGotocc'
 import balanceCashback from './balanceCashback'
 import landing from './landing'
@@ -14,6 +15,7 @@ import gotocc from './gotocc'
 import fingerprint from './fingerprint'
 
 export default {
+  ...canvasCard,
   ...balanceCashback,
   ...creativeGotocc,
   ...landing,

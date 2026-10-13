@@ -654,6 +654,12 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/redeem/canvas-cards',
+    name: 'AdminCanvasCards',
+    component: () => import('@/views/admin/CanvasCardsView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Canvas card inventory', titleKey: 'canvasCard.adminTitle', descriptionKey: 'canvasCard.adminHint' }
+  },
+  {
     path: '/admin/redeem',
     name: 'AdminRedeem',
     component: () => import('@/views/admin/RedeemView.vue'),
