@@ -1,5 +1,6 @@
 export default {
   common: {
+    retry: '重试',
     loading: '加载中...',
     submitting: '提交中...',
     justNow: '刚刚',

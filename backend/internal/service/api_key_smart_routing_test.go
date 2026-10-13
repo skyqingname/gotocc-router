@@ -93,6 +93,12 @@ func (r *autoRouteCatalogRepo) LoadAutoRouteCatalog(_ context.Context, _ []int64
 	return r.catalog, r.err
 }
 
+type autoRouteResellerRepo struct{ ResellerRepository }
+
+func (r *autoRouteResellerRepo) CustomerAccount(context.Context, int64) (*ResellerCustomerAccount, error) {
+	return nil, nil
+}
+
 func newAutoRouteFixture() (*AutoGroupResolver, *APIKey, *autoRouteUserRepo, *autoRouteGroupRepo, *autoRouteCatalogRepo) {
 	users := &autoRouteUserRepo{user: &User{ID: 7, Status: StatusActive}}
 	groups := &autoRouteGroupRepo{groups: []Group{
@@ -107,7 +113,7 @@ func newAutoRouteFixture() (*AutoGroupResolver, *APIKey, *autoRouteUserRepo, *au
 				Credentials: map[string]any{"model_mapping": map[string]any{"claude-test": "claude-test"}}}},
 		},
 	}}
-	keys := &APIKeyService{userRepo: users, groupRepo: groups, userSubRepo: &autoRouteSubscriptionRepo{}}
+	keys := &APIKeyService{resellerRepo: &autoRouteResellerRepo{}, userRepo: users, groupRepo: groups, userSubRepo: &autoRouteSubscriptionRepo{}}
 	channels := &ChannelService{}
 	channels.cache.Store(&channelCache{loadedAt: time.Now()})
 	resolver := NewAutoGroupResolver(keys, catalog, channels, nil, nil, &config.Config{})

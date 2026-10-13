@@ -1,5 +1,10 @@
 export default {
     smartRoutingPolicy: {
+      allowUserOverride: "Allow custom user priorities",
+      allowUserOverrideHint: "Users can reorder groups and model rules for each API key. Disabling this restores administrator routing while retaining user preferences.",
+      userOverrideEnabled: "Enabled · Users can customize in API key settings",
+      userOverrideDisabled: "Disabled · All keys follow administrator order",
+
       title: 'Smart Routing Priority', defaultOrder: 'Default Group Order', modelRules: 'Model Overrides',
       model: 'Model or Prefix', modelPlaceholder: 'gpt-5 or gpt-*', selectGroup: 'Select group',
       moveUp: 'Move group up', moveDown: 'Move group down', addRule: 'Add Model Rule', removeRule: 'Remove model rule',

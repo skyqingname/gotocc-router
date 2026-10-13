@@ -1,5 +1,7 @@
 # Upstream Mapping
 
+This feature branch is based on skyqingname/gotocc-router `d89019f90287bec6555937739ec5096ede93f5e0` (2026-10-10 checkout). It adds opt-in per-key user routing priorities; see [behavior](docs/USER_ROUTING_PRIORITIES.md).
+
 This file is the authoritative mapping of Plus tags to official baselines and
 publication status. Release naming and procedures live in
 [RELEASING.md](docs/RELEASING.md).
