@@ -1,3 +1,4 @@
+import featureExtensions from './featureExtensions'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -11,6 +12,7 @@ import team from './team'
 import gotocc from './gotocc'
 
 export default {
+  ...featureExtensions,
   ...landing,
   ...common,
   ...dashboard,

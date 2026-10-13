@@ -54,6 +54,7 @@ const messages: Record<string, string> = {
   'admin.dashboard.hour': 'Hour',
   'admin.usage.failedToLoadUser': 'Failed to load user',
   'admin.usage.requestId': 'Request ID',
+  'admin.usage.serviceTier': 'Service tier',
   'usage.requestedModel': 'Requested model',
   'usage.sentUpstreamModel': 'Sent upstream model',
   'usage.upstreamResponseModel': 'Upstream response model',
@@ -156,7 +157,7 @@ const UsageFiltersStub = defineComponent({
   template: '<div><span data-test="user-filter-label">{{ userKeyword }}</span><slot name="after-reset" /></div>',
 })
 const UsageTableStub = {
-  props: ['columns'],
+  props: ['columns', 'showServiceTier'],
   emits: ['userClick'],
   template: '<div data-test="usage-table"><button class="user-click" @click="$emit(\'userClick\', 2)">user</button></div>',
 }
@@ -500,7 +501,7 @@ describe('admin UsageView request ID column visibility', () => {
     vi.useRealTimers()
   })
 
-  it('keeps request ID and session ID visible by default', async () => {
+  it('shows the service tier column by default and persists hiding it', async () => {
     const wrapper = mount(UsageView, {
       global: {
         stubs: {
@@ -531,11 +532,20 @@ describe('admin UsageView request ID column visibility', () => {
       expect.arrayContaining([
         expect.objectContaining({ key: 'request_id', label: 'Request ID' }),
         expect.objectContaining({ key: 'session_id', label: 'Session ID' }),
+        expect.objectContaining({ key: 'service_tier', label: 'Service tier' }),
       ]),
     )
     expect(usageTable.props('columns')).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ key: 'upstream_request_id' })]),
     )
+    expect(usageTable.props('showServiceTier')).toBe(true)
+    await wrapper.get('[data-testid="usage-column-settings"]').trigger('click')
+    await wrapper.get('[data-testid="usage-column-toggle-service_tier"]').trigger('click')
+    expect(usageTable.props('columns').map((column: { key: string }) => column.key)).not.toContain('service_tier')
+    expect(localStorage.setItem).toHaveBeenCalledWith('usage-hidden-columns', expect.stringContaining('"service_tier"'))
+    await wrapper.get('[data-testid="usage-column-toggle-service_tier"]').trigger('click')
+    expect(usageTable.props('columns').map((column: { key: string }) => column.key)).toContain('service_tier')
+    wrapper.unmount()
   })
 })
 
@@ -799,6 +809,7 @@ describe('admin UsageView Excel export latency fields', () => {
           request_type: 'stream',
           stream: true,
           is_complete: false,
+          first_byte_ms: 30,
           first_token_ms: 120,
           last_token_ms: 1120,
           first_output_ms: 100,
@@ -868,6 +879,7 @@ describe('admin UsageView Excel export latency fields', () => {
     const headers = aoaToSheet.mock.calls[0][0][0] as string[]
     const rows = sheetAddAoa.mock.calls[0][1] as unknown[][]
     const requestedModelIndex = headers.indexOf('Requested model')
+    const firstByteIndex = headers.indexOf('usage.latencyFirstByte')
     const firstTokenIndex = headers.indexOf('usage.latencyFirstToken')
     const firstOutputIndex = headers.indexOf('usage.latencyFirstOutput')
     const firstOutputKindIndex = headers.indexOf('usage.latencyFirstOutputKind')
@@ -888,7 +900,10 @@ describe('admin UsageView Excel export latency fields', () => {
       'gpt-text-response',
       'Yes',
     ])
-    expect(firstTokenIndex).toBeGreaterThan(-1)
+    expect(firstByteIndex).toBeGreaterThan(-1)
+    expect(firstTokenIndex).toBe(firstByteIndex + 1)
+    expect(rows[0][firstByteIndex]).toBe(30)
+    expect(rows[1][firstByteIndex]).toBe('')
     expect(firstOutputIndex).toBe(firstTokenIndex + 1)
     expect(firstOutputKindIndex).toBe(firstOutputIndex + 1)
     expect(durationIndex).toBe(firstOutputKindIndex + 1)

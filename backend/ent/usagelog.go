@@ -72,6 +72,10 @@ type UsageLog struct {
 	CacheCreation1hTokens int `json:"cache_creation_1h_tokens,omitempty"`
 	// AudioOutputTokens holds the value of the "audio_output_tokens" field.
 	AudioOutputTokens int `json:"audio_output_tokens,omitempty"`
+	// RequestedServiceTier holds the value of the "requested_service_tier" field.
+	RequestedServiceTier *string `json:"requested_service_tier,omitempty"`
+	// ResponseServiceTier holds the value of the "response_service_tier" field.
+	ResponseServiceTier *string `json:"response_service_tier,omitempty"`
 	// CodexRolloutBudgetUnits holds the value of the "codex_rollout_budget_units" field.
 	CodexRolloutBudgetUnits *float64 `json:"codex_rollout_budget_units,omitempty"`
 	// InputCost holds the value of the "input_cost" field.
@@ -100,6 +104,8 @@ type UsageLog struct {
 	DurationMs *int `json:"duration_ms,omitempty"`
 	// TimingVersion holds the value of the "timing_version" field.
 	TimingVersion int `json:"timing_version,omitempty"`
+	// FirstByteMs holds the value of the "first_byte_ms" field.
+	FirstByteMs *int `json:"first_byte_ms,omitempty"`
 	// FirstTokenMs holds the value of the "first_token_ms" field.
 	FirstTokenMs *int `json:"first_token_ms,omitempty"`
 	// Elapsed ms to the last token-like delta; NULL = historical or none observed
@@ -242,9 +248,9 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case usagelog.FieldCodexRolloutBudgetUnits, usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldBillingUserID, usagelog.FieldTeamID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldAudioOutputTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldTimingVersion, usagelog.FieldFirstTokenMs, usagelog.FieldLastTokenMs, usagelog.FieldFirstOutputMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
+		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldBillingUserID, usagelog.FieldTeamID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldAudioOutputTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldTimingVersion, usagelog.FieldFirstByteMs, usagelog.FieldFirstTokenMs, usagelog.FieldLastTokenMs, usagelog.FieldFirstOutputMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldFirstOutputKind, usagelog.FieldCompletionStatus, usagelog.FieldUsageSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldRequestedServiceTier, usagelog.FieldResponseServiceTier, usagelog.FieldFirstOutputKind, usagelog.FieldCompletionStatus, usagelog.FieldUsageSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -424,6 +430,20 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AudioOutputTokens = int(value.Int64)
 			}
+		case usagelog.FieldRequestedServiceTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field requested_service_tier", values[i])
+			} else if value.Valid {
+				_m.RequestedServiceTier = new(string)
+				*_m.RequestedServiceTier = value.String
+			}
+		case usagelog.FieldResponseServiceTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field response_service_tier", values[i])
+			} else if value.Valid {
+				_m.ResponseServiceTier = new(string)
+				*_m.ResponseServiceTier = value.String
+			}
 		case usagelog.FieldCodexRolloutBudgetUnits:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field codex_rollout_budget_units", values[i])
@@ -510,6 +530,13 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field timing_version", values[i])
 			} else if value.Valid {
 				_m.TimingVersion = int(value.Int64)
+			}
+		case usagelog.FieldFirstByteMs:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field first_byte_ms", values[i])
+			} else if value.Valid {
+				_m.FirstByteMs = new(int)
+				*_m.FirstByteMs = int(value.Int64)
 			}
 		case usagelog.FieldFirstTokenMs:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -806,6 +833,16 @@ func (_m *UsageLog) String() string {
 	builder.WriteString("audio_output_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AudioOutputTokens))
 	builder.WriteString(", ")
+	if v := _m.RequestedServiceTier; v != nil {
+		builder.WriteString("requested_service_tier=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ResponseServiceTier; v != nil {
+		builder.WriteString("response_service_tier=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
 	if v := _m.CodexRolloutBudgetUnits; v != nil {
 		builder.WriteString("codex_rollout_budget_units=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -853,6 +890,11 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("timing_version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TimingVersion))
+	builder.WriteString(", ")
+	if v := _m.FirstByteMs; v != nil {
+		builder.WriteString("first_byte_ms=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.FirstTokenMs; v != nil {
 		builder.WriteString("first_token_ms=")

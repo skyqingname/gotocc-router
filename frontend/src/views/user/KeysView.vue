@@ -1285,6 +1285,7 @@
 </template>
 
 <script setup lang="ts">
+import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
 	import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
@@ -1771,9 +1772,12 @@ const loadApiKeys = async () => {
   }
 }
 
+let groupsRequest = 0
 const loadGroups = async () => {
+  const request = ++groupsRequest
   try {
-    groups.value = await userGroupsAPI.getAvailable(scope.value)
+    const result = await userGroupsAPI.getAvailable(scope.value)
+    if (request === groupsRequest) groups.value = result
   } catch (error) {
     console.error('Failed to load groups:', error)
   }
@@ -2274,4 +2278,5 @@ onUnmounted(() => {
   document.removeEventListener('click', closeGroupSelector)
   if (resetTimer) clearInterval(resetTimer)
 })
+useLocaleRefresh(() => Promise.all([loadApiKeys(), loadGroups()]))
 </script>

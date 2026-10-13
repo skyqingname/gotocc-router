@@ -207,6 +207,7 @@
 </template>
 
 <script setup lang="ts">
+import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -400,4 +401,5 @@ onMounted(async () => {
     console.error('Failed to load contact info:', error)
   }
 })
+useLocaleRefresh(() => fetchHistory(historyPage.value))
 </script>

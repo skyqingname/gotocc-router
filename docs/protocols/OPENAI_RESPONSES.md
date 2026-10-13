@@ -38,11 +38,15 @@ and `deepseek-v4-flash` retain their requested spelling in the upstream model fi
 The versioned IDs `deepseek-v4-flash-0731` and `deepseek-v4-pro-0813` follow the
 same rule and are included in both model candidates and empty-mapping admission.
 
-Usage timing follows the shared [first-token/total-duration/TPS contract](../USAGE_TIMING.md)
+Usage timing follows the shared [first-byte/first-token/total-duration/TPS contract](../USAGE_TIMING.md)
 (Average TPS uses non-media output tokens over total forwarding/turn duration),
 including HTTP passthrough, individual WS turns, and remote compaction. Aggregate
 compact output does not create a token clock. The obsolete `openai_ttft_mode`
-admin setting has been removed; `timing_version` identifies verified usage data.
+admin setting has been removed; `timing_version` identifies verified token timing.
+`first_byte_ms` independently measures the first response-body read before
+decompression or parsing, or the first attributable application frame for each
+WS turn. Headers, pings and local keepalives do not count. Missing and historical
+observations remain null; token and total duration values never fill that gap.
 
 ## Compatibility and per-turn billing
 
@@ -134,7 +138,9 @@ identities. Registered effort suffixes and provider-qualified spellings resolve
 to the same SKU; preview names and unknown suffixes do not inherit these rules.
 Live account metadata remains authoritative. Offline Sol/Luna catalogs use the
 existing GPT-5.6 context template; GPT-6.1 Sol uses its bundled Codex metadata,
-with a 272,000 active context and 872,000 maximum configuration override.
+with a 500,000 default active context and 872,000 maximum configuration override.
+The active default applies only when upstream context metadata is missing or
+null; an explicit upstream window, including a lower one, remains authoritative.
 
 GPT-6.1 Sol defaults to `low` and accepts `max` separately from `xhigh`.
 Its catalog `ultra` level delegates with `xhigh` and is not an upstream effort.
@@ -155,6 +161,15 @@ GPT-6 Sol, and $0.10/$0.50/$0.125/$0.01 for GPT-6 Luna. Fast is 2x and Flex is
 0.5x. At more than 272,000 total input tokens, whole-request input/cache rates
 are 2x and output rates 1.5x. Explicit channel prices, including zero cache
 write, retain precedence; one SKU cannot fall back to another family's card.
+
+GPT-6.1 Sol requests using OpenAI OAuth/setup-token subscription credentials
+are exempt from the model-card long-context surcharge. The decision uses the
+actual credential owner and final sent model, not the inbound alias or a
+response/billing label. API-key requests retain their account/group context
+policy; Astra's mandatory API-key rule and other model families are unaffected.
+Explicit administrator context intervals remain billable. The exemption follows
+response-model repricing, Free Fast settlement and account-cost statistics,
+without bypassing Plus automatic-review model mismatch protection.
 
 ## Prompt Cache Identity and Usage
 
@@ -710,3 +725,29 @@ The recovered rejection is recorded as a `retry` upstream attempt with reason
 lineage. Only the final response contributes the final usage result; no extra
 terminal event or duplicate final billing occurs. A repeated rejection is
 returned normally. See [error diagnostics](../ERROR_REQUEST_DIAGNOSTICS.md).
+
+## Administrator usage service-tier diagnostics
+
+The administrator usage table has a default-visible **Service tier** column,
+which can be hidden through column settings. It shows two lines, for example
+`Request Fast` and `Response default`, for both OAuth and API-key accounts.
+`requested_service_tier` records the final outbound tier after pass/filter/force
+policy, before billing resolution; `priority` and `fast` display as `Fast`.
+`response_service_tier` independently records the upstream declaration, preserving
+`default`, `priority`, `fast` and unknown provider values (trimmed, at most 64
+characters). HTTP bodies, SSE terminal events and individual WebSocket turns use
+these diagnostics. Responses creation/in-progress echoes are ignored; terminal
+declarations take precedence. Conflicting nonterminal Chat Completions chunks
+without a terminal declaration do not establish a response tier.
+
+Migration 284 adds nullable snapshots without backfilling: historical NULL values
+mean **Not recorded**, a newly captured empty request means **Unspecified**, and
+an empty response means **Not returned** (no unambiguous declaration). The
+existing billable `service_tier` and cost calculations remain unchanged and are
+not used to infer either diagnostic value. A `default` response alone does not
+prove that Fast was disabled, especially through Codex OAuth or compatible
+providers with their own reporting behavior.
+
+Usage tier fields are administrator-only API data. User usage responses omit
+`service_tier`, `requested_service_tier` and `response_service_tier`; user usage
+tables, column settings, cost tooltips and exports do not show service tiers.

@@ -62,6 +62,10 @@ const (
 	FieldCacheCreation1hTokens = "cache_creation_1h_tokens"
 	// FieldAudioOutputTokens holds the string denoting the audio_output_tokens field in the database.
 	FieldAudioOutputTokens = "audio_output_tokens"
+	// FieldRequestedServiceTier holds the string denoting the requested_service_tier field in the database.
+	FieldRequestedServiceTier = "requested_service_tier"
+	// FieldResponseServiceTier holds the string denoting the response_service_tier field in the database.
+	FieldResponseServiceTier = "response_service_tier"
 	// FieldCodexRolloutBudgetUnits holds the string denoting the codex_rollout_budget_units field in the database.
 	FieldCodexRolloutBudgetUnits = "codex_rollout_budget_units"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
@@ -90,6 +94,8 @@ const (
 	FieldDurationMs = "duration_ms"
 	// FieldTimingVersion holds the string denoting the timing_version field in the database.
 	FieldTimingVersion = "timing_version"
+	// FieldFirstByteMs holds the string denoting the first_byte_ms field in the database.
+	FieldFirstByteMs = "first_byte_ms"
 	// FieldFirstTokenMs holds the string denoting the first_token_ms field in the database.
 	FieldFirstTokenMs = "first_token_ms"
 	// FieldLastTokenMs holds the string denoting the last_token_ms field in the database.
@@ -215,6 +221,8 @@ var Columns = []string{
 	FieldCacheCreation5mTokens,
 	FieldCacheCreation1hTokens,
 	FieldAudioOutputTokens,
+	FieldRequestedServiceTier,
+	FieldResponseServiceTier,
 	FieldCodexRolloutBudgetUnits,
 	FieldInputCost,
 	FieldOutputCost,
@@ -229,6 +237,7 @@ var Columns = []string{
 	FieldStream,
 	FieldDurationMs,
 	FieldTimingVersion,
+	FieldFirstByteMs,
 	FieldFirstTokenMs,
 	FieldLastTokenMs,
 	FieldFirstOutputMs,
@@ -292,6 +301,10 @@ var (
 	DefaultCacheCreation1hTokens int
 	// DefaultAudioOutputTokens holds the default value on creation for the "audio_output_tokens" field.
 	DefaultAudioOutputTokens int
+	// RequestedServiceTierValidator is a validator for the "requested_service_tier" field. It is called by the builders before save.
+	RequestedServiceTierValidator func(string) error
+	// ResponseServiceTierValidator is a validator for the "response_service_tier" field. It is called by the builders before save.
+	ResponseServiceTierValidator func(string) error
 	// DefaultInputCost holds the default value on creation for the "input_cost" field.
 	DefaultInputCost float64
 	// DefaultOutputCost holds the default value on creation for the "output_cost" field.
@@ -314,6 +327,8 @@ var (
 	DefaultStream bool
 	// DefaultTimingVersion holds the default value on creation for the "timing_version" field.
 	DefaultTimingVersion int
+	// FirstByteMsValidator is a validator for the "first_byte_ms" field. It is called by the builders before save.
+	FirstByteMsValidator func(int) error
 	// FirstOutputKindValidator is a validator for the "first_output_kind" field. It is called by the builders before save.
 	FirstOutputKindValidator func(string) error
 	// DefaultCompletionStatus holds the default value on creation for the "completion_status" field.
@@ -476,6 +491,16 @@ func ByAudioOutputTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAudioOutputTokens, opts...).ToFunc()
 }
 
+// ByRequestedServiceTier orders the results by the requested_service_tier field.
+func ByRequestedServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestedServiceTier, opts...).ToFunc()
+}
+
+// ByResponseServiceTier orders the results by the response_service_tier field.
+func ByResponseServiceTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResponseServiceTier, opts...).ToFunc()
+}
+
 // ByCodexRolloutBudgetUnits orders the results by the codex_rollout_budget_units field.
 func ByCodexRolloutBudgetUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCodexRolloutBudgetUnits, opts...).ToFunc()
@@ -544,6 +569,11 @@ func ByDurationMs(opts ...sql.OrderTermOption) OrderOption {
 // ByTimingVersion orders the results by the timing_version field.
 func ByTimingVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTimingVersion, opts...).ToFunc()
+}
+
+// ByFirstByteMs orders the results by the first_byte_ms field.
+func ByFirstByteMs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFirstByteMs, opts...).ToFunc()
 }
 
 // ByFirstTokenMs orders the results by the first_token_ms field.

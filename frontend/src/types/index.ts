@@ -293,6 +293,7 @@ export interface PublicSettings {
   /** When true, user monitor hides RPM/TPM so scale cannot be reverse-estimated. */
   channel_monitor_hide_throughput?: boolean
   /** When true, user monitor shows account quota/balance snapshots (default off). */
+  channel_monitor_v1_enabled?: boolean
   channel_monitor_show_quota?: boolean
   /** When true, user monitor hides the user ranking tab and /users payload. */
   channel_monitor_hide_user_ranking?: boolean
@@ -594,6 +595,16 @@ export interface ReasoningEffortMapping {
   model?: string
 }
 
+/** 分组名称与描述在某个语言下的译文；字段为空表示沿用分组自身的 name/description。 */
+export interface GroupLocaleText {
+  name?: string
+  description?: string
+}
+
+/** 以语言代码（en、zh…）为键的分组文案译文。 */
+export type GroupI18n = Record<string, GroupLocaleText>
+
+// 用户侧接口返回的 name / description 已由后端按请求语言（Accept-Language）选好
 export interface Group {
   id: number
   name: string
@@ -659,6 +670,8 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  // 管理端的 name / description 始终是原字段，各语言译文另放在 i18n 里
+  i18n?: GroupI18n
   force_openai_fast: boolean
   free_openai_fast: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
@@ -841,6 +854,7 @@ export interface UpdateApiKeyRequest {
 export interface CreateGroupRequest {
   name: string
   description?: string | null
+  i18n?: GroupI18n
   platform?: GroupPlatform
   rate_multiplier?: number
   is_exclusive?: boolean
@@ -910,6 +924,7 @@ export interface CreateGroupRequest {
 export interface UpdateGroupRequest {
   name?: string
   description?: string | null
+  i18n?: GroupI18n
   platform?: GroupPlatform
   rate_multiplier?: number
   is_exclusive?: boolean
@@ -1707,7 +1722,6 @@ export interface UsageLog {
   account_id: number | null
   request_id: string
   model: string
-  service_tier?: string | null
   reasoning_effort?: string | null
   inbound_endpoint?: string | null
   upstream_endpoint?: string | null
@@ -1738,6 +1752,7 @@ export interface UsageLog {
   openai_ws_mode?: boolean
   native_compaction_v2: boolean
   duration_ms: number | null
+  first_byte_ms?: number | null
   first_token_ms: number | null
   last_token_ms: number | null
   timing_version?: number
@@ -1787,6 +1802,9 @@ export interface UsageLogAccountSummary {
 }
 
 export interface AdminUsageLog extends UsageLog {
+  service_tier?: string | null
+  requested_service_tier?: string | null
+  response_service_tier?: string | null
   upstream_model?: string | null
   upstream_reasoning_effort?: string | null
   upstream_response_model?: string | null
@@ -1836,6 +1854,11 @@ export interface UsageCleanupTask {
 }
 
 export interface RedeemCode {
+  generate_order?: boolean
+  order_currency?: string
+  order_amount?: number
+  order_plan_id?: number
+  order_plan_name?: string
   id: number
   code: string
   type: RedeemCodeType
@@ -1854,6 +1877,9 @@ export interface RedeemCode {
 }
 
 export interface GenerateRedeemCodesRequest {
+  generate_order?: boolean
+  order_currency?: string
+  order_plan_id?: number | null
   count: number
   type: RedeemCodeType
   value: number

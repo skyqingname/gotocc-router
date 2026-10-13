@@ -43,7 +43,7 @@
               :aria-selected="adminMonitorTab === 'legacy'"
               @click="adminMonitorTab = 'legacy'"
             >
-              {{ isV1Mode ? t('channelMonitorV2.admin.tabV1Active') : t('channelMonitorV2.admin.tabV1History') }}
+              {{ activeProbesEnabled ? t('channelMonitorV2.admin.tabV1Active') : t('channelMonitorV2.admin.tabV1History') }}
             </button>
           </div>
         </div>
@@ -54,6 +54,9 @@
 
       <TablePageLayout v-else>
       <template #filters>
+        <p v-if="!activeProbesEnabled" class="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200" role="status">
+          {{ t('admin.channelMonitor.probesDisabledHint') }}
+        </p>
         <MonitorFiltersBar
           v-model:search="searchQuery"
           v-model:provider="providerFilter"
@@ -96,7 +99,10 @@
           </template>
 
           <template #cell-latency="{ row }">
-            <span class="text-sm text-gray-900 dark:text-gray-100">{{ formatLatency(row.primary_latency_ms) }}</span>
+            <div class="text-xs text-gray-900 dark:text-gray-100" :title="t('usage.probeTimingHint')">
+              <div>{{ t('usage.latencyFirstByte') }} {{ formatLatency(row.primary_first_byte_ms) }} ms</div>
+              <div>{{ t('usage.latencyDuration') }} {{ formatLatency(row.primary_latency_ms) }} ms</div>
+            </div>
           </template>
 
           <template #cell-enabled="{ row }">
@@ -107,6 +113,7 @@
             <MonitorActionsCell
               :row="row"
               :running="runningId === row.id"
+              :probes-enabled="activeProbesEnabled"
               :duplicating="duplicatingIds.has(row.id)"
               @run="handleRunNow"
               @duplicate="handleDuplicate"
@@ -203,11 +210,12 @@ import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 import MonitorSettingsPanel from '@/features/channel-monitor-v2/MonitorSettingsPanel.vue'
 import StatusSettingsPanel from '@/features/channel-monitor-v3/StatusSettingsPanel.vue'
-import { isChannelMonitorV1Mode, getChannelMonitorMode } from '@/utils/featureFlags'
+import { isChannelMonitorV1Mode, isChannelMonitorActiveProbeEnabled, getChannelMonitorMode } from '@/utils/featureFlags'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const isV1Mode = computed(() => isChannelMonitorV1Mode())
+const activeProbesEnabled = computed(() => isChannelMonitorActiveProbeEnabled())
 const initialMode = getChannelMonitorMode()
 const adminMonitorTab = ref<'v2' | 'v3' | 'legacy'>(initialMode === 'v1' ? 'legacy' : initialMode)
 const {
@@ -330,8 +338,8 @@ async function toggleEnabled(row: ChannelMonitor) {
 }
 
 async function handleRunNow(row: ChannelMonitor) {
-  if (!isV1Mode.value) {
-    appStore.showError(t('admin.channelMonitor.runFailed'))
+  if (!activeProbesEnabled.value) {
+    appStore.showError(t('admin.channelMonitor.probesDisabledHint'))
     return
   }
   if (runningId.value != null) return

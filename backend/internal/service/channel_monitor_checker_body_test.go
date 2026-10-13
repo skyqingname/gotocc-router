@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/firstbyte"
 )
 
 // swapMonitorHTTPClient 临时替换 monitorHTTPClient 为不带 SSRF 校验的普通 client，
@@ -20,7 +22,7 @@ import (
 func swapMonitorHTTPClient(t *testing.T) {
 	t.Helper()
 	orig := monitorHTTPClient
-	monitorHTTPClient = &http.Client{Timeout: 5 * time.Second}
+	monitorHTTPClient = &http.Client{Timeout: 5 * time.Second, Transport: firstbyte.WrapTransport(&http.Transport{})}
 	t.Cleanup(func() { monitorHTTPClient = orig })
 }
 

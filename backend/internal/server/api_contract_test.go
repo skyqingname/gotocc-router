@@ -5,6 +5,7 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -625,6 +626,7 @@ func TestAPIContracts(t *testing.T) {
 						"billing_type": 0,
 							"stream": true,
 							"duration_ms": 100,
+							"first_byte_ms": null,
 							"first_token_ms": 50,
 							"timing_version": 0,
 								"last_token_ms": 90,
@@ -1000,6 +1002,9 @@ func TestAPIContracts(t *testing.T) {
 					"payment_balance_recharge_multiplier": 0,
 					"payment_subscription_usd_to_cny_rate": 0,
 					"payment_recharge_fee_rate": 0,
+					"payment_redeem_purchase_enabled": false,
+					"payment_redeem_purchase_url": "",
+					"payment_redeem_purchase_mode": "new_tab",
 					"payment_recharge_bonus_tiers": [],
 					"payment_recharge_bonus_mode": "bonus",
 					"payment_recharge_bonus_notice": "",
@@ -1024,6 +1029,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
 					"channel_monitor_enabled": true,
+					"channel_monitor_v1_enabled": false,
 					"channel_monitor_mode": "v1",
 					"channel_monitor_hide_throughput": true,
 					"channel_monitor_show_quota": false,
@@ -1335,6 +1341,9 @@ func TestAPIContracts(t *testing.T) {
 					"payment_balance_recharge_multiplier": 0,
 					"payment_subscription_usd_to_cny_rate": 0,
 					"payment_recharge_fee_rate": 0,
+					"payment_redeem_purchase_enabled": false,
+					"payment_redeem_purchase_url": "",
+					"payment_redeem_purchase_mode": "new_tab",
 					"payment_recharge_bonus_tiers": [],
 					"payment_recharge_bonus_mode": "bonus",
 					"payment_recharge_bonus_notice": "",
@@ -1358,6 +1367,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
 					"channel_monitor_enabled": true,
+					"channel_monitor_v1_enabled": false,
 					"channel_monitor_mode": "v1",
 					"channel_monitor_hide_throughput": true,
 					"channel_monitor_show_quota": false,
@@ -1469,6 +1479,44 @@ func TestAPIContracts(t *testing.T) {
 			status, body := doRequest(t, deps.router, tt.method, tt.path, tt.body, tt.headers)
 			require.Equal(t, tt.wantStatus, status)
 			require.JSONEq(t, tt.wantJSON, body)
+		})
+	}
+}
+
+// docs/USAGE_TIMING.md requires the HTTP reader to expose independently
+// measured bytes, preserve zero, and leave historical gaps null.
+func TestUsageAPIContract_FirstByteIndependent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tc := range []struct {
+		name      string
+		firstByte *int
+		wantJSON  string
+	}{
+		{name: "historical unknown", wantJSON: "null"},
+		{name: "observed zero", firstByte: ptr(0), wantJSON: "0"},
+		{name: "observed before token", firstByte: ptr(18), wantJSON: "18"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deps := newContractDeps(t)
+			deps.usageRepo.SetUserLogs(1, []service.UsageLog{{
+				ID: 1, UserID: 1, APIKeyID: 100, AccountID: 200,
+				Model: "claude-3", Stream: true, CreatedAt: deps.now,
+				DurationMs: ptr(100), FirstByteMs: tc.firstByte,
+				FirstTokenMs: ptr(50), LastTokenMs: ptr(90), TimingVersion: 1,
+			}})
+			status, body := doRequest(t, deps.router, http.MethodGet, "/api/v1/usage?page=1&page_size=10", "", nil)
+			require.Equal(t, http.StatusOK, status)
+			var response struct {
+				Data struct {
+					Items []map[string]json.RawMessage `json:"items"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal([]byte(body), &response))
+			require.Len(t, response.Data.Items, 1)
+			item := response.Data.Items[0]
+			require.Equal(t, tc.wantJSON, string(item["first_byte_ms"]))
+			require.Equal(t, "50", string(item["first_token_ms"]))
+			require.Equal(t, "90", string(item["last_token_ms"]))
 		})
 	}
 }

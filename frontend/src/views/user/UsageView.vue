@@ -228,7 +228,8 @@
 </template>
 
 <script setup lang="ts">
-import { strictFirstTokenMs, averageTps, tpsNote } from '@/utils/usageTiming'
+import { useLocaleRefresh } from '@/utils/localeRefresh'
+import { firstByteMs, strictFirstTokenMs, averageTps, tpsNote } from '@/utils/usageTiming'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -692,7 +693,8 @@ const exportToCSV = async () => {
       'Rate Multiplier',
       'Billed Cost',
       'Original Cost',
-		'First Token (ms)',
+		'First Byte (ms)',
+      'First Token (ms)',
       'First Output (ms)',
       'First Output Kind',
       'Duration (ms)',
@@ -715,7 +717,7 @@ const exportToCSV = async () => {
       log.rate_multiplier,
       log.actual_cost.toFixed(8),
       log.total_cost.toFixed(8),
-      strictFirstTokenMs(log) ?? '',
+      firstByteMs(log) ?? '', strictFirstTokenMs(log) ?? '',
       log.first_output_ms ?? '',
       log.first_output_kind ?? '',
       log.duration_ms ?? '',
@@ -860,26 +862,34 @@ const loadApiKeys = async () => {
   return keys
 }
 
+let filterRequest = 0
 const loadFilterOptions = async () => {
+  const request = ++filterRequest
   try {
     const [personalKeys, availableGroups] = await Promise.all([
       loadApiKeys(),
       userGroupsAPI.getAvailable(),
     ])
+    if (request !== filterRequest) return
     let teamKeys: TeamAPIKey[] = []
     try {
-      teamContext.value = await teamAPI.current()
+      const context = await teamAPI.current()
+      if (request !== filterRequest) return
+      teamContext.value = context
       const requests: [Promise<TeamAPIKey[]>, Promise<TeamMembership[]> | null] = [
         teamAPI.keys(),
         teamContext.value.membership.role === 'owner' ? teamAPI.members() : null,
       ]
-      teamKeys = await requests[0]
-      teamMembers.value = requests[1] ? await requests[1] : []
+      const [loadedKeys, loadedMembers] = await Promise.all([requests[0], requests[1]])
+      if (request !== filterRequest) return
+      teamKeys = loadedKeys
+      teamMembers.value = loadedMembers ?? []
     } catch (error: any) {
       const noTeam = error?.reason === 'TEAM_NOT_FOUND'
         || error?.reason === 'TEAM_MEMBERSHIP_REQUIRED'
         || error?.response?.status === 404
       if (!noTeam) throw error
+      if (request !== filterRequest) return
       teamContext.value = null
       teamMembers.value = []
     }
@@ -999,4 +1009,5 @@ onUnmounted(() => {
 watch(endpointDistributionSource, () => {
   // Endpoint source switching is handled by the chart component using already loaded stats.
 })
+useLocaleRefresh(() => Promise.all([loadLogs(), loadFilterOptions()]))
 </script>
