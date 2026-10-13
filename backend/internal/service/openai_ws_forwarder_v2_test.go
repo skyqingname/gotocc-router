@@ -25,7 +25,6 @@ func TestForwardOpenAIWSV2_FirstBytePrecedesTokenAndIgnoresIdleFrames(t *testing
 	cfg := newOpenAIWSV2TestConfig()
 	cfg.Security.URLAllowlist.Enabled = false
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
-	cfg.Gateway.OpenAIWS.MinIdlePerAccount = 0
 	conn := &openAIWSCaptureConn{
 		events: [][]byte{
 			[]byte(`{"type":"session.updated"}`),

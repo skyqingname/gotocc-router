@@ -124,6 +124,12 @@ func (h *GatewayHandler) UserRoutingPriorities(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	language := c.GetHeader("Accept-Language")
+	localizeRoutingPriorityGroups(priorities.Groups, language)
+	localizeRoutingPriorityGroups(priorities.AvailableGroups, language)
+	for i := range priorities.ModelRules {
+		localizeRoutingPriorityGroups(priorities.ModelRules[i].Groups, language)
+	}
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, priorities)
 }

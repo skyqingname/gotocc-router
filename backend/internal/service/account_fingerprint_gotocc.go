@@ -1,13 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/antigravity"
 	"github.com/gin-gonic/gin"
 )
 
@@ -87,4 +90,50 @@ func accountFingerprintJSON(ctx context.Context, body []byte, protocol string) [
 	}
 	result, _ := json.Marshal(payload)
 	return result
+}
+
+// Fingerprint scoring consumes the final answer, not thought text or a partial
+// stream that happened to contain enough numbers before the connection ended.
+func accountFingerprintGeminiAnswer(body []byte) (string, error) {
+	var answer strings.Builder
+	for _, line := range bytes.Split(body, []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		payload := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if bytes.Equal(payload, []byte("[DONE]")) {
+			break
+		}
+		var frame struct {
+			antigravity.GeminiResponse
+			Response *antigravity.GeminiResponse `json:"response"`
+			Error    json.RawMessage             `json:"error"`
+		}
+		if err := json.Unmarshal(payload, &frame); err != nil {
+			return "", fmt.Errorf("decode fingerprint response: %w", err)
+		}
+		if len(frame.Error) > 0 && string(frame.Error) != "null" {
+			return "", fmt.Errorf("fingerprint response contains an upstream error")
+		}
+		response := &frame.GeminiResponse
+		if frame.Response != nil {
+			response = frame.Response
+		}
+		if len(response.Candidates) == 0 {
+			continue
+		}
+		candidate := response.Candidates[0]
+		if candidate.Content != nil {
+			for _, part := range candidate.Content.Parts {
+				if !part.Thought {
+					answer.WriteString(part.Text)
+				}
+			}
+		}
+		if candidate.FinishReason != "" {
+			return answer.String(), nil
+		}
+	}
+	return "", fmt.Errorf("fingerprint stream ended before finishReason")
 }

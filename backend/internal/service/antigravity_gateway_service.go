@@ -421,6 +421,12 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	}
 
 	text := extractTextFromSSEResponse(respBody)
+	if accountFingerprintPrompt(ctx) != "" {
+		text, err = accountFingerprintGeminiAnswer(respBody)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &TestConnectionResult{Text: text, MappedModel: mappedModel}, nil
 }
 

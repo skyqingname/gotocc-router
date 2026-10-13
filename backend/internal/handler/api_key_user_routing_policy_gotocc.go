@@ -28,6 +28,7 @@ func (h *GatewayHandler) UserGetKeyRoutingPreference(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	localizeRoutingPriorityGroups(state.AvailableGroups, c.GetHeader("Accept-Language"))
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, state)
 }

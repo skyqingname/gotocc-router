@@ -2,5 +2,6 @@
 package service
 
 var canvasCardDenominations = []int{10, 20, 50, 100}
+
 const CanvasCardPageSize = 20
 const canvasCardImportLimit = 1000

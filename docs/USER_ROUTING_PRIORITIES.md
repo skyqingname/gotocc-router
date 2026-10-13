@@ -3,7 +3,8 @@
 The administrator enables `allow_user_override` in the existing smart routing
 policy dialog (Groups → Smart routing priorities). It defaults to false for
 new installations and existing stored policies. `api-key-routing-defaults.json`
-is the documented initial policy payload; the existing settings database owns
+generates the initial Go policy through `tools/generate_api_key_routing_defaults.py`
+and supplies the administrator form defaults. The existing settings database owns
 the runtime value. No environment variables or schema migration are needed.
 
 Users can customize default ordering and exact/terminal-wildcard model rules

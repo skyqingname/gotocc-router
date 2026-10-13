@@ -53,12 +53,13 @@ import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AutoGroupOrderEditor from './AutoGroupOrderEditor.vue'
+import routingDefaults from '../../../../../api-key-routing-defaults.json'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
 const { t } = useI18n()
 const app = useAppStore()
-const policy = ref<AutoGroupRoutingPolicy>({ allow_user_override: false, default_group_order: [], model_rules: [] })
+const policy = ref<AutoGroupRoutingPolicy>(structuredClone(routingDefaults))
 const groups = ref<AdminGroup[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -70,7 +71,7 @@ watch(() => props.show, async (show) => {
   if (!show) return
   loading.value = true
   loaded.value = false
-  policy.value = { allow_user_override: false, default_group_order: [], model_rules: [] }
+  policy.value = structuredClone(routingDefaults)
   error.value = ''
   try {
     const [data, available] = await Promise.all([getAutoRoutingPolicy(), getAllIncludingInactive()])

@@ -11,9 +11,10 @@ import (
 
 // AutoRoutePriorityGroup exposes only the identity of an authorized candidate.
 type AutoRoutePriorityGroup struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Platform string `json:"platform"`
+	ID       int64     `json:"id"`
+	Name     string    `json:"name"`
+	Platform string    `json:"platform"`
+	I18n     GroupI18n `json:"-"`
 }
 
 type AutoRouteModelPriority struct {
@@ -195,7 +196,7 @@ func priorityGroups(groups []Group, included map[int64]bool) []AutoRoutePriority
 	result := make([]AutoRoutePriorityGroup, 0, len(included))
 	for _, group := range groups {
 		if included[group.ID] {
-			result = append(result, AutoRoutePriorityGroup{ID: group.ID, Name: group.Name, Platform: group.Platform})
+			result = append(result, AutoRoutePriorityGroup{ID: group.ID, Name: group.Name, Platform: group.Platform, I18n: group.I18n})
 		}
 	}
 	return result

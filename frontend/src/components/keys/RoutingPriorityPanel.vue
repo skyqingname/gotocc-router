@@ -15,7 +15,7 @@
       <p v-if="loading" role="status" class="text-sm text-gray-500 dark:text-dark-300">{{ t('keys.routingPriority.loading') }}</p>
       <div v-else-if="failed" role="alert" class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-sm text-red-700 dark:text-red-300">{{ t('keys.routingPriority.loadFailed') }}</p>
-        <button type="button" class="btn btn-secondary min-h-11" @click="load">{{ t('keys.routingPriority.retry') }}</button>
+        <button type="button" class="btn btn-secondary min-h-11" @click="load()">{{ t('keys.routingPriority.retry') }}</button>
       </div>
       <template v-else-if="priorities">
         <div v-if="allowed" class="flex flex-wrap items-center justify-between gap-2">
@@ -80,6 +80,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { getRoutingPriorities, type RoutingPriorities, type RoutingPriorityGroup } from '@/api/groups'
 import { getKeyRoutingPreference, updateKeyRoutingPreference, type RoutingPreference } from '@/api/keyRoutingPolicy'
 import RoutingPreferenceEditor from './RoutingPreferenceEditor.vue'
+import { useLocaleRefresh } from '@/utils/localeRefresh'
 
 const props = defineProps<{ scope: 'personal' | 'team'; keyId?: number; disabled?: boolean }>()
 const { t } = useI18n()
@@ -96,7 +97,8 @@ let controller: AbortController | undefined
 let generation = 0
 const copy = (value: RoutingPreference | null): RoutingPreference | null => value ? JSON.parse(JSON.stringify(value)) : null
 
-async function load() {
+async function load(preserveDraft = false) {
+  const keepDraft = preserveDraft && (priorities.value !== null || dirty.value || savedPreference.value !== null)
   controller?.abort()
   controller = new AbortController()
   const current = ++generation
@@ -104,10 +106,12 @@ async function load() {
   failed.value = false
   priorities.value = null
   allowed.value = false
-  dirty.value = false
   validationError.value = ''
-  draft.value = null
-  savedPreference.value = null
+  if (!keepDraft) {
+    dirty.value = false
+    draft.value = null
+    savedPreference.value = null
+  }
   try {
     const [data, state] = await Promise.all([
       getRoutingPriorities(props.scope, controller.signal),
@@ -117,8 +121,10 @@ async function load() {
     priorities.value = data
     allowed.value = state?.allow_user_override ?? data.allow_user_override ?? false
     availableGroups.value = state?.available_groups ?? data.available_groups ?? data.groups
-    savedPreference.value = copy(state?.preference ?? null)
-    draft.value = copy(savedPreference.value)
+    if (!keepDraft) {
+      savedPreference.value = copy(state?.preference ?? null)
+      draft.value = copy(savedPreference.value)
+    }
   } catch {
     if (current === generation) failed.value = true
   } finally {
@@ -161,6 +167,7 @@ async function save(id: number) {
   }
 }
 defineExpose({ save, validate })
-watch(() => [props.scope, props.keyId], load, { immediate: true })
+watch(() => [props.scope, props.keyId], () => load(), { immediate: true })
+useLocaleRefresh(() => load(true))
 onUnmounted(() => { generation++; controller?.abort() })
 </script>

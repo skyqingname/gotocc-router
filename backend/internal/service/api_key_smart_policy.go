@@ -44,7 +44,7 @@ func (s *AutoGroupRoutingPolicyService) Get(ctx context.Context) (*AutoGroupRout
 	}
 	raw, err := s.settings.GetValue(ctx, autoGroupRoutingPolicySetting)
 	if errors.Is(err, ErrSettingNotFound) {
-		return emptyAutoGroupRoutingPolicy(), nil
+		return defaultAutoGroupRoutingPolicy(), nil
 	}
 	if err != nil {
 		return nil, ErrAutoRouteUnavailable.WithCause(err)

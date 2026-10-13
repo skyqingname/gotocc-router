@@ -25,8 +25,9 @@ type RedeemActivity struct {
 }
 
 type RedeemActivityGroup struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID   int64     `json:"id"`
+	Name string    `json:"name"`
+	I18n GroupI18n `json:"-"`
 }
 
 func (s *CanvasCardService) Activity(ctx context.Context, userID int64, params pagination.PaginationParams) ([]RedeemActivity, int64, error) {

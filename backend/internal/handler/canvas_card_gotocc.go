@@ -74,6 +74,11 @@ func (h *CanvasCardHandler) Activity(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	for i := range items {
+		if group := items[i].Group; group != nil {
+			group.Name = group.I18n.LocalizeName(c.GetHeader("Accept-Language"), group.Name)
+		}
+	}
 	response.Paginated(c, items, total, page, pageSize)
 }
 

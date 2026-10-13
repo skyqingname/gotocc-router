@@ -555,7 +555,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 
 	turnStart := time.Now()
-	byteCtx, byteTiming := beginFirstByteTiming(ctx, turnStart)
+	ctx, byteTiming := beginFirstByteTiming(ctx, turnStart)
 	rejectedFieldRetryState := newOpenAIResponsesRejectedFieldRetryState(body)
 	var resp *http.Response
 	for {
@@ -563,7 +563,6 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if buildErr != nil {
 			return nil, buildErr
 		}
-		upstreamReq = upstreamReq.WithContext(byteCtx)
 		resp, err = s.doOpenAIUpstream(upstreamReq, proxyURL, account)
 		if err != nil {
 			if turn == 1 {

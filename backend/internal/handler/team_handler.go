@@ -290,6 +290,9 @@ func (h *TeamHandler) ListTeamKeys(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	for i := range items {
+		items[i].GroupName = items[i].GroupI18n.LocalizeName(c.GetHeader("Accept-Language"), items[i].GroupName)
+	}
 	response.Success(c, items)
 }
 

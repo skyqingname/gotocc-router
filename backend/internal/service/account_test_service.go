@@ -2761,6 +2761,9 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 					if parts, ok := content["parts"].([]any); ok {
 						for _, part := range parts {
 							if partMap, ok := part.(map[string]any); ok {
+								if fingerprint && partMap["thought"] == true {
+									continue
+								}
 								if text, ok := partMap["text"].(string); ok && text != "" {
 									s.sendEvent(c, TestEvent{Type: "content", Text: text})
 								}
