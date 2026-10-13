@@ -2717,11 +2717,15 @@ func createGeminiTestPayload(modelID string, prompt string) []byte {
 // processGeminiStream processes SSE stream from Gemini API
 func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	fingerprint := accountFingerprintPrompt(c.Request.Context()) != ""
 
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil {
+		if err != nil && (err != io.EOF || line == "" || !fingerprint) {
 			if err == io.EOF {
+				if fingerprint {
+					return s.sendErrorAndEnd(c, "Gemini fingerprint stream ended before finishReason")
+				}
 				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
 				return nil
 			}
@@ -2845,11 +2849,15 @@ func createOpenAIChatCompletionsTestPayload(modelID string, prompt string) map[s
 // processClaudeStream processes the SSE stream from Claude API
 func (s *AccountTestService) processClaudeStream(c *gin.Context, body io.Reader) error {
 	reader := bufio.NewReader(body)
+	fingerprint := accountFingerprintPrompt(c.Request.Context()) != ""
 
 	for {
 		line, err := reader.ReadString('\n')
-		if err != nil {
+		if err != nil && (err != io.EOF || line == "" || !fingerprint) {
 			if err == io.EOF {
+				if fingerprint {
+					return s.sendErrorAndEnd(c, "Anthropic fingerprint stream ended before message_stop")
+				}
 				s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
 				return nil
 			}
