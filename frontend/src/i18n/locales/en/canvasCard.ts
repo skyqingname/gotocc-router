@@ -1,5 +1,6 @@
 export default {
   canvasCard: {
+    drawerTitle: 'Exchange for Canvas balance', amountLabel: '{amount} Canvas balance', activityTitle: 'Exchanged {amount} Canvas balance', viewCode: 'View code', paid: 'Balance deducted',
     title: 'Want to use Canvas?', subtitle: 'Exchange your balance for a card.',
     hint: 'Exchange balance 1:1 for an equal-value card to use on Canvas.',
     denomination: 'Face value', available: '{count} available', soldOut: 'Out of stock',
@@ -10,7 +11,7 @@ export default {
     insufficient: 'Insufficient balance', success: 'Your Canvas card is ready',
     result: '{amount} deducted from {source}', code: 'Canvas card code',
     openCanvas: 'Open Canvas', copy: 'Copy code', copied: 'Code copied',
-    history: 'My Canvas cards', historyHint: 'View and copy your previously issued cards here.',
+    history: 'My Canvas cards', historyHint: 'Your card is saved in Recent Activity for later viewing and copying.',
     noHistory: 'No cards exchanged yet', order: 'Order #{id}',
     retry: 'Get the result of this exchange', pending: 'The result is not confirmed yet. Retrying continues the same exchange without charging twice.',
     loadError: 'Could not load Canvas exchange information. Please retry.',

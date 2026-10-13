@@ -36,6 +36,7 @@ func registerAdminSupportRoutes(admin *gin.RouterGroup, h *handler.Handlers, set
 	support.GET("/usage/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
 	support.GET("/announcements", h.Announcement.List)
 	support.GET("/redeem/history", h.Redeem.GetHistory)
+	support.GET("/redeem/activity", h.CanvasCard.Activity)
 	support.GET("/subscriptions", h.Subscription.List)
 	support.GET("/subscriptions/active", h.Subscription.GetActive)
 	support.GET("/subscriptions/progress", h.Subscription.GetProgress)

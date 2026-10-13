@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 	"strconv"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
@@ -57,22 +58,23 @@ func canvasCardPage(c *gin.Context) (int, bool) {
 	return page, true
 }
 
-func (h *CanvasCardHandler) History(c *gin.Context) {
-	subject, ok := middleware.GetAuthSubjectFromContext(c)
+func (h *CanvasCardHandler) Activity(c *gin.Context) {
+	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	page, ok := canvasCardPage(c)
-	if !ok {
+	page, pageSize := response.ParsePagination(c)
+	if page-1 > int(^uint(0)>>1)/pageSize {
+		response.BadRequest(c, "Invalid page")
 		return
 	}
-	items, total, err := h.service.History(c.Request.Context(), subject.UserID, page)
+	items, total, err := h.service.Activity(c.Request.Context(), subject.UserID, pagination.PaginationParams{Page: page, PageSize: pageSize})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Paginated(c, items, int64(total), page, service.CanvasCardPageSize)
+	response.Paginated(c, items, total, page, pageSize)
 }
 
 // Admin methods are registered only below the existing administrator middleware.

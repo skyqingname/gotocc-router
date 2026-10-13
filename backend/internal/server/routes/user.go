@@ -163,7 +163,7 @@ func RegisterUserRoutes(
 			redeem.GET("/history", h.Redeem.GetHistory)
 			redeem.GET("/canvas-cards", h.CanvasCard.Overview)
 			redeem.POST("/canvas-cards", h.CanvasCard.Exchange)
-			redeem.GET("/canvas-cards/history", h.CanvasCard.History)
+			redeem.GET("/activity", h.CanvasCard.Activity)
 		}
 
 		// 用户订阅

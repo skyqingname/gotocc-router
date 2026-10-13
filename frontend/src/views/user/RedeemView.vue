@@ -1,6 +1,5 @@
 <template>
   <AppLayout>
-    <CanvasCardExchange v-if="!adminSupportContext" @exchanged="onCanvasCardExchanged" />
     <!-- 宽屏左栏放余额、兑换与说明，右栏放兑换记录；窄屏按兑换、说明、记录顺序堆叠。 -->
     <div class="grid w-full gap-6 lg:grid-cols-[22.5rem_minmax(0,1fr)] lg:items-start">
       <div class="flex min-w-0 flex-col gap-6">
@@ -107,6 +106,7 @@
             <li>{{ t('redeem.codeRule4') }}</li>
           </ul>
         </section>
+        <CanvasCardExchange ref="canvasExchange" :readonly="!!adminSupportContext" @exchanged="onCanvasCardExchanged" />
       </div>
 
       <!-- 兑换记录用分隔线划分列表项，窄屏共用一层内边距。 -->
@@ -135,7 +135,8 @@
         >
           <li v-for="item in history" :key="item.id" class="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
             <div :class="['flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', getHistoryTone(item).bg]">
-              <Icon v-if="isBalanceType(item.type)" name="dollar" size="sm" :class="getHistoryTone(item).text" />
+              <Icon v-if="item.canvas_card" name="gift" size="sm" :class="getHistoryTone(item).text" />
+              <Icon v-else-if="isBalanceType(item.type)" name="dollar" size="sm" :class="getHistoryTone(item).text" />
               <Icon v-else-if="isSubscriptionType(item.type)" name="badge" size="sm" :class="getHistoryTone(item).text" />
               <Icon v-else name="bolt" size="sm" :class="getHistoryTone(item).text" />
             </div>
@@ -147,7 +148,11 @@
               <p class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400">
                 <span class="shrink-0">{{ formatDateTime(item.used_at) }}</span>
                 <span aria-hidden="true">·</span>
-                <template v-if="isAdminAdjustment(item.type)">
+                <template v-if="item.canvas_card">
+                  <span>{{ t(item.canvas_card.funding_source === 'team' ? 'canvasCard.team' : 'canvasCard.personal') }}</span>
+                  <span v-if="item.canvas_card.team_id">· #{{ item.canvas_card.team_id }}</span>
+                </template>
+                <template v-else-if="isAdminAdjustment(item.type)">
                   <span class="shrink-0">{{ t('redeem.adminAdjustment') }}</span>
                   <template v-if="item.notes">
                     <span aria-hidden="true">·</span>
@@ -158,11 +163,10 @@
               </p>
             </div>
 
-            <p
-              :class="['max-w-40 shrink-0 truncate text-right text-sm font-semibold tabular-nums', getHistoryTone(item).text]"
-            >
-              {{ formatHistoryValue(item) }}
-            </p>
+            <div class="max-w-40 shrink-0 text-right">
+              <p :class="['truncate text-sm font-semibold tabular-nums', getHistoryTone(item).text]">{{ formatHistoryValue(item) }}</p>
+              <button v-if="item.canvas_card" type="button" class="mt-1 text-xs text-primary-600 hover:underline dark:text-primary-400" @click="canvasExchange?.showOrder(item.canvas_card)">{{ t('canvasCard.viewCode') }}</button>
+            </div>
           </li>
         </ul>
 
@@ -232,6 +236,7 @@ const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
 
 const user = computed(() => authStore.user)
+const canvasExchange = ref<InstanceType<typeof CanvasCardExchange> | null>(null)
 
 const redeemCode = ref('')
 const submitting = ref(false)
@@ -297,7 +302,7 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
   } else if (item.type === 'canvas_card') {
-    return t('canvasCard.historyTitle')
+    return t('canvasCard.activityTitle', { amount: item.canvas_card!.denomination })
   } else if (item.type === 'team_transfer') {
     return t('redeem.balanceTeamTransfer')
   } else if (item.type === 'canvas_transfer') {
@@ -315,6 +320,7 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
+  if (item.canvas_card) return `-$${item.canvas_card.denomination.toFixed(2)}`
   if (item.type === 'balance_cashback') return `+$${formatCashbackAmount(item.value, locale.value)}`
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
@@ -335,7 +341,7 @@ const fetchHistory = async (page = 1) => {
   const pageSize = historyPageSize.value
   loadingHistory.value = true
   try {
-    const result = await redeemAPI.getHistory(page, pageSize)
+    const result = await redeemAPI.getActivity(page, pageSize)
     if (request !== historyRequest) return
     history.value = result.items
     historyTotal.value = result.total

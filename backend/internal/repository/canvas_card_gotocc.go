@@ -174,29 +174,6 @@ func debitCanvasCardTeam(ctx context.Context, tx *sql.Tx, userID int64, in servi
 	return recordTeamWalletMovement(ctx, tx, teamID, "canvas-card:"+in.OperationID, "canvas_card", userID, 0, -amount, 0, out.BalanceAfter, frozen)
 }
 
-func (r *canvasCardRepository) History(ctx context.Context, userID int64, page int) ([]service.CanvasCardOrder, int, error) {
-	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM canvas_card_orders WHERE user_id=$1`, userID).Scan(&total); err != nil {
-		return nil, 0, err
-	}
-	rows, err := r.db.QueryContext(ctx, `SELECT o.id,o.operation_id,o.user_id,o.denomination,o.funding_source,o.team_id,o.balance_after,o.created_at,i.code
-		FROM canvas_card_orders o JOIN canvas_card_inventory i ON i.issued_order_id=o.id
-		WHERE o.user_id=$1 ORDER BY o.id DESC LIMIT $2 OFFSET $3`, userID, service.CanvasCardPageSize, (page-1)*service.CanvasCardPageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-	out := []service.CanvasCardOrder{}
-	for rows.Next() {
-		var item service.CanvasCardOrder
-		if err := rows.Scan(&item.ID, &item.OperationID, &item.UserID, &item.Denomination, &item.FundingSource, &item.TeamID, &item.BalanceAfter, &item.CreatedAt, &item.Code); err != nil {
-			return nil, 0, err
-		}
-		out = append(out, item)
-	}
-	return out, total, rows.Err()
-}
-
 func (r *canvasCardRepository) Inventory(ctx context.Context, denomination int, status string, page int) ([]service.CanvasCardInventoryItem, int, error) {
 	where := ` WHERE ($1::integer=0 OR i.denomination=$1) AND ($2::text='' OR ($2='available' AND i.issued_order_id IS NULL) OR ($2='issued' AND i.issued_order_id IS NOT NULL))`
 	var total int

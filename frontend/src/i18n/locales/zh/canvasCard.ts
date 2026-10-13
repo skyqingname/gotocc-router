@@ -1,5 +1,6 @@
 export default {
   canvasCard: {
+    drawerTitle: '兑换画布余额', amountLabel: '{amount} 画布余额', activityTitle: '兑换 {amount} 画布余额', viewCode: '查看卡密', paid: '扣除余额',
     title: '想使用画布站吗？', subtitle: '使用余额进行兑换。',
     hint: '按 1:1 扣除余额，领取等额画布卡密，在画布站使用。',
     denomination: '面额', available: '剩余 {count} 张', soldOut: '暂时缺货',
@@ -10,7 +11,7 @@ export default {
     insufficient: '所选余额不足', success: '画布卡密已领取',
     result: '已从{source}扣除 {amount} 余额', code: '画布卡密',
     openCanvas: '前往画布站', copy: '复制卡密', copied: '卡密已复制',
-    history: '我的画布卡密', historyHint: '已领取的卡密可在这里重新查看、复制。',
+    history: '我的画布卡密', historyHint: '卡密已保存在最近活动中，可随时查看、复制。',
     noHistory: '还没有兑换记录', order: '兑换单 #{id}',
     retry: '继续获取这笔兑换结果', pending: '这笔兑换的结果尚未确认。再次点击会继续同一笔兑换，不重复扣款。',
     loadError: '画布兑换信息加载失败，请重试',

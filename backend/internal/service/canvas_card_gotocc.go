@@ -8,6 +8,7 @@ import (
 	"time"
 
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 	"github.com/google/uuid"
 )
 
@@ -70,7 +71,7 @@ type CanvasCardRepository interface {
 	Stock(context.Context) ([]CanvasCardStock, error)
 	Import(context.Context, int64, int, []string) error
 	Exchange(context.Context, int64, CanvasCardExchangeInput) (*CanvasCardOrder, error)
-	History(context.Context, int64, int) ([]CanvasCardOrder, int, error)
+	Activity(context.Context, int64, pagination.PaginationParams) ([]RedeemActivity, int64, error)
 	Inventory(context.Context, int, string, int) ([]CanvasCardInventoryItem, int, error)
 }
 
@@ -190,10 +191,6 @@ func (s *CanvasCardService) Import(ctx context.Context, adminID int64, in Canvas
 		in.Codes[i] = code
 	}
 	return s.repo.Import(ctx, adminID, in.Denomination, in.Codes)
-}
-
-func (s *CanvasCardService) History(ctx context.Context, userID int64, page int) ([]CanvasCardOrder, int, error) {
-	return s.repo.History(ctx, userID, page)
 }
 
 func (s *CanvasCardService) Inventory(ctx context.Context, denomination int, status string, page int) ([]CanvasCardInventoryItem, int, error) {

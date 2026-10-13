@@ -30,7 +30,7 @@ const personalReads = [
   /^\/channels\/available$/,
   /^\/usage(?:\/(stats|errors(?:\/\d+)?|\d+|dashboard\/(stats|trend|models|snapshot-v2|api-keys-usage)))?$/,
   /^\/subscriptions(?:\/(active|progress|summary))?$/,
-  /^\/redeem\/history$/,
+  /^\/redeem\/(history|activity)$/,
   /^\/announcements$/,
   /^\/channel-monitors(?:\/\d+\/status)?$/,
   /^\/channel-monitor-v2\/(dimensions|snapshot|models|matrix|errors|users)$/,

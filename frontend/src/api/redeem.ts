@@ -4,9 +4,11 @@
  */
 
 import { apiClient } from './client'
+import type { CanvasCardOrder } from './canvasCard'
 import type { PaginatedResponse, RedeemCodeRequest } from '@/types'
 
 export interface RedeemHistoryItem {
+  canvas_card?: CanvasCardOrder
   cashback_amount?: number
   id: number
   code: string
@@ -50,7 +52,12 @@ export async function getHistory(page = 1, pageSize = 20): Promise<PaginatedResp
   return data
 }
 
+export async function getActivity(page = 1, pageSize = 20): Promise<PaginatedResponse<RedeemHistoryItem>> {
+  return (await apiClient.get<PaginatedResponse<RedeemHistoryItem>>('/redeem/activity', { params: { page, page_size: pageSize } })).data
+}
+
 export const redeemAPI = {
+  getActivity,
   redeem,
   getHistory
 }
