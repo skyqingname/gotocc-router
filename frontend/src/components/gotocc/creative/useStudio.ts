@@ -13,7 +13,7 @@ import { useUserView } from '@/composables/useUserView'
 import { isGPTImage2, validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
 import type { ApiKey } from '@/types'
 import config from '../../../../../creative-studio.json'
-import { createCreativeLocalStore, outputAssetKey, type LocalRunParams } from './localStore'
+import { createCreativeLocalStore, type LocalRunParams } from './localStore'
 import type { CreativeOperation } from './types'
 
 export interface StudioOutput { blob: Blob; runId: string; outputIndex: number }
@@ -102,6 +102,9 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     tasks.value = []
     if (!key) return
     const history = refreshHistory()
+    const activeTasks = loadActive(key).catch(cause => {
+      if (version === selectionVersion && !disposed) showError(cause)
+    })
     loadingModels.value = true
     try {
       const capabilities = isAutoRoutingKey(key) ? await getAutoRoutingCapabilities(key) : undefined
@@ -115,10 +118,9 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
         onModelChanged()
       }
       if (!canInpaint.value && form.operation === 'inpaint') form.operation = 'edit'
-      await loadActive(key)
     } catch (cause) { if (version === selectionVersion) showError(cause) }
     finally {
-      await history
+      await Promise.all([history, activeTasks])
       if (version === selectionVersion) loadingModels.value = false
     }
   }
@@ -270,7 +272,6 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
       for (let index = 0; index < blobs.length; index++) {
         if (disposed) return
         const asset = { blob: blobs[index], runId: task.task_id, outputIndex: index }
-        await local.saveAsset({ ...asset, key: outputAssetKey(task.task_id, index), kind: 'output', createdAt: Date.now() })
         await placeOutput(asset)
       }
     } catch (cause) { showError(cause) }
@@ -279,9 +280,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   async function resolveOutput(runId: string, outputIndex: number): Promise<Blob> {
     const key = selectedKey.value!
     const task = tasks.value.find(task => task.task_id === runId)!
-    const blob = (await taskBlobs(task, key))[outputIndex]
-    await local.saveAsset({ blob, runId, outputIndex, key: outputAssetKey(runId, outputIndex), kind: 'output', createdAt: Date.now() })
-    return blob
+    return (await taskBlobs(task, key))[outputIndex]
   }
 
   async function downloadTask(task: AsyncImageTask) {

@@ -173,9 +173,9 @@ import Icon from './StudioIcon.vue'
 import CropperModal from './CropperModal.vue'
 import type { CreativeOperation } from './types'
 import type { CreativeCanvasGuide } from './types'
-import { LocalStoreQuotaError, createCreativeLocalStore, localAssetKey, outputAssetKey } from './localStore'
+import { LocalStoreQuotaError, createCreativeLocalStore, localAssetKey, outputAssetKey, type LocalAsset } from './localStore'
 import { useUserView } from '@/composables/useUserView'
-const { loadAsset, loadSceneJson, saveAsset, saveSceneJson } = createCreativeLocalStore(useUserView().user!.id)
+const { loadAsset, loadSceneJson, saveSceneJson } = createCreativeLocalStore(useUserView().user!.id)
 import {
   CREATIVE_OUTPUT_DRAG_MIME,
   isSupportedCreativeImageFile,
@@ -1494,6 +1494,7 @@ async function addImageToScene(
       ...(resolution ? { resolution } : {}),
       ...(meta.runId !== undefined ? { runId: meta.runId, outputIndex: meta.outputIndex } : {}),
     })
+    runtimeBlobs.set(meta.assetKey, blob)
     canvas.add(image)
     canvas.setActiveObject(image)
     selectedObjectCount.value = 1
@@ -1542,7 +1543,6 @@ async function placeOutputNow(
 ): Promise<void> {
   if (!canvas) return
   const assetKey = outputAssetKey(asset.runId, asset.outputIndex)
-  runtimeBlobs.set(assetKey, asset.blob)
   try {
     // 生成输出与上传图统一按 1/4 尺寸上板；排布、换行与视角定位均按缩放后尺寸计算
     const size = await probeImageSize(asset.blob)
@@ -1571,24 +1571,12 @@ async function placeOutputNow(
   }
 }
 
-// 上传或外部拖入的源图先保存本地库，再按指定中心点放置，保证场景刷新后仍可恢复。
+// 上传或外部拖入的源图随场景一起保存，避免缓存中留下未上板的孤立图片。
 async function addUploadedImageAt(blob: Blob, center: { x: number; y: number }): Promise<void> {
   await sceneRestorePromise
   if (sceneDisposed) return
   if (!canvas) return
   const assetKey = localAssetKey('source', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
-  try {
-    await saveAsset({ key: assetKey, kind: 'source', blob, createdAt: Date.now() })
-  } catch (error) {
-    // 本地保存失败时终止放置，配额不足时提示用户。
-    if (error instanceof LocalStoreQuotaError) {
-      emit('error', t('creative.error.quotaExceeded'))
-    } else {
-      emit('error', t('creative.error.loadImageFailed'))
-    }
-    return
-  }
-  runtimeBlobs.set(assetKey, blob)
   try {
     // 上传图按 1/4 尺寸上板（与生成输出统一；原始 blob 不变，源图仍发全分辨率给模型）
     const size = await probeImageSize(blob)
@@ -1604,7 +1592,7 @@ async function addUploadedImageAt(blob: Blob, center: { x: number; y: number }):
       recordLastPlaced(position, { width: size.width * scale, height: size.height * scale })
     }
     scheduleSceneSave()
-    // 上传图片已经写入素材库后立即保存场景，确保刚放置完成就刷新也能恢复。
+    // 图片与当前场景在同一事务中提交。
     flushSceneSave()
   } catch (error) {
     console.error('Failed to place uploaded image:', error)
@@ -1822,30 +1810,38 @@ function flushSceneSave(): void {
 
 function persistSceneNow(): Promise<void> {
   if (!canvas || sceneDisposed || sceneRestoreInProgress || !sceneDirty) return sceneWriteChain
-  const json = snapshotScene()
+  const snapshot = snapshotScene()
   const revision = sceneRevision
   sceneWriteChain = sceneWriteChain
     .catch(() => undefined)
-    .then(() => saveSceneJson(SCENE_KEY, json))
+    .then(() => saveSceneJson(SCENE_KEY, snapshot.json, snapshot.assets))
     .then(() => {
       // 只有期间没有更新过画布时才清除脏标记，否则保留给下一次写入。
       if (sceneRevision === revision) sceneDirty = false
     })
     .catch((error) => {
       console.error('Failed to persist creative scene:', error)
+      emit('error', t(error instanceof LocalStoreQuotaError ? 'creative.error.quotaExceeded' : 'creative.error.saveFailed'))
     })
   return sceneWriteChain
 }
 
 // 序列化（含自定义 data）：图片像素不进快照，src 用 asset://<assetKey> 占位；
 // 锚点/参考图描边和分辨率标记是运行时辅助对象，不持久化
-function snapshotScene(): string {
-  if (!canvas) return '{}'
+function snapshotScene(): { json: string; assets: LocalAsset[] } {
+  if (!canvas) return { json: '{}', assets: [] }
   const json = canvas.toObject(['data']) as { objects?: Array<Record<string, unknown> & ObjectWithData> }
+  const assets = new Map<string, LocalAsset>()
   for (const object of json.objects ?? []) {
     const assetKey = object.data?.assetKey
     if (isImageSnapshotObject(object) && typeof assetKey === 'string') {
       object.src = `${ASSET_PROTOCOL}${assetKey}`
+      const { runId, outputIndex } = object.data!
+      assets.set(assetKey, {
+        key: assetKey, kind: typeof runId === 'string' ? 'output' : 'source',
+        blob: runtimeBlobs.get(assetKey)!, createdAt: Date.now(),
+        ...(typeof runId === 'string' && typeof outputIndex === 'number' ? { runId, outputIndex } : {}),
+      })
     }
   }
   json.objects = (json.objects ?? []).filter(
@@ -1855,7 +1851,7 @@ function snapshotScene(): string {
       object.data?.kind !== RESOLUTION_TAG_KIND &&
       object.data?.kind !== 'mask',
   )
-  return JSON.stringify(json)
+  return { json: JSON.stringify(json), assets: [...assets.values()] }
 }
 
 // 挂载时恢复：asset:// 图片回 IndexedDB 取 blob，缺失的图跳过不阻塞
