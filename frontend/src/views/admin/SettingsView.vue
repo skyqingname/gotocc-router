@@ -6858,6 +6858,7 @@
 
 	        <!-- Tab: Features (功能开关) -->
         <div v-show="activeTab === 'features'" class="space-y-6">
+        <BalanceCashbackSettings v-model="form.balance_cashback" />
 
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -6891,6 +6892,10 @@
             </div>
 
             <div v-if="form.channel_monitor_enabled" class="space-y-5">
+              <div v-if="form.channel_monitor_mode === 'v3'" class="flex items-center justify-between gap-4">
+                <div><label class="input-label">{{ t('featureExtensions.probesEnabled') }}</label><p class="text-xs text-gray-500">{{ t('featureExtensions.probesHint') }}</p></div>
+                <Toggle v-model="form.channel_monitor_v1_enabled" />
+              </div>
               <div>
                 <label class="input-label">
                   {{ t('admin.settings.features.channelMonitor.mode') }}
@@ -7966,6 +7971,15 @@
             </div>
           </div>
 
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"><h2 class="text-lg font-semibold">{{ t('featureExtensions.purchaseSettings') }}</h2><p class="mt-1 text-sm text-gray-500">{{ t('featureExtensions.purchaseSettingsHint') }}</p></div>
+            <div class="space-y-4 p-6">
+              <div class="flex items-center justify-between"><label class="input-label">{{ t('featureExtensions.purchaseEnabled') }}</label><Toggle v-model="form.payment_redeem_purchase_enabled" /></div>
+              <div><label class="input-label" for="redeem-purchase-url">{{ t('featureExtensions.purchaseURL') }}</label><input id="redeem-purchase-url" v-model="form.payment_redeem_purchase_url" type="url" class="input" placeholder="https://" /></div>
+              <div><label class="input-label">{{ t('featureExtensions.purchaseMode') }}</label><Select v-model="form.payment_redeem_purchase_mode" :options="[{ value: 'new_tab', label: t('featureExtensions.newTab') }, { value: 'iframe', label: t('featureExtensions.iframe') }]" /></div>
+            </div>
+          </div>
+
           <!-- 充值优惠阶梯（独立卡片，与服务商管理同级） -->
           <RechargeBonusTierEditor
             v-if="form.payment_enabled"
@@ -8673,6 +8687,9 @@ import AdminModelPlazaOverrides from '@/components/gotocc/plaza/AdminModelPlazaO
 import affiliateDefaults from "../../../../affiliate-defaults.json";
 const affiliateRateKeys = ["affiliate_rebate_rate", "affiliate_rebate_rate_l2", "affiliate_rebate_rate_l3"] as const;
 import { ref, reactive, computed, onMounted, watch } from "vue";
+import BalanceCashbackSettings from '@/components/gotocc/cashback/BalanceCashbackSettings.vue';
+import { validBalanceCashbackSettings } from '@/utils/balanceCashback';
+import balanceCashbackConfig from '../../../../balance-cashback.json';
 import { listPlatformIds } from "@/constants/platformCatalog";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
@@ -9423,6 +9440,7 @@ type SettingsForm = Omit<
   /** Form always binds a concrete boolean (SystemSettings marks this optional). */
   channel_monitor_hide_throughput: boolean;
   channel_monitor_show_quota: boolean;
+  channel_monitor_v1_enabled: boolean;
   channel_monitor_hide_user_ranking: boolean;
   smtp_password: string;
   turnstile_secret_key: string;
@@ -9498,6 +9516,7 @@ const form = reactive<SettingsForm>({
   login_agreement_updated_at: "2026-03-31",
   login_agreement_documents: defaultLoginAgreementDocuments(),
   default_balance: 0,
+  balance_cashback: { ...balanceCashbackConfig.defaults },
   default_platform_quotas: normalizePlatformQuotasMap() as DefaultPlatformQuotasMap,
   account_scheduling_thresholds: normalizeAccountSchedulingThresholdsMap(),
   affiliate_rebate_rate: affiliateDefaults.rebate_rates_percent[0],
@@ -9545,6 +9564,9 @@ const form = reactive<SettingsForm>({
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
+  payment_redeem_purchase_enabled: false,
+  payment_redeem_purchase_url: "",
+  payment_redeem_purchase_mode: "new_tab" as "new_tab" | "iframe",
   payment_product_name_prefix: "",
   payment_product_name_suffix: "",
   payment_load_balance_strategy: "round-robin",
@@ -9767,6 +9789,7 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   channel_monitor_hide_throughput: false,
   channel_monitor_show_quota: false,
+  channel_monitor_v1_enabled: false,
   channel_monitor_hide_user_ranking: false,
   // Available Channels feature switch
   available_channels_enabled: false,
@@ -10886,6 +10909,10 @@ async function loadSettings() {
     form.channel_monitor_hide_throughput = Boolean(
       settings.channel_monitor_hide_throughput
     );
+    form.payment_redeem_purchase_enabled = Boolean(settings.payment_redeem_purchase_enabled);
+    form.payment_redeem_purchase_url = settings.payment_redeem_purchase_url || "";
+    form.payment_redeem_purchase_mode = settings.payment_redeem_purchase_mode === "iframe" ? "iframe" : "new_tab";
+    form.channel_monitor_v1_enabled = Boolean(settings.channel_monitor_v1_enabled);
     form.channel_monitor_show_quota = Boolean(
       settings.channel_monitor_show_quota
     );
@@ -11121,6 +11148,10 @@ const siteBillingModeHint = computed(() =>
 async function saveSettings() {
   saving.value = true;
   try {
+    if (!validBalanceCashbackSettings(form.balance_cashback)) {
+      appStore.showError(t('balanceCashback.invalidSettings'));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11293,6 +11324,7 @@ async function saveSettings() {
       login_agreement_updated_at: form.login_agreement_updated_at,
       login_agreement_documents: form.login_agreement_documents,
       default_balance: form.default_balance,
+      balance_cashback: form.balance_cashback,
       affiliate_rebate_rate: Math.min(
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),
@@ -11534,6 +11566,9 @@ async function saveSettings() {
       payment_product_name_suffix: form.payment_product_name_suffix,
       payment_help_image_url: form.payment_help_image_url,
       payment_help_text: form.payment_help_text,
+      payment_redeem_purchase_enabled: form.payment_redeem_purchase_enabled,
+      payment_redeem_purchase_url: form.payment_redeem_purchase_url,
+      payment_redeem_purchase_mode: form.payment_redeem_purchase_mode,
       payment_cancel_rate_limit_enabled: form.payment_cancel_rate_limit_enabled,
       payment_cancel_rate_limit_max:
         Number(form.payment_cancel_rate_limit_max) || 10,
@@ -11595,6 +11630,7 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       channel_monitor_hide_throughput: Boolean(form.channel_monitor_hide_throughput),
       channel_monitor_show_quota: Boolean(form.channel_monitor_show_quota),
+      channel_monitor_v1_enabled: Boolean(form.channel_monitor_v1_enabled),
       channel_monitor_hide_user_ranking: Boolean(form.channel_monitor_hide_user_ranking),
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,

@@ -12,6 +12,7 @@ import (
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	"github.com/LuckyKuang/sub2api-plus/ent/paymentorder"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 )
 
@@ -251,7 +252,10 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type == "" {
 		code.Type = RedeemTypeBalance
 	}
-	if code.Type != RedeemTypeInvitation && code.Value == 0 {
+	if err := freezeRedeemOrder(ctx, s.entClient, code); err != nil {
+		return err
+	}
+	if !code.GenerateOrder && code.Type != RedeemTypeInvitation && code.Value == 0 {
 		return errors.New("value must not be zero")
 	}
 	if code.Status == "" {
@@ -494,6 +498,13 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 			return nil, fmt.Errorf("capture payment attribution: %w", err)
 		}
 	}
+	if redeemCode.GenerateOrder && redeemCode.Type == RedeemTypeSubscription {
+		group, groupErr := tx.Group.Get(txCtx, *redeemCode.GroupID)
+		if groupErr != nil || group.Status != StatusActive || group.DeletedAt != nil || group.SubscriptionType != "subscription" {
+			return nil, infraerrors.BadRequest("REDEEM_ORDER_GROUP_UNAVAILABLE", "subscription group is unavailable")
+		}
+	}
+
 	// 【关键】先标记兑换码为已使用，确保并发安全
 	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
 	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {
@@ -504,6 +515,7 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	}
 
 	// 执行兑换逻辑（兑换码已被锁定，此时可安全操作）
+	var cashbackAmount float64
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		amount := redeemCode.Value
@@ -520,6 +532,10 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 		if standaloneBalance {
 			if _, err := s.affiliateService.AccrueInviteRebateForRedeem(txCtx, userID, amount); err != nil {
 				return nil, fmt.Errorf("accrue redeem affiliate rebate: %w", err)
+			}
+			cashbackAmount, err = creditBalanceCashback(txCtx, tx.Client(), userID, redeemCode)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -547,13 +563,13 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 			if validityDays == 0 {
 				validityDays = 30
 			}
-			_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
+			_, _, err := s.subscriptionService.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
 				UserID:       userID,
 				GroupID:      *redeemCode.GroupID,
 				ValidityDays: validityDays,
 				AssignedBy:   0, // 系统分配
 				Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
-			})
+			}, true)
 			if err != nil {
 				return nil, fmt.Errorf("assign or extend subscription: %w", err)
 			}
@@ -561,6 +577,10 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 
 	default:
 		return nil, unsupportedRedeemTypeError(redeemCode.Type)
+	}
+
+	if err := createRedeemOrder(txCtx, tx, redeemCode, userID); err != nil {
+		return nil, err
 	}
 
 	// 提交事务
@@ -576,6 +596,7 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	if err != nil {
 		return nil, fmt.Errorf("get updated redeem code: %w", err)
 	}
+	redeemCode.CashbackAmount = cashbackAmount
 
 	return redeemCode, nil
 }
@@ -606,16 +627,10 @@ func (s *RedeemService) invalidateRedeemCaches(ctx context.Context, userID int64
 		if s.authCacheInvalidator != nil {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
 		}
-		if s.billingCacheService == nil {
-			return
-		}
-		if redeemCode.GroupID != nil {
-			groupID := *redeemCode.GroupID
-			go func() {
-				cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				_ = s.billingCacheService.InvalidateSubscription(cacheCtx, userID, groupID)
-			}()
+		if s.subscriptionService != nil && redeemCode.GroupID != nil {
+			if err := s.subscriptionService.invalidateSubscriptionCaches(userID, *redeemCode.GroupID); err != nil {
+				logger.LegacyPrintf("service.redeem", "[Redeem] invalidate subscription caches for user %d group %d: %v", userID, *redeemCode.GroupID, err)
+			}
 		}
 	}
 }
@@ -742,9 +757,7 @@ func (s *RedeemService) reduceOrCancelSubscription(ctx context.Context, userID, 
 		return fmt.Errorf("update subscription notes: %w", err)
 	}
 
-	// 失效缓存
-	s.subscriptionService.InvalidateSubCache(userID, groupID)
-
+	// The caller invalidates subscription caches only after redemption commits.
 	return nil
 }
 

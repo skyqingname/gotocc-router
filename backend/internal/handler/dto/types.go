@@ -105,6 +105,10 @@ type Group struct {
 	IsExclusive    bool    `json:"is_exclusive"`
 	Status         string  `json:"status"`
 
+	// I18n 名称与描述的各语言译文。只有管理端输出；用户侧接口经 Localized 把
+	// name/description 换成请求语言的版本后清空本字段。
+	I18n domain.GroupI18n `json:"i18n,omitempty"`
+
 	SubscriptionType          string   `json:"subscription_type"`
 	DailyLimitUSD             *float64 `json:"daily_limit_usd"`
 	WeeklyLimitUSD            *float64 `json:"weekly_limit_usd"`
@@ -518,15 +522,16 @@ type ProxyAccountSummary struct {
 }
 
 type RedeemCode struct {
-	ID        int64      `json:"id"`
-	Code      string     `json:"code"`
-	Type      string     `json:"type"`
-	Value     float64    `json:"value"`
-	Status    string     `json:"status"`
-	UsedBy    *int64     `json:"used_by"`
-	UsedAt    *time.Time `json:"used_at"`
-	CreatedAt time.Time  `json:"created_at"`
-	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	CashbackAmount float64    `json:"cashback_amount,omitempty"`
+	ID             int64      `json:"id"`
+	Code           string     `json:"code"`
+	Type           string     `json:"type"`
+	Value          float64    `json:"value"`
+	Status         string     `json:"status"`
+	UsedBy         *int64     `json:"used_by"`
+	UsedAt         *time.Time `json:"used_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 
 	GroupID      *int64 `json:"group_id"`
 	ValidityDays int    `json:"validity_days"`
@@ -543,6 +548,11 @@ type RedeemCode struct {
 // 注意：普通用户接口不得返回 notes 等内部信息。
 type AdminRedeemCode struct {
 	RedeemCode
+	GenerateOrder bool    `json:"generate_order"`
+	OrderCurrency string  `json:"order_currency"`
+	OrderAmount   float64 `json:"order_amount"`
+	OrderPlanID   *int64  `json:"order_plan_id"`
+	OrderPlanName string  `json:"order_plan_name"`
 
 	Notes string `json:"notes"`
 }
@@ -614,6 +624,20 @@ type BatchUpdateRedeemCodeFields struct {
 	Value *float64 `json:"value,omitempty"`
 }
 
+func (f *BatchUpdateRedeemCodeFields) UnmarshalJSON(data []byte) error {
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return err
+	}
+	for _, key := range []string{"generate_order", "order_currency", "order_amount", "order_plan_id", "order_plan_name", "validity_days"} {
+		if _, present := keys[key]; present {
+			return service.ErrRedeemOrderSnapshotImmutable
+		}
+	}
+	type fields BatchUpdateRedeemCodeFields
+	return json.Unmarshal(data, (*fields)(f))
+}
+
 type BatchUpdateRedeemCodesRequest struct {
 	IDs    []int64                     `json:"ids" binding:"required,min=1"`
 	Fields BatchUpdateRedeemCodeFields `json:"fields" binding:"required"`
@@ -627,8 +651,6 @@ type UsageLog struct {
 	AccountID int64  `json:"account_id"`
 	RequestID string `json:"request_id"`
 	Model     string `json:"model"`
-	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
-	ServiceTier *string `json:"service_tier,omitempty"`
 	// ReasoningEffort is the client-requested effort (mapping-hidden, like Model).
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	// Historical rows without requested_reasoning_effort fall back to the stored effective value.
@@ -667,6 +689,7 @@ type UsageLog struct {
 	// runtime as the native OpenAI remote compaction v2 wire.
 	NativeCompactionV2 bool    `json:"native_compaction_v2"`
 	DurationMs         *int    `json:"duration_ms"`
+	FirstByteMs        *int    `json:"first_byte_ms"`
 	FirstTokenMs       *int    `json:"first_token_ms"`
 	LastTokenMs        *int    `json:"last_token_ms"`
 	TimingVersion      int     `json:"timing_version"`
@@ -714,6 +737,9 @@ type UsageLog struct {
 // AdminUsageLog 是管理员接口使用的 usage log DTO（包含管理员字段）。
 type AdminUsageLog struct {
 	UsageLog
+	ServiceTier          *string `json:"service_tier,omitempty"`
+	RequestedServiceTier *string `json:"requested_service_tier"`
+	ResponseServiceTier  *string `json:"response_service_tier"`
 
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.
 	// Omitted when no mapping was applied (requested model was used as-is).

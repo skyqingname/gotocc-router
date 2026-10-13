@@ -248,6 +248,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
+		SettingKeyChannelMonitorV1Enabled,
 		SettingKeyChannelMonitorShowQuota,
 		SettingKeyChannelMonitorHideUserRanking,
 		SettingKeyAvailableChannelsEnabled,
@@ -380,6 +381,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
+		ChannelMonitorV1Enabled:              settings[SettingKeyChannelMonitorV1Enabled] == "true",
 		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
 		ChannelMonitorHideUserRanking:        isTrueSettingValue(settings[SettingKeyChannelMonitorHideUserRanking]),
 
@@ -460,6 +462,7 @@ type ChannelMonitorRuntime struct {
 	// snapshots; otherwise the user handler strips them server-side.
 	// Parsed fail-closed (only literal "true" enables). Admin always sees them.
 	ShowQuota bool
+	V1Enabled bool
 	// HideUserRanking: when true, user-facing V2 views hide the user ranking tab
 	// and the /users payload. Absent/false remains visible; true/1/on/enabled hides it.
 	HideUserRanking bool
@@ -467,7 +470,7 @@ type ChannelMonitorRuntime struct {
 
 // ActiveProbesAllowed reports whether V1 active provider probes may run.
 func (r ChannelMonitorRuntime) ActiveProbesAllowed() bool {
-	return r.Enabled && r.Mode == ChannelMonitorModeV1
+	return r.Enabled && (r.Mode == ChannelMonitorModeV1 || (r.Mode == ChannelMonitorModeV3 && r.V1Enabled))
 }
 
 // PassiveAggregationAllowed reports whether V2 passive aggregation may run.
@@ -476,11 +479,11 @@ func (r ChannelMonitorRuntime) PassiveAggregationAllowed() bool {
 }
 
 // GetChannelMonitorRuntime reads the channel monitor feature flags directly from
-// the settings store. Fail-open: on error returns Enabled=true, Mode=v1, default interval.
+// the settings store. Reads fail closed for provider-bound active probes.
 func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMonitorRuntime {
 	if s == nil || s.settingRepo == nil {
 		return ChannelMonitorRuntime{
-			Enabled:                true,
+			Enabled:                false,
 			Mode:                   defaultChannelMonitorMode,
 			DefaultIntervalSeconds: channelMonitorIntervalFallback,
 			HideThroughput:         true,
@@ -491,12 +494,13 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
+		SettingKeyChannelMonitorV1Enabled,
 		SettingKeyChannelMonitorShowQuota,
 		SettingKeyChannelMonitorHideUserRanking,
 	})
 	if err != nil {
 		return ChannelMonitorRuntime{
-			Enabled:                true,
+			Enabled:                false,
 			Mode:                   defaultChannelMonitorMode,
 			DefaultIntervalSeconds: channelMonitorIntervalFallback,
 			HideThroughput:         true,
@@ -508,6 +512,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		DefaultIntervalSeconds: parseChannelMonitorInterval(vals[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		HideThroughput:         !isFalseSettingValue(vals[SettingKeyChannelMonitorHideThroughput]),
 		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
+		V1Enabled:              vals[SettingKeyChannelMonitorV1Enabled] == "true",
 		HideUserRanking:        isTrueSettingValue(vals[SettingKeyChannelMonitorHideUserRanking]),
 	}
 }
@@ -662,6 +667,7 @@ type PublicSettingsInjectionPayload struct {
 	// ChannelMonitorHideUserRanking hides the user ranking tab and /users payload
 	// from non-admin channel-monitor v2 viewers; default false (visible).
 	ChannelMonitorHideUserRanking bool `json:"channel_monitor_hide_user_ranking"`
+	ChannelMonitorV1Enabled       bool `json:"channel_monitor_v1_enabled"`
 	ChannelMonitorShowQuota       bool `json:"channel_monitor_show_quota"`
 	AvailableChannelsEnabled      bool `json:"available_channels_enabled"`
 	SubscriptionEnabled           bool `json:"subscription_enabled"`
@@ -749,6 +755,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorMode:                   settings.ChannelMonitorMode,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
+		ChannelMonitorV1Enabled:              settings.ChannelMonitorV1Enabled,
 		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		ChannelMonitorHideUserRanking:        settings.ChannelMonitorHideUserRanking,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
@@ -837,6 +844,14 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 	// purchase subscription URL
 	if settings.PurchaseSubscriptionEnabled {
 		addOrigin(settings.PurchaseSubscriptionURL)
+	}
+
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingPaymentEnabled, SettingPaymentRedeemPurchaseEnabled, SettingPaymentRedeemPurchaseURL, SettingPaymentRedeemPurchaseMode})
+	if err != nil {
+		return nil, err
+	}
+	if vals[SettingPaymentEnabled] == "true" && vals[SettingPaymentRedeemPurchaseEnabled] == "true" && vals[SettingPaymentRedeemPurchaseMode] == "iframe" && ValidateRedeemPurchase(true, vals[SettingPaymentRedeemPurchaseURL], "iframe") == nil {
+		addOrigin(vals[SettingPaymentRedeemPurchaseURL])
 	}
 
 	// all custom menu items (including admin-only, since CSP must allow all iframes)

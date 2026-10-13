@@ -1,5 +1,6 @@
 export default {
   common: {
+    retry: 'Retry',
     loading: 'Loading...',
     submitting: 'Submitting...',
     justNow: 'just now',

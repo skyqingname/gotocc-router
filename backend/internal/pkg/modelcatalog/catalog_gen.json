@@ -1,6 +1,6 @@
 {
  "source": "https://models.dev/api.json",
- "fetched_at": "2026-10-10T09:23:57+00:00",
+ "fetched_at": "2026-10-13T10:07:53+00:00",
  "providers": [
   {
    "id": "openai",
@@ -9415,6 +9415,34 @@
       "input": 0.1,
       "output": 0.2,
       "cache_read": 0.002
+     }
+    },
+    {
+     "id": "muse-wonder-1.0",
+     "name": "Muse Wonder",
+     "description": "Muse Wonder is a frontier multimodal reasoning model from Meta for personal and professional agents, long-horizon coding, and computer use. It combines Active Memory, which carries relevant context across conversations, with Active Focus, which keeps it working through blockers toward a goal.",
+     "family": "muse",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "release_date": "2026-10-12",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "video",
+       "pdf",
+       "audio"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 131072
      }
     }
    ]

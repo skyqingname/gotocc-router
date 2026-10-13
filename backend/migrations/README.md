@@ -23,6 +23,35 @@ installations and upgraded databases reach the same state. Application API,
 service, repository and Ent validation still reject unregistered platforms.
 Channel-monitor provider CHECKs continue to enforce implemented probe capability.
 
+Migration `302_redeem_order_snapshots.sql` adds opt-in redeem-code order snapshots
+and payment-order source, currency, plan-name and unique redeem-code linkage.
+Existing codes default to no order; existing orders keep the `payment` source
+and their established provider-snapshot currency resolution. Historical orders
+remain valid after a code or plan is deleted. See [payments](../../docs/PAYMENT.md).
+
+Migration `303_channel_monitor_v3_probe_sources.sql` extends V3 fact, state and
+incident keys with source and scope. Existing rows become `request` observations
+with their original group ID as scope, preserving history and incident IDs.
+Probe scopes use monitor IDs and nullable group IDs; extra probes default off.
+See [channel monitoring](../../docs/CHANNEL_MONITOR.md).
+
+Migration `304_usage_service_tier_snapshots.sql` adds independent nullable
+outbound-request and upstream-response service-tier diagnostics. Historical
+rows stay unrecorded; billing tiers and prices are unchanged. These fields are
+administrator-only. See [Responses diagnostics](../../docs/protocols/OPENAI_RESPONSES.md#administrator-usage-service-tier-diagnostics).
+
+Migration `305_first_byte_timing.sql` adds independent nullable body-first-data
+timing to usage and V1 histories and independent successful-probe rollup sums
+and counts. Existing rows stay NULL/zero-sample; no token clock is backfilled.
+See [usage timing](../../docs/USAGE_TIMING.md).
+
+Migration `306_group_i18n.sql` adds a non-null JSONB translation map to groups,
+defaulting to `{}` for existing and new groups. Original names/descriptions,
+Plus five-hour limits, reset sources and custom prices remain intact. The
+official source names this new migration `242_group_i18n.sql`; Plus already
+uses prefix 242, so GoToCC imports Plus 286 as 306 after its existing Canvas-card migration 301. Existing
+filenames and checksums remain immutable.
+
 ## File Naming
 
 Regular migration:

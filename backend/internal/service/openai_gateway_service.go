@@ -334,6 +334,8 @@ type OpenAIForwardResult struct {
 	// UpstreamResponseServiceTier is the tier the upstream reports having used
 	// (response service_tier: "priority" / "default" / "flex" / ...); "" when not declared.
 	UpstreamResponseServiceTier string
+	// ResponseServiceTier preserves the upstream declaration for admin diagnostics, independently of billing.
+	ResponseServiceTier string
 	// UpstreamEndpoint is the actual upstream API path used for this request.
 	// It avoids guessing when one downstream protocol can use multiple upstream endpoints.
 	UpstreamEndpoint string
@@ -359,6 +361,7 @@ type OpenAIForwardResult struct {
 	// group follow-reset as a later inference session.
 	ResponseHeadersFromHandshake bool
 	Duration                     time.Duration
+	FirstByteMs                  *int
 	FirstTokenMs                 *int
 	LastTokenMs                  *int
 	FirstOutputMs                *int
@@ -739,7 +742,14 @@ func (s *OpenAIGatewayService) ResolveChannelMappingAndRestrict(ctx context.Cont
 	return s.channelService.ResolveChannelMappingAndRestrict(ctx, groupID, model)
 }
 
+// isCodexImageGenerationBridgeEnabled 决定是否为 Codex 客户端自动注入 hosted
+// image_generation 工具。该工具是 OpenAI Responses 专属能力，Kimi / DeepSeek /
+// MiniMax 等经 OpenAI 网关转发的原生 Responses 上游不识别，注入后会被 400 拒绝，
+// 因此非 OpenAI 平台账号一律不桥接，后续再按账号 → 渠道 → 全局的优先级取开关。
 func (s *OpenAIGatewayService) isCodexImageGenerationBridgeEnabled(ctx context.Context, account *Account, apiKey *APIKey) bool {
+	if account == nil || account.Platform != PlatformOpenAI {
+		return false
+	}
 	if override := account.CodexImageGenerationBridgeOverride(); override != nil {
 		return *override
 	}

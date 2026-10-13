@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from "../client";
+import type { BalanceCashbackSettings } from '@/utils/balanceCashback';
 import { listPlatformIds } from "@/constants/platformCatalog";
 import type {
   AccountPlatform,
@@ -403,6 +404,7 @@ export function deriveWeChatConnectStoredMode(
  * System settings interface
  */
 export interface SystemSettings {
+  balance_cashback: BalanceCashbackSettings;
   // Registration settings
   registration_enabled: boolean;
   email_verify_enabled: boolean;
@@ -693,6 +695,9 @@ export interface SystemSettings {
   payment_product_name_prefix: string;
   payment_product_name_suffix: string;
   payment_help_image_url: string;
+  payment_redeem_purchase_enabled: boolean;
+  payment_redeem_purchase_url: string;
+  payment_redeem_purchase_mode: 'iframe' | 'new_tab';
   payment_help_text: string;
   payment_cancel_rate_limit_enabled: boolean;
   payment_cancel_rate_limit_max: number;
@@ -746,6 +751,7 @@ export interface SystemSettings {
   channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds: number;
   channel_monitor_hide_throughput?: boolean;
+  channel_monitor_v1_enabled?: boolean;
   channel_monitor_show_quota?: boolean;
   channel_monitor_hide_user_ranking?: boolean;
 
@@ -772,6 +778,7 @@ export interface SystemSettings {
 }
 
 export interface UpdateSettingsRequest {
+  balance_cashback?: BalanceCashbackSettings;
   registration_enabled?: boolean;
   email_verify_enabled?: boolean;
   registration_email_suffix_whitelist?: string[];
@@ -1024,6 +1031,9 @@ export interface UpdateSettingsRequest {
   payment_product_name_prefix?: string;
   payment_product_name_suffix?: string;
   payment_help_image_url?: string;
+  payment_redeem_purchase_enabled?: boolean;
+  payment_redeem_purchase_url?: string;
+  payment_redeem_purchase_mode?: 'iframe' | 'new_tab';
   payment_help_text?: string;
   payment_cancel_rate_limit_enabled?: boolean;
   payment_cancel_rate_limit_max?: number;
@@ -1065,6 +1075,7 @@ export interface UpdateSettingsRequest {
   channel_monitor_mode?: 'v1' | 'v2' | 'v3';
   channel_monitor_default_interval_seconds?: number;
   channel_monitor_hide_throughput?: boolean;
+  channel_monitor_v1_enabled?: boolean;
   channel_monitor_show_quota?: boolean;
   channel_monitor_hide_user_ranking?: boolean;
 

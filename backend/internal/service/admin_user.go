@@ -435,6 +435,9 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		if err := s.redeemCodeRepo.Create(txCtx, record); err != nil {
 			return nil, err
 		}
+		if err := s.creditAdminBalanceCashback(txCtx, tx.Client(), userID, operation, record); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.tryAccrueAffiliateRebateForAdminRecharge(txCtx, userID, operation, balance); err != nil {
 		return nil, err
@@ -1116,9 +1119,18 @@ func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*Redeem
 }
 
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
+	if input == nil || input.Count < 1 || input.Count > 100 {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_COUNT_INVALID", "count must be between 1 and 100")
+	}
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(time.Now()) {
 		return nil, ErrRedeemCodeExpired
 	}
+
+	snapshot := RedeemCode{Type: input.Type, Value: input.Value, GenerateOrder: input.GenerateOrder, OrderCurrency: input.OrderCurrency, OrderPlanID: input.OrderPlanID, GroupID: input.GroupID, ValidityDays: input.ValidityDays}
+	if err := freezeRedeemOrder(ctx, s.entClient, &snapshot); err != nil {
+		return nil, err
+	}
+	input.GroupID, input.ValidityDays = snapshot.GroupID, snapshot.ValidityDays
 
 	// 如果是订阅类型，验证必须有 GroupID
 	if input.Type == RedeemTypeSubscription {
@@ -1135,6 +1147,12 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		}
 	}
 
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
 	codes := make([]RedeemCode, 0, input.Count)
 	for i := 0; i < input.Count; i++ {
 		codeValue, err := GenerateRedeemCode()
@@ -1142,11 +1160,16 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			return nil, err
 		}
 		code := RedeemCode{
-			Code:      codeValue,
-			Type:      input.Type,
-			Value:     input.Value,
-			Status:    StatusUnused,
-			ExpiresAt: input.ExpiresAt,
+			GenerateOrder: snapshot.GenerateOrder,
+			OrderAmount:   snapshot.OrderAmount,
+			OrderCurrency: snapshot.OrderCurrency,
+			OrderPlanID:   snapshot.OrderPlanID,
+			OrderPlanName: snapshot.OrderPlanName,
+			Code:          codeValue,
+			Type:          input.Type,
+			Value:         input.Value,
+			Status:        StatusUnused,
+			ExpiresAt:     input.ExpiresAt,
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {
@@ -1156,10 +1179,13 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 				code.ValidityDays = 30 // 默认30天
 			}
 		}
-		if err := s.redeemCodeRepo.Create(ctx, &code); err != nil {
+		if err := s.redeemCodeRepo.Create(txCtx, &code); err != nil {
 			return nil, err
 		}
 		codes = append(codes, code)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return codes, nil
 }

@@ -1,3 +1,7 @@
+import featureExtensions from './featureExtensions'
+import canvasCard from './canvasCard'
+import creativeGotocc from './creativeGotocc'
+import balanceCashback from './balanceCashback'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -9,8 +13,13 @@ import admin from './admin'
 import misc from './misc'
 import team from './team'
 import gotocc from './gotocc'
+import fingerprint from './fingerprint'
 
 export default {
+  ...featureExtensions,
+  ...canvasCard,
+  ...balanceCashback,
+  ...creativeGotocc,
   ...landing,
   ...common,
   ...dashboard,
@@ -22,4 +31,5 @@ export default {
   ...misc,
   ...team,
   ...gotocc,
+  ...fingerprint,
 }

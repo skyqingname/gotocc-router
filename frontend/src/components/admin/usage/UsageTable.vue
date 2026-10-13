@@ -113,6 +113,13 @@
           </div>
         </template>
 
+        <template #cell-service_tier="{ row }">
+          <div v-if="showServiceTier" data-testid="service-tier-cell" class="space-y-0.5 whitespace-nowrap text-xs">
+            <div class="text-gray-900 dark:text-white">{{ t('admin.usage.serviceTierRequest') }} {{ formatRequestedServiceTier(row.requested_service_tier, t) }}</div>
+            <div class="text-gray-500 dark:text-gray-400">{{ t('admin.usage.serviceTierResponse') }} {{ formatResponseServiceTier(row.response_service_tier, t) }}</div>
+          </div>
+        </template>
+
         <template #cell-reasoning_effort="{ row }">
           <div v-if="hasReasoningEffortMapping(row)" data-testid="reasoning-effort-cell" class="space-y-0.5 text-xs">
             <div class="font-medium text-gray-900 dark:text-white">
@@ -272,8 +279,8 @@
               aria-hidden="true"
             ></span>
             <div class="grid grid-cols-[max-content_max-content] items-baseline gap-x-2 gap-y-0.5 text-xs">
-              <span class="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500">
-                {{ primaryFirstTokenLabel(row) }}
+              <span class="inline-flex items-center gap-1 text-gray-400 dark:text-gray-500" :title="t('usage.latencyFirstByteHint')">
+                {{ t('usage.latencyFirstByte') }}
                 <div
                   v-if="hasLatencyDetails(row)"
                   data-testid="latency-details-trigger"
@@ -287,11 +294,11 @@
                 </div>
               </span>
               <span
-                v-if="strictFirstTokenMs(row) != null"
+                v-if="firstByteMs(row) != null"
                 data-testid="first-latency-value"
                 class="font-medium tabular-nums"
-                :class="primaryFirstTokenTextClass(row)"
-              >{{ formatDuration(strictFirstTokenMs(row)) }}</span>
+                :class="primaryFirstByteTextClass(row)"
+              >{{ formatDuration(firstByteMs(row)) }}</span>
               <span v-else data-testid="first-latency-value" class="text-gray-400 dark:text-gray-500">-</span>
               <span class="text-gray-400 dark:text-gray-500">{{ t('usage.latencyDuration') }}</span>
               <span data-testid="latency-duration" class="font-medium tabular-nums" :class="durationTextClass(row)">{{ formatDuration(row.duration_ms) }}</span>
@@ -460,6 +467,12 @@
       <div class="whitespace-nowrap rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-xs text-white shadow-xl dark:border-gray-600 dark:bg-gray-800">
         <div class="space-y-1.5">
           <div class="text-xs font-semibold text-gray-300 mb-1">{{ t('usage.latencyDetails') }}</div>
+          <div v-if="latencyTooltipData" class="flex items-center justify-between gap-4" :title="t('usage.latencyFirstByteHint')">
+            <span class="text-gray-400">{{ t('usage.latencyFirstByte') }}</span>
+            <span data-testid="detail-first-byte" class="font-medium text-white">{{ formatDuration(firstByteMs(latencyTooltipData)) }}</span>
+          </div>
+          <p v-if="latencyTooltipData && firstByteMs(latencyTooltipData) == null" class="text-[11px] text-gray-400">{{ t('usage.latencyFirstByteUnavailable') }}</p>
+
           <div v-if="latencyTooltipData?.first_output_kind" class="flex items-center justify-between gap-4">
             <span class="text-gray-400">{{ t('usage.latencyFirstOutputKind') }}</span>
             <span class="font-medium text-white">{{ firstOutputModalityLabel(latencyTooltipData, 'kind') }}</span>
@@ -468,13 +481,13 @@
             <span class="text-gray-400">{{ firstOutputModalityLabel(latencyTooltipData, 'timing') }}</span>
             <span class="font-medium text-white">{{ formatDuration(latencyDetailFirstOutputMs(latencyTooltipData)) }}</span>
           </div>
-          <div v-if="latencyTooltipData?.first_token_ms != null" class="flex items-center justify-between gap-4">
+          <div v-if="latencyTooltipData" class="flex items-center justify-between gap-4">
             <span class="text-gray-400">{{ t("usage.latencyFirstToken") }}</span>
             <span class="font-medium text-white">{{ formatDuration(strictFirstTokenMs(latencyTooltipData)) }}</span>
           </div>
-          <div v-if="latencyTooltipData?.last_token_ms != null" class="flex items-center justify-between gap-4">
+          <div v-if="latencyTooltipData" class="flex items-center justify-between gap-4">
             <span class="text-gray-400">{{ t('usage.latencyLastToken') }}</span>
-            <span class="font-medium text-white">{{ formatDuration(latencyTooltipData.last_token_ms) }}</span>
+            <span class="font-medium text-white">{{ formatDuration(strictFirstTokenMs(latencyTooltipData) == null ? null : latencyTooltipData.last_token_ms) }}</span>
           </div>
           <div v-if="latencyTooltipData?.duration_ms != null" class="flex items-center justify-between gap-4">
             <span class="text-gray-400">{{ t('usage.latencyDuration') }}</span>
@@ -595,10 +608,6 @@
           </div>
           <!-- Rate and Summary -->
           <div class="flex items-center justify-between gap-6">
-            <span class="text-gray-400">{{ t('usage.serviceTier') }}</span>
-            <span class="font-semibold text-cyan-300">{{ getUsageServiceTierLabel(tooltipData?.service_tier, t) }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.rate') }}</span>
             <span class="font-semibold text-blue-400">{{ formatMultiplier(tooltipData?.rate_multiplier ?? 1) }}x</span>
           </div>
@@ -642,7 +651,7 @@ import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } fro
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { formatTokenShare, sumTokenBuckets } from '@/utils/tokenShare'
-import { getUsageServiceTierLabel } from '@/utils/usageServiceTier'
+import { formatRequestedServiceTier, formatResponseServiceTier } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -650,7 +659,7 @@ import {
   LATENCY_BAR_TO_CLASSES,
   LATENCY_TEXT_CLASSES,
   durationSeverity,
-  firstTokenSeverity,
+  firstByteSeverity,
 } from '@/utils/latencyHealth'
 import {
   BILLING_MODE_TOKEN,
@@ -696,7 +705,7 @@ import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { fetchBatch, getEntry } from '@/utils/ipGeoLookup'
 import type { AdminUsageLog } from '@/types'
-import { formatTpsNumber, strictFirstTokenMs, averageTps, tpsNote, firstTokenUnavailableReason } from '@/utils/usageTiming'
+import { firstByteMs, formatTpsNumber, strictFirstTokenMs, averageTps, tpsNote, firstTokenUnavailableReason } from '@/utils/usageTiming'
 import type { Column } from '@/components/common/types'
 
 interface Props {
@@ -706,6 +715,7 @@ interface Props {
   serverSideSort?: boolean
   defaultSortKey?: string
   defaultSortOrder?: 'asc' | 'desc'
+  showServiceTier?: boolean
   showAccountBilling?: boolean
   showUpstreamEndpoint?: boolean
   /** 用户端只展示成员归因，不提供管理端余额入口。 */
@@ -721,6 +731,7 @@ const props = withDefaults(defineProps<Props>(), {
   serverSideSort: false,
   defaultSortKey: '',
   defaultSortOrder: 'asc',
+  showServiceTier: false,
   showAccountBilling: true,
   showUpstreamEndpoint: true,
   userClickable: true,
@@ -891,25 +902,14 @@ const formatDuration = (ms: number | null | undefined): string => {
   return `${Math.floor(totalSec / 3600)}h ${Math.floor((totalSec % 3600) / 60)}m`
 }
 
-const hasStrictFirstToken = (row: AdminUsageLog): boolean => strictFirstTokenMs(row) != null
-
-const primaryFirstTokenLabel = (_row: AdminUsageLog): string => t("usage.latencyFirstToken")
-
-const primaryFirstTokenTextClass = (row: AdminUsageLog): string => {
-  const first = strictFirstTokenMs(row)
-  return first == null ? 'text-gray-400 dark:text-gray-500' : LATENCY_TEXT_CLASSES[firstTokenSeverity(first)]
+const primaryFirstByteTextClass = (row: AdminUsageLog): string => {
+  const first = firstByteMs(row)
+  return first == null ? 'text-gray-400 dark:text-gray-500' : LATENCY_TEXT_CLASSES[firstByteSeverity(first)]
 }
 
-const hasLatencyDetails = (row: AdminUsageLog): boolean => {
-  if (tpsNote(row)) return true
-  // Legacy first-event needs explanation so it is not mistaken for strict TTFT.
-  if (firstTokenUnavailableReason(row)) return true
-  // Non-text first output always deserves a detail popover.
-  if (row.first_output_kind !== 'text') return true
-  // Pure text with matching first output/token is fully represented by the primary column.
-  if (row.first_token_ms == null) return true
-  return row.first_output_ms != null && row.first_output_ms !== row.first_token_ms
-}
+const hasLatencyDetails = (row: AdminUsageLog): boolean =>
+  row.first_byte_ms != null || row.first_token_ms != null || row.last_token_ms != null || row.duration_ms != null ||
+  row.first_output_ms != null || !!row.first_output_kind || !!firstTokenUnavailableReason(row) || !!tpsNote(row)
 
 const averageTpsTitle = (row: AdminUsageLog): string => {
   const note = tpsNote(row)
@@ -988,10 +988,10 @@ const latencyBarClasses = (row: AdminUsageLog): string | string[] => {
   if (row.duration_ms == null) {
     return 'bg-gray-300 dark:bg-gray-600'
   }
-  if (hasStrictFirstToken(row)) {
+  if (firstByteMs(row) != null) {
     return [
       'bg-gradient-to-b from-40% to-60%',
-      LATENCY_BAR_FROM_CLASSES[firstTokenSeverity(row.first_token_ms!)],
+      LATENCY_BAR_FROM_CLASSES[firstByteSeverity(firstByteMs(row)!)],
       LATENCY_BAR_TO_CLASSES[durationSeverity(row.duration_ms)],
     ]
   }

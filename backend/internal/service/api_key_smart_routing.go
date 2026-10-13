@@ -92,7 +92,7 @@ func (s *AutoGroupResolver) Resolve(ctx context.Context, key *APIKey, input Auto
 	if err != nil {
 		return nil, err
 	}
-	policy, err := s.routingPolicy(ctx, input.RequiredGroupID != nil)
+	policy, err := s.routingPolicy(ctx, input.RequiredGroupID != nil, key)
 	if err != nil {
 		return nil, err
 	}

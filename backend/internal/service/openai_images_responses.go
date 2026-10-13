@@ -1801,8 +1801,14 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	c *gin.Context,
 	account *Account,
 	parsed *OpenAIImagesRequest,
-) (*OpenAIForwardResult, error) {
+) (forwardResult *OpenAIForwardResult, firstByteResultErr error) {
 	startTime := time.Now()
+	ctx, byteTiming := beginFirstByteTiming(ctx, startTime)
+	defer func() {
+		if forwardResult != nil && forwardResult.FirstByteMs == nil {
+			forwardResult.FirstByteMs = byteTiming.Milliseconds()
+		}
+	}()
 	requestModel := strings.TrimSpace(parsed.Model)
 	if requestModel == "" {
 		requestModel = "gpt-image-2"

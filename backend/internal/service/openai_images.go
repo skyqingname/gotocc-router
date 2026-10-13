@@ -660,8 +660,14 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	account *Account,
 	body []byte,
 	parsed *OpenAIImagesRequest,
-) (*OpenAIForwardResult, error) {
+) (forwardResult *OpenAIForwardResult, firstByteResultErr error) {
 	startTime := time.Now()
+	ctx, byteTiming := beginFirstByteTiming(ctx, startTime)
+	defer func() {
+		if forwardResult != nil && forwardResult.FirstByteMs == nil {
+			forwardResult.FirstByteMs = byteTiming.Milliseconds()
+		}
+	}()
 	requestModel := strings.TrimSpace(parsed.Model)
 	if err := validateCompatibleImagesModel(requestModel); err != nil {
 		return nil, err

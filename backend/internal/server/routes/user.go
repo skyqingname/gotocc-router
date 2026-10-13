@@ -111,6 +111,8 @@ func RegisterUserRoutes(
 			keys.GET("", h.APIKey.List)
 			keys.GET("/:id", h.APIKey.GetByID)
 			keys.GET("/:id/routing-capabilities", h.Gateway.UserRoutingCapabilities)
+			keys.GET("/:id/routing-policy", h.Gateway.UserGetKeyRoutingPreference)
+			keys.PUT("/:id/routing-policy", h.Gateway.UserUpdateKeyRoutingPreference)
 			keys.POST("", h.APIKey.Create)
 			keys.PUT("/:id", h.APIKey.Update)
 			keys.DELETE("/:id", h.APIKey.Delete)
@@ -161,6 +163,9 @@ func RegisterUserRoutes(
 		{
 			redeem.POST("", h.Redeem.Redeem)
 			redeem.GET("/history", h.Redeem.GetHistory)
+			redeem.GET("/canvas-cards", h.CanvasCard.Overview)
+			redeem.POST("/canvas-cards", h.CanvasCard.Exchange)
+			redeem.GET("/activity", h.CanvasCard.Activity)
 		}
 
 		// 用户订阅

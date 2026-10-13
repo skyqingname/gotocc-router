@@ -25,7 +25,9 @@ func (r *channelMonitorV3Repository) GetConfig(ctx context.Context) (*service.Ch
 
 type v3StoredConfig struct {
 	service.ChannelMonitorV3Config
-	ObservationStarts map[string]time.Time `json:"observation_starts,omitempty"`
+	ObservationStarts     map[string]time.Time `json:"observation_starts,omitempty"`
+	ProbesEnabled         bool                 `json:"probes_enabled,omitempty"`
+	ProbeObservationStart time.Time            `json:"probe_observation_start,omitempty"`
 }
 
 func readV3Config(ctx context.Context, db interface {
@@ -42,6 +44,8 @@ func readV3Config(ctx context.Context, db interface {
 	}
 	stored.Version = version
 	stored.ChannelMonitorV3Config.ObservationStarts = stored.ObservationStarts
+	stored.ChannelMonitorV3Config.ProbesEnabled = stored.ProbesEnabled
+	stored.ChannelMonitorV3Config.ProbeObservationStart = stored.ProbeObservationStart
 	return &stored.ChannelMonitorV3Config, stored.Validate()
 }
 
@@ -66,6 +70,7 @@ func (r *channelMonitorV3Repository) UpdateConfig(ctx context.Context, cfg servi
 	if err = tx.QueryRowContext(ctx, `SELECT clock_timestamp()`).Scan(&now); err != nil {
 		return nil, err
 	}
+	cfg.ProbesEnabled, cfg.ProbeObservationStart = previous.ProbesEnabled, previous.ProbeObservationStart
 	cfg.ObservationStarts = previous.ObservationStarts
 	if cfg.ObservationStarts == nil {
 		cfg.ObservationStarts = map[string]time.Time{}
@@ -93,7 +98,7 @@ func (r *channelMonitorV3Repository) UpdateConfig(ctx context.Context, cfg servi
 		cfg.DisabledPlatforms = []string{}
 	}
 	sort.Strings(cfg.DisabledPlatforms)
-	raw, err := json.Marshal(v3StoredConfig{ChannelMonitorV3Config: cfg, ObservationStarts: cfg.ObservationStarts})
+	raw, err := json.Marshal(v3StoredConfig{ChannelMonitorV3Config: cfg, ObservationStarts: cfg.ObservationStarts, ProbesEnabled: cfg.ProbesEnabled, ProbeObservationStart: cfg.ProbeObservationStart})
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +168,9 @@ WITH candidate_ids AS MATERIALIZED (
 )
 SELECT t.created_at,t.platform,t.group_id,t.model,t.outcome,t.ttft,
        COALESCE(NULLIF(e.error_type,''),'stream_read_error'),COALESCE(e.error_owner,'platform'),COALESCE(e.error_source,''),
-       COALESCE(e.status_code,502),COALESCE(e.upstream_status_code,0),COALESCE(e.message,'missing terminal event')
+       COALESCE(e.status_code,502),COALESCE(e.upstream_status_code,0),COALESCE(e.message,'missing terminal event'),visible_group.name
 FROM terminal t LEFT JOIN last_errors e ON e.request_key=t.request_key
+JOIN groups visible_group ON visible_group.id=t.group_id AND visible_group.deleted_at IS NULL AND visible_group.status='active'
 JOIN jsonb_to_recordset($3::jsonb) AS scope(platform text,since timestamptz)
  ON scope.platform=t.platform AND t.created_at >= scope.since
 WHERE t.created_at >= $1 AND t.created_at < $2 AND t.outcome <> 'ignored'
@@ -196,72 +202,17 @@ func (r *channelMonitorV3Repository) Refresh(ctx context.Context, now time.Time)
 		return nil
 	}
 	start := now.Add(-10 * time.Minute)
-	facts := map[string]*service.ChannelMonitorV3Fact{}
-	if len(cfg.EnabledPlatforms()) > 0 {
-		rows, err := tx.QueryContext(ctx, channelMonitorV3OutcomesSQL, start, now, scope)
-		if err != nil {
-			return err
-		}
-		count := 0
-		for rows.Next() {
-			var fact service.ChannelMonitorV3Fact
-			var outcome string
-			var latency sql.NullInt64
-			var input service.ChannelMonitorV2ErrorInput
-			if err = rows.Scan(&fact.LastRequest, &fact.Platform, &fact.GroupID, &fact.Model, &outcome, &latency, &input.ErrorType, &input.ErrorOwner, &input.ErrorSource, &input.StatusCode, &input.UpstreamStatusCode, &input.Message); err != nil {
-				_ = rows.Close()
-				return err
-			}
-			count++
-			if count > 50000 {
-				_ = rows.Close()
-				return fmt.Errorf("service status observation limit exceeded")
-			}
-			if fact.GroupID <= 0 || fact.Platform == "unknown" || fact.Platform == "composite" {
-				continue
-			}
-			if outcome == "failure" && !service.ChannelMonitorV3EligibleError(input) {
-				continue
-			}
-			fact.Bucket = fact.LastRequest.UTC().Truncate(time.Minute)
-			key := fmt.Sprintf("%d:%s", fact.Bucket.Unix(), service.ChannelMonitorV3Scope(fact.Platform, fact.GroupID, fact.Model))
-			merged := facts[key]
-			if merged == nil {
-				merged = &service.ChannelMonitorV3Fact{Bucket: fact.Bucket, Platform: fact.Platform, GroupID: fact.GroupID, Model: fact.Model}
-				facts[key] = merged
-			}
-			if outcome == "success" {
-				merged.Success++
-				if latency.Valid && latency.Int64 >= 0 {
-					for i, bound := range service.ChannelMonitorV3LatencyBounds {
-						if latency.Int64 <= bound {
-							merged.Latency[i]++
-							break
-						}
-					}
-				}
-			} else {
-				merged.Failures++
-			}
-			if fact.LastRequest.After(merged.LastRequest) {
-				merged.LastRequest = fact.LastRequest
-			}
-		}
-		if err = rows.Err(); err != nil {
-			_ = rows.Close()
-			return err
-		}
-		if err = rows.Close(); err != nil {
-			return err
-		}
+	facts, err := collectV3Observations(ctx, tx, start, now, scope, cfg)
+	if err != nil {
+		return err
 	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM channel_monitor_v3_facts f
  USING jsonb_to_recordset($3::jsonb) AS scope(platform text,since timestamptz)
- WHERE f.platform=scope.platform AND f.bucket_start >= GREATEST($1,scope.since) AND f.bucket_start < $2`, start, now, scope); err != nil {
+ WHERE f.platform=scope.platform AND f.bucket_start >= GREATEST($1,scope.since) AND f.bucket_start < $2 AND (f.source_kind='request' OR ($4 AND f.bucket_start >= $5))`, start, now, scope, cfg.ProbesEnabled, cfg.ProbeObservationStart); err != nil {
 		return err
 	}
 	for _, fact := range facts {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_facts VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, fact.Bucket, fact.Platform, fact.GroupID, fact.Model, fact.Success, fact.Failures, fact.LastRequest, pq.Array(fact.Latency[:])); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_facts (bucket_start,platform,group_id,model,success_requests,failed_requests,last_request_at,ttft_counts,source_kind,scope_id,probe_status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, fact.Bucket, fact.Platform, v3GroupID(*fact), fact.Model, fact.Success, fact.Failures, fact.LastRequest, pq.Array(fact.Latency[:]), fact.Source(), fact.ScopeID(), fact.ProbeStatus); err != nil {
 			return err
 		}
 	}
@@ -274,15 +225,18 @@ func (r *channelMonitorV3Repository) Refresh(ctx context.Context, now time.Time)
 		if fact.Bucket.Before(now.Add(-5 * time.Minute)) {
 			continue
 		}
-		key := service.ChannelMonitorV3Scope(fact.Platform, fact.GroupID, fact.Model)
+		key := fact.Scope(fact.Model)
 		value, ok := recent[key]
 		if !ok {
-			value = service.ChannelMonitorV3Fact{Platform: fact.Platform, GroupID: fact.GroupID, Model: fact.Model}
+			value = service.ChannelMonitorV3Fact{Platform: fact.Platform, GroupID: fact.GroupID, SourceKind: fact.SourceKind, MonitorID: fact.MonitorID, Model: fact.Model}
 		}
 		value.Merge(*fact)
 		recent[key] = value
 	}
 	for key, item := range states {
+		if item.fact.SourceKind == "probe" && !cfg.ProbesEnabled {
+			continue
+		}
 		if _, ok := recent[key]; !ok {
 			recent[key] = item.fact
 		}
@@ -309,6 +263,121 @@ func (r *channelMonitorV3Repository) Refresh(ctx context.Context, now time.Time)
 	return tx.Commit()
 }
 
+// collectV3Observations shares terminal classification between exact current
+// observations and persisted minute history. The caller owns the snapshot.
+func collectV3Observations(ctx context.Context, db v3Queryer, start, now time.Time, scope string, cfg *service.ChannelMonitorV3Config) (map[string]*service.ChannelMonitorV3Fact, error) {
+	var err error
+	facts := map[string]*service.ChannelMonitorV3Fact{}
+	if len(cfg.EnabledPlatforms()) > 0 {
+		rows, err := db.QueryContext(ctx, channelMonitorV3OutcomesSQL, start, now, scope)
+		if err != nil {
+			return nil, err
+		}
+		count := 0
+		for rows.Next() {
+			var fact service.ChannelMonitorV3Fact
+			var outcome string
+			var latency sql.NullInt64
+			var input service.ChannelMonitorV2ErrorInput
+			if err = rows.Scan(&fact.LastRequest, &fact.Platform, &fact.GroupID, &fact.Model, &outcome, &latency, &input.ErrorType, &input.ErrorOwner, &input.ErrorSource, &input.StatusCode, &input.UpstreamStatusCode, &input.Message, &fact.GroupName); err != nil {
+				_ = rows.Close()
+				return nil, err
+			}
+			count++
+			if count > 50000 {
+				_ = rows.Close()
+				return nil, fmt.Errorf("service status observation limit exceeded")
+			}
+			if fact.GroupID <= 0 || fact.Platform == "unknown" || fact.Platform == "composite" {
+				continue
+			}
+			if outcome == "failure" && !service.ChannelMonitorV3EligibleError(input) {
+				continue
+			}
+			fact.Bucket = fact.LastRequest.UTC().Truncate(time.Minute)
+			key := fmt.Sprintf("%d:%s", fact.Bucket.Unix(), fact.Scope(fact.Model))
+			merged := facts[key]
+			if merged == nil {
+				merged = &service.ChannelMonitorV3Fact{Bucket: fact.Bucket, Platform: fact.Platform, GroupID: fact.GroupID, GroupName: fact.GroupName, SourceKind: fact.SourceKind, MonitorID: fact.MonitorID, Model: fact.Model}
+				facts[key] = merged
+			}
+			if outcome == "success" {
+				merged.Success++
+				if latency.Valid && latency.Int64 >= 0 {
+					for i, bound := range service.ChannelMonitorV3LatencyBounds {
+						if latency.Int64 <= bound {
+							merged.Latency[i]++
+							break
+						}
+					}
+				}
+			} else {
+				merged.Failures++
+			}
+			if fact.LastRequest.After(merged.LastRequest) {
+				merged.LastRequest = fact.LastRequest
+			}
+		}
+		if err = rows.Err(); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		if err = rows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	if cfg.ProbesEnabled {
+		rows, probeErr := db.QueryContext(ctx, `SELECT h.checked_at, m.provider, m.id, h.model, h.status
+ FROM channel_monitor_histories h JOIN channel_monitors m ON m.id=h.monitor_id AND m.enabled AND m.check_mode <> 'quota'
+ JOIN jsonb_to_recordset($3::jsonb) AS scope(platform text,since timestamptz) ON scope.platform=m.provider
+ WHERE h.checked_at >= GREATEST($1,scope.since,$4) AND h.checked_at < $2
+ ORDER BY h.checked_at,h.id LIMIT 50001`, start, now, scope, cfg.ProbeObservationStart)
+		if probeErr != nil {
+			return nil, probeErr
+		}
+		count := 0
+		for rows.Next() {
+			fact := service.ChannelMonitorV3Fact{SourceKind: "probe"}
+			if err = rows.Scan(&fact.LastRequest, &fact.Platform, &fact.MonitorID, &fact.Model, &fact.ProbeStatus); err != nil {
+				_ = rows.Close()
+				return nil, err
+			}
+			count++
+			if count > 50000 {
+				_ = rows.Close()
+				return nil, fmt.Errorf("service status probe observation limit exceeded")
+			}
+			fact.Bucket = fact.LastRequest.UTC().Truncate(time.Minute)
+			if fact.ProbeStatus == "operational" || fact.ProbeStatus == "degraded" {
+				fact.Success = 1
+			} else {
+				fact.Failures = 1
+			}
+			key := fmt.Sprintf("%d:%s", fact.Bucket.Unix(), fact.Scope(fact.Model))
+			merged := facts[key]
+			if merged == nil {
+				copyFact := fact
+				facts[key] = &copyFact
+			} else {
+				merged.Merge(fact)
+				// Rows are ordered by checked_at and id. At an equal timestamp,
+				// the later inserted result is the latest operational evidence.
+				if fact.LastRequest.Equal(merged.LastRequest) {
+					merged.ProbeStatus = fact.ProbeStatus
+				}
+			}
+		}
+		if err = rows.Err(); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		if err = rows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return facts, nil
+}
+
 type v3Queryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
@@ -318,7 +387,7 @@ type v3StoredState struct {
 }
 
 func readV3States(ctx context.Context, db v3Queryer, platforms []string) (map[string]v3StoredState, error) {
-	query := `SELECT platform,group_id,model,data FROM channel_monitor_v3_states WHERE platform=ANY($1)`
+	query := `SELECT platform,COALESCE(group_id,0),model,data,source_kind,scope_id FROM channel_monitor_v3_states WHERE platform=ANY($1)`
 	rows, err := db.QueryContext(ctx, query, pq.Array(platforms))
 	if err != nil {
 		return nil, err
@@ -328,23 +397,29 @@ func readV3States(ctx context.Context, db v3Queryer, platforms []string) (map[st
 	for rows.Next() {
 		var item v3StoredState
 		var raw []byte
-		if err = rows.Scan(&item.fact.Platform, &item.fact.GroupID, &item.fact.Model, &raw); err != nil {
+		var scopeID int64
+		if err = rows.Scan(&item.fact.Platform, &item.fact.GroupID, &item.fact.Model, &raw, &item.fact.SourceKind, &scopeID); err != nil {
 			return nil, err
+		}
+		if item.fact.SourceKind == "probe" {
+			item.fact.MonitorID = scopeID
 		}
 		if err = json.Unmarshal(raw, &item.state); err != nil {
 			return nil, err
 		}
-		result[service.ChannelMonitorV3Scope(item.fact.Platform, item.fact.GroupID, item.fact.Model)] = item
+		result[item.fact.Scope(item.fact.Model)] = item
 	}
 	return result, rows.Err()
 }
 
-func writeV3State(ctx context.Context, tx *sql.Tx, fact service.ChannelMonitorV3Fact, state service.ChannelMonitorV3State, incident *service.ChannelMonitorV3Incident) error {
+func writeV3State(ctx context.Context, tx interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, fact service.ChannelMonitorV3Fact, state service.ChannelMonitorV3State, incident *service.ChannelMonitorV3Incident) error {
 	raw, err := json.Marshal(state)
 	if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_states VALUES ($1,$2,$3,$4) ON CONFLICT (platform,group_id,model) DO UPDATE SET data=EXCLUDED.data`, fact.Platform, fact.GroupID, fact.Model, string(raw)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_states (platform,group_id,model,data,source_kind,scope_id) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (platform,source_kind,scope_id,model) DO UPDATE SET data=EXCLUDED.data`, fact.Platform, v3GroupID(fact), fact.Model, string(raw), fact.Source(), fact.ScopeID()); err != nil {
 		return err
 	}
 	if incident == nil {
@@ -354,7 +429,7 @@ func writeV3State(ctx context.Context, tx *sql.Tx, fact service.ChannelMonitorV3
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_incidents VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data,resolved_at=EXCLUDED.resolved_at`, incident.ID, incident.Platform, incident.GroupID, incident.Model, incident.StartedAt, incident.ResolvedAt, string(raw))
+	_, err = tx.ExecContext(ctx, `INSERT INTO channel_monitor_v3_incidents (id,platform,group_id,model,started_at,resolved_at,data,source_kind,scope_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data,resolved_at=EXCLUDED.resolved_at`, incident.ID, incident.Platform, v3GroupID(fact), incident.Model, incident.StartedAt, incident.ResolvedAt, string(raw), fact.Source(), fact.ScopeID())
 	return err
 }
 
@@ -366,22 +441,20 @@ func v3AggregateColumns() string {
 	return `SUM(f.success_requests),SUM(f.failed_requests),MAX(f.last_request_at),ARRAY[` + strings.Join(parts, ",") + `]`
 }
 
-func (r *channelMonitorV3Repository) readFacts(ctx context.Context, db v3Queryer, start, end time.Time, bucket time.Duration, models bool, scope string) ([]service.ChannelMonitorV3Fact, error) {
-	groupExpr := "0::bigint,''::text,''::text"
-	groupBy := "1,2"
-	if models {
-		groupExpr = "f.group_id,COALESCE(g.name,''),f.model"
-		groupBy += ",3,4,5"
-	}
+func (r *channelMonitorV3Repository) readFacts(ctx context.Context, db v3Queryer, start, end time.Time, bucket time.Duration, models bool, scope string, cfg service.ChannelMonitorV3Config) ([]service.ChannelMonitorV3Fact, error) {
 	observationFilter := ""
 	if models {
-		observationFilter = " AND f.bucket_start >= scope.since"
+		observationFilter = " AND f.bucket_start >= scope.since AND (f.source_kind <> 'probe' OR f.bucket_start >= $5)"
 	}
-	query := `SELECT date_bin($3::interval,f.bucket_start,$1::timestamptz),f.platform,` + groupExpr + `,` + v3AggregateColumns() + `
- FROM channel_monitor_v3_facts f JOIN groups g ON g.id=f.group_id AND g.deleted_at IS NULL AND g.status='active'
+	query := `SELECT date_bin($3::interval,f.bucket_start,$1::timestamptz),f.platform,
+ COALESCE(f.group_id,0),COALESCE(g.name,NULLIF(m.group_name,''),m.name,''),f.model,` + v3AggregateColumns() + `,
+ f.source_kind,f.scope_id,(array_agg(f.probe_status ORDER BY f.last_request_at DESC))[1]
+ FROM channel_monitor_v3_facts f
+ LEFT JOIN groups g ON f.source_kind='request' AND g.id=f.group_id AND g.deleted_at IS NULL AND g.status='active'
+ LEFT JOIN channel_monitors m ON f.source_kind='probe' AND m.id=f.scope_id AND m.enabled AND m.check_mode <> 'quota'
  JOIN jsonb_to_recordset($4::jsonb) AS scope(platform text,since timestamptz) ON scope.platform=f.platform
- WHERE f.bucket_start >= $1 AND f.bucket_start < $2` + observationFilter + ` GROUP BY ` + groupBy + ` ORDER BY 1,2,3,5`
-	rows, err := db.QueryContext(ctx, query, start, end, fmt.Sprintf("%d seconds", int64(bucket.Seconds())), scope)
+ WHERE (g.id IS NOT NULL OR (m.id IS NOT NULL AND $6)) AND f.bucket_start >= $1 AND f.bucket_start < $2 AND $5::timestamptz IS NOT NULL` + observationFilter + ` GROUP BY 1,2,3,4,5,10,11 ORDER BY 1,2,3,5`
+	rows, err := db.QueryContext(ctx, query, start, end, fmt.Sprintf("%d seconds", int64(bucket.Seconds())), scope, cfg.ProbeObservationStart, cfg.ProbesEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -390,8 +463,12 @@ func (r *channelMonitorV3Repository) readFacts(ctx context.Context, db v3Queryer
 	for rows.Next() {
 		var fact service.ChannelMonitorV3Fact
 		var hist []int64
-		if err = rows.Scan(&fact.Bucket, &fact.Platform, &fact.GroupID, &fact.GroupName, &fact.Model, &fact.Success, &fact.Failures, &fact.LastRequest, pq.Array(&hist)); err != nil {
+		var scopeID int64
+		if err = rows.Scan(&fact.Bucket, &fact.Platform, &fact.GroupID, &fact.GroupName, &fact.Model, &fact.Success, &fact.Failures, &fact.LastRequest, pq.Array(&hist), &fact.SourceKind, &scopeID, &fact.ProbeStatus); err != nil {
 			return nil, err
+		}
+		if fact.SourceKind == "probe" {
+			fact.MonitorID = scopeID
 		}
 		copy(fact.Latency[:], hist)
 		result = append(result, fact)
@@ -454,11 +531,72 @@ func (r *channelMonitorV3Repository) Read(ctx context.Context, now time.Time, wi
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
+	if cfg.ProbesEnabled {
+		probeRows, err := tx.QueryContext(ctx, `SELECT provider,id,COALESCE(NULLIF(group_name,''),name),primary_model,extra_models FROM channel_monitors WHERE enabled AND check_mode <> 'quota' AND provider=ANY($1)`, pq.Array(platforms))
+		if err != nil {
+			return nil, err
+		}
+		for probeRows.Next() {
+			item := service.ChannelMonitorV3Catalog{SourceKind: "probe"}
+			var primary string
+			var extra []byte
+			if err = probeRows.Scan(&item.Platform, &item.MonitorID, &item.GroupName, &primary, &extra); err != nil {
+				_ = probeRows.Close()
+				return nil, err
+			}
+			data.Catalog = append(data.Catalog, item)
+			models := []string{}
+			if len(extra) > 0 {
+				if err = json.Unmarshal(extra, &models); err != nil {
+					_ = probeRows.Close()
+					return nil, err
+				}
+			}
+			models = append(models, primary)
+			for _, model := range models {
+				data.KnownModels = append(data.KnownModels, service.ChannelMonitorV3Fact{Platform: item.Platform, SourceKind: "probe", MonitorID: item.MonitorID, GroupName: item.GroupName, Model: model})
+			}
+		}
+		if err = probeRows.Err(); err != nil {
+			_ = probeRows.Close()
+			return nil, err
+		}
+		if err = probeRows.Close(); err != nil {
+			return nil, err
+		}
+	}
 	end := now.UTC().Truncate(time.Minute)
-	if data.Current, err = r.readFacts(ctx, tx, end.Add(-5*time.Minute), end, 5*time.Minute, true, scope); err != nil {
+	// Current includes the current minute and excludes observations before
+	// now-5m exactly; historical bars and incident confirmation stay minute based.
+	current, err := collectV3Observations(ctx, tx, now.Add(-5*time.Minute), now, scope, cfg)
+	if err != nil {
 		return nil, err
 	}
-	if data.History, err = r.readFacts(ctx, tx, end.Add(-window), end, window/48, false, scope); err != nil {
+	for _, fact := range current {
+		data.Current = append(data.Current, *fact)
+		// A composite group's first terminal result can identify a concrete
+		// platform before its first historical aggregation has run.
+		if fact.Source() == "request" {
+			found := false
+			for _, item := range data.Catalog {
+				if item.Scope() == fact.Scope("") {
+					found = true
+					break
+				}
+			}
+			if !found {
+				data.Catalog = append(data.Catalog, service.ChannelMonitorV3Catalog{Platform: fact.Platform, GroupID: fact.GroupID, GroupName: fact.GroupName})
+			}
+		}
+	}
+	sort.Slice(data.Current, func(i, j int) bool {
+		if !data.Current[i].Bucket.Equal(data.Current[j].Bucket) {
+			return data.Current[i].Bucket.Before(data.Current[j].Bucket)
+		}
+		return data.Current[i].Scope(data.Current[i].Model) < data.Current[j].Scope(data.Current[j].Model)
+	})
+	data.CurrentThrough = &now
+	if data.History, err = r.readFacts(ctx, tx, end.Add(-window), end, window/48, false, scope, *cfg); err != nil {
 		return nil, err
 	}
 	data.Totals = data.History
@@ -469,8 +607,9 @@ func (r *channelMonitorV3Repository) Read(ctx context.Context, now time.Time, wi
 	for key, item := range states {
 		data.States[key] = item.state
 		for _, scope := range data.Catalog {
-			if scope.Platform == item.fact.Platform && scope.GroupID == item.fact.GroupID {
+			if scope.Scope() == item.fact.Scope("") {
 				item.fact.GroupName = scope.GroupName
+				item.fact.LastRequest = item.state.LastRequest
 				data.KnownModels = append(data.KnownModels, item.fact)
 				break
 			}
@@ -484,11 +623,11 @@ func (r *channelMonitorV3Repository) Read(ctx context.Context, now time.Time, wi
 		data.DataThrough = &through.Time
 	}
 	rows, err = tx.QueryContext(ctx, `WITH visible AS (
- SELECT i.*,g.name AS group_name FROM channel_monitor_v3_incidents i JOIN groups g ON g.id=i.group_id AND g.deleted_at IS NULL AND g.status='active' WHERE i.platform=ANY($2)
+ SELECT i.*,COALESCE(g.name,NULLIF(m.group_name,''),m.name,'') AS group_name FROM channel_monitor_v3_incidents i LEFT JOIN groups g ON i.source_kind='request' AND g.id=i.group_id AND g.deleted_at IS NULL AND g.status='active' LEFT JOIN channel_monitors m ON i.source_kind='probe' AND m.id=i.scope_id AND m.enabled AND m.check_mode <> 'quota' WHERE i.platform=ANY($2) AND (g.id IS NOT NULL OR (m.id IS NOT NULL AND $3))
  ), selected AS (
  SELECT * FROM visible WHERE resolved_at IS NULL
  UNION ALL (SELECT * FROM visible WHERE resolved_at >= $1 ORDER BY started_at DESC LIMIT 200)
- ) SELECT data,group_name FROM selected ORDER BY resolved_at IS NULL DESC,started_at DESC`, now.Add(-30*24*time.Hour), pq.Array(platforms))
+ ) SELECT data,group_name FROM selected ORDER BY resolved_at IS NULL DESC,started_at DESC`, now.Add(-30*24*time.Hour), pq.Array(platforms), cfg.ProbesEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -513,4 +652,11 @@ func (r *channelMonitorV3Repository) Read(ctx context.Context, now time.Time, wi
 		return nil, err
 	}
 	return data, tx.Commit()
+}
+
+func v3GroupID(fact service.ChannelMonitorV3Fact) any {
+	if fact.SourceKind == "probe" {
+		return nil
+	}
+	return fact.GroupID
 }

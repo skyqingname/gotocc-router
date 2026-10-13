@@ -20,12 +20,14 @@ export interface StatusPlatform {
   ttft_p50_ms: number | null
   last_request_at: string | null
   timeline: Array<{ at: string; status: ServiceStatus }>
-  models: Array<{ group_id: number; group_name: string; model: string; status: ServiceStatus }>
+  models: Array<{ source_kind?: 'request' | 'probe'; monitor_id?: number; group_id: number | null; group_name: string; model: string; status: ServiceStatus; last_observed_at?: string | null; observation_reason?: string; incident_phase?: IncidentPhase }>
 }
 export interface StatusIncident {
   id: string
   platform: string
-  group_id: number
+  group_id: number | null
+  source_kind?: 'request' | 'probe'
+  monitor_id?: number
   group_name: string
   model: string
   severity: ServiceStatus
@@ -36,6 +38,9 @@ export interface StatusIncident {
   updates: Array<{ phase: IncidentPhase; severity: ServiceStatus; at: string }>
 }
 export interface StatusSnapshot {
+  current_window_start?: string
+  current_window_end?: string
+  current_through?: string | null
   monitoring_enabled: boolean
   computed_at: string
   data_through: string | null

@@ -221,6 +221,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		ID:                              g.ID,
 		Name:                            g.Name,
 		Description:                     g.Description,
+		I18n:                            g.I18n,
 		Platform:                        g.Platform,
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,
@@ -677,26 +678,32 @@ func RedeemCodeFromServiceAdmin(rc *service.RedeemCode) *AdminRedeemCode {
 		return nil
 	}
 	return &AdminRedeemCode{
-		RedeemCode: redeemCodeFromServiceBase(rc),
-		Notes:      rc.Notes,
+		RedeemCode:    redeemCodeFromServiceBase(rc),
+		Notes:         rc.Notes,
+		GenerateOrder: rc.GenerateOrder,
+		OrderCurrency: rc.OrderCurrency,
+		OrderAmount:   rc.OrderAmount,
+		OrderPlanID:   rc.OrderPlanID,
+		OrderPlanName: rc.OrderPlanName,
 	}
 }
 
 func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 	out := RedeemCode{
-		ID:           rc.ID,
-		Code:         rc.Code,
-		Type:         rc.Type,
-		Value:        rc.Value,
-		Status:       rc.Status,
-		UsedBy:       rc.UsedBy,
-		UsedAt:       rc.UsedAt,
-		CreatedAt:    rc.CreatedAt,
-		ExpiresAt:    rc.ExpiresAt,
-		GroupID:      rc.GroupID,
-		ValidityDays: rc.ValidityDays,
-		User:         UserFromServiceShallow(rc.User),
-		Group:        GroupFromServiceShallow(rc.Group),
+		CashbackAmount: rc.CashbackAmount,
+		ID:             rc.ID,
+		Code:           rc.Code,
+		Type:           rc.Type,
+		Value:          rc.Value,
+		Status:         rc.Status,
+		UsedBy:         rc.UsedBy,
+		UsedAt:         rc.UsedAt,
+		CreatedAt:      rc.CreatedAt,
+		ExpiresAt:      rc.ExpiresAt,
+		GroupID:        rc.GroupID,
+		ValidityDays:   rc.ValidityDays,
+		User:           UserFromServiceShallow(rc.User),
+		Group:          GroupFromServiceShallow(rc.Group),
 	}
 	if rc.IsExpired() {
 		out.Status = service.StatusExpired
@@ -746,7 +753,6 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		AccountID:                 l.AccountID,
 		RequestID:                 l.RequestID,
 		Model:                     requestedModel,
-		ServiceTier:               l.ServiceTier,
 		ReasoningEffort:           userFacingReasoningEffort(l),
 		InboundEndpoint:           l.InboundEndpoint,
 		GroupID:                   l.GroupID,
@@ -772,6 +778,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		OpenAIWSMode:              openAIWSMode,
 		NativeCompactionV2:        l.NativeCompactionV2,
 		DurationMs:                l.DurationMs,
+		FirstByteMs:               l.FirstByteMs,
 		FirstTokenMs:              l.FirstTokenMs,
 		LastTokenMs:               l.LastTokenMs,
 		TimingVersion:             l.TimingVersion,
@@ -824,6 +831,9 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 	usageLog.UpstreamEndpoint = l.UpstreamEndpoint
 	return &AdminUsageLog{
 		UsageLog:                usageLog,
+		ServiceTier:             l.ServiceTier,
+		RequestedServiceTier:    l.RequestedServiceTier,
+		ResponseServiceTier:     l.ResponseServiceTier,
 		UpstreamModel:           l.UpstreamModel,
 		UpstreamReasoningEffort: adminUpstreamReasoningEffort(l),
 		UpstreamResponseModel:   l.UpstreamResponseModel,

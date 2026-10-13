@@ -20,7 +20,25 @@ view adds no inference endpoint, extraction input or alternative audit path;
 actual model requests still enter both audit engines through the existing
 HTTP/WS handlers before their side effects.
 
+The [per-key smart routing preferences](USER_ROUTING_PRIORITIES.md) endpoints
+are authenticated panel settings. GET uses the validated read subject and PUT
+uses the real authenticated owner. The read-only support surface exposes only
+GET. Preferences reorder existing authorized candidates inside the existing
+resolver; no inference payload, audit extraction, content rule, account selection
+side effect, or required-group lock is changed. Model discovery and HTTP/WS
+resolution retain the same canonical policy and ingress audit boundaries.
+
 ## Boundary And Ordering
+
+The automatic hosted `image_generation` bridge is limited to OpenAI platform
+accounts. Native Responses suppliers do not receive this OpenAI-only injected
+tool. This decision is made after ingress audit and account selection and does
+not select another extraction contract. User-supplied tools and extractable
+sibling text retain the shared Content Moderation/Prompt Audit semantics.
+Deleting a group removes only its ID from Content Moderation scope in the same
+transaction; concurrent configuration writes lock live groups before settings.
+This configuration maintenance does not change either engine's ingress ordering,
+unknown-content pass-through or structured exception logging.
 
 Cline and Command Code API-key accounts reuse the Responses, Chat Completions
 and Messages ingress gates. Their protocol routing/catalog requests occur only

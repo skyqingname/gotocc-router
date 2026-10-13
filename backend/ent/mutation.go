@@ -17256,6 +17256,10 @@ type ChannelMonitorDailyRollupMutation struct {
 	addfailed_count        *int
 	error_count            *int
 	adderror_count         *int
+	sum_first_byte_ms      *int64
+	addsum_first_byte_ms   *int64
+	count_first_byte       *int
+	addcount_first_byte    *int
 	sum_latency_ms         *int64
 	addsum_latency_ms      *int64
 	count_latency          *int
@@ -17815,6 +17819,118 @@ func (m *ChannelMonitorDailyRollupMutation) ResetErrorCount() {
 	m.adderror_count = nil
 }
 
+// SetSumFirstByteMs sets the "sum_first_byte_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) SetSumFirstByteMs(i int64) {
+	m.sum_first_byte_ms = &i
+	m.addsum_first_byte_ms = nil
+}
+
+// SumFirstByteMs returns the value of the "sum_first_byte_ms" field in the mutation.
+func (m *ChannelMonitorDailyRollupMutation) SumFirstByteMs() (r int64, exists bool) {
+	v := m.sum_first_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSumFirstByteMs returns the old "sum_first_byte_ms" field's value of the ChannelMonitorDailyRollup entity.
+// If the ChannelMonitorDailyRollup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorDailyRollupMutation) OldSumFirstByteMs(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSumFirstByteMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSumFirstByteMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSumFirstByteMs: %w", err)
+	}
+	return oldValue.SumFirstByteMs, nil
+}
+
+// AddSumFirstByteMs adds i to the "sum_first_byte_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) AddSumFirstByteMs(i int64) {
+	if m.addsum_first_byte_ms != nil {
+		*m.addsum_first_byte_ms += i
+	} else {
+		m.addsum_first_byte_ms = &i
+	}
+}
+
+// AddedSumFirstByteMs returns the value that was added to the "sum_first_byte_ms" field in this mutation.
+func (m *ChannelMonitorDailyRollupMutation) AddedSumFirstByteMs() (r int64, exists bool) {
+	v := m.addsum_first_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSumFirstByteMs resets all changes to the "sum_first_byte_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) ResetSumFirstByteMs() {
+	m.sum_first_byte_ms = nil
+	m.addsum_first_byte_ms = nil
+}
+
+// SetCountFirstByte sets the "count_first_byte" field.
+func (m *ChannelMonitorDailyRollupMutation) SetCountFirstByte(i int) {
+	m.count_first_byte = &i
+	m.addcount_first_byte = nil
+}
+
+// CountFirstByte returns the value of the "count_first_byte" field in the mutation.
+func (m *ChannelMonitorDailyRollupMutation) CountFirstByte() (r int, exists bool) {
+	v := m.count_first_byte
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCountFirstByte returns the old "count_first_byte" field's value of the ChannelMonitorDailyRollup entity.
+// If the ChannelMonitorDailyRollup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorDailyRollupMutation) OldCountFirstByte(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCountFirstByte is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCountFirstByte requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCountFirstByte: %w", err)
+	}
+	return oldValue.CountFirstByte, nil
+}
+
+// AddCountFirstByte adds i to the "count_first_byte" field.
+func (m *ChannelMonitorDailyRollupMutation) AddCountFirstByte(i int) {
+	if m.addcount_first_byte != nil {
+		*m.addcount_first_byte += i
+	} else {
+		m.addcount_first_byte = &i
+	}
+}
+
+// AddedCountFirstByte returns the value that was added to the "count_first_byte" field in this mutation.
+func (m *ChannelMonitorDailyRollupMutation) AddedCountFirstByte() (r int, exists bool) {
+	v := m.addcount_first_byte
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCountFirstByte resets all changes to the "count_first_byte" field.
+func (m *ChannelMonitorDailyRollupMutation) ResetCountFirstByte() {
+	m.count_first_byte = nil
+	m.addcount_first_byte = nil
+}
+
 // SetSumLatencyMs sets the "sum_latency_ms" field.
 func (m *ChannelMonitorDailyRollupMutation) SetSumLatencyMs(i int64) {
 	m.sum_latency_ms = &i
@@ -18136,7 +18252,7 @@ func (m *ChannelMonitorDailyRollupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorDailyRollupMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.monitor != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldMonitorID)
 	}
@@ -18163,6 +18279,12 @@ func (m *ChannelMonitorDailyRollupMutation) Fields() []string {
 	}
 	if m.error_count != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldErrorCount)
+	}
+	if m.sum_first_byte_ms != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldSumFirstByteMs)
+	}
+	if m.count_first_byte != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldCountFirstByte)
 	}
 	if m.sum_latency_ms != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldSumLatencyMs)
@@ -18205,6 +18327,10 @@ func (m *ChannelMonitorDailyRollupMutation) Field(name string) (ent.Value, bool)
 		return m.FailedCount()
 	case channelmonitordailyrollup.FieldErrorCount:
 		return m.ErrorCount()
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		return m.SumFirstByteMs()
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		return m.CountFirstByte()
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		return m.SumLatencyMs()
 	case channelmonitordailyrollup.FieldCountLatency:
@@ -18242,6 +18368,10 @@ func (m *ChannelMonitorDailyRollupMutation) OldField(ctx context.Context, name s
 		return m.OldFailedCount(ctx)
 	case channelmonitordailyrollup.FieldErrorCount:
 		return m.OldErrorCount(ctx)
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		return m.OldSumFirstByteMs(ctx)
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		return m.OldCountFirstByte(ctx)
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		return m.OldSumLatencyMs(ctx)
 	case channelmonitordailyrollup.FieldCountLatency:
@@ -18324,6 +18454,20 @@ func (m *ChannelMonitorDailyRollupMutation) SetField(name string, value ent.Valu
 		}
 		m.SetErrorCount(v)
 		return nil
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSumFirstByteMs(v)
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCountFirstByte(v)
+		return nil
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		v, ok := value.(int64)
 		if !ok {
@@ -18385,6 +18529,12 @@ func (m *ChannelMonitorDailyRollupMutation) AddedFields() []string {
 	if m.adderror_count != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldErrorCount)
 	}
+	if m.addsum_first_byte_ms != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldSumFirstByteMs)
+	}
+	if m.addcount_first_byte != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldCountFirstByte)
+	}
 	if m.addsum_latency_ms != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldSumLatencyMs)
 	}
@@ -18417,6 +18567,10 @@ func (m *ChannelMonitorDailyRollupMutation) AddedField(name string) (ent.Value, 
 		return m.AddedFailedCount()
 	case channelmonitordailyrollup.FieldErrorCount:
 		return m.AddedErrorCount()
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		return m.AddedSumFirstByteMs()
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		return m.AddedCountFirstByte()
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		return m.AddedSumLatencyMs()
 	case channelmonitordailyrollup.FieldCountLatency:
@@ -18475,6 +18629,20 @@ func (m *ChannelMonitorDailyRollupMutation) AddField(name string, value ent.Valu
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddErrorCount(v)
+		return nil
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSumFirstByteMs(v)
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCountFirstByte(v)
 		return nil
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		v, ok := value.(int64)
@@ -18557,6 +18725,12 @@ func (m *ChannelMonitorDailyRollupMutation) ResetField(name string) error {
 		return nil
 	case channelmonitordailyrollup.FieldErrorCount:
 		m.ResetErrorCount()
+		return nil
+	case channelmonitordailyrollup.FieldSumFirstByteMs:
+		m.ResetSumFirstByteMs()
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstByte:
+		m.ResetCountFirstByte()
 		return nil
 	case channelmonitordailyrollup.FieldSumLatencyMs:
 		m.ResetSumLatencyMs()
@@ -18659,6 +18833,8 @@ type ChannelMonitorHistoryMutation struct {
 	id                 *int64
 	model              *string
 	status             *channelmonitorhistory.Status
+	first_byte_ms      *int
+	addfirst_byte_ms   *int
 	latency_ms         *int
 	addlatency_ms      *int
 	ping_latency_ms    *int
@@ -18878,6 +19054,76 @@ func (m *ChannelMonitorHistoryMutation) OldStatus(ctx context.Context) (v channe
 // ResetStatus resets all changes to the "status" field.
 func (m *ChannelMonitorHistoryMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetFirstByteMs sets the "first_byte_ms" field.
+func (m *ChannelMonitorHistoryMutation) SetFirstByteMs(i int) {
+	m.first_byte_ms = &i
+	m.addfirst_byte_ms = nil
+}
+
+// FirstByteMs returns the value of the "first_byte_ms" field in the mutation.
+func (m *ChannelMonitorHistoryMutation) FirstByteMs() (r int, exists bool) {
+	v := m.first_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstByteMs returns the old "first_byte_ms" field's value of the ChannelMonitorHistory entity.
+// If the ChannelMonitorHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorHistoryMutation) OldFirstByteMs(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstByteMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstByteMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstByteMs: %w", err)
+	}
+	return oldValue.FirstByteMs, nil
+}
+
+// AddFirstByteMs adds i to the "first_byte_ms" field.
+func (m *ChannelMonitorHistoryMutation) AddFirstByteMs(i int) {
+	if m.addfirst_byte_ms != nil {
+		*m.addfirst_byte_ms += i
+	} else {
+		m.addfirst_byte_ms = &i
+	}
+}
+
+// AddedFirstByteMs returns the value that was added to the "first_byte_ms" field in this mutation.
+func (m *ChannelMonitorHistoryMutation) AddedFirstByteMs() (r int, exists bool) {
+	v := m.addfirst_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFirstByteMs clears the value of the "first_byte_ms" field.
+func (m *ChannelMonitorHistoryMutation) ClearFirstByteMs() {
+	m.first_byte_ms = nil
+	m.addfirst_byte_ms = nil
+	m.clearedFields[channelmonitorhistory.FieldFirstByteMs] = struct{}{}
+}
+
+// FirstByteMsCleared returns if the "first_byte_ms" field was cleared in this mutation.
+func (m *ChannelMonitorHistoryMutation) FirstByteMsCleared() bool {
+	_, ok := m.clearedFields[channelmonitorhistory.FieldFirstByteMs]
+	return ok
+}
+
+// ResetFirstByteMs resets all changes to the "first_byte_ms" field.
+func (m *ChannelMonitorHistoryMutation) ResetFirstByteMs() {
+	m.first_byte_ms = nil
+	m.addfirst_byte_ms = nil
+	delete(m.clearedFields, channelmonitorhistory.FieldFirstByteMs)
 }
 
 // SetLatencyMs sets the "latency_ms" field.
@@ -19215,7 +19461,7 @@ func (m *ChannelMonitorHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.monitor != nil {
 		fields = append(fields, channelmonitorhistory.FieldMonitorID)
 	}
@@ -19224,6 +19470,9 @@ func (m *ChannelMonitorHistoryMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, channelmonitorhistory.FieldStatus)
+	}
+	if m.first_byte_ms != nil {
+		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
 	}
 	if m.latency_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
@@ -19254,6 +19503,8 @@ func (m *ChannelMonitorHistoryMutation) Field(name string) (ent.Value, bool) {
 		return m.Model()
 	case channelmonitorhistory.FieldStatus:
 		return m.Status()
+	case channelmonitorhistory.FieldFirstByteMs:
+		return m.FirstByteMs()
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.LatencyMs()
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19279,6 +19530,8 @@ func (m *ChannelMonitorHistoryMutation) OldField(ctx context.Context, name strin
 		return m.OldModel(ctx)
 	case channelmonitorhistory.FieldStatus:
 		return m.OldStatus(ctx)
+	case channelmonitorhistory.FieldFirstByteMs:
+		return m.OldFirstByteMs(ctx)
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.OldLatencyMs(ctx)
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19318,6 +19571,13 @@ func (m *ChannelMonitorHistoryMutation) SetField(name string, value ent.Value) e
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case channelmonitorhistory.FieldFirstByteMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstByteMs(v)
 		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		v, ok := value.(int)
@@ -19362,6 +19622,9 @@ func (m *ChannelMonitorHistoryMutation) SetField(name string, value ent.Value) e
 // this mutation.
 func (m *ChannelMonitorHistoryMutation) AddedFields() []string {
 	var fields []string
+	if m.addfirst_byte_ms != nil {
+		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
+	}
 	if m.addlatency_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
 	}
@@ -19376,6 +19639,8 @@ func (m *ChannelMonitorHistoryMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *ChannelMonitorHistoryMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case channelmonitorhistory.FieldFirstByteMs:
+		return m.AddedFirstByteMs()
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.AddedLatencyMs()
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19389,6 +19654,13 @@ func (m *ChannelMonitorHistoryMutation) AddedField(name string) (ent.Value, bool
 // type.
 func (m *ChannelMonitorHistoryMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case channelmonitorhistory.FieldFirstByteMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstByteMs(v)
+		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		v, ok := value.(int)
 		if !ok {
@@ -19411,6 +19683,9 @@ func (m *ChannelMonitorHistoryMutation) AddField(name string, value ent.Value) e
 // mutation.
 func (m *ChannelMonitorHistoryMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(channelmonitorhistory.FieldFirstByteMs) {
+		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
+	}
 	if m.FieldCleared(channelmonitorhistory.FieldLatencyMs) {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
 	}
@@ -19437,6 +19712,9 @@ func (m *ChannelMonitorHistoryMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *ChannelMonitorHistoryMutation) ClearField(name string) error {
 	switch name {
+	case channelmonitorhistory.FieldFirstByteMs:
+		m.ClearFirstByteMs()
+		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		m.ClearLatencyMs()
 		return nil
@@ -19465,6 +19743,9 @@ func (m *ChannelMonitorHistoryMutation) ResetField(name string) error {
 		return nil
 	case channelmonitorhistory.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case channelmonitorhistory.FieldFirstByteMs:
+		m.ResetFirstByteMs()
 		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		m.ResetLatencyMs()
@@ -22833,6 +23114,7 @@ type GroupMutation struct {
 	deleted_at                              *time.Time
 	name                                    *string
 	description                             *string
+	i18n                                    *domain.GroupI18n
 	rate_multiplier                         *float64
 	addrate_multiplier                      *float64
 	peak_rate_enabled                       *bool
@@ -23260,6 +23542,42 @@ func (m *GroupMutation) DescriptionCleared() bool {
 func (m *GroupMutation) ResetDescription() {
 	m.description = nil
 	delete(m.clearedFields, group.FieldDescription)
+}
+
+// SetI18n sets the "i18n" field.
+func (m *GroupMutation) SetI18n(di domain.GroupI18n) {
+	m.i18n = &di
+}
+
+// I18n returns the value of the "i18n" field in the mutation.
+func (m *GroupMutation) I18n() (r domain.GroupI18n, exists bool) {
+	v := m.i18n
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldI18n returns the old "i18n" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldI18n(ctx context.Context) (v domain.GroupI18n, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldI18n is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldI18n requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldI18n: %w", err)
+	}
+	return oldValue.I18n, nil
+}
+
+// ResetI18n resets all changes to the "i18n" field.
+func (m *GroupMutation) ResetI18n() {
+	m.i18n = nil
 }
 
 // SetRateMultiplier sets the "rate_multiplier" field.
@@ -27031,7 +27349,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 73)
+	fields := make([]string, 0, 74)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -27046,6 +27364,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, group.FieldDescription)
+	}
+	if m.i18n != nil {
+		fields = append(fields, group.FieldI18n)
 	}
 	if m.rate_multiplier != nil {
 		fields = append(fields, group.FieldRateMultiplier)
@@ -27269,6 +27590,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case group.FieldDescription:
 		return m.Description()
+	case group.FieldI18n:
+		return m.I18n()
 	case group.FieldRateMultiplier:
 		return m.RateMultiplier()
 	case group.FieldPeakRateEnabled:
@@ -27424,6 +27747,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldName(ctx)
 	case group.FieldDescription:
 		return m.OldDescription(ctx)
+	case group.FieldI18n:
+		return m.OldI18n(ctx)
 	case group.FieldRateMultiplier:
 		return m.OldRateMultiplier(ctx)
 	case group.FieldPeakRateEnabled:
@@ -27603,6 +27928,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case group.FieldI18n:
+		v, ok := value.(domain.GroupI18n)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetI18n(v)
 		return nil
 	case group.FieldRateMultiplier:
 		v, ok := value.(float64)
@@ -28659,6 +28991,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case group.FieldI18n:
+		m.ResetI18n()
 		return nil
 	case group.FieldRateMultiplier:
 		m.ResetRateMultiplier()
@@ -35939,6 +36274,11 @@ type PaymentOrderMutation struct {
 	pay_url                  *string
 	qr_code                  *string
 	qr_code_img              *string
+	order_source             *string
+	currency                 *string
+	plan_name                *string
+	redeem_code_id           *int64
+	addredeem_code_id        *int64
 	order_type               *string
 	plan_id                  *int64
 	addplan_id               *int64
@@ -36744,6 +37084,184 @@ func (m *PaymentOrderMutation) QrCodeImgCleared() bool {
 func (m *PaymentOrderMutation) ResetQrCodeImg() {
 	m.qr_code_img = nil
 	delete(m.clearedFields, paymentorder.FieldQrCodeImg)
+}
+
+// SetOrderSource sets the "order_source" field.
+func (m *PaymentOrderMutation) SetOrderSource(s string) {
+	m.order_source = &s
+}
+
+// OrderSource returns the value of the "order_source" field in the mutation.
+func (m *PaymentOrderMutation) OrderSource() (r string, exists bool) {
+	v := m.order_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderSource returns the old "order_source" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldOrderSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderSource: %w", err)
+	}
+	return oldValue.OrderSource, nil
+}
+
+// ResetOrderSource resets all changes to the "order_source" field.
+func (m *PaymentOrderMutation) ResetOrderSource() {
+	m.order_source = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *PaymentOrderMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *PaymentOrderMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *PaymentOrderMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetPlanName sets the "plan_name" field.
+func (m *PaymentOrderMutation) SetPlanName(s string) {
+	m.plan_name = &s
+}
+
+// PlanName returns the value of the "plan_name" field in the mutation.
+func (m *PaymentOrderMutation) PlanName() (r string, exists bool) {
+	v := m.plan_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlanName returns the old "plan_name" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldPlanName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlanName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlanName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlanName: %w", err)
+	}
+	return oldValue.PlanName, nil
+}
+
+// ResetPlanName resets all changes to the "plan_name" field.
+func (m *PaymentOrderMutation) ResetPlanName() {
+	m.plan_name = nil
+}
+
+// SetRedeemCodeID sets the "redeem_code_id" field.
+func (m *PaymentOrderMutation) SetRedeemCodeID(i int64) {
+	m.redeem_code_id = &i
+	m.addredeem_code_id = nil
+}
+
+// RedeemCodeID returns the value of the "redeem_code_id" field in the mutation.
+func (m *PaymentOrderMutation) RedeemCodeID() (r int64, exists bool) {
+	v := m.redeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRedeemCodeID returns the old "redeem_code_id" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldRedeemCodeID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRedeemCodeID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRedeemCodeID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRedeemCodeID: %w", err)
+	}
+	return oldValue.RedeemCodeID, nil
+}
+
+// AddRedeemCodeID adds i to the "redeem_code_id" field.
+func (m *PaymentOrderMutation) AddRedeemCodeID(i int64) {
+	if m.addredeem_code_id != nil {
+		*m.addredeem_code_id += i
+	} else {
+		m.addredeem_code_id = &i
+	}
+}
+
+// AddedRedeemCodeID returns the value that was added to the "redeem_code_id" field in this mutation.
+func (m *PaymentOrderMutation) AddedRedeemCodeID() (r int64, exists bool) {
+	v := m.addredeem_code_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRedeemCodeID clears the value of the "redeem_code_id" field.
+func (m *PaymentOrderMutation) ClearRedeemCodeID() {
+	m.redeem_code_id = nil
+	m.addredeem_code_id = nil
+	m.clearedFields[paymentorder.FieldRedeemCodeID] = struct{}{}
+}
+
+// RedeemCodeIDCleared returns if the "redeem_code_id" field was cleared in this mutation.
+func (m *PaymentOrderMutation) RedeemCodeIDCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldRedeemCodeID]
+	return ok
+}
+
+// ResetRedeemCodeID resets all changes to the "redeem_code_id" field.
+func (m *PaymentOrderMutation) ResetRedeemCodeID() {
+	m.redeem_code_id = nil
+	m.addredeem_code_id = nil
+	delete(m.clearedFields, paymentorder.FieldRedeemCodeID)
 }
 
 // SetOrderType sets the "order_type" field.
@@ -37998,7 +38516,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 40)
+	fields := make([]string, 0, 44)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -38043,6 +38561,18 @@ func (m *PaymentOrderMutation) Fields() []string {
 	}
 	if m.qr_code_img != nil {
 		fields = append(fields, paymentorder.FieldQrCodeImg)
+	}
+	if m.order_source != nil {
+		fields = append(fields, paymentorder.FieldOrderSource)
+	}
+	if m.currency != nil {
+		fields = append(fields, paymentorder.FieldCurrency)
+	}
+	if m.plan_name != nil {
+		fields = append(fields, paymentorder.FieldPlanName)
+	}
+	if m.redeem_code_id != nil {
+		fields = append(fields, paymentorder.FieldRedeemCodeID)
 	}
 	if m.order_type != nil {
 		fields = append(fields, paymentorder.FieldOrderType)
@@ -38157,6 +38687,14 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.QrCode()
 	case paymentorder.FieldQrCodeImg:
 		return m.QrCodeImg()
+	case paymentorder.FieldOrderSource:
+		return m.OrderSource()
+	case paymentorder.FieldCurrency:
+		return m.Currency()
+	case paymentorder.FieldPlanName:
+		return m.PlanName()
+	case paymentorder.FieldRedeemCodeID:
+		return m.RedeemCodeID()
 	case paymentorder.FieldOrderType:
 		return m.OrderType()
 	case paymentorder.FieldPlanID:
@@ -38246,6 +38784,14 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldQrCode(ctx)
 	case paymentorder.FieldQrCodeImg:
 		return m.OldQrCodeImg(ctx)
+	case paymentorder.FieldOrderSource:
+		return m.OldOrderSource(ctx)
+	case paymentorder.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case paymentorder.FieldPlanName:
+		return m.OldPlanName(ctx)
+	case paymentorder.FieldRedeemCodeID:
+		return m.OldRedeemCodeID(ctx)
 	case paymentorder.FieldOrderType:
 		return m.OldOrderType(ctx)
 	case paymentorder.FieldPlanID:
@@ -38409,6 +38955,34 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetQrCodeImg(v)
+		return nil
+	case paymentorder.FieldOrderSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderSource(v)
+		return nil
+	case paymentorder.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case paymentorder.FieldPlanName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlanName(v)
+		return nil
+	case paymentorder.FieldRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRedeemCodeID(v)
 		return nil
 	case paymentorder.FieldOrderType:
 		v, ok := value.(string)
@@ -38605,6 +39179,9 @@ func (m *PaymentOrderMutation) AddedFields() []string {
 	if m.addbonus_amount != nil {
 		fields = append(fields, paymentorder.FieldBonusAmount)
 	}
+	if m.addredeem_code_id != nil {
+		fields = append(fields, paymentorder.FieldRedeemCodeID)
+	}
 	if m.addplan_id != nil {
 		fields = append(fields, paymentorder.FieldPlanID)
 	}
@@ -38633,6 +39210,8 @@ func (m *PaymentOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFeeRate()
 	case paymentorder.FieldBonusAmount:
 		return m.AddedBonusAmount()
+	case paymentorder.FieldRedeemCodeID:
+		return m.AddedRedeemCodeID()
 	case paymentorder.FieldPlanID:
 		return m.AddedPlanID()
 	case paymentorder.FieldSubscriptionGroupID:
@@ -38677,6 +39256,13 @@ func (m *PaymentOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddBonusAmount(v)
+		return nil
+	case paymentorder.FieldRedeemCodeID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRedeemCodeID(v)
 		return nil
 	case paymentorder.FieldPlanID:
 		v, ok := value.(int64)
@@ -38725,6 +39311,9 @@ func (m *PaymentOrderMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(paymentorder.FieldQrCodeImg) {
 		fields = append(fields, paymentorder.FieldQrCodeImg)
+	}
+	if m.FieldCleared(paymentorder.FieldRedeemCodeID) {
+		fields = append(fields, paymentorder.FieldRedeemCodeID)
 	}
 	if m.FieldCleared(paymentorder.FieldPlanID) {
 		fields = append(fields, paymentorder.FieldPlanID)
@@ -38799,6 +39388,9 @@ func (m *PaymentOrderMutation) ClearField(name string) error {
 		return nil
 	case paymentorder.FieldQrCodeImg:
 		m.ClearQrCodeImg()
+		return nil
+	case paymentorder.FieldRedeemCodeID:
+		m.ClearRedeemCodeID()
 		return nil
 	case paymentorder.FieldPlanID:
 		m.ClearPlanID()
@@ -38900,6 +39492,18 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldQrCodeImg:
 		m.ResetQrCodeImg()
+		return nil
+	case paymentorder.FieldOrderSource:
+		m.ResetOrderSource()
+		return nil
+	case paymentorder.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case paymentorder.FieldPlanName:
+		m.ResetPlanName()
+		return nil
+	case paymentorder.FieldRedeemCodeID:
+		m.ResetRedeemCodeID()
 		return nil
 	case paymentorder.FieldOrderType:
 		m.ResetOrderType()
@@ -44807,6 +45411,13 @@ type RedeemCodeMutation struct {
 	notes            *string
 	created_at       *time.Time
 	expires_at       *time.Time
+	generate_order   *bool
+	order_currency   *string
+	order_amount     *float64
+	addorder_amount  *float64
+	order_plan_id    *int64
+	addorder_plan_id *int64
+	order_plan_name  *string
 	validity_days    *int
 	addvalidity_days *int
 	clearedFields    map[string]struct{}
@@ -45362,6 +45973,240 @@ func (m *RedeemCodeMutation) ResetGroupID() {
 	delete(m.clearedFields, redeemcode.FieldGroupID)
 }
 
+// SetGenerateOrder sets the "generate_order" field.
+func (m *RedeemCodeMutation) SetGenerateOrder(b bool) {
+	m.generate_order = &b
+}
+
+// GenerateOrder returns the value of the "generate_order" field in the mutation.
+func (m *RedeemCodeMutation) GenerateOrder() (r bool, exists bool) {
+	v := m.generate_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGenerateOrder returns the old "generate_order" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldGenerateOrder(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGenerateOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGenerateOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGenerateOrder: %w", err)
+	}
+	return oldValue.GenerateOrder, nil
+}
+
+// ResetGenerateOrder resets all changes to the "generate_order" field.
+func (m *RedeemCodeMutation) ResetGenerateOrder() {
+	m.generate_order = nil
+}
+
+// SetOrderCurrency sets the "order_currency" field.
+func (m *RedeemCodeMutation) SetOrderCurrency(s string) {
+	m.order_currency = &s
+}
+
+// OrderCurrency returns the value of the "order_currency" field in the mutation.
+func (m *RedeemCodeMutation) OrderCurrency() (r string, exists bool) {
+	v := m.order_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderCurrency returns the old "order_currency" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldOrderCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderCurrency: %w", err)
+	}
+	return oldValue.OrderCurrency, nil
+}
+
+// ResetOrderCurrency resets all changes to the "order_currency" field.
+func (m *RedeemCodeMutation) ResetOrderCurrency() {
+	m.order_currency = nil
+}
+
+// SetOrderAmount sets the "order_amount" field.
+func (m *RedeemCodeMutation) SetOrderAmount(f float64) {
+	m.order_amount = &f
+	m.addorder_amount = nil
+}
+
+// OrderAmount returns the value of the "order_amount" field in the mutation.
+func (m *RedeemCodeMutation) OrderAmount() (r float64, exists bool) {
+	v := m.order_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderAmount returns the old "order_amount" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldOrderAmount(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderAmount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderAmount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderAmount: %w", err)
+	}
+	return oldValue.OrderAmount, nil
+}
+
+// AddOrderAmount adds f to the "order_amount" field.
+func (m *RedeemCodeMutation) AddOrderAmount(f float64) {
+	if m.addorder_amount != nil {
+		*m.addorder_amount += f
+	} else {
+		m.addorder_amount = &f
+	}
+}
+
+// AddedOrderAmount returns the value that was added to the "order_amount" field in this mutation.
+func (m *RedeemCodeMutation) AddedOrderAmount() (r float64, exists bool) {
+	v := m.addorder_amount
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderAmount resets all changes to the "order_amount" field.
+func (m *RedeemCodeMutation) ResetOrderAmount() {
+	m.order_amount = nil
+	m.addorder_amount = nil
+}
+
+// SetOrderPlanID sets the "order_plan_id" field.
+func (m *RedeemCodeMutation) SetOrderPlanID(i int64) {
+	m.order_plan_id = &i
+	m.addorder_plan_id = nil
+}
+
+// OrderPlanID returns the value of the "order_plan_id" field in the mutation.
+func (m *RedeemCodeMutation) OrderPlanID() (r int64, exists bool) {
+	v := m.order_plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderPlanID returns the old "order_plan_id" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldOrderPlanID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderPlanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderPlanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderPlanID: %w", err)
+	}
+	return oldValue.OrderPlanID, nil
+}
+
+// AddOrderPlanID adds i to the "order_plan_id" field.
+func (m *RedeemCodeMutation) AddOrderPlanID(i int64) {
+	if m.addorder_plan_id != nil {
+		*m.addorder_plan_id += i
+	} else {
+		m.addorder_plan_id = &i
+	}
+}
+
+// AddedOrderPlanID returns the value that was added to the "order_plan_id" field in this mutation.
+func (m *RedeemCodeMutation) AddedOrderPlanID() (r int64, exists bool) {
+	v := m.addorder_plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOrderPlanID clears the value of the "order_plan_id" field.
+func (m *RedeemCodeMutation) ClearOrderPlanID() {
+	m.order_plan_id = nil
+	m.addorder_plan_id = nil
+	m.clearedFields[redeemcode.FieldOrderPlanID] = struct{}{}
+}
+
+// OrderPlanIDCleared returns if the "order_plan_id" field was cleared in this mutation.
+func (m *RedeemCodeMutation) OrderPlanIDCleared() bool {
+	_, ok := m.clearedFields[redeemcode.FieldOrderPlanID]
+	return ok
+}
+
+// ResetOrderPlanID resets all changes to the "order_plan_id" field.
+func (m *RedeemCodeMutation) ResetOrderPlanID() {
+	m.order_plan_id = nil
+	m.addorder_plan_id = nil
+	delete(m.clearedFields, redeemcode.FieldOrderPlanID)
+}
+
+// SetOrderPlanName sets the "order_plan_name" field.
+func (m *RedeemCodeMutation) SetOrderPlanName(s string) {
+	m.order_plan_name = &s
+}
+
+// OrderPlanName returns the value of the "order_plan_name" field in the mutation.
+func (m *RedeemCodeMutation) OrderPlanName() (r string, exists bool) {
+	v := m.order_plan_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderPlanName returns the old "order_plan_name" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldOrderPlanName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderPlanName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderPlanName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderPlanName: %w", err)
+	}
+	return oldValue.OrderPlanName, nil
+}
+
+// ResetOrderPlanName resets all changes to the "order_plan_name" field.
+func (m *RedeemCodeMutation) ResetOrderPlanName() {
+	m.order_plan_name = nil
+}
+
 // SetValidityDays sets the "validity_days" field.
 func (m *RedeemCodeMutation) SetValidityDays(i int) {
 	m.validity_days = &i
@@ -45519,7 +46364,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 16)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -45549,6 +46394,21 @@ func (m *RedeemCodeMutation) Fields() []string {
 	}
 	if m.group != nil {
 		fields = append(fields, redeemcode.FieldGroupID)
+	}
+	if m.generate_order != nil {
+		fields = append(fields, redeemcode.FieldGenerateOrder)
+	}
+	if m.order_currency != nil {
+		fields = append(fields, redeemcode.FieldOrderCurrency)
+	}
+	if m.order_amount != nil {
+		fields = append(fields, redeemcode.FieldOrderAmount)
+	}
+	if m.order_plan_id != nil {
+		fields = append(fields, redeemcode.FieldOrderPlanID)
+	}
+	if m.order_plan_name != nil {
+		fields = append(fields, redeemcode.FieldOrderPlanName)
 	}
 	if m.validity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
@@ -45581,6 +46441,16 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.ExpiresAt()
 	case redeemcode.FieldGroupID:
 		return m.GroupID()
+	case redeemcode.FieldGenerateOrder:
+		return m.GenerateOrder()
+	case redeemcode.FieldOrderCurrency:
+		return m.OrderCurrency()
+	case redeemcode.FieldOrderAmount:
+		return m.OrderAmount()
+	case redeemcode.FieldOrderPlanID:
+		return m.OrderPlanID()
+	case redeemcode.FieldOrderPlanName:
+		return m.OrderPlanName()
 	case redeemcode.FieldValidityDays:
 		return m.ValidityDays()
 	}
@@ -45612,6 +46482,16 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldExpiresAt(ctx)
 	case redeemcode.FieldGroupID:
 		return m.OldGroupID(ctx)
+	case redeemcode.FieldGenerateOrder:
+		return m.OldGenerateOrder(ctx)
+	case redeemcode.FieldOrderCurrency:
+		return m.OldOrderCurrency(ctx)
+	case redeemcode.FieldOrderAmount:
+		return m.OldOrderAmount(ctx)
+	case redeemcode.FieldOrderPlanID:
+		return m.OldOrderPlanID(ctx)
+	case redeemcode.FieldOrderPlanName:
+		return m.OldOrderPlanName(ctx)
 	case redeemcode.FieldValidityDays:
 		return m.OldValidityDays(ctx)
 	}
@@ -45693,6 +46573,41 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetGroupID(v)
 		return nil
+	case redeemcode.FieldGenerateOrder:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGenerateOrder(v)
+		return nil
+	case redeemcode.FieldOrderCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderCurrency(v)
+		return nil
+	case redeemcode.FieldOrderAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderAmount(v)
+		return nil
+	case redeemcode.FieldOrderPlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderPlanID(v)
+		return nil
+	case redeemcode.FieldOrderPlanName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderPlanName(v)
+		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
 		if !ok {
@@ -45711,6 +46626,12 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addvalue != nil {
 		fields = append(fields, redeemcode.FieldValue)
 	}
+	if m.addorder_amount != nil {
+		fields = append(fields, redeemcode.FieldOrderAmount)
+	}
+	if m.addorder_plan_id != nil {
+		fields = append(fields, redeemcode.FieldOrderPlanID)
+	}
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
@@ -45724,6 +46645,10 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case redeemcode.FieldValue:
 		return m.AddedValue()
+	case redeemcode.FieldOrderAmount:
+		return m.AddedOrderAmount()
+	case redeemcode.FieldOrderPlanID:
+		return m.AddedOrderPlanID()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
 	}
@@ -45741,6 +46666,20 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValue(v)
+		return nil
+	case redeemcode.FieldOrderAmount:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderAmount(v)
+		return nil
+	case redeemcode.FieldOrderPlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderPlanID(v)
 		return nil
 	case redeemcode.FieldValidityDays:
 		v, ok := value.(int)
@@ -45772,6 +46711,9 @@ func (m *RedeemCodeMutation) ClearedFields() []string {
 	if m.FieldCleared(redeemcode.FieldGroupID) {
 		fields = append(fields, redeemcode.FieldGroupID)
 	}
+	if m.FieldCleared(redeemcode.FieldOrderPlanID) {
+		fields = append(fields, redeemcode.FieldOrderPlanID)
+	}
 	return fields
 }
 
@@ -45800,6 +46742,9 @@ func (m *RedeemCodeMutation) ClearField(name string) error {
 		return nil
 	case redeemcode.FieldGroupID:
 		m.ClearGroupID()
+		return nil
+	case redeemcode.FieldOrderPlanID:
+		m.ClearOrderPlanID()
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode nullable field %s", name)
@@ -45838,6 +46783,21 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 		return nil
 	case redeemcode.FieldGroupID:
 		m.ResetGroupID()
+		return nil
+	case redeemcode.FieldGenerateOrder:
+		m.ResetGenerateOrder()
+		return nil
+	case redeemcode.FieldOrderCurrency:
+		m.ResetOrderCurrency()
+		return nil
+	case redeemcode.FieldOrderAmount:
+		m.ResetOrderAmount()
+		return nil
+	case redeemcode.FieldOrderPlanID:
+		m.ResetOrderPlanID()
+		return nil
+	case redeemcode.FieldOrderPlanName:
+		m.ResetOrderPlanName()
 		return nil
 	case redeemcode.FieldValidityDays:
 		m.ResetValidityDays()
@@ -57226,6 +58186,8 @@ type UsageLogMutation struct {
 	addcache_creation_1h_tokens   *int
 	audio_output_tokens           *int
 	addaudio_output_tokens        *int
+	requested_service_tier        *string
+	response_service_tier         *string
 	codex_rollout_budget_units    *float64
 	addcodex_rollout_budget_units *float64
 	input_cost                    *float64
@@ -57252,6 +58214,8 @@ type UsageLogMutation struct {
 	addduration_ms                *int
 	timing_version                *int
 	addtiming_version             *int
+	first_byte_ms                 *int
+	addfirst_byte_ms              *int
 	first_token_ms                *int
 	addfirst_token_ms             *int
 	last_token_ms                 *int
@@ -58596,6 +59560,104 @@ func (m *UsageLogMutation) ResetAudioOutputTokens() {
 	m.addaudio_output_tokens = nil
 }
 
+// SetRequestedServiceTier sets the "requested_service_tier" field.
+func (m *UsageLogMutation) SetRequestedServiceTier(s string) {
+	m.requested_service_tier = &s
+}
+
+// RequestedServiceTier returns the value of the "requested_service_tier" field in the mutation.
+func (m *UsageLogMutation) RequestedServiceTier() (r string, exists bool) {
+	v := m.requested_service_tier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedServiceTier returns the old "requested_service_tier" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldRequestedServiceTier(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedServiceTier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedServiceTier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedServiceTier: %w", err)
+	}
+	return oldValue.RequestedServiceTier, nil
+}
+
+// ClearRequestedServiceTier clears the value of the "requested_service_tier" field.
+func (m *UsageLogMutation) ClearRequestedServiceTier() {
+	m.requested_service_tier = nil
+	m.clearedFields[usagelog.FieldRequestedServiceTier] = struct{}{}
+}
+
+// RequestedServiceTierCleared returns if the "requested_service_tier" field was cleared in this mutation.
+func (m *UsageLogMutation) RequestedServiceTierCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldRequestedServiceTier]
+	return ok
+}
+
+// ResetRequestedServiceTier resets all changes to the "requested_service_tier" field.
+func (m *UsageLogMutation) ResetRequestedServiceTier() {
+	m.requested_service_tier = nil
+	delete(m.clearedFields, usagelog.FieldRequestedServiceTier)
+}
+
+// SetResponseServiceTier sets the "response_service_tier" field.
+func (m *UsageLogMutation) SetResponseServiceTier(s string) {
+	m.response_service_tier = &s
+}
+
+// ResponseServiceTier returns the value of the "response_service_tier" field in the mutation.
+func (m *UsageLogMutation) ResponseServiceTier() (r string, exists bool) {
+	v := m.response_service_tier
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResponseServiceTier returns the old "response_service_tier" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldResponseServiceTier(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResponseServiceTier is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResponseServiceTier requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResponseServiceTier: %w", err)
+	}
+	return oldValue.ResponseServiceTier, nil
+}
+
+// ClearResponseServiceTier clears the value of the "response_service_tier" field.
+func (m *UsageLogMutation) ClearResponseServiceTier() {
+	m.response_service_tier = nil
+	m.clearedFields[usagelog.FieldResponseServiceTier] = struct{}{}
+}
+
+// ResponseServiceTierCleared returns if the "response_service_tier" field was cleared in this mutation.
+func (m *UsageLogMutation) ResponseServiceTierCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldResponseServiceTier]
+	return ok
+}
+
+// ResetResponseServiceTier resets all changes to the "response_service_tier" field.
+func (m *UsageLogMutation) ResetResponseServiceTier() {
+	m.response_service_tier = nil
+	delete(m.clearedFields, usagelog.FieldResponseServiceTier)
+}
+
 // SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
 func (m *UsageLogMutation) SetCodexRolloutBudgetUnits(f float64) {
 	m.codex_rollout_budget_units = &f
@@ -59380,6 +60442,76 @@ func (m *UsageLogMutation) AddedTimingVersion() (r int, exists bool) {
 func (m *UsageLogMutation) ResetTimingVersion() {
 	m.timing_version = nil
 	m.addtiming_version = nil
+}
+
+// SetFirstByteMs sets the "first_byte_ms" field.
+func (m *UsageLogMutation) SetFirstByteMs(i int) {
+	m.first_byte_ms = &i
+	m.addfirst_byte_ms = nil
+}
+
+// FirstByteMs returns the value of the "first_byte_ms" field in the mutation.
+func (m *UsageLogMutation) FirstByteMs() (r int, exists bool) {
+	v := m.first_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstByteMs returns the old "first_byte_ms" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldFirstByteMs(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstByteMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstByteMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstByteMs: %w", err)
+	}
+	return oldValue.FirstByteMs, nil
+}
+
+// AddFirstByteMs adds i to the "first_byte_ms" field.
+func (m *UsageLogMutation) AddFirstByteMs(i int) {
+	if m.addfirst_byte_ms != nil {
+		*m.addfirst_byte_ms += i
+	} else {
+		m.addfirst_byte_ms = &i
+	}
+}
+
+// AddedFirstByteMs returns the value that was added to the "first_byte_ms" field in this mutation.
+func (m *UsageLogMutation) AddedFirstByteMs() (r int, exists bool) {
+	v := m.addfirst_byte_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFirstByteMs clears the value of the "first_byte_ms" field.
+func (m *UsageLogMutation) ClearFirstByteMs() {
+	m.first_byte_ms = nil
+	m.addfirst_byte_ms = nil
+	m.clearedFields[usagelog.FieldFirstByteMs] = struct{}{}
+}
+
+// FirstByteMsCleared returns if the "first_byte_ms" field was cleared in this mutation.
+func (m *UsageLogMutation) FirstByteMsCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldFirstByteMs]
+	return ok
+}
+
+// ResetFirstByteMs resets all changes to the "first_byte_ms" field.
+func (m *UsageLogMutation) ResetFirstByteMs() {
+	m.first_byte_ms = nil
+	m.addfirst_byte_ms = nil
+	delete(m.clearedFields, usagelog.FieldFirstByteMs)
 }
 
 // SetFirstTokenMs sets the "first_token_ms" field.
@@ -60604,7 +61736,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 58)
+	fields := make([]string, 0, 61)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -60677,6 +61809,12 @@ func (m *UsageLogMutation) Fields() []string {
 	if m.audio_output_tokens != nil {
 		fields = append(fields, usagelog.FieldAudioOutputTokens)
 	}
+	if m.requested_service_tier != nil {
+		fields = append(fields, usagelog.FieldRequestedServiceTier)
+	}
+	if m.response_service_tier != nil {
+		fields = append(fields, usagelog.FieldResponseServiceTier)
+	}
 	if m.codex_rollout_budget_units != nil {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
 	}
@@ -60718,6 +61856,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.timing_version != nil {
 		fields = append(fields, usagelog.FieldTimingVersion)
+	}
+	if m.first_byte_ms != nil {
+		fields = append(fields, usagelog.FieldFirstByteMs)
 	}
 	if m.first_token_ms != nil {
 		fields = append(fields, usagelog.FieldFirstTokenMs)
@@ -60835,6 +61976,10 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.CacheCreation1hTokens()
 	case usagelog.FieldAudioOutputTokens:
 		return m.AudioOutputTokens()
+	case usagelog.FieldRequestedServiceTier:
+		return m.RequestedServiceTier()
+	case usagelog.FieldResponseServiceTier:
+		return m.ResponseServiceTier()
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.CodexRolloutBudgetUnits()
 	case usagelog.FieldInputCost:
@@ -60863,6 +62008,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.DurationMs()
 	case usagelog.FieldTimingVersion:
 		return m.TimingVersion()
+	case usagelog.FieldFirstByteMs:
+		return m.FirstByteMs()
 	case usagelog.FieldFirstTokenMs:
 		return m.FirstTokenMs()
 	case usagelog.FieldLastTokenMs:
@@ -60960,6 +62107,10 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCacheCreation1hTokens(ctx)
 	case usagelog.FieldAudioOutputTokens:
 		return m.OldAudioOutputTokens(ctx)
+	case usagelog.FieldRequestedServiceTier:
+		return m.OldRequestedServiceTier(ctx)
+	case usagelog.FieldResponseServiceTier:
+		return m.OldResponseServiceTier(ctx)
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.OldCodexRolloutBudgetUnits(ctx)
 	case usagelog.FieldInputCost:
@@ -60988,6 +62139,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDurationMs(ctx)
 	case usagelog.FieldTimingVersion:
 		return m.OldTimingVersion(ctx)
+	case usagelog.FieldFirstByteMs:
+		return m.OldFirstByteMs(ctx)
 	case usagelog.FieldFirstTokenMs:
 		return m.OldFirstTokenMs(ctx)
 	case usagelog.FieldLastTokenMs:
@@ -61205,6 +62358,20 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAudioOutputTokens(v)
 		return nil
+	case usagelog.FieldRequestedServiceTier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedServiceTier(v)
+		return nil
+	case usagelog.FieldResponseServiceTier:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResponseServiceTier(v)
+		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		v, ok := value.(float64)
 		if !ok {
@@ -61302,6 +62469,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTimingVersion(v)
+		return nil
+	case usagelog.FieldFirstByteMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstByteMs(v)
 		return nil
 	case usagelog.FieldFirstTokenMs:
 		v, ok := value.(int)
@@ -61514,6 +62688,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addtiming_version != nil {
 		fields = append(fields, usagelog.FieldTimingVersion)
 	}
+	if m.addfirst_byte_ms != nil {
+		fields = append(fields, usagelog.FieldFirstByteMs)
+	}
 	if m.addfirst_token_ms != nil {
 		fields = append(fields, usagelog.FieldFirstTokenMs)
 	}
@@ -61582,6 +62759,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDurationMs()
 	case usagelog.FieldTimingVersion:
 		return m.AddedTimingVersion()
+	case usagelog.FieldFirstByteMs:
+		return m.AddedFirstByteMs()
 	case usagelog.FieldFirstTokenMs:
 		return m.AddedFirstTokenMs()
 	case usagelog.FieldLastTokenMs:
@@ -61750,6 +62929,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddTimingVersion(v)
 		return nil
+	case usagelog.FieldFirstByteMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstByteMs(v)
+		return nil
 	case usagelog.FieldFirstTokenMs:
 		v, ok := value.(int)
 		if !ok {
@@ -61836,6 +63022,12 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldSubscriptionID) {
 		fields = append(fields, usagelog.FieldSubscriptionID)
 	}
+	if m.FieldCleared(usagelog.FieldRequestedServiceTier) {
+		fields = append(fields, usagelog.FieldRequestedServiceTier)
+	}
+	if m.FieldCleared(usagelog.FieldResponseServiceTier) {
+		fields = append(fields, usagelog.FieldResponseServiceTier)
+	}
 	if m.FieldCleared(usagelog.FieldCodexRolloutBudgetUnits) {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
 	}
@@ -61844,6 +63036,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(usagelog.FieldDurationMs) {
 		fields = append(fields, usagelog.FieldDurationMs)
+	}
+	if m.FieldCleared(usagelog.FieldFirstByteMs) {
+		fields = append(fields, usagelog.FieldFirstByteMs)
 	}
 	if m.FieldCleared(usagelog.FieldFirstTokenMs) {
 		fields = append(fields, usagelog.FieldFirstTokenMs)
@@ -61937,6 +63132,12 @@ func (m *UsageLogMutation) ClearField(name string) error {
 	case usagelog.FieldSubscriptionID:
 		m.ClearSubscriptionID()
 		return nil
+	case usagelog.FieldRequestedServiceTier:
+		m.ClearRequestedServiceTier()
+		return nil
+	case usagelog.FieldResponseServiceTier:
+		m.ClearResponseServiceTier()
+		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		m.ClearCodexRolloutBudgetUnits()
 		return nil
@@ -61945,6 +63146,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldDurationMs:
 		m.ClearDurationMs()
+		return nil
+	case usagelog.FieldFirstByteMs:
+		m.ClearFirstByteMs()
 		return nil
 	case usagelog.FieldFirstTokenMs:
 		m.ClearFirstTokenMs()
@@ -62068,6 +63272,12 @@ func (m *UsageLogMutation) ResetField(name string) error {
 	case usagelog.FieldAudioOutputTokens:
 		m.ResetAudioOutputTokens()
 		return nil
+	case usagelog.FieldRequestedServiceTier:
+		m.ResetRequestedServiceTier()
+		return nil
+	case usagelog.FieldResponseServiceTier:
+		m.ResetResponseServiceTier()
+		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		m.ResetCodexRolloutBudgetUnits()
 		return nil
@@ -62109,6 +63319,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldTimingVersion:
 		m.ResetTimingVersion()
+		return nil
+	case usagelog.FieldFirstByteMs:
+		m.ResetFirstByteMs()
 		return nil
 	case usagelog.FieldFirstTokenMs:
 		m.ResetFirstTokenMs()

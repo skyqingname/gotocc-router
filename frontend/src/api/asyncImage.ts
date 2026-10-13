@@ -169,7 +169,7 @@ export async function getAsyncImageTask(apiKey: string, taskID: string): Promise
 }
 
 export async function getAsyncImageObjectURL(apiKey: string, objectID: string): Promise<AsyncImageObjectURL> {
-  const response = await fetch(buildGatewayUrl(`/v1/images/objects/${encodeURIComponent(objectID)}/url`), { headers: authHeaders(apiKey) })
+  const response = await imageFetch(`/v1/images/objects/${encodeURIComponent(objectID)}/url`, apiKey, { headers: authHeaders(apiKey) })
   if (!response.ok) throw await parseAsyncImageError(response)
   return response.json()
 }

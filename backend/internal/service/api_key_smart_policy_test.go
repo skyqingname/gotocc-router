@@ -105,3 +105,12 @@ func TestAutoRoutingPolicyControlsResolverAndCatalogButNotLockedRequests(t *test
 	require.NoError(t, err)
 	require.Equal(t, locked, *route.Key.GroupID)
 }
+
+// Requirement: the administrator toggle is persisted with the routing policy;
+// existing policies without the toggle keep customization disabled.
+func TestAutoRoutingPolicyAcceptsUserOverridePermission(t *testing.T) {
+	repo := &autoPolicySettings{value: `{"allow_user_override":true,"default_group_order":[10],"model_rules":[]}`}
+	svc := NewAutoGroupRoutingPolicyService(repo, nil)
+	_, err := svc.Get(context.Background())
+	require.NoError(t, err)
+}

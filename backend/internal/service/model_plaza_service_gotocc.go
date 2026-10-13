@@ -59,6 +59,7 @@ func (s *ModelPlazaService) listGroupsFromChannelPricing(ctx context.Context) ([
 			ID:                        g.ID,
 			Name:                      g.Name,
 			Description:               g.Description,
+			I18n:                      g.I18n,
 			Platform:                  g.Platform,
 			SubscriptionType:          g.SubscriptionType,
 			RateMultiplier:            g.RateMultiplier,

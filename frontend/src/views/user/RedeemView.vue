@@ -9,6 +9,7 @@
               :sequence="celebration?.sequence ?? 0"
               :title="celebration?.title ?? ''"
               :detail="celebration?.detail ?? ''"
+              @finished="onCelebrationFinished"
             >
               <dl class="grid grid-cols-2 gap-4">
                 <div>
@@ -105,6 +106,7 @@
             <li>{{ t('redeem.codeRule4') }}</li>
           </ul>
         </section>
+        <CanvasCardExchange ref="canvasExchange" :readonly="!!adminSupportContext" @exchanged="onCanvasCardExchanged" />
       </div>
 
       <!-- 兑换记录用分隔线划分列表项，窄屏共用一层内边距。 -->
@@ -133,7 +135,8 @@
         >
           <li v-for="item in history" :key="item.id" class="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
             <div :class="['flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', getHistoryTone(item).bg]">
-              <Icon v-if="isBalanceType(item.type)" name="dollar" size="sm" :class="getHistoryTone(item).text" />
+              <Icon v-if="item.canvas_card" name="gift" size="sm" :class="getHistoryTone(item).text" />
+              <Icon v-else-if="isBalanceType(item.type)" name="dollar" size="sm" :class="getHistoryTone(item).text" />
               <Icon v-else-if="isSubscriptionType(item.type)" name="badge" size="sm" :class="getHistoryTone(item).text" />
               <Icon v-else name="bolt" size="sm" :class="getHistoryTone(item).text" />
             </div>
@@ -145,7 +148,11 @@
               <p class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-dark-400">
                 <span class="shrink-0">{{ formatDateTime(item.used_at) }}</span>
                 <span aria-hidden="true">·</span>
-                <template v-if="isAdminAdjustment(item.type)">
+                <template v-if="item.canvas_card">
+                  <span>{{ t(item.canvas_card.funding_source === 'team' ? 'canvasCard.team' : 'canvasCard.personal') }}</span>
+                  <span v-if="item.canvas_card.team_id">· #{{ item.canvas_card.team_id }}</span>
+                </template>
+                <template v-else-if="isAdminAdjustment(item.type)">
                   <span class="shrink-0">{{ t('redeem.adminAdjustment') }}</span>
                   <template v-if="item.notes">
                     <span aria-hidden="true">·</span>
@@ -156,11 +163,10 @@
               </p>
             </div>
 
-            <p
-              :class="['max-w-40 shrink-0 truncate text-right text-sm font-semibold tabular-nums', getHistoryTone(item).text]"
-            >
-              {{ formatHistoryValue(item) }}
-            </p>
+            <div class="max-w-40 shrink-0 text-right">
+              <p :class="['truncate text-sm font-semibold tabular-nums', getHistoryTone(item).text]">{{ formatHistoryValue(item) }}</p>
+              <button v-if="item.canvas_card" type="button" class="mt-1 text-xs text-primary-600 hover:underline dark:text-primary-400" @click="canvasExchange?.showOrder(item.canvas_card)">{{ t('canvasCard.viewCode') }}</button>
+            </div>
           </li>
         </ul>
 
@@ -203,10 +209,12 @@
         </div>
       </section>
     </div>
+    <BalanceCashbackNotice :amount="cashbackNoticeAmount" @close="cashbackNoticeAmount = 0" />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
+import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -217,18 +225,24 @@ import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RedeemCelebration from '@/components/user/RedeemCelebration.vue'
+import CanvasCardExchange from '@/components/gotocc/canvas-cards/CanvasCardExchange.vue'
+import { adminSupportContext } from '@/utils/adminSupportContext'
+import BalanceCashbackNotice from '@/components/gotocc/cashback/BalanceCashbackNotice.vue'
+import { formatCashbackAmount } from '@/utils/balanceCashback'
 import { formatDateTime } from '@/utils/format'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
 
 const user = computed(() => authStore.user)
+const canvasExchange = ref<InstanceType<typeof CanvasCardExchange> | null>(null)
 
 const redeemCode = ref('')
 const submitting = ref(false)
-const celebration = ref<{ sequence: number; title: string; detail: string } | null>(null)
+const celebration = ref<{ sequence: number; title: string; detail: string; cashbackAmount: number } | null>(null)
+const cashbackNoticeAmount = ref(0)
 let celebrationSequence = 0
 const errorMessage = ref('')
 
@@ -244,7 +258,7 @@ const contactInfo = ref('')
 
 // Helper functions for history display
 const isBalanceType = (type: string) => {
-  return type === 'balance' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_transfer' || type === 'canvas_reversal'
+  return type === 'balance' || type === 'balance_cashback' || type === 'admin_balance' || type === 'team_transfer' || type === 'canvas_card' || type === 'canvas_transfer' || type === 'canvas_reversal'
 }
 
 const isSubscriptionType = (type: string) => {
@@ -282,10 +296,14 @@ const getCelebrationDetail = (result: RedeemHistoryItem) => {
 }
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
-  if (item.type === 'balance') {
+  if (item.type === 'balance_cashback') {
+    return t('balanceCashback.historyTitle')
+  } else if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
     return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
+  } else if (item.type === 'canvas_card') {
+    return t('canvasCard.activityTitle', { amount: item.canvas_card!.denomination })
   } else if (item.type === 'team_transfer') {
     return t('redeem.balanceTeamTransfer')
   } else if (item.type === 'canvas_transfer') {
@@ -303,6 +321,8 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
+  if (item.canvas_card) return `-$${item.canvas_card.denomination.toFixed(2)}`
+  if (item.type === 'balance_cashback') return `+$${formatCashbackAmount(item.value, locale.value)}`
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
     return `${sign}$${item.value.toFixed(2)}`
@@ -322,7 +342,7 @@ const fetchHistory = async (page = 1) => {
   const pageSize = historyPageSize.value
   loadingHistory.value = true
   try {
-    const result = await redeemAPI.getHistory(page, pageSize)
+    const result = await redeemAPI.getActivity(page, pageSize)
     if (request !== historyRequest) return
     history.value = result.items
     historyTotal.value = result.total
@@ -348,6 +368,7 @@ const handleRedeem = async () => {
   submitting.value = true
   errorMessage.value = ''
   celebration.value = null
+  cashbackNoticeAmount.value = 0
 
   try {
     const result = await redeemAPI.redeem(redeemCode.value.trim())
@@ -355,7 +376,8 @@ const handleRedeem = async () => {
     celebration.value = {
       sequence: ++celebrationSequence,
       title: t('redeem.redeemSuccess'),
-      detail: getCelebrationDetail(result)
+      detail: getCelebrationDetail(result),
+      cashbackAmount: result.cashback_amount ?? 0,
     }
     redeemCode.value = ''
 
@@ -391,6 +413,12 @@ const handleRedeem = async () => {
   }
 }
 
+function onCelebrationFinished(sequence: number) {
+  if (celebration.value?.sequence === sequence && celebration.value.cashbackAmount > 0) {
+    cashbackNoticeAmount.value = celebration.value.cashbackAmount
+  }
+}
+
 onMounted(async () => {
   fetchHistory()
   try {
@@ -400,4 +428,9 @@ onMounted(async () => {
     console.error('Failed to load contact info:', error)
   }
 })
+useLocaleRefresh(() => fetchHistory(historyPage.value))
+async function onCanvasCardExchanged() {
+  try { await Promise.all([authStore.refreshUser(), fetchHistory(1)]) }
+  catch { appStore.showError(t('common.error')) }
+}
 </script>

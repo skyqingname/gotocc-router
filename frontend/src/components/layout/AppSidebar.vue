@@ -352,7 +352,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/team', label: t('nav.team'), icon: TeamIcon, hideInSimpleMode: true, featureFlag: flagTeam },
     { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, external: true, hideInSimpleMode: true },
-    { path: '/async-image', label: t('nav.asyncImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
+    { path: '/async-image', label: t('creative.title'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
@@ -537,6 +537,7 @@ function routePathOf(path: string): string {
 
 function isActive(path: string): boolean {
   const target = routePathOf(path)
+  if (target === '/async-image' && route.path === '/creative') return true
   return route.path === target || route.path.startsWith(target + '/')
 }
 
