@@ -2,7 +2,7 @@
 
 ## One release path
 
-Adapt the latest Plus release locally, build the final Linux/amd64 package,
+Adapt the latest Plus release locally, build the final Linux/arm64 package,
 run that package in the retained local environment, and let the owner manually
 accept it. After acceptance and a publication request, upload **that same
 package** to `skyqingname/gotocc-router` GitHub Releases. The owner then clicks
@@ -23,17 +23,22 @@ Fix concrete faults and verify affected behavior. Keep the local environment
 available for the owner. No full test matrix or four-level promotion gate is
 required for this locally accepted release path.
 
-The package contains the `sub2api` binary, `release-channel.json`, bundled
-pricing data and the existing distribution documents. Prepare these four
-GitHub assets during the local build:
+Every release must include a real Linux/arm64 archive for Oracle. An amd64-only
+release is insufficient. Record the target architecture independently from the
+builder architecture. The package contains the `sub2api` binary,
+`release-channel.json`, bundled pricing data and existing distribution documents.
+Prepare these four GitHub assets before publishing the draft:
 
-- `sub2api_<version>_linux_amd64.tar.gz`
+- `sub2api_<version>_linux_arm64.tar.gz`
 - `checksums.txt` required by the installed updater
 - `model-pricing.json`
 - `model-pricing-manifest.json`
 
-The existing updater manifest format is unchanged. Generate it once during
-packaging; do not add another hashing or download-validation stage.
+The existing updater manifest format is unchanged. Under the owner's no-SHA-sum
+instruction, use the digest returned by GitHub for the uploaded archive to write
+its checksum line while the release is still a draft. Do not calculate a new
+local checksum or reuse an amd64 checksum for an ARM64 archive. Unchanged pricing
+bytes retain their existing manifest digest; update the version and download URL.
 
 ## After acceptance
 

@@ -26,8 +26,8 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.15+custom.004`, based on published GoToCC
-`0.2.15+custom.002`. It integrates Plus `v0.2.15+custom.003`
+The owned candidate is `0.2.15+custom.005`, an ARM64 packaging revision of published GoToCC
+`0.2.15+custom.004` with unchanged product behavior. It integrates Plus `v0.2.15+custom.003`
 (`6031fd0ef75770b80fa3234f97b876af7c328609`), retains GoToCC's active product contracts,
 and keeps the Video platform outside the shared text platform catalog.
 This candidate also integrates the preceding unreleased GoToCC features and PRs #28/#29.
