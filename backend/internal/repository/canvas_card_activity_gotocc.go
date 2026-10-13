@@ -13,7 +13,8 @@ import (
 // with the original positive redeem-code IDs. The order keeps its real ID.
 const redeemActivityRows = `
  SELECT rc.id,rc.code,rc.type,rc.value,rc.status,rc.used_at,rc.created_at,
-   COALESCE(rc.notes,''),rc.group_id,rc.validity_days,g.name,
+   CASE WHEN rc.type IN ('admin_balance','admin_concurrency') THEN COALESCE(rc.notes,'') ELSE '' END,
+   rc.group_id,rc.validity_days,g.name,
    NULL::bigint AS order_id,NULL::uuid AS operation_id,NULL::integer AS denomination,
    NULL::text AS funding_source,NULL::bigint AS team_id,NULL::numeric AS balance_after,
    NULL::text AS card_code,g.i18n

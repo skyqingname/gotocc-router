@@ -17,7 +17,7 @@ type RedeemActivity struct {
 	Status       string               `json:"status"`
 	UsedAt       *time.Time           `json:"used_at"`
 	CreatedAt    time.Time            `json:"created_at"`
-	Notes        string               `json:"notes"`
+	Notes        string               `json:"notes,omitempty"`
 	GroupID      *int64               `json:"group_id,omitempty"`
 	ValidityDays int                  `json:"validity_days"`
 	Group        *RedeemActivityGroup `json:"group,omitempty"`
