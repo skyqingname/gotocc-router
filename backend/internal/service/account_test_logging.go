@@ -18,13 +18,17 @@ func initAccountTestLogger(c *gin.Context, accountID int64, modelID, mode string
 		source = "background"
 	}
 	ctx := c.Request.Context()
+	logMode := normalizeAccountTestMode(mode)
+	if accountFingerprintPrompt(ctx) != "" {
+		logMode = "fingerprint"
+	}
 	l := logger.FromContext(ctx).With(
 		zap.String("component", "service.account_test"),
 		zap.Int64("account_id", accountID),
 		zap.String("test_id", uuid.NewString()),
 		zap.String("test_source", source),
 		zap.String("requested_model", modelID),
-		zap.String("test_mode", normalizeAccountTestMode(mode)),
+		zap.String("test_mode", logMode),
 	)
 	c.Request = c.Request.WithContext(logger.IntoContext(ctx, l))
 }

@@ -370,6 +370,7 @@ func (s *AntigravityGatewayService) TestConnection(ctx context.Context, account 
 	if err != nil {
 		return nil, fmt.Errorf("构建请求失败: %w", err)
 	}
+	requestBody = accountFingerprintJSON(ctx, requestBody, "antigravity")
 
 	// 代理 URL
 	proxyURL := ""

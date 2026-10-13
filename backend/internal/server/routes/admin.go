@@ -76,6 +76,9 @@ func RegisterAdminRoutes(
 
 		// 卡密管理
 		registerRedeemCodeRoutes(admin, h)
+		admin.GET("/canvas-cards/stock", h.CanvasCard.Stock)
+		admin.GET("/canvas-cards", h.CanvasCard.Inventory)
+		admin.POST("/canvas-cards/import", h.CanvasCard.Import)
 
 		// 优惠码管理
 		registerPromoCodeRoutes(admin, h)
@@ -441,6 +444,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/:id/opencode-go-usage/refresh", h.Admin.Account.RefreshOpenCodeGoUsage)
 		accounts.DELETE("/:id", h.Admin.Account.Delete)
 		accounts.POST("/:id/test", h.Admin.Account.Test)
+		accounts.POST("/:id/model-fingerprint", h.Admin.Account.Fingerprint)
 		accounts.POST("/:id/recover-state", h.Admin.Account.RecoverState)
 		accounts.POST("/:id/refresh", h.Admin.Account.Refresh)
 		accounts.POST("/:id/apply-oauth-credentials", h.Admin.Account.ApplyOAuthCredentials)

@@ -1861,7 +1861,7 @@ export interface RedeemCode {
   order_plan_name?: string
   id: number
   code: string
-  type: RedeemCodeType
+  type: RedeemCodeType | 'balance_cashback'
   value: number
   status: 'active' | 'used' | 'expired' | 'unused' | 'disabled'
   used_by: number | null

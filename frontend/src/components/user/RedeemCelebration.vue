@@ -63,6 +63,7 @@ const props = defineProps<{
   title: string
   detail: string
 }>()
+const emit = defineEmits<{ finished: [sequence: number] }>()
 
 const preference = usePreferredReducedMotion()
 const visible = ref(false)
@@ -130,6 +131,7 @@ function finishIcon(event: AnimationEvent) {
 
 function finishFeedback(element: Element) {
   if (!visible.value && Number((element as HTMLElement).dataset.sequence) === message.value?.sequence) {
+    emit('finished', message.value.sequence)
     message.value = null
   }
 }

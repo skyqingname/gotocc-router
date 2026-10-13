@@ -928,6 +928,7 @@ var ProviderSet = wire.NewSet(
 	NewClientDisconnectRiskService,
 	ProvideTeamService,
 	NewCanvasBridgeService,
+	NewCanvasCardService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	ProvideAuthCacheInvalidationWorker,

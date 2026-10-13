@@ -71,7 +71,7 @@ var ProviderSet = wire.NewSet(
 	NewClientDisconnectRiskRepository,
 	NewTeamRepository,
 	NewTeamWalletRepository,
-	NewCanvasBridgeRepository,
+	NewCanvasCardRepository,
 	NewTeamInvitationLimiter,
 	NewAPIKeyRepository,
 	NewGroupRepository,

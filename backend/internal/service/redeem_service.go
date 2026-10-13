@@ -514,6 +514,7 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	}
 
 	// 执行兑换逻辑（兑换码已被锁定，此时可安全操作）
+	var cashbackAmount float64
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		amount := redeemCode.Value
@@ -530,6 +531,10 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 		if standaloneBalance {
 			if _, err := s.affiliateService.AccrueInviteRebateForRedeem(txCtx, userID, amount); err != nil {
 				return nil, fmt.Errorf("accrue redeem affiliate rebate: %w", err)
+			}
+			cashbackAmount, err = creditBalanceCashback(txCtx, tx.Client(), userID, redeemCode)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -590,6 +595,7 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	if err != nil {
 		return nil, fmt.Errorf("get updated redeem code: %w", err)
 	}
+	redeemCode.CashbackAmount = cashbackAmount
 
 	return redeemCode, nil
 }

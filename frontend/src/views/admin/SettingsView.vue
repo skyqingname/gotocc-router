@@ -6858,6 +6858,7 @@
 
 	        <!-- Tab: Features (功能开关) -->
         <div v-show="activeTab === 'features'" class="space-y-6">
+        <BalanceCashbackSettings v-model="form.balance_cashback" />
 
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -8686,6 +8687,9 @@ import AdminModelPlazaOverrides from '@/components/gotocc/plaza/AdminModelPlazaO
 import affiliateDefaults from "../../../../affiliate-defaults.json";
 const affiliateRateKeys = ["affiliate_rebate_rate", "affiliate_rebate_rate_l2", "affiliate_rebate_rate_l3"] as const;
 import { ref, reactive, computed, onMounted, watch } from "vue";
+import BalanceCashbackSettings from '@/components/gotocc/cashback/BalanceCashbackSettings.vue';
+import { validBalanceCashbackSettings } from '@/utils/balanceCashback';
+import balanceCashbackConfig from '../../../../balance-cashback.json';
 import { listPlatformIds } from "@/constants/platformCatalog";
 import { useI18n } from "vue-i18n";
 import { adminAPI } from "@/api";
@@ -9512,6 +9516,7 @@ const form = reactive<SettingsForm>({
   login_agreement_updated_at: "2026-03-31",
   login_agreement_documents: defaultLoginAgreementDocuments(),
   default_balance: 0,
+  balance_cashback: { ...balanceCashbackConfig.defaults },
   default_platform_quotas: normalizePlatformQuotasMap() as DefaultPlatformQuotasMap,
   account_scheduling_thresholds: normalizeAccountSchedulingThresholdsMap(),
   affiliate_rebate_rate: affiliateDefaults.rebate_rates_percent[0],
@@ -11143,6 +11148,10 @@ const siteBillingModeHint = computed(() =>
 async function saveSettings() {
   saving.value = true;
   try {
+    if (!validBalanceCashbackSettings(form.balance_cashback)) {
+      appStore.showError(t('balanceCashback.invalidSettings'));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11315,6 +11324,7 @@ async function saveSettings() {
       login_agreement_updated_at: form.login_agreement_updated_at,
       login_agreement_documents: form.login_agreement_documents,
       default_balance: form.default_balance,
+      balance_cashback: form.balance_cashback,
       affiliate_rebate_rate: Math.min(
         100,
         Math.max(0, Number(form.affiliate_rebate_rate) || 0),

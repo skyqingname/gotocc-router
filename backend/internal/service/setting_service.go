@@ -397,7 +397,16 @@ func (s *SettingService) GetAllSettings(ctx context.Context) (*SystemSettings, e
 		return nil, fmt.Errorf("get all settings: %w", err)
 	}
 
-	return s.parseSettings(settings), nil
+	result := s.parseSettings(settings)
+	raw, configured := settings[SettingKeyBalanceCashback]
+	if !configured {
+		raw = balanceCashbackDefaultsJSON
+	}
+	result.BalanceCashback, err = parseBalanceCashbackSettings(raw)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // SetOnUpdateCallback sets a callback function to be called when settings are updated

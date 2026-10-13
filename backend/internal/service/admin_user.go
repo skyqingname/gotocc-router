@@ -435,6 +435,9 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		if err := s.redeemCodeRepo.Create(txCtx, record); err != nil {
 			return nil, err
 		}
+		if err := s.creditAdminBalanceCashback(txCtx, tx.Client(), userID, operation, record); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.tryAccrueAffiliateRebateForAdminRecharge(txCtx, userID, operation, balance); err != nil {
 		return nil, err

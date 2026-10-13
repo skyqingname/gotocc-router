@@ -23,7 +23,7 @@ import { parseAdminSupportTargetId, type AdminSupportResource } from '@/utils/ad
 const pages = {
   overview: defineAsyncComponent(() => import('@/views/user/DashboardView.vue')),
   'api-keys': defineAsyncComponent(() => import('@/views/user/KeysView.vue')),
-  'async-images': defineAsyncComponent(() => import('@/views/user/AsyncImageView.vue')),
+  'async-images': defineAsyncComponent(() => import('@/views/user/GotoccCreativeStudioView.vue')),
   'batch-images': defineAsyncComponent(() => import('@/views/user/BatchImageGuideView.vue')),
   usage: defineAsyncComponent(() => import('@/views/user/UsageView.vue')),
   channels: defineAsyncComponent(() => import('@/views/user/AvailableChannelsView.vue')),

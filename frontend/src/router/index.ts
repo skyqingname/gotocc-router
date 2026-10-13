@@ -268,15 +268,16 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/async-image',
+    alias: '/creative',
     name: 'AsyncImage',
-    component: () => import('@/views/user/AsyncImageView.vue'),
+    component: () => import('@/views/user/GotoccCreativeStudioView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
       requiresAsyncImageAccess: true,
       title: 'Async Images',
-      titleKey: 'asyncImage.title',
-      descriptionKey: 'asyncImage.description'
+      titleKey: 'creative.title',
+      descriptionKey: 'studioGotocc.description'
     }
   },
   {
@@ -657,6 +658,12 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'admin.proxies.title',
       descriptionKey: 'admin.proxies.description'
     }
+  },
+  {
+    path: '/admin/redeem/canvas-cards',
+    name: 'AdminCanvasCards',
+    component: () => import('@/views/admin/CanvasCardsView.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Canvas card inventory', titleKey: 'canvasCard.adminTitle', descriptionKey: 'canvasCard.adminHint' }
   },
   {
     path: '/admin/redeem',
