@@ -26,12 +26,14 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.15+custom.005`, an ARM64 packaging revision of published GoToCC
-`0.2.15+custom.004` with unchanged product behavior. It integrates Plus `v0.2.15+custom.003`
-(`6031fd0ef75770b80fa3234f97b876af7c328609`), retains GoToCC's active product contracts,
-and keeps the Video platform outside the shared text platform catalog.
-This candidate also integrates the preceding unreleased GoToCC features and PRs #28/#29.
-Publication uses the accepted local package and does not deploy production.
+The owned candidate is `0.2.15+custom.006`, based on published GoToCC
+`0.2.15+custom.005`. It fixes the creative studio settings panel closing before
+mouse selection in the teleported API Key dropdown. Existing Key ownership,
+image task history, billing and database migrations are unchanged.
+The Plus input remains `v0.2.15+custom.003`
+(`6031fd0ef75770b80fa3234f97b876af7c328609`).
+Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded
+frontend. Publication uses the accepted artifacts; production installation is separate.
 
 ## Removed Upstream Paths
 

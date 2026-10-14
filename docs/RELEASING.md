@@ -2,10 +2,10 @@
 
 ## One release path
 
-Adapt the latest Plus release locally, build the final Linux/arm64 package,
-run that package in the retained local environment, and let the owner manually
+Adapt the latest Plus release locally, build the final Linux/arm64 and Linux/amd64 packages,
+run the matching package in the retained local environment, and let the owner manually
 accept it. After acceptance and a publication request, upload **that same
-package** to `skyqingname/gotocc-router` GitHub Releases. The owner then clicks
+packages** to `skyqingname/gotocc-router` GitHub Releases. The owner then clicks
 update in the online owned-version panel and restarts when prompted.
 
 The operations workspace owns the commands in `scripts/sub2api-plus-upgrade.sh`,
@@ -23,34 +23,35 @@ Fix concrete faults and verify affected behavior. Keep the local environment
 available for the owner. No full test matrix or four-level promotion gate is
 required for this locally accepted release path.
 
-Every release must include a real Linux/arm64 archive for Oracle. An amd64-only
-release is insufficient. Record the target architecture independently from the
+Every release must include real Linux/arm64 and Linux/amd64 archives from the
+same fixed source commit and embedded frontend. Oracle uses the ARM64 archive. Record the target architecture independently from the
 builder architecture. The package contains the `sub2api` binary,
 `release-channel.json`, bundled pricing data and existing distribution documents.
-Prepare these four GitHub assets before publishing the draft:
+Prepare these five GitHub assets before publishing the draft:
 
 - `sub2api_<version>_linux_arm64.tar.gz`
+- `sub2api_<version>_linux_amd64.tar.gz`
 - `checksums.txt` required by the installed updater
 - `model-pricing.json`
 - `model-pricing-manifest.json`
 
 The existing updater manifest format is unchanged. Under the owner's no-SHA-sum
-instruction, use the digest returned by GitHub for the uploaded archive to write
-its checksum line while the release is still a draft. Do not calculate a new
+instruction, use the digest returned by GitHub for each uploaded archive to write
+its filename-specific checksum line while the release is still a draft. Do not calculate a new
 local checksum or reuse an amd64 checksum for an ARM64 archive. Unchanged pricing
 bytes retain their existing manifest digest; update the version and download URL.
 
 ## After acceptance
 
-1. Tag the commit recorded in the accepted package and push the tag and source
-   objects to the owned repository.
-2. Create a draft Release and upload all four existing assets.
+1. Push the accepted source branch, open and merge its PR to main, then tag the
+   fixed source commit recorded in both packages. Push that immutable tag.
+2. Create a draft Release and upload both archives. Use their GitHub asset digests
+   for the two checksum lines, then upload the checksum and pricing assets.
 3. Publish the complete draft as latest. Never publish an empty immutable
    Release and try to attach missing assets afterward.
 
 Do not rebuild, repackage, run another application matrix, wait for GitHub
-builds, or require preparation/finalization PRs. PRs are optional source
-collaboration and must describe the actual acceptance evidence. They do not
+builds, or require preparation/finalization PRs. The source PR must describe the actual acceptance evidence. It does not
 change the accepted tag or require a replacement binary. Published tags are
 never reused or moved. A changed deliverable needs renewed acceptance of the
 changed behavior before publication.
@@ -67,5 +68,9 @@ commit alone is not an installable release; the assets must be published.
 Release notes state actual changes, upstream baseline and any migration,
 configuration or rollback limitations. Publishing is not deployment. Update
 the operations production lock only after the online update is confirmed.
+The installed updater constructs `sub2api_<version>_<GOOS>_<GOARCH>.tar.gz`
+and matches the complete asset name, then finds that same name in `checksums.txt`.
+Both architectures can coexist in one Release without changing the updater.
+
 Routine updates do not require another manual SSH deployment. Preserve data
 and backups; replacing an old binary does not reverse a forward migration.
