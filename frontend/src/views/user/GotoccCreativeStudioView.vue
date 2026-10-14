@@ -132,7 +132,8 @@ const expandedTask = ref('')
 const importingTask = ref('')
 const narrow = useMediaQuery('(max-width: 767px)')
 const examples = ['poster', 'product', 'illustration'] as const
-onClickOutside(settingsRoot, () => { settingsOpen.value = false })
+// The Key dropdown is teleported to body and stops click propagation there.
+onClickOutside(settingsRoot, () => { settingsOpen.value = false }, { capture: false })
 watch(submitting, (started) => { if (started) playSubmissionFlight() })
 
 function playSubmissionFlight() {
