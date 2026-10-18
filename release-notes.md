@@ -1,11 +1,7 @@
-# GoToCC 0.2.15+custom.006
+# 0.2.15+custom.007 — Local async image storage
 
-修复创作台通过鼠标选择已有 API Key 时，设置面板提前关闭、选项未生效的问题。保留可搜索下拉框、键盘选择和点击外部关闭行为；选择 Key 后继续读取该 Key 原有的模型和生图历史。
+New asynchronous image results can be stored on the server filesystem through an explicit root JSON configuration. Existing S3 images remain readable through their original storage; task submission, ownership checks, URL renewal, ZIP downloads and billing keep their existing contracts.
 
-本次同时提供真实构建的 `linux/arm64` 与 `linux/amd64` 包。两包使用同一源码提交和前端；网页更新器按当前系统、架构精确选择归档，并按文件名读取对应校验值，双架构同时发布不会选错包。后续 GoToCC 发行均保留这两个架构。
+Local images use expiring signed URLs served by Plus. Back up their persistent directory together with the database and configuration. No database migration is required; older S3-only binaries cannot read newly created local object references.
 
-指纹检测已核实沿用所选账号的代理和固定账号出站链，本次没有修改代理行为。该结论来自源码、线上配置和既有请求日志；没有额外发起付费采样或实测供应商看到的出口 IP。
-
-基于 `.005`，Plus 输入仍为 `v0.2.15+custom.003`。相对 `.005` 没有新增数据库迁移、Key、资金操作或配置改造。历史记录与永久图片继续使用原有存储；浏览器画布布局与服务端历史分别保存。
-
-本发行不等于生产已安装。旧版本跨越式升级仍需遵循对应迁移说明；`.005` → `.006` 仅为前端修复及双架构交付。
+Upstream baseline remains Sub2API v0.2.15 with the existing Plus customizations. This candidate has not been published to GitHub. Runtime validation is recorded in the Oracle maintenance workspace.

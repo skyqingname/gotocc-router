@@ -266,18 +266,21 @@ type BatchImageConfig struct {
 // Enabled 同时作为异步图片任务功能的总开关：未启用或未配置完整凭证时，
 // 异步生图接口整体禁用，避免把上游返回的大 base64 结果塞进 Redis。
 type ImageStorageConfig struct {
-	Enabled         bool   `mapstructure:"enabled"`
-	Endpoint        string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
-	Region          string `mapstructure:"region"`   // R2 用 "auto"
-	Bucket          string `mapstructure:"bucket"`
-	AccessKeyID     string `mapstructure:"access_key_id"`
-	SecretAccessKey string `mapstructure:"secret_access_key"`
-	Prefix          string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
-	AppendDatePath  bool   `mapstructure:"append_date_path"`     // 在前缀后追加 yyyy/MM/dd/
-	ForcePathStyle  bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
-	PublicBaseURL   string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
-	PresignExpiry   int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
-	MaxDownloadByte int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
+	RoutingFile     string                     `mapstructure:"routing_file"`
+	Routing         *ImageStorageRoutingConfig `mapstructure:"-" json:"-"`
+	LocalSigningKey string                     `mapstructure:"-" json:"-"`
+	Enabled         bool                       `mapstructure:"enabled"`
+	Endpoint        string                     `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
+	Region          string                     `mapstructure:"region"`   // R2 用 "auto"
+	Bucket          string                     `mapstructure:"bucket"`
+	AccessKeyID     string                     `mapstructure:"access_key_id"`
+	SecretAccessKey string                     `mapstructure:"secret_access_key"`
+	Prefix          string                     `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
+	AppendDatePath  bool                       `mapstructure:"append_date_path"`     // 在前缀后追加 yyyy/MM/dd/
+	ForcePathStyle  bool                       `mapstructure:"force_path_style"`     // MinIO/路径风格桶
+	PublicBaseURL   string                     `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
+	PresignExpiry   int                        `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
+	MaxDownloadByte int64                      `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
 }
 
 // IsConfigured 检查对象存储必要字段是否已配置
@@ -2012,6 +2015,14 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		)
 	}
 
+	if cfg.ImageStorage.RoutingFile != "" {
+		routing, err := loadImageStorageRouting(cfg.ImageStorage.RoutingFile)
+		if err != nil {
+			return nil, err
+		}
+		cfg.ImageStorage.Routing = routing
+		cfg.ImageStorage.LocalSigningKey = "sub2api:local-image-url:" + cfg.JWT.Secret
+	}
 	return &cfg, nil
 }
 

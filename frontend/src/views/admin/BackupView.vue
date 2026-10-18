@@ -77,7 +77,7 @@
               {{ t('admin.backup.imageStorage.title') }}
             </h3>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {{ t('admin.backup.imageStorage.description') }}
+              {{ t(imageStorageWriteBackend === 'local' ? 'admin.backup.imageStorage.localDescription' : 'admin.backup.imageStorage.description') }}
             </p>
           </div>
           <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -86,6 +86,9 @@
           </label>
         </div>
 
+        <p v-if="imageStorageWriteBackend === 'local'" class="mb-3 text-sm font-medium text-primary-600 dark:text-primary-400">
+          {{ t('admin.backup.imageStorage.localLegacySettings') }}
+        </p>
         <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input v-model="imageStorageForm.reuse_backup_s3" type="checkbox" />
           <span>{{ t('admin.backup.imageStorage.reuseBackupS3') }}</span>
@@ -605,6 +608,7 @@ const imageStorageForm = ref<ImageStorageConfig>({
   force_path_style: false,
 })
 const imageStorageSecretConfigured = ref(false)
+const imageStorageWriteBackend = ref<'s3' | 'local'>('s3')
 const savingImageStorage = ref(false)
 const testingImageStorage = ref(false)
 
@@ -792,7 +796,8 @@ async function saveS3Config() {
 
 async function loadImageStorageConfig() {
   try {
-    const { config, secret_configured } = await adminAPI.backup.getImageStorageConfig()
+    const { config, secret_configured, write_backend } = await adminAPI.backup.getImageStorageConfig()
+    imageStorageWriteBackend.value = write_backend
     imageStorageForm.value = {
       ...config,
       prefix: config.prefix || 'images/',

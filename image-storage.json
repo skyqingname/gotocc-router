@@ -1,0 +1,6 @@
+{
+  "write_backend": "s3",
+  "local_directory": "data/images",
+  "public_base_url": "https://example.com",
+  "url_expiry_hours": 24
+}
