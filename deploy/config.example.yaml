@@ -1339,6 +1339,9 @@ video_task:
 # 换其它厂商对象存储：只要它兼容 S3 API 即可直接用；如需完全自定义，实现
 # service.ImageStorage 接口（Save(ctx, key, contentType, data) -> url）即可。
 image_storage:
+  # Optional: root JSON selects local writes while retaining S3 for old images.
+  # See ../image-storage.json and docs/ASYNC_IMAGE_TASKS.md. No environment injection.
+  routing_file: ""
   enabled: false
   # S3 兼容端点。AWS 官方可留空；R2 形如 https://<account_id>.r2.cloudflarestorage.com
   endpoint: ""

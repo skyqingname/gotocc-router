@@ -110,6 +110,8 @@ export default {
       imageStorage: {
         title: '异步生图对象存储',
         description: '开启后，异步生图接口可用，生成结果转存到对象存储，只把短链接写入 Redis。与备份共用同一套 S3 客户端，保存后立即生效，无需重启。',
+        localDescription: '新生成图片保存到服务器本地，历史图片继续从原 S3 存储读取。本地目录、访问地址和链接有效期由服务器参数文件管理。',
+        localLegacySettings: '当前使用本地存储。下方 S3 设置用于历史图片；Key 前缀和日期路径仍用于新图片，连接检查验证本地读写。',
         enabled: '启用异步生图',
         reuseBackupS3: '复用上方备份的 S3 配置（只用不同的存储桶/前缀）',
         bucket: '存储桶',

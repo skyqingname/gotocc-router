@@ -150,6 +150,9 @@ func (s *ImageStorageSettingService) resolve() (*ImageResultUploader, bool) {
 		return nil, false
 	}
 	s.uploader = NewImageResultUploader(storage, cfg.Prefix, cfg.AppendDatePath, cfg.MaxDownloadByte, nil)
+	if s.WriteBackend() == "local" {
+		s.uploader.keyNamespace = LocalImageStorageKeyPrefix
+	}
 	// Keep configured storage available for already-accepted task completion and
 	// historical ZIP downloads even while the switch blocks new submissions.
 	s.enabled = cfg.Enabled
@@ -310,6 +313,8 @@ func (s *ImageStorageSettingService) effectiveConfig(ctx context.Context) (*conf
 
 func (s *ImageStorageSettingService) toImageStorageConfig(ctx context.Context, in *ImageStorageSettings) (*config.ImageStorageConfig, error) {
 	cfg := &config.ImageStorageConfig{
+		Routing:         s.fallback.Routing,
+		LocalSigningKey: s.fallback.LocalSigningKey,
 		Enabled:         in.Enabled,
 		Bucket:          in.Bucket,
 		Prefix:          in.Prefix,

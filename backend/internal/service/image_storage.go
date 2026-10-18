@@ -59,6 +59,7 @@ type ImageResultUploader struct {
 	prefix           string
 	maxDownloadBytes int64
 	appendDatePath   bool
+	keyNamespace     string
 }
 
 // NewImageResultUploader 构造一个 uploader；storage 为 nil 时 Rewrite 直接透传。
@@ -198,7 +199,7 @@ func (u *ImageResultUploader) download(ctx context.Context, rawURL string) ([]by
 
 func (u *ImageResultUploader) buildKeyAt(taskID string, index int, contentType string, at time.Time) string {
 	name := taskID + "-" + strconv.Itoa(index) + extensionForContentType(contentType)
-	return buildObjectStorageKey(u.prefix, "images", u.appendDatePath, at, name)
+	return u.keyNamespace + buildObjectStorageKey(u.prefix, "images", u.appendDatePath, at, name)
 }
 
 // OpenStoredTaskImage opens an exact object written by Rewrite. Both the object

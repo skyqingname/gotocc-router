@@ -212,7 +212,14 @@ func ProvideEnt(cfg *config.Config) (*ent.Client, error) {
 // 设置保存后重建，而不是在启动时定死一份。
 func ProvideImageStorageFactory() service.ImageStorageFactory {
 	return func(ctx context.Context, cfg *config.ImageStorageConfig) (service.ImageStorage, error) {
-		return NewS3ImageStorage(ctx, cfg)
+		storage, err := NewS3ImageStorage(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		if cfg.Routing != nil {
+			return newRoutedImageStorage(storage, cfg)
+		}
+		return storage, nil
 	}
 }
 

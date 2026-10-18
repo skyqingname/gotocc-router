@@ -103,6 +103,7 @@ export interface ImageStorageConfig {
 export interface ImageStorageConfigResponse {
   config: ImageStorageConfig
   secret_configured: boolean
+  write_backend: 's3' | 'local'
 }
 
 export async function getImageStorageConfig(): Promise<ImageStorageConfigResponse> {

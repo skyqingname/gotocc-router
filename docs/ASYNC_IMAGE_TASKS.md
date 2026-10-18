@@ -2,7 +2,7 @@
 
 Asynchronous image tasks let clients submit long-running OpenAI-compatible image requests without keeping one HTTP connection open. This avoids proxy/CDN response timeouts such as Cloudflare 524 while preserving the existing image routing, billing, moderation, concurrency, and failover behavior.
 
-OpenAI/Grok tasks use `/images/tasks` with S3-compatible output storage. Gemini
+OpenAI/Grok tasks use `/images/tasks` with S3-compatible or local output storage. Gemini
 and Vertex provider batches use `/images/batches`, described in
 [Gemini and Vertex batches](#gemini-and-vertex-batches) below, with separate
 feature gates, provider storage and billing settlement.
@@ -64,7 +64,59 @@ image_storage:
 
 When a task completes, each generated image is uploaded to the bucket and the result is rewritten to a compact form: `data[].url` points at the stored object (a permanent `public_base_url/key` link, or a time-limited presigned URL) and `b64_json` is removed. Only this small JSON and the private exact object keys needed for ZIP downloads are stored in Redis. The object keys are not exposed in the public task response. If an upload fails, the task is marked `failed` rather than persisting the raw base64.
 
-To support a different vendor beyond the S3-compatible client, implement the `service.ImageStorage` interface (`Save(ctx, key, contentType, data) (url, error)`) and provide it in place of the S3 implementation.
+### Local writes with existing S3 images
+
+Set `image_storage.routing_file` in the server YAML to an absolute path to a
+root JSON file based on [`image-storage.json`](../image-storage.json):
+
+```json
+{
+  "write_backend": "local",
+  "local_directory": "data/images",
+  "public_base_url": "https://your-service.example",
+  "url_expiry_hours": 24
+}
+```
+
+The relative directory is resolved against the JSON file's directory. Keep it
+on persistent server storage outside release packages. `public_base_url` must
+reach this Plus server; the server appends `/v1/images/local?token=...`. This
+GET/HEAD endpoint accepts an expiring signed image URL, not a login token or
+API key. Existing authenticated object-URL renewal and ZIP download routes keep
+their ownership checks. The admin page identifies local mode, and its existing
+connection button checks a local write/read/delete without an S3 upload.
+
+Routing is enabled only when `routing_file` is explicitly configured. An invalid
+or unreadable referenced JSON is a startup error. No new environment parameters
+are used. Changes to this file require a restart; ordinary admin settings still
+invalidate their existing runtime cache.
+
+Keep the original S3 endpoint, bucket and credentials configured: all historical
+unmarked storage keys continue to use them. New local objects store
+`local:images/...` in the existing private `storage_key`/`storage_keys` fields;
+the `local:` marker is removed before accessing the filesystem. It is a reserved
+storage namespace, not a path prefix to enter in the admin form. There is no
+database migration, historical record rewrite, or fallback from one store to
+the other. Both readers remain available if `write_backend` changes back to
+`s3`, while new writes follow that explicit choice. Preserve the original S3
+read configuration and local JSON/directory after any such change.
+
+The existing key-prefix and date-path settings apply to new local files. The
+admin S3 public URL and expiry fields apply only to historical S3 links; local
+URLs use the root JSON lifetime and the existing server JWT secret in a separate
+signing domain. Changing that secret invalidates local signed URLs until they
+are renewed, without deleting files. Generation parameters, model dispatch,
+billing, task IDs, result shape and failed-task behavior are unchanged.
+
+Back up the local image directory together with PostgreSQL and configuration.
+The existing database-only S3 backup does **not** include these local media
+files. Storage failures that already completed a task as failed are not retried
+or repaired by switching storage. After local objects have been created, use a
+binary that understands their namespace; reverting to an older S3-only binary
+breaks local image renewal/download even though the schema is unchanged.
+
+To support a different vendor beyond the bundled clients, implement the
+`service.ImageStorage` interface and its reader/signer companions.
 
 ### Troubleshooting: the endpoints return 404 after enabling
 
