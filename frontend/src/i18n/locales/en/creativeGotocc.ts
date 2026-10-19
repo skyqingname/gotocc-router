@@ -24,6 +24,7 @@ export default {
       "transparent": "Transparent"
     },
     "chooseKeyInSettings": "Select an API key in the settings at the top left.",
+    "estimatedCostTotal": "{cost} / image · {total} total",
     "actualUsagePricing": "Billed by usage",
     "settings": "Studio settings",
     "customSize": "Custom pixel size",

@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { unzip } from 'fflate'
 import { keysAPI } from '@/api/keys'
+import { getModelPlaza, type ModelPlazaGroup } from '@/api/modelPlaza'
 import {
   deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageObjectURL, getAsyncImageTask,
   listAsyncImageModels, listAsyncImageTasks, preferredAsyncImageModel, saveAsyncImageBlob,
@@ -10,10 +11,12 @@ import {
 } from '@/api/asyncImage'
 import { getAutoRoutingCapabilities, isAutoRoutingKey, keyAllowsAsyncImage, keyCanManageAsyncImage } from '@/composables/useAsyncImageAccess'
 import { useUserView } from '@/composables/useUserView'
-import { isGPTImage2, validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
+import { validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import type { ApiKey } from '@/types'
 import config from '../../../../../creative-studio.json'
 import { createCreativeLocalStore, type LocalRunParams } from './localStore'
+import { familySizes, imageUnitPrice, mediaFamily } from './mediaOptions'
 import type { CreativeOperation } from './types'
 
 export interface StudioOutput { blob: Blob; runId: string; outputIndex: number }
@@ -34,6 +37,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   const error = ref('')
   const activityCount = ref(0)
   const params = ref(new Map<string, LocalRunParams>())
+  const plazaGroups = ref<ModelPlazaGroup[]>([])
   const [initialWidth, initialHeight] = config.default_size.split('x').map(Number)
   const form = reactive({
     model: '', prompt: '', operation: 'generate' as CreativeOperation,
@@ -42,11 +46,19 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   })
   const selectedKey = computed(() => keys.value.find(key => key.id === keyID.value))
   const canSubmit = ref(false)
-  const sizes = computed(() => isGPTImage2(form.model) ? config.gpt_image_2_sizes : config.standard_sizes)
+  const family = computed(() => mediaFamily(form.model))
+  const sizes = computed(() => familySizes(family.value))
+  const requestSize = computed(() => form.size === 'custom' ? `${form.customWidth}x${form.customHeight}` : form.size)
   const customSizeError = computed(() => {
     if (form.size !== 'custom') return ''
     const code = validateGPTImage2CustomSize(form.customWidth, form.customHeight)
     return code ? t(`asyncImage.create.customSizeErrors.${code}`) : ''
+  })
+  // 智能 Key 提交后才确定分组，无法预先报价。
+  const unitPrice = computed(() => {
+    const key = selectedKey.value
+    if (!key || isAutoRoutingKey(key) || !form.model || customSizeError.value) return null
+    return imageUnitPrice(plazaGroups.value, key.group_id, form.model, requestSize.value)
   })
   const canInpaint = computed(() => selectedKey.value?.group?.platform === 'openai' && !isAutoRoutingKey(selectedKey.value))
   const ready = computed(() => canSubmit.value && !!form.model && !!form.prompt.trim() && !submitting.value && !customSizeError.value && Number.isInteger(form.n) && form.n >= 1 && form.n <= config.max_image_count)
@@ -61,7 +73,13 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
 
   function showError(cause: unknown) { error.value = cause instanceof Error ? cause.message : String(cause) }
 
+  async function loadPricing() {
+    try { plazaGroups.value = (await getModelPlaza()).groups }
+    catch (cause) { showError(cause) }
+  }
+
   async function init() {
+    if (isFeatureFlagEnabled(FeatureFlags.modelPlaza)) void loadPricing()
     loading.value = true
     try {
       const all: ApiKey[] = []
@@ -126,7 +144,10 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   }
 
   function onModelChanged() {
+    const { qualities, backgrounds } = family.value
     if (!sizes.value.includes(form.size)) form.size = config.default_size
+    if (qualities.length && !qualities.includes(form.quality)) form.quality = config.default_quality
+    if (backgrounds.length && !backgrounds.includes(form.background)) form.background = config.default_background
   }
 
   function usable(item: AsyncImageTaskResultItem) {
@@ -209,10 +230,12 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     if (sourceBlobs.some(blob => blob.size > config.max_upload_file_bytes)) { error.value = t('asyncImage.create.uploadFileTooLarge'); return false }
     if (sourceBlobs.reduce((sum, blob) => sum + blob.size, maskBlob?.size || 0) > config.max_upload_total_bytes) { error.value = t('asyncImage.create.uploadTotalTooLarge'); return false }
     const snapshot = { ...form }
-    const size = snapshot.size === 'custom' ? `${snapshot.customWidth}x${snapshot.customHeight}` : snapshot.size
+    const size = requestSize.value
+    const { qualities, backgrounds } = family.value
     const payload = {
       model: snapshot.model, prompt: snapshot.prompt.trim(), size, n: snapshot.n,
-      ...(isGPTImage2(snapshot.model) ? { quality: snapshot.quality, background: snapshot.background } : {}),
+      ...(qualities.length ? { quality: snapshot.quality } : {}),
+      ...(backgrounds.length ? { background: snapshot.background } : {}),
     }
     submitting.value = true
     error.value = ''
@@ -305,7 +328,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
       form.quality = saved.quality; form.background = saved.background; form.n = saved.imageCount
       form.operation = saved.operation as CreativeOperation
       if (sizes.value.includes(saved.imageSize)) form.size = saved.imageSize
-      else if (isGPTImage2(form.model)) {
+      else if (family.value.custom_size) {
         const [width, height] = saved.imageSize.split('x').map(Number)
         form.size = 'custom'; form.customWidth = width; form.customHeight = height
       }
@@ -322,5 +345,5 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     draftTimer = setTimeout(saveDraft, config.draft_save_debounce_ms)
   }, { deep: true })
   onBeforeUnmount(() => { disposed = true; selectionVersion++; historyVersion++; clearTimeout(pollTimer); clearTimeout(draftTimer); if (hydrated) void saveDraft() })
-  return { config, keys, keyID, selectedKey, loading, loadingModels, submitting, tasks, models, form, status, offset, hasMore, error, activityCount, params, canSubmit, canInpaint, ready, sizes, customSizeError, init, selectKey, onModelChanged, refreshHistory, submit, importTask, resolveOutput, downloadTask, deleteTask, reuseTask, page, filter }
+  return { config, keys, keyID, selectedKey, loading, loadingModels, submitting, tasks, models, form, status, offset, hasMore, error, activityCount, params, canSubmit, canInpaint, ready, family, sizes, customSizeError, unitPrice, init, selectKey, onModelChanged, refreshHistory, submit, importTask, resolveOutput, downloadTask, deleteTask, reuseTask, page, filter }
 }

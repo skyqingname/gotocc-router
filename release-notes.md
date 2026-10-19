@@ -1,7 +1,7 @@
-# 0.2.15+custom.007 — Local async image storage
+# 0.2.15+custom.008 — Creative studio sizes and estimated cost
 
-New asynchronous image results can be stored on the server filesystem through an explicit root JSON configuration. Existing S3 images remain readable through their original storage; task submission, ownership checks, URL renewal, ZIP downloads and billing keep their existing contracts.
+The creative studio now selects image size tiers, aspect ratios, quality and background per model family, following the TokenRouter media capability registration. GPT Image 2 aliases such as `gpt-image-2.5` receive the 1K/2K/4K tiers and five aspect ratios previously limited to the exact `gpt-image-2` name; GPT Image 1, Grok Imagine and Gemini image models receive their own registered pixel tables. The tables live in the root `creative-studio.json`.
 
-Local images use expiring signed URLs served by Plus. Back up their persistent directory together with the database and configuration. No database migration is required; older S3-only binaries cannot read newly created local object references.
+The composer shows the estimated price per image and the total for the requested count. Prices come from the model plaza for the selected key's group, using the billed size tier of the submitted pixels and the same effective rate as the plaza. Auto-routing keys, token-priced models and models without plaza prices continue to show usage-based billing.
 
-Upstream baseline remains Sub2API v0.2.15 with the existing Plus customizations. This candidate has not been published to GitHub. Runtime validation is recorded in the Oracle maintenance workspace.
+Submission, task history, storage and billing keep their existing contracts. No database migration is required. Upstream baseline remains Sub2API v0.2.15 with the existing Plus customizations. This candidate has not been published to GitHub.

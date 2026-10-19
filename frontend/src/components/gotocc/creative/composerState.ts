@@ -1,5 +1,5 @@
 import { computed, ref, toRef, watch } from 'vue'
-import { isGPTImage2 } from '@/utils/asyncImageSize'
+import { mediaFamily } from './mediaOptions'
 import type { useStudio } from './useStudio'
 import type { CreativeOperation } from './types'
 
@@ -9,7 +9,7 @@ export const creativeOptionKey = (option: CreativeModelOption) => option.model
 export function createComposerState(studio: ReturnType<typeof useStudio>) {
   const { form, config } = studio
   const model = toRef(form, 'model')
-  const dimensions = computed<Record<string, Record<string, string>>>(() => isGPTImage2(form.model) ? config.gpt_image_2_dimensions : config.standard_dimensions)
+  const dimensions = computed(() => studio.family.value.dimensions)
   const imageSize = ref(config.default_resolution)
   const aspectRatio = ref(config.default_aspect_ratio)
   // The persisted pixel dimensions remain the request source of truth.
@@ -43,7 +43,13 @@ export function createComposerState(studio: ReturnType<typeof useStudio>) {
     selectedOptionKey: model,
     loadingModels: studio.loadingModels,
     keySelected: computed(() => !!studio.keyID.value),
-    selectOption(value: string) { form.model = value; studio.onModelChanged() },
+    selectOption(value: string) {
+      // 新模型登记了相同档位和比例时保留当前选择。
+      const pixels = mediaFamily(value).dimensions[imageSize.value]?.[aspectRatio.value]
+      form.model = value
+      if (pixels) form.size = pixels
+      studio.onModelChanged()
+    },
     prompt: toRef(form, 'prompt'),
     operation: toRef(form, 'operation'),
     operationOptions: computed<CreativeOperation[]>(() => ['generate', 'edit', ...(studio.canInpaint.value ? ['inpaint' as const] : [])]),
@@ -52,11 +58,13 @@ export function createComposerState(studio: ReturnType<typeof useStudio>) {
     imageSizeOptions: computed(() => form.model ? Object.keys(dimensions.value) : []),
     aspectRatioOptions: computed(() => form.model ? Object.keys(dimensions.value[config.default_resolution]) : []),
     quality: toRef(form, 'quality'),
-    qualityOptions: computed(() => isGPTImage2(form.model) ? config.qualities : []),
+    qualityOptions: computed(() => form.model ? studio.family.value.qualities : []),
     background: toRef(form, 'background'),
-    backgroundOptions: computed(() => isGPTImage2(form.model) ? config.backgrounds : []),
+    backgroundOptions: computed(() => form.model ? studio.family.value.backgrounds : []),
     thinkingLevel: ref(''),
     thinkingLevelOptions: computed<string[]>(() => []),
+    unitPrice: studio.unitPrice,
+    imageCount: toRef(form, 'n'),
     busy: studio.submitting,
     canGenerate: studio.ready,
     activityCount: studio.activityCount,

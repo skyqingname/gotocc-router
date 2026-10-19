@@ -24,6 +24,7 @@ export default {
       "transparent": "透明"
     },
     "chooseKeyInSettings": "请先在左上角设置中选择 API Key。",
+    "estimatedCostTotal": "{cost} / 张 · 共 {total}",
     "actualUsagePricing": "按实际用量",
     "settings": "创作台设置",
     "customSize": "自定义像素尺寸",
