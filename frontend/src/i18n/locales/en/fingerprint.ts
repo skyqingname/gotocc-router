@@ -35,6 +35,7 @@ export default {
     score: 'Ranking score',
     usedSamples: '{count} / {total} valid samples',
     partial: 'Partial samples provide an initial ranking only. Confidence needs all three valid responses.',
+    notModel: 'The steps between consecutive numbers do not move like the language-model replies in the reference bank, as with program-generated, sorted or shuffled numbers. No ranking was produced.',
     unscorable: 'Not enough valid integers to rank models. Inspect the sample responses or errors.',
     notInBank: '{model} is not in this reference bank. Similar candidates cannot establish its actual identity.',
     limitation: 'Confidence compares models in this bank only. It is not the probability of a genuine model identity and does not prove model substitution.',
