@@ -60,11 +60,13 @@ type contentModerationConfigRequest struct {
 	KeywordBlockingMode            *string                               `json:"keyword_blocking_mode"`
 	TextAPIMode                    *string                               `json:"text_api_mode"`
 	ModelFilter                    *service.ContentModerationModelFilter `json:"model_filter"`
+	JevPolicy                      *string                               `json:"jev_policy"`
 }
 
 type contentModerationAPIKeyTestRequest struct {
 	EndpointID string   `json:"endpoint_id"`
 	APIKeys    []string `json:"api_keys"`
+	Protocol   string   `json:"protocol"`
 	BaseURL    string   `json:"base_url"`
 	Model      string   `json:"model"`
 	TimeoutMS  int      `json:"timeout_ms"`
@@ -130,6 +132,7 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		KeywordBlockingMode:            req.KeywordBlockingMode,
 		TextAPIMode:                    req.TextAPIMode,
 		ModelFilter:                    req.ModelFilter,
+		JevPolicy:                      req.JevPolicy,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -164,6 +167,7 @@ func (h *ContentModerationHandler) TestAPIKeys(c *gin.Context) {
 	result, err := h.service.TestAPIKeys(c.Request.Context(), service.TestContentModerationAPIKeysInput{
 		EndpointID: req.EndpointID,
 		APIKeys:    req.APIKeys,
+		Protocol:   req.Protocol,
 		BaseURL:    req.BaseURL,
 		Model:      req.Model,
 		TimeoutMS:  req.TimeoutMS,
