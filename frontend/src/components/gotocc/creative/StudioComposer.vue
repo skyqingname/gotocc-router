@@ -266,7 +266,7 @@
       </span>
 
       <div class="ml-auto flex items-center gap-3">
-        <!-- 预估价：单张价与模型广场实付价一致，多张时附本次合计；无法预先报价时说明按实际用量。 -->
+        <!-- 预估价：单张价与模型广场实付价一致，多张时显示本次合计、悬停看单张价；无法预先报价时说明按实际用量。 -->
         <template v-if="studio.selectedOption.value">
           <i18n-t
             v-if="studio.unitPrice.value !== null"
@@ -274,10 +274,12 @@
             tag="span"
             scope="global"
             class="composer-cost"
+            :title="t('creative.panel.estimatedCost', { cost: paidPerUnit(studio.unitPrice.value, 1) })"
             data-testid="creative-estimated-cost"
           >
             <template #cost><span class="composer-cost-amount">{{ paidPerUnit(studio.unitPrice.value, 1) }}</span></template>
             <template #total><span class="composer-cost-amount">{{ paidPerUnit(studio.unitPrice.value, studio.imageCount.value) }}</span></template>
+            <template #count>{{ studio.imageCount.value }}</template>
           </i18n-t>
           <span v-else class="composer-cost">{{ t('studioGotocc.actualUsagePricing') }}</span>
         </template>
