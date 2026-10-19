@@ -29,8 +29,9 @@ migrations 287–289 land at 307–309. The creative studio selects sizes, aspec
 and background per model family and shows plaza-priced estimates. Content
 audit is unified: Content Moderation endpoints may use TypeSafe Jev, and Prompt
 Audit leaves the ingress path while its upstream code and history remain.
-Existing Key ownership, image task history, storage and billing contracts are
-unchanged.
+Model plaza official data uses first-party models.dev entries, and the model
+fingerprint reference follows lm-detector `5b676af`. Existing Key ownership,
+image task history, storage and billing contracts are unchanged.
 Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded
 frontend. Publication uses the accepted artifacts; production installation is separate.
 

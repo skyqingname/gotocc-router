@@ -155,4 +155,3 @@ export function robustScoreNumbers(numbers, bank) {
   const ordered = orderedBlockScores(numbers, bank);
   return marginal.map((value, index) => (1 - weight) * value + weight * ordered[index]);
 }
-
