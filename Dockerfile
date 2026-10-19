@@ -45,7 +45,6 @@ RUN --mount=type=cache,id=sub2api-pnpm-store,target=/root/.local/share/pnpm/stor
 # Copy only that subtree to keep the build dependency minimal.
 COPY frontend/ ./
 COPY docs/legal/ /app/docs/legal/
-COPY client-access-defaults.json affiliate-defaults.json /app/
 COPY backend/internal/pkg/cnmodels/models.json /app/backend/internal/pkg/cnmodels/models.json
 RUN pnpm run build
 
@@ -59,7 +58,7 @@ RUN pnpm run build
 FROM --platform=${BUILDPLATFORM} ${GOLANG_IMAGE} AS backend-builder
 
 # Build arguments for version info (set by CI)
-ARG VERSION=0.2.15+custom.004
+ARG VERSION=0.2.17+custom.002
 ARG COMMIT=docker
 ARG DATE
 ARG GOPROXY
@@ -113,7 +112,7 @@ FROM ${POSTGRES_IMAGE} AS pg-client
 # -----------------------------------------------------------------------------
 FROM ${ALPINE_IMAGE}
 
-ARG VERSION=0.2.15+custom.004
+ARG VERSION=0.2.17+custom.002
 
 # Labels
 LABEL maintainer="LuckyKuang <https://github.com/luckykuang>"

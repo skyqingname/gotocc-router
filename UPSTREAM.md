@@ -1,20 +1,16 @@
 # Upstream Mapping
 
-This feature branch is based on skyqingname/gotocc-router `d89019f90287bec6555937739ec5096ede93f5e0` (2026-10-10 checkout). It adds opt-in per-key user routing priorities; see [behavior](docs/USER_ROUTING_PRIORITIES.md).
-
 This file is the authoritative mapping of Plus tags to official baselines and
 publication status. Release naming and procedures live in
 [RELEASING.md](docs/RELEASING.md).
 
 ## Integrated Baseline
 
-The current tree integrates official `v0.2.15`: tag object
-`86a80c13dcba86f52f9ca815b5a471cecc236227`, peeled commit
-`f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`, plus official main snapshot
-`ab80abc6d1f929a6864c8804fd077b509d21fda2`. The snapshot adds 36 commits
-(including merge commits) after that tagged baseline. These additional commits
-have no newer official release tag. Plus behavior governs conflict resolution;
-importing source does not itself publish a Plus release.
+The current tree integrates official `v0.2.17` through Plus
+`v0.2.17+custom.001`: official annotated tag object
+`6d6c4e701a463dcf83c261e8428e93423d6c0b3e`, peeled commit
+`060d0160417782cd962a0c7f460f6cd4565d4916`. Plus behavior governs conflict
+resolution; importing source does not itself publish a Plus release.
 
 Preserve intentional Plus behavior during every import. Current contracts live
 in [outbound identity](docs/OUTBOUND_IDENTITY.md),
@@ -26,15 +22,15 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.15+custom.008`, based on published GoToCC
-`0.2.15+custom.007`. The creative studio selects sizes, aspect ratios, quality
+The owned candidate is `0.2.17+custom.002`, based on published GoToCC
+`0.2.15+custom.007` and Plus `v0.2.17+custom.001`
+(`8df03635ac4b9e15e746f9d6b0e7456734b06e1c`). Plus Gemini explicit-cache
+migrations 287–289 land at 307–309. The creative studio selects sizes, aspect ratios, quality
 and background per model family and shows plaza-priced estimates. Content
 audit is unified: Content Moderation endpoints may use TypeSafe Jev, and Prompt
 Audit leaves the ingress path while its upstream code and history remain.
-Existing Key ownership, image task history, storage, billing and database
-migrations are unchanged.
-The Plus input remains `v0.2.15+custom.003`
-(`6031fd0ef75770b80fa3234f97b876af7c328609`).
+Existing Key ownership, image task history, storage and billing contracts are
+unchanged.
 Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded
 frontend. Publication uses the accepted artifacts; production installation is separate.
 
@@ -49,8 +45,8 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.15+custom.003
-Application: 0.2.15+custom.003
+Git/GitHub: v0.2.17+custom.001
+Application: 0.2.17+custom.001
 ```
 
 ## Release Mapping
@@ -127,6 +123,7 @@ Application: 0.2.15+custom.003
 | `v0.2.15+custom.001` | `v0.2.15` | `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2` | published |
 | `v0.2.15+custom.002` | `v0.2.15` | `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2` | published |
 | `v0.2.15+custom.003` | `v0.2.15` | `ab80abc6d1f929a6864c8804fd077b509d21fda2` | upstream published |
+| `v0.2.17+custom.001` | `v0.2.17` | `060d0160417782cd962a0c7f460f6cd4565d4916` | upstream published |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains

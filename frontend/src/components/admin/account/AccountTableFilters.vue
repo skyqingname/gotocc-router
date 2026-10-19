@@ -1,21 +1,18 @@
 <template>
-  <div class="min-w-0 w-full space-y-2">
-    <div class="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-      <SearchInput
-        :model-value="searchQuery"
-        :placeholder="t('admin.accounts.searchAccounts')"
-        class="col-span-2 min-w-0 w-full sm:w-56"
-        @update:model-value="$emit('update:searchQuery', $event)"
-        @search="$emit('change')"
-      />
-      <Select :model-value="filters.platform" :aria-label="t('admin.accounts.allPlatforms')" class="min-w-0 w-full sm:w-36" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
-      <Select :model-value="filters.status" :aria-label="t('admin.accounts.allStatus')" class="min-w-0 w-full sm:w-36" :options="sOpts" @update:model-value="updateStatus" @change="$emit('change')" />
-    </div>
-    <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
-      <Select :model-value="filters.type" :aria-label="t('admin.accounts.allTypes')" class="min-w-0 w-full" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
-      <Select :model-value="filters.privacy_mode" :aria-label="t('admin.accounts.allPrivacyModes')" class="min-w-0 w-full" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
-      <Select :model-value="filters.group" :aria-label="t('admin.accounts.allGroups')" class="min-w-0 w-full" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
-    </div>
+  <!-- 窄屏两列网格铺满宽度，sm 起恢复单行流式排布 -->
+  <div class="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+    <SearchInput
+      :model-value="searchQuery"
+      :placeholder="t('admin.accounts.searchAccounts')"
+      class="col-span-2 sm:w-52"
+      @update:model-value="$emit('update:searchQuery', $event)"
+      @search="$emit('change')"
+    />
+    <Select :model-value="filters.platform" class="min-w-0 sm:w-40" :options="pOpts" @update:model-value="updatePlatform" @change="$emit('change')" />
+    <Select :model-value="filters.type" class="min-w-0 sm:w-40" :options="tOpts" @update:model-value="updateType" @change="$emit('change')" />
+    <Select :model-value="filters.status" class="min-w-0 sm:w-40" :options="sOpts" @update:model-value="updateStatus" @change="$emit('change')" />
+    <Select :model-value="filters.privacy_mode" class="min-w-0 sm:w-48" :options="privacyOpts" @update:model-value="updatePrivacyMode" @change="$emit('change')" />
+    <Select :model-value="filters.group" class="col-span-2 min-w-0 sm:w-40" :options="gOpts" @update:model-value="updateGroup" @change="$emit('change')" />
   </div>
 </template>
 

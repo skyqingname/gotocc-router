@@ -23,14 +23,14 @@ func openAIImagesDirectModelRoutingFromContext(ctx context.Context) bool {
 	return enabled
 }
 
-func openAIAccountSupportsRequestedModel(ctx context.Context, account *Account, requestedModel string) bool {
+func openAIAccountSupportsRequestedModel(ctx context.Context, account *Account, requestedModel string, requireCompact bool) bool {
 	if account == nil {
 		return false
 	}
 	if openAIImagesDirectModelRoutingFromContext(ctx) {
 		return account.IsModelDirectlySupported(requestedModel)
 	}
-	return account.IsModelSupported(requestedModel)
+	return supportsOpenAIRequestModel(account, requestedModel, requireCompact)
 }
 
 func openAIAccountTransportCompatible(cfg *config.Config, resolver OpenAIWSProtocolResolver, account *Account, requiredTransport OpenAIUpstreamTransport) bool {

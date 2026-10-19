@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **用于订阅配额分发的 AI API 网关**
@@ -66,13 +66,13 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 标签替换为 `list-versions` 返回的标签：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.15+custom.003'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.17+custom.001'
 ```
 
 将现有二进制安装回退到较早的已发布版本：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.003'
 ```
 
 卸载服务和二进制，保留 `/etc/sub2api`：

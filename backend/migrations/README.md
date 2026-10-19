@@ -52,6 +52,13 @@ official source names this new migration `242_group_i18n.sql`; Plus already
 uses prefix 242, so GoToCC imports Plus 286 as 306 after its existing Canvas-card migration 301. Existing
 filenames and checksums remain immutable.
 
+Migrations `307_gemini_cached_contents.sql`,
+`308_gemini_cached_contents_channel_usage.sql`, and
+`309_gemini_cached_contents_mutation_lease.sql` add Gemini explicit-cache
+tables, channel-usage snapshots, and mutation leases. Official numbered these
+243–245 and Plus imports them as 287–289; GoToCC already uses 287–289, so they
+land at 307–309 after `306_group_i18n.sql`. Historical SQL is unchanged.
+
 ## File Naming
 
 Regular migration:

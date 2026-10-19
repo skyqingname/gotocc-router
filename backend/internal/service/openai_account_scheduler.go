@@ -1924,7 +1924,7 @@ func (s *defaultOpenAIAccountScheduler) isAccountRequestCompatibleReason(ctx con
 	}) {
 		return false, "shadow_parent_unhealthy"
 	}
-	if req.RequestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, req.RequestedModel) {
+	if req.RequestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, req.RequestedModel, req.RequireCompact) {
 		return false, "model_not_supported"
 	}
 	if req.GroupID != nil && s != nil && s.service != nil &&
@@ -2706,7 +2706,7 @@ func openAIAccountMatchesRequestConfiguration(
 	if account == nil || account.Platform != PlatformOpenAI || !account.IsOpenAICompatible() {
 		return false
 	}
-	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel) {
+	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel, false) {
 		return false
 	}
 	if !accountSupportsOpenAICapabilities(account, requiredCapability, requiredImageCapability) {

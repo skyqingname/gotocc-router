@@ -560,7 +560,7 @@ func openAICompatibleAccountEligibilityFailureReasonBeforeProfit(ctx context.Con
 			return "quota_auto_pause"
 		}
 	}
-	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel) {
+	if requestedModel != "" && !openAIAccountSupportsRequestedModel(ctx, account, requestedModel, requireCompact) {
 		return "model_not_supported"
 	}
 	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
