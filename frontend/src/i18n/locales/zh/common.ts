@@ -222,7 +222,7 @@ export default {
     channelStatus: '渠道状态',
     riskControl: '风控中心',
     securityAudit: '安全审计',
-    contentModeration: '内容审核',
+    contentModeration: '内容审计',
     promptAudit: '提示词审计',
     ipAccessControl: 'IP 访问控制',
     auditLogs: '操作日志',

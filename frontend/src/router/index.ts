@@ -727,17 +727,9 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    // GoToCC：提示词审计已并入内容审计。
     path: '/admin/prompt-audit',
-    name: 'AdminPromptAudit',
-    component: () => import('@/features/prompt-audit/PromptAuditView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Prompt Audit',
-      titleKey: 'admin.promptAudit.title',
-      descriptionKey: 'admin.promptAudit.description',
-      requiresRiskControl: true
-    }
+    redirect: '/admin/risk-control'
   },
   {
     path: '/admin/usage',

@@ -315,6 +315,11 @@ export default {
         },
       },
       endpointPool: {
+        protocol: '审核协议',
+        protocols: { openai_moderation: 'OpenAI 审核接口（/v1/moderations）', typesafe_jev: 'TypeSafe Jev（/v1/systemone）' },
+        baseUrl: 'Base URL',
+        jevPolicy: 'Jev 审核标准',
+        jevPolicyHint: '随每个风险类别一起提交给 Jev；各类别概率按下方风险阈值判定。Jev 只审文字，图片由 OpenAI 审核接口节点处理。',
         title: 'Moderation 审计池',
         hint: '按列表优先级调用。平台异常后自动冷却并立即切换到下一平台；冷却结束不会主动探测，下一笔真实审核请求负责恢复验证。',
         add: '添加平台',

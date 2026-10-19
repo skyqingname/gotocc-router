@@ -336,7 +336,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
 	legacyEngine := securityaudit.NewLegacyModerationAdapter(contentModerationService)
-	coordinator := securityaudit.NewCoordinator(legacyEngine, promptService)
+	coordinator := securityaudit.NewContentAuditCoordinator(legacyEngine)
 	gatewayHandler := handler.ProvideGatewayHandler(autoGroupResolver, gatewayService, openAIGatewayService, geminiMessagesCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, contentModerationService, userMessageQueueService, configConfig, settingService, clientDisconnectRiskService, coordinator)
 	openAIGatewayHandler := handler.ProvideOpenAIGatewayHandler(resellerService, autoGroupResolver, openAIGatewayService, pluginManager, concurrencyService, billingCacheService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, grokQuotaService, ipAccessControlService, clientDisconnectRiskService, configConfig, coordinator, compositeRouteResolver)
 	handlerSettingHandler := handler.ProvideSettingHandler(settingService, buildInfo, notificationEmailService)

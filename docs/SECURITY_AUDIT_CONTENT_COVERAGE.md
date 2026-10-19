@@ -225,7 +225,18 @@ retain the canonical attribution in the protocol matrix above.
 
 ## Engine Selection
 
-Both engines consume the same canonical document:
+GoToCC unified content audit: the ingress coordinator is built by
+`securityaudit.NewContentAuditCoordinator`, so every HTTP request, WebSocket
+turn and Live frame crosses Content Moderation only. Prompt Audit no longer
+enqueues, evaluates or blocks; its configuration and event history stay
+readable. A Content Moderation endpoint uses either the OpenAI
+`/v1/moderations` protocol or TypeSafe Jev `/v1/systemone`; Jev evaluates the
+same current direct-user text with one noul question per registered category
+(root `content-audit-jev.json`), and those probabilities enter the existing
+thresholds, blocking, notification, violation and ban flow. Jev evaluates text
+only and is skipped for image-only input.
+
+The upstream engines consume the same canonical document:
 
 | Engine/mode | Segment selection |
 | --- | --- |

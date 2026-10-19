@@ -511,7 +511,8 @@
 
                   <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div><label class="input-label">{{ t('admin.riskControl.endpointPool.name') }}</label><input v-model.trim="endpoint.name" class="input" type="text" /></div>
-                    <div class="md:col-span-2"><label class="input-label">{{ t('admin.riskControl.baseUrl') }}</label><input v-model.trim="endpoint.base_url" class="input" type="url" /></div>
+                    <div><label class="input-label">{{ t('admin.riskControl.endpointPool.protocol') }}</label><Select v-model="endpoint.protocol" :options="moderationProtocolOptions" @change="applyEndpointProtocolDefaults(endpoint)" /></div>
+                    <div class="md:col-span-2"><label class="input-label">{{ t('admin.riskControl.endpointPool.baseUrl') }}</label><input v-model.trim="endpoint.base_url" class="input" type="url" /></div>
                     <div><label class="input-label">{{ t('admin.riskControl.model') }}</label><input v-model.trim="endpoint.model" class="input" type="text" /></div>
                     <div><label class="input-label">{{ t('admin.riskControl.timeoutMs') }}</label><input v-model.number="endpoint.timeout_ms" class="input" type="number" min="500" max="30000" /></div>
                     <div><label class="input-label">{{ t('admin.riskControl.endpointPool.cooldown') }}</label><input v-model.number="endpoint.cooldown_seconds" class="input" type="number" min="1" max="86400" /></div>
@@ -525,6 +526,11 @@
                   </div>
                   <p v-if="endpoint.runtime.last_error" class="mt-3 break-words text-xs text-red-600 dark:text-red-300">{{ endpoint.runtime.last_error }}</p>
                 </div>
+              </div>
+              <div v-if="configForm.endpoints.some((endpoint) => endpoint.protocol === 'typesafe_jev')" class="mt-4">
+                <label class="input-label">{{ t('admin.riskControl.endpointPool.jevPolicy') }}</label>
+                <textarea v-model="configForm.jev_policy" data-test="jev-policy" class="input min-h-28 resize-y text-sm"></textarea>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.endpointPool.jevPolicyHint') }}</p>
               </div>
             </section>
 
@@ -1367,6 +1373,7 @@ import type {
   ContentModerationSessionBlock,
   ContentModerationModelFilter,
   ContentModerationModelFilterType,
+  ContentModerationProtocol,
   ContentModerationRuntimeStatus,
   ContentModerationTextAPIMode,
   ContentModerationTestAuditResult,
@@ -1378,6 +1385,7 @@ import type { AdminGroup, Proxy, SelectOption } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime as formatDateTimeValue } from '@/utils/format'
+import contentAuditJev from '../../../../content-audit-jev.json'
 
 type SettingsTab = 'basic' | 'scope' | 'runtime' | 'response' | 'riskThresholds' | 'retention' | 'keywords' | 'sessionBlocks'
 type WorkerSlotState = 'active' | 'idle' | 'disabled'
@@ -1424,6 +1432,7 @@ const riskThresholdDefaults: Record<string, number> = {
   'sexual/minors': 65,
   violence: 95,
   'violence/graphic': 95,
+  ...Object.fromEntries(contentAuditJev.extra_categories.map((item) => [item.category, item.threshold * 100])),
 }
 const riskThresholdCategories = Object.keys(riskThresholdDefaults)
 
@@ -1509,6 +1518,7 @@ const configForm = reactive({
   blocked_keywords_text: '',
   keyword_blocking_mode: 'keyword_and_api' as KeywordBlockingMode,
   text_api_mode: 'blocking' as ContentModerationTextAPIMode,
+  jev_policy: contentAuditJev.policy,
   model_filter_type: 'all' as ContentModerationModelFilterType,
   model_filter_models: [] as string[],
 })
@@ -1544,6 +1554,15 @@ const modeOptions = computed<SelectOption[]>(() => [
   { value: 'pre_block', label: t('admin.riskControl.modePreBlock') },
   { value: 'observe', label: t('admin.riskControl.modeObserve') },
   { value: 'off', label: t('admin.riskControl.modeOff') },
+])
+
+const moderationProtocolDefaults: Record<ContentModerationProtocol, { base_url: string; model: string }> = {
+  openai_moderation: { base_url: 'https://api.openai.com', model: 'omni-moderation-latest' },
+  typesafe_jev: { base_url: contentAuditJev.base_url, model: contentAuditJev.model },
+}
+const moderationProtocolOptions = computed<SelectOption[]>(() => [
+  { value: 'openai_moderation', label: t('admin.riskControl.endpointPool.protocols.openai_moderation') },
+  { value: 'typesafe_jev', label: t('admin.riskControl.endpointPool.protocols.typesafe_jev') },
 ])
 
 const textAPIModeOptions = computed<SelectOption[]>(() => [
@@ -2058,6 +2077,7 @@ function applyConfig(config: ContentModerationConfig) {
   configForm.blocked_keywords_text = Array.isArray(config.blocked_keywords) ? config.blocked_keywords.join('\n') : ''
   configForm.keyword_blocking_mode = normalizeKeywordBlockingMode(config.keyword_blocking_mode)
   configForm.text_api_mode = config.text_api_mode || 'blocking'
+  configForm.jev_policy = config.jev_policy
   const modelFilter = normalizeModelFilter(config.model_filter)
   configForm.model_filter_type = modelFilter.type
   configForm.model_filter_models = modelFilter.models
@@ -2150,12 +2170,14 @@ async function saveConfig() {
       blocked_keywords: blockedKeywordList.value,
       keyword_blocking_mode: configForm.keyword_blocking_mode,
       text_api_mode: configForm.text_api_mode,
+      jev_policy: configForm.jev_policy,
       model_filter: modelFilterPayload,
       endpoints: configForm.endpoints.map((endpoint, index) => ({
         id: endpoint.id,
         name: endpoint.name,
         enabled: endpoint.enabled,
         priority: index + 1,
+        protocol: endpoint.protocol,
         base_url: endpoint.base_url,
         model: endpoint.model,
         proxy_id: endpoint.proxy_id ?? null,
@@ -2372,8 +2394,8 @@ function addModerationEndpoint() {
     name: t('admin.riskControl.endpointPool.defaultName', { index: configForm.endpoints.length + 1 }),
     enabled: true,
     priority: configForm.endpoints.length + 1,
-    base_url: 'https://api.openai.com',
-    model: 'omni-moderation-latest',
+    protocol: 'openai_moderation',
+    ...moderationProtocolDefaults.openai_moderation,
     proxy_id: null,
     api_key_configured: false,
     api_key_count: 0,
@@ -2387,6 +2409,11 @@ function addModerationEndpoint() {
     api_keys_text: '',
     persisted: false,
   })
+}
+
+// 切换协议时换成该协议的默认地址和模型，地址仍可改为自建或中转节点。
+function applyEndpointProtocolDefaults(endpoint: ModerationEndpointDraft) {
+  Object.assign(endpoint, moderationProtocolDefaults[endpoint.protocol])
 }
 
 function removeModerationEndpoint(index: number) {
@@ -2436,6 +2463,7 @@ async function testModerationEndpoint(endpoint: ModerationEndpointDraft) {
     await adminAPI.riskControl.testAPIKeys({
       endpoint_id: endpoint.persisted ? endpoint.id : undefined,
       api_keys: keys,
+      protocol: endpoint.protocol,
       base_url: endpoint.base_url,
       model: endpoint.model,
       timeout_ms: Number(endpoint.timeout_ms) || 3000,

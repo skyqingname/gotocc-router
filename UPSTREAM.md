@@ -28,9 +28,11 @@ Completed integration narratives remain in Git history.
 
 The owned candidate is `0.2.15+custom.008`, based on published GoToCC
 `0.2.15+custom.007`. The creative studio selects sizes, aspect ratios, quality
-and background per model family and shows plaza-priced estimates. Existing Key
-ownership, image task history, storage, billing and database migrations are
-unchanged.
+and background per model family and shows plaza-priced estimates. Content
+audit is unified: Content Moderation endpoints may use TypeSafe Jev, and Prompt
+Audit leaves the ingress path while its upstream code and history remain.
+Existing Key ownership, image task history, storage, billing and database
+migrations are unchanged.
 The Plus input remains `v0.2.15+custom.003`
 (`6031fd0ef75770b80fa3234f97b876af7c328609`).
 Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded

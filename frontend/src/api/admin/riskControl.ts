@@ -4,6 +4,7 @@ export type ModerationMode = 'off' | 'observe' | 'pre_block'
 export type KeywordBlockingMode = 'keyword_only' | 'keyword_and_api' | 'api_only'
 export type ContentModerationTextAPIMode = 'auto' | 'blocking' | 'observe' | 'off'
 export type ContentModerationModelFilterType = 'all' | 'include' | 'exclude'
+export type ContentModerationProtocol = 'openai_moderation' | 'typesafe_jev'
 
 export interface ContentModerationModelFilter {
   type: ContentModerationModelFilterType
@@ -48,6 +49,7 @@ export interface ContentModerationConfig {
   cyber_policy_auto_ban_enabled: boolean
   session_block_enabled: boolean
   session_block_ttl_seconds: number
+  jev_policy: string
 }
 
 export type ContentModerationEndpointStatus = 'healthy' | 'degraded' | 'error' | 'cooldown' | 'manual_pause' | 'half_open' | 'disabled'
@@ -67,6 +69,7 @@ export interface ContentModerationEndpoint {
   name: string
   enabled: boolean
   priority: number
+  protocol: ContentModerationProtocol
   base_url: string
   model: string
   proxy_id: number | null
@@ -86,6 +89,7 @@ export interface UpdateContentModerationEndpoint {
   name: string
   enabled: boolean
   priority: number
+  protocol: ContentModerationProtocol
   base_url: string
   model: string
   proxy_id?: number | null
@@ -117,6 +121,7 @@ export interface ContentModerationAPIKeyStatus {
 export interface TestContentModerationAPIKeysPayload {
   endpoint_id?: string
   api_keys?: string[]
+  protocol?: ContentModerationProtocol
   base_url?: string
   model?: string
   timeout_ms?: number
@@ -180,6 +185,7 @@ export interface UpdateContentModerationConfig {
   cyber_policy_auto_ban_enabled?: boolean
   session_block_enabled?: boolean
   session_block_ttl_seconds?: number
+  jev_policy?: string
 }
 
 export interface ContentModerationRuntimeStatus {

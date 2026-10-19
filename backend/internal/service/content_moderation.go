@@ -132,7 +132,7 @@ var contentModerationCategoryOrder = []string{
 }
 
 func ContentModerationDefaultThresholds() map[string]float64 {
-	return map[string]float64{
+	thresholds := map[string]float64{
 		"harassment":             0.98,
 		"harassment/threatening": 0.90,
 		"hate":                   0.65,
@@ -147,6 +147,10 @@ func ContentModerationDefaultThresholds() map[string]float64 {
 		"violence":               0.95,
 		"violence/graphic":       0.95,
 	}
+	for _, category := range contentAuditJev.ExtraCategories {
+		thresholds[category.Category] = category.Threshold
+	}
+	return thresholds
 }
 
 func ContentModerationCategories() []string {
@@ -199,6 +203,10 @@ type ContentModerationConfig struct {
 	SessionBlockEnabled bool `json:"session_block_enabled"`
 	// SessionBlockTTLSeconds 会话黑名单 TTL，默认 30 天。命中不续期；Redis 只缓存剩余 TTL，PostgreSQL 是权威来源。
 	SessionBlockTTLSeconds int `json:"session_block_ttl_seconds"`
+	// JevPolicy 是 TypeSafe Jev 节点的审核标准，空值使用产品根 content-audit-jev.json 的默认标准。
+	JevPolicy string `json:"jev_policy"`
+	// Protocol 是单次调用所用节点的协议，由节点池在调用前写入，不持久化。
+	Protocol string `json:"-"`
 }
 
 type ContentModerationEndpoint struct {
@@ -206,6 +214,7 @@ type ContentModerationEndpoint struct {
 	Name             string   `json:"name"`
 	Enabled          bool     `json:"enabled"`
 	Priority         int      `json:"priority"`
+	Protocol         string   `json:"protocol"`
 	BaseURL          string   `json:"base_url"`
 	Model            string   `json:"model"`
 	ProxyID          *int64   `json:"proxy_id,omitempty"`
@@ -221,6 +230,7 @@ type ContentModerationEndpointView struct {
 	Name             string                           `json:"name"`
 	Enabled          bool                             `json:"enabled"`
 	Priority         int                              `json:"priority"`
+	Protocol         string                           `json:"protocol"`
 	BaseURL          string                           `json:"base_url"`
 	Model            string                           `json:"model"`
 	ProxyID          *int64                           `json:"proxy_id"`
@@ -283,6 +293,7 @@ type ContentModerationConfigView struct {
 	CyberPolicyAutoBanEnabled      bool                            `json:"cyber_policy_auto_ban_enabled"`
 	SessionBlockEnabled            bool                            `json:"session_block_enabled"`
 	SessionBlockTTLSeconds         int                             `json:"session_block_ttl_seconds"`
+	JevPolicy                      string                          `json:"jev_policy"`
 }
 
 type ContentModerationAPIKeyStatus struct {
@@ -318,6 +329,7 @@ type ContentModerationAPIKeyLoad struct {
 type TestContentModerationAPIKeysInput struct {
 	EndpointID string   `json:"endpoint_id"`
 	APIKeys    []string `json:"api_keys"`
+	Protocol   string   `json:"protocol"`
 	BaseURL    string   `json:"base_url"`
 	Model      string   `json:"model"`
 	TimeoutMS  int      `json:"timeout_ms"`
@@ -381,6 +393,7 @@ type UpdateContentModerationConfigInput struct {
 	CyberPolicyAutoBanEnabled      *bool                         `json:"cyber_policy_auto_ban_enabled"`
 	SessionBlockEnabled            *bool                         `json:"session_block_enabled"`
 	SessionBlockTTLSeconds         *int                          `json:"session_block_ttl_seconds"`
+	JevPolicy                      *string                       `json:"jev_policy"`
 }
 
 type ContentModerationModelFilter struct {
@@ -918,6 +931,9 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	if input.SessionBlockTTLSeconds != nil {
 		cfg.SessionBlockTTLSeconds = *input.SessionBlockTTLSeconds
 	}
+	if input.JevPolicy != nil {
+		cfg.JevPolicy = *input.JevPolicy
+	}
 	if input.Thresholds != nil {
 		cfg.Thresholds = mergeContentModerationThresholds(ContentModerationDefaultThresholds(), *input.Thresholds)
 	}
@@ -991,7 +1007,7 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 			if endpoint.ID != strings.TrimSpace(input.EndpointID) {
 				continue
 			}
-			cfg.BaseURL, cfg.Model = endpoint.BaseURL, endpoint.Model
+			cfg.Protocol, cfg.BaseURL, cfg.Model = endpoint.Protocol, endpoint.BaseURL, endpoint.Model
 			cfg.ProxyID, cfg.TimeoutMS = cloneInt64Ptr(endpoint.ProxyID), endpoint.TimeoutMS
 			cfg.APIKeys = append([]string(nil), endpoint.APIKeys...)
 			if len(keys) == 0 {
@@ -1008,6 +1024,9 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 	if len(keys) == 0 {
 		keys = cfg.apiKeys()
 		configured = true
+	}
+	if strings.TrimSpace(input.Protocol) != "" {
+		cfg.Protocol = input.Protocol
 	}
 	if strings.TrimSpace(input.BaseURL) != "" {
 		cfg.BaseURL = input.BaseURL
@@ -2162,6 +2181,9 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 		return infraerrors.BadRequest("CONTENT_MODERATION_ENDPOINT_REQUIRED", "至少需要配置一个内容审计平台")
 	}
 	for _, endpoint := range cfg.Endpoints {
+		if endpoint.Protocol != ContentModerationProtocolOpenAIModeration && endpoint.Protocol != ContentModerationProtocolTypeSafeJev {
+			return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_PROTOCOL", fmt.Sprintf("内容审计平台 %s 的协议无效", endpoint.Name))
+		}
 		if _, err := url.ParseRequestURI(endpoint.BaseURL); err != nil {
 			return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_BASE_URL", fmt.Sprintf("内容审计平台 %s 的 Base URL 无效", endpoint.Name))
 		}
@@ -2197,8 +2219,12 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 	}
 	trackLoad := len(trackKeyLoad) > 0 && trackKeyLoad[0]
 	var lastErr error
+	hasText := strings.TrimSpace(contentModerationInputText(input)) != ""
 	for _, endpoint := range cfg.Endpoints {
 		if !endpoint.Enabled || endpoint.ManualPaused || len(endpoint.APIKeys) == 0 {
+			continue
+		}
+		if endpoint.Protocol == ContentModerationProtocolTypeSafeJev && !hasText {
 			continue
 		}
 		claimed, halfOpen := s.claimModerationEndpoint(ctx, endpoint)
@@ -2236,6 +2262,7 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 
 func (s *ContentModerationService) callModerationEndpoint(ctx context.Context, baseCfg *ContentModerationConfig, endpoint ContentModerationEndpoint, input any, trackLoad bool) (*moderationAPIResult, int, error) {
 	cfg := cloneContentModerationConfig(baseCfg)
+	cfg.Protocol = endpoint.Protocol
 	cfg.BaseURL = endpoint.BaseURL
 	cfg.Model = endpoint.Model
 	cfg.ProxyID = cloneInt64Ptr(endpoint.ProxyID)
@@ -2425,6 +2452,9 @@ func (s *ContentModerationService) callModerationOnceWithInput(ctx context.Conte
 }
 
 func (s *ContentModerationService) callModerationOnceWithIdentity(ctx context.Context, cfg *ContentModerationConfig, apiKey string, input any, httpStatus *int) (*moderationAPIResult, error) {
+	if cfg.Protocol == ContentModerationProtocolTypeSafeJev {
+		return s.callJevOnce(ctx, cfg, apiKey, input, httpStatus)
+	}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 	endpoint, err := url.JoinPath(base, "/v1/moderations")
 	if err != nil {
@@ -2873,7 +2903,7 @@ func (cfg *ContentModerationConfig) normalize() {
 	}
 	if len(cfg.Endpoints) == 0 {
 		cfg.Endpoints = []ContentModerationEndpoint{{
-			ID: "default", Name: "OpenAI", Enabled: true, Priority: 1,
+			ID: "default", Name: "OpenAI", Enabled: true, Priority: 1, Protocol: cfg.Protocol,
 			BaseURL: cfg.BaseURL, Model: cfg.Model, ProxyID: cloneInt64Ptr(cfg.ProxyID),
 			APIKeys: append([]string(nil), cfg.APIKeys...), TimeoutMS: cfg.TimeoutMS,
 			CooldownSeconds:  defaultContentModerationCooldownSeconds,
@@ -2885,7 +2915,7 @@ func (cfg *ContentModerationConfig) normalize() {
 	// transition. Runtime routing is exclusively endpoint-pool based.
 	if len(cfg.Endpoints) > 0 {
 		primary := cfg.Endpoints[0]
-		cfg.BaseURL, cfg.Model, cfg.ProxyID = primary.BaseURL, primary.Model, cloneInt64Ptr(primary.ProxyID)
+		cfg.Protocol, cfg.BaseURL, cfg.Model, cfg.ProxyID = primary.Protocol, primary.BaseURL, primary.Model, cloneInt64Ptr(primary.ProxyID)
 		cfg.APIKeys, cfg.TimeoutMS = append([]string(nil), primary.APIKeys...), primary.TimeoutMS
 	}
 	if cfg.SampleRate < 0 {
@@ -2952,6 +2982,10 @@ func (cfg *ContentModerationConfig) normalize() {
 	if cfg.SessionBlockTTLSeconds > maxContentModerationSessionBlockTTLSeconds {
 		cfg.SessionBlockTTLSeconds = maxContentModerationSessionBlockTTLSeconds
 	}
+	cfg.JevPolicy = strings.TrimSpace(cfg.JevPolicy)
+	if cfg.JevPolicy == "" {
+		cfg.JevPolicy = contentAuditJev.Policy
+	}
 }
 
 func cloneContentModerationEndpoints(endpoints []ContentModerationEndpoint) []ContentModerationEndpoint {
@@ -2995,13 +3029,21 @@ func normalizeContentModerationEndpoints(endpoints []ContentModerationEndpoint) 
 		if ep.Name == "" {
 			ep.Name = fmt.Sprintf("Moderation %d", i+1)
 		}
+		ep.Protocol = strings.TrimSpace(ep.Protocol)
+		if ep.Protocol == "" {
+			ep.Protocol = ContentModerationProtocolOpenAIModeration
+		}
+		defaultBaseURL, defaultModel := defaultContentModerationBaseURL, defaultContentModerationModel
+		if ep.Protocol == ContentModerationProtocolTypeSafeJev {
+			defaultBaseURL, defaultModel = contentAuditJev.BaseURL, contentAuditJev.Model
+		}
 		ep.BaseURL = strings.TrimRight(strings.TrimSpace(ep.BaseURL), "/")
 		if ep.BaseURL == "" {
-			ep.BaseURL = defaultContentModerationBaseURL
+			ep.BaseURL = defaultBaseURL
 		}
 		ep.Model = strings.TrimSpace(ep.Model)
 		if ep.Model == "" {
-			ep.Model = defaultContentModerationModel
+			ep.Model = defaultModel
 		}
 		if ep.ProxyID != nil && *ep.ProxyID <= 0 {
 			ep.ProxyID = nil
@@ -3270,6 +3312,7 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		CyberPolicyAutoBanEnabled:      cfg.CyberPolicyAutoBanEnabled,
 		SessionBlockEnabled:            cfg.SessionBlockEnabled,
 		SessionBlockTTLSeconds:         cfg.SessionBlockTTLSeconds,
+		JevPolicy:                      cfg.JevPolicy,
 	}
 }
 
@@ -3282,7 +3325,7 @@ func (s *ContentModerationService) endpointViews(endpoints []ContentModerationEn
 		}
 		out = append(out, ContentModerationEndpointView{
 			ID: endpoint.ID, Name: endpoint.Name, Enabled: endpoint.Enabled,
-			Priority: endpoint.Priority, BaseURL: endpoint.BaseURL, Model: endpoint.Model,
+			Priority: endpoint.Priority, Protocol: endpoint.Protocol, BaseURL: endpoint.BaseURL, Model: endpoint.Model,
 			ProxyID: cloneInt64Ptr(endpoint.ProxyID), APIKeyConfigured: len(endpoint.APIKeys) > 0,
 			APIKeyCount: len(endpoint.APIKeys), APIKeyMasks: masks,
 			APIKeyStatuses: s.apiKeyStatuses(endpoint.APIKeys), TimeoutMS: endpoint.TimeoutMS,

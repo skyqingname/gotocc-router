@@ -222,7 +222,7 @@ export default {
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
     securityAudit: 'Security Audit',
-    contentModeration: 'Content Moderation',
+    contentModeration: 'Content Audit',
     promptAudit: 'Prompt Audit',
     ipAccessControl: 'IP Access Control',
     auditLogs: 'Audit Logs',
