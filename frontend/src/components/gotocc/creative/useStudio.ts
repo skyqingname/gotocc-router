@@ -99,8 +99,15 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     } catch (cause) { if (version === selectionVersion && !disposed) showError(cause) }
   }
 
+  // 首次进入或刷新时，站点配置可能晚于页面挂载；开关就绪后再加载报价。
+  watch(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza), enabled => {
+    if (!enabled) return
+    void loadPricing()
+    const key = selectedKey.value
+    if (key && !isAutoRoutingKey(key)) void loadKeyPricing(key, selectionVersion)
+  }, { immediate: true })
+
   async function init() {
-    if (isFeatureFlagEnabled(FeatureFlags.modelPlaza)) void loadPricing()
     loading.value = true
     try {
       const all: ApiKey[] = []
