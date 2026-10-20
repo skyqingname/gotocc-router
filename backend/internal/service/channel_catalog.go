@@ -7,7 +7,6 @@ import (
 	"maps"
 	"sort"
 	"strings"
-	"time"
 )
 
 // CatalogGroup contains only groups already authorized by GetAvailableGroups.
@@ -169,10 +168,6 @@ func (s *ModelPlazaService) catalogOffer(ctx context.Context, g *Group, ch *Chan
 	if o.BillingMode == BillingModeToken {
 		o.BillingUnit = "token"
 		input := ContextPricingScheduleInput{Model: billingModel, Group: g, Platform: model.Platform}
-		if resolved.Source == PricingSourceLiteLLM && isDeepSeekModel(billingModel) {
-			now := time.Now().UTC()
-			input.PricingAt = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-		}
 		sched, err := s.billingService.ResolveContextPricingSchedule(ctx, resolver, input)
 		if err != nil || sched == nil || len(sched.Tiers) == 0 {
 			return o
@@ -183,9 +178,6 @@ func (s *ModelPlazaService) catalogOffer(ctx context.Context, g *Group, ch *Chan
 		}
 		o.LongContextBasis = sched.Basis
 		o.TimePricing = sched.TimePricing
-		if !input.PricingAt.IsZero() {
-			o.TimePricing = catalogDeepSeekTimePricing()
-		}
 		tiers := []string{"priority", "flex"}
 		if resolved.BasePricing != nil && resolved.BasePricing.UltrafastMultiplier > 0 {
 			tiers = append(tiers, "ultrafast")
@@ -236,23 +228,6 @@ func (s *ModelPlazaService) catalogTokenPricing(ctx context.Context, resolver *M
 		pricing.ImageOutputPrice = &cost.ImageOutputCost
 	}
 	return pricing, nil
-}
-
-// Derive the display periods from the billing function, not a second table.
-func catalogDeepSeekTimePricing() *TimePricingSchedule {
-	location := time.FixedZone("Asia/Shanghai", 8*3600)
-	day := time.Date(2026, 1, 5, 0, 0, 0, 0, location) // Monday
-	schedule := &TimePricingSchedule{Timezone: "Asia/Shanghai", WeekdaysOnly: true}
-	for hour := 0; hour < 24; {
-		multiplier := deepseekPeakMultiplierAt(day.Add(time.Duration(hour) * time.Hour))
-		start := hour
-		for hour++; hour < 24 && deepseekPeakMultiplierAt(day.Add(time.Duration(hour)*time.Hour)) == multiplier; hour++ {
-		}
-		if multiplier != 1 {
-			schedule.Periods = append(schedule.Periods, TimePricingPeriod{StartTime: fmt.Sprintf("%02d:00", start), EndTime: fmt.Sprintf("%02d:00", hour), Multiplier: multiplier})
-		}
-	}
-	return schedule
 }
 
 // Media quotes use the same pure cost functions and precedence as gateway usage.
