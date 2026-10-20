@@ -106,6 +106,7 @@
               </div>
               <p class="mt-3 text-right text-xs text-gray-500 dark:text-dark-400">{{ t('fingerprint.confidence') }}</p>
             </div>
+            <p v-else-if="analysis.decision === 'not_model'" class="text-sm leading-relaxed text-amber-700 dark:text-amber-300">{{ t('fingerprint.notModel') }}</p>
             <p v-else class="text-sm leading-relaxed text-amber-700 dark:text-amber-300">{{ t('fingerprint.unscorable') }}</p>
             <p v-if="analysis.decision === 'partial'" class="text-xs leading-relaxed text-amber-700 dark:text-amber-300">{{ t('fingerprint.partial') }}</p>
             <p v-if="upstreamModel" class="break-words text-xs text-gray-500 dark:text-dark-400">{{ t('fingerprint.mappedModel', { model: upstreamModel }) }}</p>

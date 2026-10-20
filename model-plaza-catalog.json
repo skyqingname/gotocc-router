@@ -15,5 +15,13 @@
     "mistral",
     "meta",
     "cohere"
-  ]
+  ],
+  "vendor_aliases": {
+    "zai": [
+      "zhipuai"
+    ],
+    "volcengine": [
+      "bytedance-seed"
+    ]
+  }
 }

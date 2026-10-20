@@ -11,9 +11,10 @@ export interface Analysis {
   prediction_name: string
   probability: number | null
   used_outputs: number
-  results: { model: string; display_name: string; family: string; family_name: string; score: number; probability: number | null; absolute_match: number | null; identity_probability?: number | null }[]
+  results: { model: string; display_name: string; family: string; family_name: string; score: number; probability: number | null }[]
   diagnostics: { index: number; parsed_numbers: number; minimum_numbers: number; accepted: boolean }[]
   evidence: { insufficient: boolean; label: string; reason: string; threshold: number | null; method: string }
   decision?: string
+  sequence?: { autocorrelation: number; small_step_share: number; model_like: boolean } | null
   [key: string]: unknown
 }

@@ -12,7 +12,7 @@
           <label class="block"><span class="input-label">{{ t('asyncImage.filters.apiKey') }}</span><Select v-model="keyID" :options="keyOptions" :disabled="submitting || loadingModels" searchable="auto" :aria-label="t('asyncImage.filters.apiKey')" @change="studio.selectKey" /></label>
           <p v-if="!keyID || (!canSubmit && !loadingModels)" class="text-xs leading-5 text-gray-500">{{ !keyID ? t('studioGotocc.selectKey') : t('studioGotocc.readOnlyKey') }}</p>
           <label class="block"><span class="input-label">{{ t('asyncImage.create.count') }}</span><input v-model.number="form.n" type="number" min="1" :max="config.max_image_count" class="input w-full" /></label>
-          <details v-if="isGPTImage2(form.model)" class="text-xs text-gray-500">
+          <details v-if="studio.family.value.custom_size" class="text-xs text-gray-500">
             <summary class="cursor-pointer">{{ t('studioGotocc.customSize') }}</summary>
             <div class="mt-3 grid grid-cols-2 gap-2">
               <label>{{ t('asyncImage.create.width') }}<input v-model.number="form.customWidth" type="number" class="input w-full" @change="form.size = 'custom'" /></label>
@@ -106,7 +106,6 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import CreativeCanvas from '@/components/gotocc/creative/CreativeCanvas.vue'
 import { useStudio } from '@/components/gotocc/creative/useStudio'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
-import { isGPTImage2 } from '@/utils/asyncImageSize'
 import { CREATIVE_OUTPUT_DRAG_MIME, serializeCreativeOutputDrag } from '@/components/gotocc/creative/drag'
 import type { AsyncImageTask } from '@/api/asyncImage'
 import '@/components/gotocc/creative/studio.css'

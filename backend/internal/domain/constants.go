@@ -38,7 +38,7 @@ const (
 	PlatformCommandCode = "command_code"
 	// PlatformCline 是 Cline API（多模型聚合，OpenAI 兼容 Chat Completions；按量积分计费，
 	// 另有 ClinePass 订阅）。
-	PlatformCline     = "cline"
+	PlatformCline = "cline"
 	// PlatformVideo 是 GoToCC 自有 Video 平台；不登记进平台清单，按调用点显式放行。
 	PlatformVideo     = "video"
 	PlatformComposite = "composite"
@@ -121,6 +121,14 @@ var DefaultAntigravityModelMapping = map[string]string{
 	// Claude 白名单
 	"claude-fable-5-1":           "claude-fable-5-1",         // 官方模型
 	"claude-fable-5":             "claude-fable-5",           // 官方模型
+	"claude-opus-5-5":            "claude-opus-5-5-high",     // 简称映射
+	"claude-opus-5-5-high":       "claude-opus-5-5-high",     // 官方模型
+	"claude-opus-5-5-medium":     "claude-opus-5-5-medium",   // 官方模型
+	"claude-opus-5-5-low":        "claude-opus-5-5-low",      // 官方模型
+	"claude-sonnet-5-5":          "claude-sonnet-5-5-high",   // 简称映射
+	"claude-sonnet-5-5-high":     "claude-sonnet-5-5-high",   // 官方模型
+	"claude-sonnet-5-5-medium":   "claude-sonnet-5-5-medium", // 官方模型
+	"claude-sonnet-5-5-low":      "claude-sonnet-5-5-low",    // 官方模型
 	"claude-opus-4-8":            "claude-opus-4-8",          // 官方模型
 	"claude-opus-4-7":            "claude-opus-4-7",          // 官方模型
 	"claude-opus-4-6-thinking":   "claude-opus-4-6-thinking", // 官方模型
@@ -178,6 +186,11 @@ var DefaultAntigravityModelMapping = map[string]string{
 	"gemini-3.8-flash-low":    "gemini-3.8-flash-low",
 	"gemini-3.8-flash-medium": "gemini-3.8-flash-medium",
 	"gemini-3.8-flash-tiered": "gemini-3.8-flash-tiered",
+	// Gemini 4 Argon tiered models
+	"gemini-4-argon":        "gemini-4-argon-high",
+	"gemini-4-argon-high":   "gemini-4-argon-high",
+	"gemini-4-argon-low":    "gemini-4-argon-low",
+	"gemini-4-argon-medium": "gemini-4-argon-medium",
 	// Gemini 3 image 兼容映射（向 3.1 image 迁移）
 	"gemini-3-pro-image":         "gemini-3.1-flash-image",
 	"gemini-3-pro-image-preview": "gemini-3.1-flash-image",

@@ -181,7 +181,7 @@ func TestAvailableCatalogMediaFallbackAndUnsupportedUnit(t *testing.T) {
 	}
 }
 
-func TestAvailableCatalogDeepSeekStandardAndDerivedPeriods(t *testing.T) {
+func TestAvailableCatalogDeepSeekUsesPeakPricing(t *testing.T) {
 	group := Group{ID: 1, Platform: PlatformDeepseek}
 	ch := Channel{ID: 1, Status: StatusActive, GroupIDs: []int64{1}, ModelMapping: map[string]map[string]string{PlatformDeepseek: {"deepseek-flash": "deepseek-flash"}}}
 	catalog := mustCatalogFromJSON(`{"deepseek-flash":{"litellm_provider":"deepseek","mode":"chat","input_cost_per_token":0.000001,"output_cost_per_token":0.000002}}`)
@@ -190,11 +190,8 @@ func TestAvailableCatalogDeepSeekStandardAndDerivedPeriods(t *testing.T) {
 	require.NoError(t, err)
 	m := out[0].Models[0]
 	require.Equal(t, "resolved", m.PriceStatus)
-	require.InDelta(t, deepseekFlashOffPeakInputPrice, *m.Pricing.InputPrice, 1e-12)
-	require.NotNil(t, m.TimePricing)
-	require.True(t, m.TimePricing.WeekdaysOnly)
-	require.Equal(t, "Asia/Shanghai", m.TimePricing.Timezone)
-	require.Equal(t, []TimePricingPeriod{{StartTime: "09:00", EndTime: "12:00", Multiplier: 2}, {StartTime: "14:00", EndTime: "18:00", Multiplier: 2}}, m.TimePricing.Periods)
+	require.InDelta(t, deepseekFlashInputPrice, *m.Pricing.InputPrice, 1e-12)
+	require.Nil(t, m.TimePricing)
 }
 
 func TestAvailableCatalogImageTokenPricesFollowBillingForEveryServiceTier(t *testing.T) {

@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **AI API gateway for subscription quota distribution**
@@ -72,13 +72,13 @@ usable; replace its immutable tag with another value returned by
 `list-versions` when needed:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.15+custom.003'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.17+custom.001'
 ```
 
 Roll back an existing binary installation to an earlier published version:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.003'
 ```
 
 Remove the service and binary while preserving `/etc/sub2api`:

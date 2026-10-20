@@ -266,8 +266,23 @@
       </span>
 
       <div class="ml-auto flex items-center gap-3">
-        <!-- 单张预估价：金额加深加粗，余额符号和“/ 张”弱化，emoji 符号和数字之间留出间距。 -->
-        <span v-if="studio.selectedOption.value" class="composer-cost">{{ t('studioGotocc.actualUsagePricing') }}</span>
+        <!-- 预估价：单张价与模型广场实付价一致，多张时显示本次合计、悬停看单张价；无法预先报价时说明按实际用量。 -->
+        <template v-if="studio.selectedOption.value">
+          <i18n-t
+            v-if="studio.unitPrice.value !== null"
+            :keypath="studio.imageCount.value > 1 ? 'studioGotocc.estimatedCostTotal' : 'creative.panel.estimatedCost'"
+            tag="span"
+            scope="global"
+            class="composer-cost"
+            :title="t('creative.panel.estimatedCost', { cost: paidPerUnit(studio.unitPrice.value, 1) })"
+            data-testid="creative-estimated-cost"
+          >
+            <template #cost><span class="composer-cost-amount">{{ paidPerUnit(studio.unitPrice.value, 1) }}</span></template>
+            <template #total><span class="composer-cost-amount">{{ paidPerUnit(studio.unitPrice.value, studio.imageCount.value) }}</span></template>
+            <template #count>{{ studio.imageCount.value }}</template>
+          </i18n-t>
+          <span v-else class="composer-cost">{{ t('studioGotocc.actualUsagePricing') }}</span>
+        </template>
         <button
           ref="sendButtonRef"
           type="button"
@@ -307,6 +322,7 @@ import MotionTransition from './StudioTransition.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import SettingsSegmented from './StudioSegmented.vue'
 import Icon from './StudioIcon.vue'
+import { paidPerUnit } from '@/components/gotocc/plaza/plazaPricing'
 type IconName = InstanceType<typeof Icon>['$props']['name']
 import type { CreativeCanvasGuide, CreativeOperation } from './types'
 import type { ComposerState, CreativeModelOption } from './composerState'

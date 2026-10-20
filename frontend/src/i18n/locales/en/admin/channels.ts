@@ -315,6 +315,11 @@ export default {
         },
       },
       endpointPool: {
+        protocol: 'Protocol',
+        protocols: { openai_moderation: 'OpenAI moderation (/v1/moderations)', typesafe_jev: 'TypeSafe Jev (/v1/systemone)' },
+        baseUrl: 'Base URL',
+        jevPolicy: 'Jev audit policy',
+        jevPolicyHint: 'Sent to Jev with every risk category; each category probability is judged by the risk thresholds below. Jev evaluates text only; images are handled by OpenAI moderation endpoints.',
         title: 'Moderation endpoint pool',
         hint: 'Endpoints are called in list order. A platform failure starts cooldown and immediately fails over. Cooldown expiry sends no probe; the next real moderation request verifies recovery.',
         add: 'Add endpoint',

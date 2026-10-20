@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Download models.dev and write the trimmed model catalog bundled with each release.
 
-The source URL and the providers to keep, in lookup priority order, are declared in
-model-plaza-catalog.json. Only the fields the model plaza shows are kept.
+The source URL, the providers to keep in lookup priority order and the canonical
+vendors each provider publishes first-party are declared in model-plaza-catalog.json.
+Only the fields the model plaza shows or matches on are kept.
 """
 import datetime
 import json
@@ -14,6 +15,7 @@ TARGET = ROOT / "backend/internal/pkg/modelcatalog/catalog_gen.json"
 MODEL_FIELDS = (
     "id", "name", "description", "family", "reasoning", "tool_call", "structured_output",
     "attachment", "open_weights", "knowledge", "release_date", "modalities", "limit",
+    "status", "canonical_model_id",
 )
 COST_FIELDS = ("input", "output", "cache_read", "cache_write")
 
@@ -51,6 +53,7 @@ def main():
     snapshot = {
         "source": config["source"],
         "fetched_at": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(),
+        "vendor_aliases": config["vendor_aliases"],
         "providers": providers,
     }
     TARGET.write_text(json.dumps(snapshot, ensure_ascii=False, indent=1) + "\n")

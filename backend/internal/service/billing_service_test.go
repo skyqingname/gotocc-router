@@ -633,53 +633,53 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 		{
 			name:              "deepseek v4 pro",
 			model:             "deepseek-v4-pro",
-			expectedInput:     6.6e-7,
-			expectedOutput:    floatPtr(1.98e-6),
-			expectedCacheRead: floatPtr(2.2e-8),
+			expectedInput:     1.32e-6,
+			expectedOutput:    floatPtr(3.96e-6),
+			expectedCacheRead: floatPtr(4.4e-8),
 		},
 		{
 			name:              "deepseek v4 flash",
 			model:             "deepseek-v4-flash",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 		{
 			// deepseek-flash（= V4.1-Flash 新名）经前缀兜底同样命中 flash 价卡。
 			name:              "deepseek flash v41 name maps to flash",
 			model:             "deepseek-flash",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 		{
 			name:              "deepseek v4 flash vision exp",
 			model:             "deepseek-v4-flash-vision-exp",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 		{
 			// deepseek-chat / deepseek-reasoner 已停止服务，统一按 flash 价兜底。
 			name:              "deepseek chat discontinued maps to flash",
 			model:             "deepseek-chat",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 		{
 			name:              "deepseek reasoner discontinued maps to flash",
 			model:             "deepseek-reasoner",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 		{
 			name:              "unknown deepseek maps to flash",
 			model:             "deepseek-foo",
-			expectedInput:     1.5e-7,
-			expectedOutput:    floatPtr(6e-7),
-			expectedCacheRead: floatPtr(3e-9),
+			expectedInput:     3e-7,
+			expectedOutput:    floatPtr(1.2e-6),
+			expectedCacheRead: floatPtr(6e-9),
 		},
 
 		// ---- 智谱 GLM（z.ai USD 口径）----
@@ -2174,6 +2174,33 @@ func TestNewModelPricingCatalogFallbackAndContext(t *testing.T) {
 					require.InDelta(t, 1000*0.2e-6, cost.CacheReadCost, 1e-10)
 					require.InDelta(t, 500*10e-6, cost.OutputCost, 1e-10)
 					require.False(t, cost.LongContextBillingApplied)
+				}
+			})
+		}
+		// claude-haiku-5-5：prompt 超 100k tokens 整单 5x（官方定价），
+		// billing/catalog/fallback 三源口径一致（issue #7919）。
+		for _, model := range []string{
+			"claude-haiku-5-5",
+			"anthropic/claude-haiku-5.5",
+		} {
+			t.Run(source+"/"+model, func(t *testing.T) {
+				for _, n := range []int{99999, 100000, 100001} {
+					tokens := UsageTokens{
+						InputTokens: n - 3000, OutputTokens: 500,
+						CacheReadTokens: 2000, CacheCreationTokens: 1000,
+					}
+					cost, err := svc.CalculateCost(model, tokens, 1)
+					require.NoError(t, err)
+					im, om := 1.0, 1.0
+					if n > 100000 {
+						im, om = 5.0, 5.0
+					}
+					require.InDelta(t, float64(tokens.InputTokens)*1e-7*im, cost.InputCost, 1e-10)
+					require.InDelta(t, 1000*1.25e-7*im, cost.CacheCreationCost, 1e-10)
+					require.InDelta(t, 2000*1e-8*im, cost.CacheReadCost, 1e-10)
+					require.InDelta(t, 500*5e-7*om, cost.OutputCost, 1e-10)
+					require.InDelta(t, cost.InputCost+cost.OutputCost+cost.CacheCreationCost+cost.CacheReadCost, cost.TotalCost, 1e-10)
+					require.Equal(t, n > 100000, cost.LongContextBillingApplied)
 				}
 			})
 		}

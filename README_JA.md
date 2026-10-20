@@ -4,7 +4,7 @@
 
 # Sub2API Plus
 
-[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/ci.yml)
+[![CI](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/skyqingname/gotocc-router/actions/workflows/backend-ci.yml)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
 
 **サブスクリプションクォータ配分向け AI API ゲートウェイ**
@@ -70,13 +70,13 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 が返す別のタグへ置き換えてください：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.15+custom.003'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.17+custom.001'
 ```
 
 既存のバイナリインストールを以前の公開済みバージョンへロールバックします：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.002'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.15+custom.003'
 ```
 
 サービスとバイナリを削除し、`/etc/sub2api` は保持します：

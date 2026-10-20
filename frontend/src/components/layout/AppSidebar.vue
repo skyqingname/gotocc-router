@@ -444,7 +444,6 @@ const adminNavItems = computed((): NavItem[] => {
       expandOnly: true,
       children: [
         { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon, featureFlag: flagRiskControl },
-        { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon, featureFlag: flagRiskControl },
         { path: '/admin/ip-access-control', label: t('nav.ipAccessControl'), icon: ShieldIcon, featureFlag: flagGlobalIpAccessControl },
       ],
     },

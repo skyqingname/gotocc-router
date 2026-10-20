@@ -115,7 +115,8 @@ func (s *SettingService) SetModelPlazaOverrides(ctx context.Context, overrides m
 }
 
 // EnrichModels 为广场分组中的每个模型补充官方信息、后台覆盖和近 24 小时状态；
-// 官方目录有 token 单价的模型，官方参考价改用目录价（含上下文分档）。
+// 官方目录有 token 单价的模型，官方参考价改用目录价（含上下文分档）；DeepSeek 目录只有低谷价，
+// 官方参考价沿用计费的官方高峰价。
 func (s *ModelPlazaService) EnrichModels(ctx context.Context, groups []PlazaGroup, settings *SettingService) error {
 	overrides, err := settings.GetModelPlazaOverrides(ctx)
 	if err != nil {
@@ -153,7 +154,7 @@ func (s *ModelPlazaService) EnrichModels(ctx context.Context, groups []PlazaGrou
 				}
 			}
 			model.Info = &info
-			if found && entry.Model.Cost != nil && entry.Model.Cost.Input != nil {
+			if found && entry.Model.Cost != nil && entry.Model.Cost.Input != nil && !isDeepSeekModel(model.Name) {
 				model.OfficialPricing = plazaOfficialFromCatalog(entry.Model.Cost)
 			}
 			if stat, ok := stats[key]; ok {
