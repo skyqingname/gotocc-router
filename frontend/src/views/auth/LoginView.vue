@@ -12,17 +12,16 @@
       </div>
       <!-- Login Form -->
       <form @submit.prevent="handleLogin" class="space-y-5">
-        <LoginAgreementNotice
-          v-if="agreementGateActive"
-          @open="showAgreementModal = true"
-        />
-
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
             {{ t('auth.emailLabel') }}
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="mail" size="md" class="text-gray-400 dark:text-dark-500" />
             </div>
@@ -33,12 +32,14 @@
               required
               autofocus
               autocomplete="email"
-              :disabled="authActionDisabled"
+              :disabled="authInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11"
               :class="{ 'input-error': errors.email }"
               :placeholder="t('auth.emailPlaceholder')"
             />
-          </div>
+          </LoginAgreementInputHint>
         </div>
 
         <!-- Password Input -->
@@ -46,7 +47,11 @@
           <label for="password" class="input-label">
             {{ t('auth.passwordLabel') }}
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="lock" size="md" class="text-gray-400 dark:text-dark-500" />
             </div>
@@ -56,7 +61,9 @@
               :type="showPassword ? 'text' : 'password'"
               required
               autocomplete="current-password"
-              :disabled="authActionDisabled"
+              :disabled="authInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11 pr-11"
               :class="{ 'input-error': errors.password }"
               :placeholder="t('auth.passwordPlaceholder')"
@@ -70,7 +77,7 @@
               <Icon v-if="showPassword" name="eyeOff" size="md" />
               <Icon v-else name="eye" size="md" />
             </button>
-          </div>
+          </LoginAgreementInputHint>
           <div class="mt-1 flex items-center justify-between">
             <span></span>
             <router-link
@@ -236,7 +243,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
-import LoginAgreementNotice from '@/components/auth/LoginAgreementNotice.vue'
+import LoginAgreementInputHint from '@/components/auth/LoginAgreementInputHint.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
@@ -349,8 +356,12 @@ const agreementGateActive = computed(
   () => loginAgreementEnabled.value && !agreementAccepted.value
 )
 
+const authInputDisabled = computed(
+  () => isLoading.value || passkeyLoading.value || !publicSettingsLoaded.value
+)
+
 const authActionDisabled = computed(
-  () => isLoading.value || passkeyLoading.value || !publicSettingsLoaded.value || agreementGateActive.value
+  () => authInputDisabled.value || agreementGateActive.value
 )
 
 const showPasskeyLogin = computed(

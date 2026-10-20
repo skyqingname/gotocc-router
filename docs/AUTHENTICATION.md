@@ -23,19 +23,21 @@ use the setup wizard or `ADMIN_EMAIL` / `ADMIN_PASSWORD` for initialization.
 ## Service Terms on Sign-in and Registration
 
 When login agreements are enabled and the current revision has not been accepted,
-both forms show a notice above the account fields explaining that the service
-terms must be accepted first. **Review and accept** opens the existing terms dialog
-in either checkbox or modal mode. Checkbox mode keeps the checkbox and document
-links near the submit button; modal mode still opens the dialog on entry.
+account fields remain read-only but can receive focus. Clicking or focusing a
+field shows a compact validation-style bubble below it: **Please accept the service
+terms first.** The bubble opens the existing terms dialog when clicked. It does
+not take up space in the form, and disappears when focus leaves the field or
+Escape is pressed. Checkbox mode keeps the checkbox and document links near the
+submit button; modal mode still opens the dialog on entry.
 
 **Accept and continue** records consent for the current revision, checks the
-checkbox in checkbox mode, dismisses the dialog and removes the notice. Account
+checkbox in checkbox mode, dismisses the dialog and removes the hint. Account
 fields and sign-in/registration actions then become available subject to their
 other existing conditions. Rejecting the dialog or unchecking consent keeps the
-form disabled and the notice available so users can reopen the dialog.
+fields read-only; interacting with a field shows the hint again.
 
 Consent for the same revision survives a reload. Disabled agreements do not show
-the notice or block the form. This guidance does not change agreement settings,
+the hint or block the form. This guidance does not change agreement settings,
 authentication endpoints or the stored consent format.
 
 ## Passkeys
