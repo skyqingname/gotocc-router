@@ -52,6 +52,13 @@ prerequisites are documented in the [migration guide](../../backend/migrations/R
 
 ## Plus audit and identity contracts
 
+Cache creation and TTL extension check their known charge against the actual
+funding source. Team keys use the team wallet rather than the billing owner's
+personal balance. Personal subscriptions reserve and check daily, weekly,
+monthly and rolling five-hour quota, including other pending fixed charges.
+An expired or unstarted five-hour window has zero prior usage; the final
+charge starts the next window through the existing billing path.
+
 Cache management enters the [canonical ingress audit](../SECURITY_AUDIT_CONTENT_COVERAGE.md)
 before account selection, concurrency, billing or upstream writes. Cache create
 content uses the existing Gemini extraction shared by both audit engines.

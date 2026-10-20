@@ -883,7 +883,7 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 
 // ReserveFixedCharge 为扣费前即可确定金额的费用（倍率后 USD，如显式缓存存储费）做准入并登记在途预留。
 //
-// 余额模式要求缓存余额覆盖 amount 及用户的其他在途预留；订阅模式要求日 / 周 / 月剩余额度覆盖 amount；
+// 余额模式要求实际付款钱包覆盖 amount 及其他在途预留；订阅模式要求日 / 周 / 月 / 五小时剩余额度覆盖 amount；
 // API Key 总额度与限速窗口同样叠加 amount。订阅与 API Key 的用量取库中权威值，并叠加同一订阅 / Key 上其他
 // 在途预留：先登记本次预留再读用量，并发的两笔费用中后读用量的一方必然看到另一方（预留或已落库的扣费）。
 // 返回的句柄可能为 nil（未登记任何预留）；调用方须在 handler 结束时调用 HandlerDone，预留在计费任务落库后释放。
@@ -895,9 +895,9 @@ func (s *BillingCacheService) ReserveFixedCharge(ctx context.Context, user *User
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		return nil, nil
 	}
-	subscriptionBill := group != nil && group.IsSubscriptionType() && subscription != nil
+	subscriptionBill := user.TeamWalletID == nil && user.ResellerCustomer == nil && group != nil && group.IsSubscriptionType() && subscription != nil
 	if !subscriptionBill {
-		balance, err := s.GetUserBalance(ctx, user.ID)
+		balance, err := s.balanceForRequest(ctx, user)
 		if err != nil {
 			return nil, ErrBillingServiceUnavailable.WithCause(err)
 		}
@@ -910,7 +910,7 @@ func (s *BillingCacheService) ReserveFixedCharge(ctx context.Context, user *User
 		return nil, err
 	}
 	var subscriptionPending, apiKeyPending float64
-	if subscriptionBill && (group.HasDailyLimit() || group.HasWeeklyLimit() || group.HasMonthlyLimit()) {
+	if subscriptionBill && (group.HasDailyLimit() || group.HasWeeklyLimit() || group.HasMonthlyLimit() || group.HasFiveHourLimit()) {
 		res, subscriptionPending = s.reserveInflightScope(ctx, res, user.ID, inflightSubscriptionScope(subscription.ID), amount)
 	}
 	if apiKey != nil && (apiKey.Quota > 0 || apiKey.HasRateLimits()) {
@@ -929,7 +929,7 @@ func (s *BillingCacheService) ReserveFixedCharge(ctx context.Context, user *User
 	return res, nil
 }
 
-// checkFixedChargeSubscription 按库中订阅用量校验日 / 周 / 月剩余额度覆盖 pending。
+// checkFixedChargeSubscription 按库中订阅用量校验日 / 周 / 月 / 五小时剩余额度覆盖 pending。
 func (s *BillingCacheService) checkFixedChargeSubscription(ctx context.Context, userID int64, group *Group, pending float64) error {
 	read := s.GetSubscriptionStatus
 	if s.subRepo != nil {
@@ -947,6 +947,15 @@ func (s *BillingCacheService) checkFixedChargeSubscription(ctx context.Context, 
 	}
 	if group.HasMonthlyLimit() && subData.MonthlyUsage+pending > *group.MonthlyLimitUSD {
 		return ErrMonthlyLimitExceeded
+	}
+	if group.HasFiveHourLimit() {
+		usage := subData.FiveHourUsage
+		if _, active := activeSubscriptionQuotaWindow(subData.FiveHourWindowStart, subscriptionFiveHourDuration, time.Now()); !active {
+			usage = 0
+		}
+		if usage+pending > *group.FiveHourLimitUSD {
+			return ErrFiveHourLimitExceeded
+		}
 	}
 	return nil
 }

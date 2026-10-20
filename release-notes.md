@@ -12,4 +12,6 @@ DeepSeek default price cards bill the official peak price at every hour. Flash n
 
 The model fingerprint reference follows lm-detector `5b676af`: 60 reference models including DeepSeek V4.1 Flash 1017, Gemini 4 Argon and Muse Wonder, the float32 detector artifact, and a sequence-shape check that reports program-like number lists instead of ranking them.
 
-Key ownership, image task history and storage contracts are otherwise unchanged; billing changes only for DeepSeek default price cards. This candidate has not been published to GitHub.
+The review fixes make Gemini cache charges check the actual team wallet, include the subscription's rolling five-hour limit in fixed-charge admission and reservations, and make creative-studio estimates use the selected key's personal or team-owner rates. Switching keys clears the old estimate until the matching rates load.
+
+Key ownership, image task history and storage contracts are otherwise unchanged. Production installation is separate from this GitHub release.
