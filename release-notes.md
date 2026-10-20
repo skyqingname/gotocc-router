@@ -8,6 +8,8 @@ Content audit is unified. Content Moderation endpoints can use TypeSafe Jev (`/v
 
 Model plaza official information uses a refreshed models.dev snapshot and only first-party entries published by the model's vendor, so cloud resale prices are no longer shown as official prices. Versioned names such as `deepseek-v4-pro-0813` and `deepseek-v4.1-flash` now match DeepSeek's own entries.
 
+DeepSeek default price cards bill the official peak price at every hour. Flash names and the Pro name, which DeepSeek serves and bills as V4.1 Flash, cost $0.30 input, $1.20 output and $0.006 cache hit per million tokens (CNY 2/8/0.04). The peak-hour multiplier and the plaza's DeepSeek time periods are removed, and the plaza official reference for DeepSeek shows the same peak price. Group and channel custom prices are unchanged.
+
 The model fingerprint reference follows lm-detector `5b676af`: 60 reference models including DeepSeek V4.1 Flash 1017, Gemini 4 Argon and Muse Wonder, the float32 detector artifact, and a sequence-shape check that reports program-like number lists instead of ranking them.
 
-Key ownership, image task history, storage and billing contracts are otherwise unchanged. This candidate has not been published to GitHub.
+Key ownership, image task history and storage contracts are otherwise unchanged; billing changes only for DeepSeek default price cards. This candidate has not been published to GitHub.
