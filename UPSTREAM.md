@@ -22,7 +22,12 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.17+custom.002`, based on published GoToCC
+The owned candidate is `0.2.17+custom.003`, continuing published GoToCC
+`0.2.17+custom.002`. The risk-control page shows completed reviews with their
+results and unreviewed records with their reasons; extraction diagnostics no
+longer appear as a competing review status. Unreviewed records have no score.
+This presentation change preserves extraction, audit decisions and penalties.
+The inherited integration is based on GoToCC
 `0.2.15+custom.007` and Plus `v0.2.17+custom.001`
 (`8df03635ac4b9e15e746f9d6b0e7456734b06e1c`). Plus Gemini explicit-cache
 migrations 287–289 land at 307–309. The creative studio selects sizes, aspect ratios, quality

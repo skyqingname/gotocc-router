@@ -1529,7 +1529,7 @@ func (s *ContentModerationService) checkSync(ctx context.Context, input ContentM
 			s.asyncErrors.Add(1)
 		}
 		if cfg.RecordNonHits {
-			log := s.buildLog(input, cfg, ContentModerationActionError, false, "", 0, nil, content.ExcerptText(), &latency, queueDelay, "audit_dependency_failed")
+			log := s.buildLog(input, cfg, ContentModerationActionError, false, "", 0, nil, content.ExcerptText(), &latency, queueDelay, contentModerationNotReviewedReason(err))
 			_ = s.repo.CreateLog(ctx, log)
 		}
 		return allow
@@ -2255,7 +2255,7 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 			"reason", contentModerationEndpointErrorReason(httpStatus, err))
 	}
 	if lastErr == nil {
-		lastErr = errors.New("no content moderation endpoint available")
+		lastErr = errContentModerationNoEndpoint
 	}
 	return nil, lastErr
 }

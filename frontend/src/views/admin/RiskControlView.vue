@@ -53,21 +53,6 @@
           </div>
         </div>
 
-        <section data-test="content-extraction-runtime" class="border-y border-gray-200 py-4 dark:border-dark-700">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div class="max-w-xl">
-              <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.extractionStatus') }}</h2>
-              <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.extractionStatusHint') }}</p>
-            </div>
-            <dl class="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-              <div v-for="item in extractionMetricItems" :key="item.key" :data-test="`content-extraction-metric-${item.key}`" class="min-w-[7rem]">
-                <dt class="text-xs text-gray-500 dark:text-gray-400">{{ item.label }}</dt>
-                <dd class="mt-1 text-lg font-semibold tabular-nums" :class="item.valueClass">{{ item.value }}</dd>
-              </div>
-            </dl>
-          </div>
-        </section>
-
         <div
           v-if="showPreBlockRuntimeCard"
           data-test="pre-block-runtime-cards"
@@ -330,10 +315,11 @@
                       <span class="inline-flex rounded-md px-2 py-1 text-xs font-medium" :class="resultBadgeClass(row)">
                         {{ resultLabel(row) }}
                       </span>
+                      <p v-if="!hasReviewResult(row)" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ notReviewedReason(row) }}</p>
                     </td>
                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
                       <div>{{ row.highest_category || '-' }}</div>
-                      <div class="text-xs text-gray-400">{{ percent(row.highest_score) }}</div>
+                      <div class="text-xs text-gray-400">{{ reviewScoreText(row) }}</div>
                       <div v-if="row.matched_keyword" class="mt-0.5 text-xs font-medium text-red-600 dark:text-red-300" :title="t('admin.riskControl.matchedKeyword') + ': ' + row.matched_keyword">
                         {{ t('admin.riskControl.matchedKeyword') }}: {{ row.matched_keyword }}
                       </div>
@@ -1305,11 +1291,12 @@
               <span class="mt-1 inline-flex rounded-md px-2 py-1 text-xs font-medium" :class="resultBadgeClass(inputDetailRow)">
                 {{ resultLabel(inputDetailRow) }}
               </span>
+              <p v-if="!hasReviewResult(inputDetailRow)" class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ notReviewedReason(inputDetailRow) }}</p>
             </div>
             <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/70">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.table.highest') }}</p>
               <p class="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
-                {{ inputDetailRow.highest_category || '-' }} / {{ percent(inputDetailRow.highest_score) }}
+                {{ inputDetailRow.highest_category || '-' }} / {{ reviewScoreText(inputDetailRow) }}
               </p>
             </div>
             <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-800/70">
@@ -1900,35 +1887,6 @@ const runtimeMode = computed<ModerationMode>(() => status.value?.mode ?? configF
 const showPreBlockRuntimeCard = computed(() => runtimeMode.value === 'pre_block')
 
 const showWorkerRuntimeCard = computed(() => runtimeMode.value === 'observe')
-
-const extractionMetricItems = computed(() => [
-  {
-    key: 'attempted',
-    label: t('admin.riskControl.extractionAttempted'),
-    value: formatNumber(status.value?.extraction_attempted ?? 0),
-    valueClass: 'text-gray-900 dark:text-white',
-  },
-  {
-    key: 'succeeded',
-    label: t('admin.riskControl.extractionSucceeded'),
-    value: formatNumber(status.value?.extraction_succeeded ?? 0),
-    valueClass: 'text-emerald-700 dark:text-emerald-300',
-  },
-  {
-    key: 'empty',
-    label: t('admin.riskControl.extractionEmpty'),
-    value: formatNumber(status.value?.extraction_empty ?? 0),
-    valueClass: 'text-gray-900 dark:text-white',
-  },
-  {
-    key: 'failed',
-    label: t('admin.riskControl.extractionFailed'),
-    value: formatNumber(status.value?.extraction_failed ?? 0),
-    valueClass: (status.value?.extraction_failed ?? 0) > 0
-      ? 'text-red-700 dark:text-red-300'
-      : 'text-gray-900 dark:text-white',
-  },
-])
 
 const preBlockMetricItems = computed(() => [
   {
@@ -2679,20 +2637,43 @@ function modeDescription(mode: ModerationMode): string {
 }
 
 function resultLabel(row: ContentModerationLog): string {
+  if (!hasReviewResult(row)) return t('admin.riskControl.action.error')
+  return t('admin.riskControl.reviewedResult', { result: reviewResultLabel(row) })
+}
+
+function hasReviewResult(row: ContentModerationLog): boolean {
+  return Object.keys(row.category_scores).length > 0 || row.flagged || (row.action !== 'error' && !row.error)
+}
+
+function reviewScoreText(row: ContentModerationLog): string {
+  return hasReviewResult(row) && Object.keys(row.category_scores).length > 0
+    ? percent(row.highest_score)
+    : t('admin.riskControl.notScored')
+}
+
+function notReviewedReason(row: ContentModerationLog): string {
+  switch (row.error) {
+    case 'audit_timeout': return t('admin.riskControl.notReviewedReasons.timeout')
+    case 'audit_no_endpoint': return t('admin.riskControl.notReviewedReasons.noEndpoint')
+    case 'audit_canceled': return t('admin.riskControl.notReviewedReasons.canceled')
+    default: return t('admin.riskControl.notReviewedReasons.noResult')
+  }
+}
+
+function reviewResultLabel(row: ContentModerationLog): string {
   if (row.action === 'cyber_policy') return t('admin.riskControl.action.cyberPolicy')
   if (row.action === 'keyword_block') return t('admin.riskControl.action.keywordBlock')
   if (row.action === 'hash_block') return t('admin.riskControl.action.hashBlock')
   if (row.action === 'session_block') return t('admin.riskControl.action.sessionBlock')
   if (row.action === 'shadow') return t('admin.riskControl.action.shadow')
   if (row.action === 'block') return t('admin.riskControl.action.block')
-  if (row.action === 'error' || row.error) return t('admin.riskControl.action.error')
   if (row.flagged) return t('admin.riskControl.result.hit')
   return t('admin.riskControl.result.pass')
 }
 
 function resultBadgeClass(row: ContentModerationLog): string {
+  if (!hasReviewResult(row)) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
   if (row.action === 'block' || row.action === 'keyword_block' || row.action === 'hash_block' || row.action === 'session_block' || row.action === 'cyber_policy') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-  if (row.action === 'error' || row.error) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
   if (row.flagged) return 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
   return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
 }
