@@ -20,6 +20,24 @@ create a replacement administrator, or fail because of old bootstrap values.
 `default.admin_email` / `default.admin_password` are legacy configuration fields;
 use the setup wizard or `ADMIN_EMAIL` / `ADMIN_PASSWORD` for initialization.
 
+## Service Terms on Sign-in and Registration
+
+When login agreements are enabled and the current revision has not been accepted,
+both forms show a notice above the account fields explaining that the service
+terms must be accepted first. **Review and accept** opens the existing terms dialog
+in either checkbox or modal mode. Checkbox mode keeps the checkbox and document
+links near the submit button; modal mode still opens the dialog on entry.
+
+**Accept and continue** records consent for the current revision, checks the
+checkbox in checkbox mode, dismisses the dialog and removes the notice. Account
+fields and sign-in/registration actions then become available subject to their
+other existing conditions. Rejecting the dialog or unchecking consent keeps the
+form disabled and the notice available so users can reopen the dialog.
+
+Consent for the same revision survives a reload. Disabled agreements do not show
+the notice or block the form. This guidance does not change agreement settings,
+authentication endpoints or the stored consent format.
+
 ## Passkeys
 
 Passkey sign-in is optional. It requires both a valid WebAuthn relying-party

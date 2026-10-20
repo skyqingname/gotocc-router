@@ -146,9 +146,9 @@ export default {
     loginAgreementPrompt: {
       checkboxPrefix: 'I have read and agree to ',
       documentSeparator: ', ',
-      noticeTitle: 'Accept the latest terms before continuing.',
-      noticeDescription: 'Account/password login and quick sign-in stay disabled until you accept.',
-      viewTerms: 'View terms',
+      noticeTitle: 'Please accept the service terms first',
+      noticeDescription: 'Once you accept, you can enter your account details and sign in or register.',
+      viewTerms: 'Review and accept',
       dialogTitle: 'Terms Update Notice',
       dialogDescription: 'Our service terms were updated on {date}. Please read and accept the following terms before continuing.',
       recently: 'recently',

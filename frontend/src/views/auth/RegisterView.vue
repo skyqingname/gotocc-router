@@ -32,6 +32,11 @@
 
       <!-- Registration Form -->
       <form v-else @submit.prevent="handleRegister" class="space-y-5">
+        <LoginAgreementNotice
+          v-if="agreementGateActive"
+          @open="showAgreementModal = true"
+        />
+
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
@@ -247,7 +252,6 @@
           :visible="showAgreementModal"
           @accept="acceptLoginAgreement"
           @reject="rejectLoginAgreement"
-          @open="showAgreementModal = true"
         />
 
         <!-- Submit Button -->
@@ -358,6 +362,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
+import LoginAgreementNotice from '@/components/auth/LoginAgreementNotice.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
 import { useAuthStore, useAppStore } from '@/stores'

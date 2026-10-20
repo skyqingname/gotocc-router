@@ -12,6 +12,11 @@
       </div>
       <!-- Login Form -->
       <form @submit.prevent="handleLogin" class="space-y-5">
+        <LoginAgreementNotice
+          v-if="agreementGateActive"
+          @open="showAgreementModal = true"
+        />
+
         <!-- Email Input -->
         <div>
           <label for="email" class="input-label">
@@ -136,7 +141,6 @@
           :visible="showAgreementModal"
           @accept="acceptLoginAgreement"
           @reject="rejectLoginAgreement"
-          @open="showAgreementModal = true"
         />
 
         <div v-if="showPasskeyLogin || showOAuthLogin" class="space-y-3 pt-1">
@@ -232,6 +236,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
+import LoginAgreementNotice from '@/components/auth/LoginAgreementNotice.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
