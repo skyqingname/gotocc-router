@@ -34,6 +34,9 @@ fingerprint reference follows lm-detector `5b676af`. DeepSeek default price
 cards bill the official peak price at every hour, replacing the Plus peak-hour
 multiplier. Existing Key ownership, image task history and storage contracts are
 unchanged.
+Review fixes preserve team-wallet funding for Gemini cache charges, enforce
+subscription five-hour headroom for fixed charges, and use the selected key's
+billing-owner rates for creative-studio estimates.
 Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded
 frontend. Publication uses the accepted artifacts; production installation is separate.
 

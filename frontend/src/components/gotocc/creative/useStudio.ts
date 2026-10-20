@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { unzip } from 'fflate'
 import { keysAPI } from '@/api/keys'
+import { userGroupsAPI } from '@/api/groups'
 import { getModelPlaza, type ModelPlazaGroup } from '@/api/modelPlaza'
 import {
   deleteAsyncImageTask, downloadAsyncImageZip, getAsyncImageObjectURL, getAsyncImageTask,
@@ -13,7 +14,7 @@ import { getAutoRoutingCapabilities, isAutoRoutingKey, keyAllowsAsyncImage, keyC
 import { useUserView } from '@/composables/useUserView'
 import { validateGPTImage2CustomSize } from '@/utils/asyncImageSize'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import type { ApiKey } from '@/types'
+import type { ApiKey, Group } from '@/types'
 import config from '../../../../../creative-studio.json'
 import { createCreativeLocalStore, type LocalRunParams } from './localStore'
 import { familySizes, imageUnitPrice, mediaFamily } from './mediaOptions'
@@ -38,6 +39,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   const activityCount = ref(0)
   const params = ref(new Map<string, LocalRunParams>())
   const plazaGroups = ref<ModelPlazaGroup[]>([])
+  const keyPricing = ref<{ group: Group; rate: number | undefined } | null>(null)
   const [initialWidth, initialHeight] = config.default_size.split('x').map(Number)
   const form = reactive({
     model: '', prompt: '', operation: 'generate' as CreativeOperation,
@@ -57,8 +59,14 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   // 智能 Key 提交后才确定分组，无法预先报价。
   const unitPrice = computed(() => {
     const key = selectedKey.value
-    if (!key || isAutoRoutingKey(key) || !form.model || customSizeError.value) return null
-    return imageUnitPrice(plazaGroups.value, key.group_id, form.model, requestSize.value)
+    if (!key || isAutoRoutingKey(key) || !form.model || customSizeError.value || !keyPricing.value) return null
+    const group = plazaGroups.value.find(item => item.id === key.group_id)
+    if (!group) return null
+    const { rate_multiplier, image_rate_independent, image_rate_multiplier } = keyPricing.value.group
+    return imageUnitPrice({
+      ...group, rate_multiplier, image_rate_independent, image_rate_multiplier,
+      user_rate_multiplier: keyPricing.value.rate,
+    }, form.model, requestSize.value)
   })
   const canInpaint = computed(() => selectedKey.value?.group?.platform === 'openai' && !isAutoRoutingKey(selectedKey.value))
   const ready = computed(() => canSubmit.value && !!form.model && !!form.prompt.trim() && !submitting.value && !customSizeError.value && Number.isInteger(form.n) && form.n >= 1 && form.n <= config.max_image_count)
@@ -78,8 +86,28 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     catch (cause) { showError(cause) }
   }
 
+  // 分组与专属倍率使用所选 Key 的付款范围；团队接口由后端解析当前负责人。
+  async function loadKeyPricing(key: ApiKey, version: number) {
+    try {
+      const scope = key.team_id ? 'team' : 'personal'
+      const [groups, rates] = await Promise.all([
+        userGroupsAPI.getAvailable(scope), userGroupsAPI.getUserGroupRates(scope),
+      ])
+      if (version !== selectionVersion || disposed) return
+      const group = groups.find(item => item.id === key.group_id)
+      keyPricing.value = group ? { group, rate: rates[group.id] } : null
+    } catch (cause) { if (version === selectionVersion && !disposed) showError(cause) }
+  }
+
+  // 首次进入或刷新时，站点配置可能晚于页面挂载；开关就绪后再加载报价。
+  watch(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza), enabled => {
+    if (!enabled) return
+    void loadPricing()
+    const key = selectedKey.value
+    if (key && !isAutoRoutingKey(key)) void loadKeyPricing(key, selectionVersion)
+  }, { immediate: true })
+
   async function init() {
-    if (isFeatureFlagEnabled(FeatureFlags.modelPlaza)) void loadPricing()
     loading.value = true
     try {
       const all: ApiKey[] = []
@@ -111,6 +139,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
   async function selectKey() {
     const version = ++selectionVersion
     const key = selectedKey.value
+    keyPricing.value = null
     models.value = []
     form.model = ''
     canSubmit.value = false
@@ -119,6 +148,7 @@ export function useStudio(placeOutput: (output: StudioOutput) => Promise<void>) 
     error.value = ''
     tasks.value = []
     if (!key) return
+    if (isFeatureFlagEnabled(FeatureFlags.modelPlaza) && !isAutoRoutingKey(key)) void loadKeyPricing(key, version)
     const history = refreshHistory()
     const activeTasks = loadActive(key).catch(cause => {
       if (version === selectionVersion && !disposed) showError(cause)

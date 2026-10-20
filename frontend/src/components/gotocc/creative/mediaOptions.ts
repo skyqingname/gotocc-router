@@ -32,11 +32,10 @@ export function billingTier(size: string): string {
   return config.billing_tiers.find(tier => tier.max_edge === null || longEdge <= tier.max_edge)!.tier
 }
 
-// 单张实付价：同档位价优先，其次按张价，再乘模型广场的生效倍率；token 计费或未定价时为 null。
-export function imageUnitPrice(groups: ModelPlazaGroup[], groupID: number | null | undefined, model: string, size: string): number | null {
-  const group = groups.find(item => item.id === groupID)
-  const offer = group?.models.find(item => item.name === model)
-  if (!group || !offer?.pricing) return null
+// 单张实付价：同档位价优先，其次按张价，再乘付款主体的生效倍率；token 计费或未定价时为 null。
+export function imageUnitPrice(group: ModelPlazaGroup, model: string, size: string): number | null {
+  const offer = group.models.find(item => item.name === model)
+  if (!offer?.pricing) return null
   const mode = billingMode(offer)
   if (mode !== BILLING_MODE_IMAGE && mode !== BILLING_MODE_PER_REQUEST) return null
   const tier = billingTier(size)
