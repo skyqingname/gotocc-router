@@ -64,7 +64,7 @@
           </div>
           <div class="mt-2 flex justify-between text-sm">
             <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.amount') }}</span>
-            <span class="text-gray-900 dark:text-white">${{ refundTarget.amount.toFixed(2) }}</span>
+            <span class="text-gray-900 dark:text-white">{{ formatOrderAmount(refundTarget.amount, refundTarget) }}</span>
           </div>
         </div>
         <div>
@@ -83,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatOrderAmount } from '@/components/payment/currency'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'

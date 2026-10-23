@@ -98,28 +98,28 @@ type BillingCache interface {
 type ModelPricing struct {
 	// UltrafastMultiplier is model-owned and independent of operator Fast pricing.
 	UltrafastMultiplier                float64
-	InputPricePerToken                 float64            // 每token输入价格 (USD)
-	InputPricePerTokenPriority         float64            // priority service tier 下每token输入价格 (USD)
-	ImageInputPricePerToken            float64            // 图片输入 token 价格 (USD)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
+	InputPricePerToken                 float64            // 每token输入价格 (积分)
+	InputPricePerTokenPriority         float64            // priority service tier 下每token输入价格 (积分)
+	ImageInputPricePerToken            float64            // 图片输入 token 价格 (积分)，用于多模态 embedding 等图文不同价场景；为 0 时回退到 InputPricePerToken
 	ImageCacheReadPricePerToken        float64            // 图片缓存输入价格；无独立价格时沿用缓存读取价
-	OutputPricePerToken                float64            // 每token输出价格 (USD)
-	OutputPricePerTokenPriority        float64            // priority service tier 下每token输出价格 (USD)
-	CacheCreationPricePerToken         float64            // 缓存创建每token价格 (USD)
-	CacheCreationPricePerTokenPriority float64            // priority service tier 下缓存创建每token价格 (USD)
+	OutputPricePerToken                float64            // 每token输出价格 (积分)
+	OutputPricePerTokenPriority        float64            // priority service tier 下每token输出价格 (积分)
+	CacheCreationPricePerToken         float64            // 缓存创建每token价格 (积分)
+	CacheCreationPricePerTokenPriority float64            // priority service tier 下缓存创建每token价格 (积分)
 	CacheCreationPriceExplicit         bool               // 是否由渠道/区间定价显式设定（为 true 时即使 == 0 也不回退）
-	CacheReadPricePerToken             float64            // 缓存读取每token价格 (USD)
-	CacheReadPricePerTokenPriority     float64            // priority service tier 下缓存读取每token价格 (USD)
+	CacheReadPricePerToken             float64            // 缓存读取每token价格 (积分)
+	CacheReadPricePerTokenPriority     float64            // priority service tier 下缓存读取每token价格 (积分)
 	FastMultiplier                     *float64           // 渠道显式 Fast/priority 倍率；nil 时沿用模型目录行为
 	FlexMultiplier                     *float64           // 渠道显式 Flex 倍率；nil 时沿用默认行为
 	ReasoningEffortMultipliers         map[string]float64 `json:"reasoning_effort_multipliers,omitempty"` // 最终转发的推理等级对应的计费倍率；未配置的等级按 1 倍计费
-	CacheCreation5mPrice               float64            // 5分钟缓存创建每token价格 (USD)
-	CacheCreation1hPrice               float64            // 1小时缓存创建每token价格 (USD)
+	CacheCreation5mPrice               float64            // 5分钟缓存创建每token价格 (积分)
+	CacheCreation1hPrice               float64            // 1小时缓存创建每token价格 (积分)
 	SupportsCacheBreakdown             bool               // 是否支持详细的缓存分类
 	LongContextInputThreshold          int                // 超过阈值后按整次会话提升输入价格
 	LongContextThresholdInclusive      bool               // 达到阈值即应用（xAI）；默认保持严格大于以兼容既有模型
 	LongContextInputMultiplier         float64            // 长上下文整次会话输入倍率
 	LongContextOutputMultiplier        float64            // 长上下文整次会话输出倍率
-	ImageOutputPricePerToken           float64            // 图片输出 token 价格 (USD)
+	ImageOutputPricePerToken           float64            // 图片输出 token 价格 (积分)
 	ImageOutputPriceExplicit           bool               // 是否由渠道定价显式设定（为 true 时即使 == 0 也不回退）
 }
 
@@ -312,23 +312,9 @@ func resolvedChannelTimeMultiplier(resolved *ResolvedPricing, at time.Time) floa
 // sources can price the requested model.
 var ErrModelPricingUnavailable = errors.New("pricing not found")
 
-// ---- DeepSeek 官方高峰价（$/token）----
-// DeepSeek 默认价卡全天按官方高峰价计费，不区分峰谷时段。
-// 2026-09-10 官方公告：DeepSeek-V4.1-Flash（新名 deepseek-flash）高峰价为
-// $0.30/$1.20/$0.006 per MTok（输入缓存未命中/输出/缓存命中，人民币 2/8/0.04 元）；
-// deepseek-v4-pro 名义价格暂不变，但自北京时间 2026-09-14 12:00（04:00 UTC）起
-// 其请求被上游路由到 V4.1-Flash 并按 Flash 价计费（见 deepseekProBilledAsFlash）。
-// Source: https://api-docs.deepseek.com/news/news260910
-//
-//	https://api-docs.deepseek.com/quick_start/pricing
-const (
-	deepseekFlashInputPrice  = 3e-7    // $0.30 per MTok (cache miss)
-	deepseekFlashOutputPrice = 1.2e-6  // $1.20 per MTok
-	deepseekFlashCacheRead   = 6e-9    // $0.006 per MTok (cache hit)
-	deepseekProInputPrice    = 1.32e-6 // $1.32 per MTok (cache miss)
-	deepseekProOutputPrice   = 3.96e-6 // $3.96 per MTok
-	deepseekProCacheRead     = 4.4e-8  // $0.044 per MTok (cache hit)
-)
+// DeepSeek 默认价卡全天使用人民币官方高峰价的原数值（积分/token）。
+// 参数真源：根 billing-credits.json；由 tools/generate_billing_credits.py 生成。
+// pro → Flash 的历史路由时点保持既有语义；不重写已有用量和任务快照。
 
 // isDeepSeekModel 判断模型名是否为 DeepSeek 模型（大小写不敏感）。
 // 任意 deepseek- 前缀均视为 DeepSeek 模型：官方模型（v4-flash / v4-pro /
@@ -398,7 +384,7 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 }
 
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
-// 价格单位：USD per token（与LiteLLM格式一致）
+// 价格单位：积分/token；官方原币种标价数值直接作为积分，不作汇率换算。
 func (s *BillingService) initFallbackPricing() {
 	// Claude 4.5 Opus
 	s.fallbackPrices["claude-opus-4.5"] = &ModelPricing{
@@ -786,7 +772,7 @@ func (s *BillingService) initFallbackPricing() {
 	}
 
 	// ============================================================
-	// 国产 LLM 兜底定价（数据源：各家官方定价页/USD 口径）
+	// 国产 LLM 默认价卡：官方原币种标价数值直接记为积分。
 	// 顺序：DeepSeek → 智谱 GLM → 月之暗面 Kimi → MiniMax → StepFun
 	// 覆盖逻辑见同文件 getFallbackPricing()
 	// ============================================================
@@ -800,15 +786,15 @@ func (s *BillingService) initFallbackPricing() {
 	// 避免计费中断。
 	// 以下均为官方高峰价，全天适用。
 	s.fallbackPrices["deepseek-v4-pro"] = &ModelPricing{
-		InputPricePerToken:     deepseekProInputPrice,  // $1.32 per MTok (cache miss, peak)
-		OutputPricePerToken:    deepseekProOutputPrice, // $3.96 per MTok
-		CacheReadPricePerToken: deepseekProCacheRead,   // $0.044 per MTok (cache hit)
+		InputPricePerToken:     deepseekProInputPrice,  // 9 credits per MTok (cache miss, peak)
+		OutputPricePerToken:    deepseekProOutputPrice, // 27 credits per MTok
+		CacheReadPricePerToken: deepseekProCacheRead,   // 0.3 credits per MTok (cache hit)
 		SupportsCacheBreakdown: false,
 	}
 	s.fallbackPrices["deepseek-v4-flash"] = &ModelPricing{
-		InputPricePerToken:     deepseekFlashInputPrice,  // $0.30 per MTok (cache miss, peak)
-		OutputPricePerToken:    deepseekFlashOutputPrice, // $1.20 per MTok
-		CacheReadPricePerToken: deepseekFlashCacheRead,   // $0.006 per MTok (cache hit)
+		InputPricePerToken:     deepseekFlashInputPrice,  // 2 credits per MTok (cache miss, peak)
+		OutputPricePerToken:    deepseekFlashOutputPrice, // 8 credits per MTok
+		CacheReadPricePerToken: deepseekFlashCacheRead,   // 0.04 credits per MTok (cache hit)
 		SupportsCacheBreakdown: false,
 	}
 	s.fallbackPrices["deepseek-v4-flash-vision-exp"] = &ModelPricing{
@@ -827,7 +813,7 @@ func (s *BillingService) initFallbackPricing() {
 	// ---- 智谱 GLM（Z.AI）----
 	// Source: https://docs.z.ai/guides/overview/pricing (USD per 1M tokens)
 	// 注意：CacheReadPricePerToken 即"缓存命中"价格，CacheCreationPricePerToken 留空（智谱未公开写入价，按 0 处理）。
-	// GLM-4.6 与 GLM-4.5 在 z.ai 国际版上定价一致；GLM-4.5 国内按 ¥0.8/¥2，汇率换算后约 $0.112/$0.28，与国际版 $0.6/$2.2 不同，本分支采用国际版 USD 口径与现有 Claude/GPT 一致。
+	// GLM-4.6 与 GLM-4.5 在 z.ai 国际版上定价一致；本价卡直接取 z.ai 国际站官方美元标价数值作为积分，不从人民币换算。
 	// GLM-5.3 / GLM-5.2 与 GLM-5.1 在 z.ai 上同价。
 	// GLM-5.3-Flash 列表价 $0.15/$0.50（2026-09-09 前五折促销，此处按列表价，与其它模型口径一致）。
 	s.fallbackPrices["glm-5.3-flash"] = &ModelPricing{
@@ -927,8 +913,7 @@ func (s *BillingService) initFallbackPricing() {
 
 	// ---- 月之暗面 Kimi（K 系列）----
 	// Source: https://platform.moonshot.cn/docs/pricing/overview (元/百万 tokens 口径)
-	//       交叉验证：https://www.tmtpost.com/7961404.html (USD 口径)
-	// Moonshot V1 (¥2/¥5/¥10 多 tier) 公开页未直接标注 USD 价，本分支不覆盖，避免误计价。
+	// Moonshot V1 不在此默认价卡覆盖范围。
 	// K2-0905 / K2-0711 官方页面未保留定价，不覆盖。
 	// Kimi K3 国际站 USD 价目：https://platform.kimi.ai/docs/pricing/chat-k3.md
 	// Kimi Code bare aliases（k3 / k3-256k）官方无按 token 价目；复用 API Platform
@@ -958,18 +943,10 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerToken: 0.098e-6,
 		SupportsCacheBreakdown: false,
 	}
-	s.fallbackPrices["kimi-k2-thinking"] = &ModelPricing{
-		InputPricePerToken:     0.56e-6, // ¥4/百万 ≈ $0.56
-		OutputPricePerToken:    2.24e-6, // ¥16/百万
-		CacheReadPricePerToken: 0.14e-6, // ¥1/百万
-		SupportsCacheBreakdown: false,
-	}
-	s.fallbackPrices["kimi-k2"] = &ModelPricing{
-		InputPricePerToken:     0.56e-6, // ¥4/百万
-		OutputPricePerToken:    2.24e-6, // ¥16/百万
-		CacheReadPricePerToken: 0.14e-6, // ¥1/百万
-		SupportsCacheBreakdown: false,
-	}
+	kimiK2ThinkingPrice := officialCreditPrices["kimi-k2-thinking"]
+	s.fallbackPrices["kimi-k2-thinking"] = &kimiK2ThinkingPrice
+	kimiK2Price := officialCreditPrices["kimi-k2"]
+	s.fallbackPrices["kimi-k2"] = &kimiK2Price
 
 	// ---- MiniMax M 系列 ----
 	// Source: https://platform.minimax.io/docs/guides/pricing-paygo
@@ -1034,14 +1011,10 @@ func (s *BillingService) initFallbackPricing() {
 
 	// ---- 火山方舟 豆包 Embedding（多模态向量化）----
 	// doubao-embedding-vision 图文向量化：上游 usage 回传 prompt_tokens_details.{text_tokens,image_tokens}，
-	// 按量付费官方价 文本 ¥0.7/MTok、图片 ¥1.8/MTok；汇率口径 ÷7.14（与本表其他国产模型一致，¥1≈$0.14）。
+	// 按量付费官方价 文本 0.7、图片 1.8 积分/MTok；人民币原数值不作汇率换算。
 	// embedding 无 output，OutputPricePerToken 置 0。
-	s.fallbackPrices["doubao-embedding-vision"] = &ModelPricing{
-		InputPricePerToken:      0.098e-6, // ¥0.7/MTok ≈ $0.098（文本输入）
-		ImageInputPricePerToken: 0.252e-6, // ¥1.8/MTok ≈ $0.252（图片输入）
-		OutputPricePerToken:     0,
-		SupportsCacheBreakdown:  false,
-	}
+	doubaoEmbeddingVisionPrice := officialCreditPrices["doubao-embedding-vision"]
+	s.fallbackPrices["doubao-embedding-vision"] = &doubaoEmbeddingVisionPrice
 
 	// xAI Grok 4.5: $2 input / $0.30 cached input / $6 output below 200k;
 	// long-context rates are $4 / $0.60 / $12 (>=200k prompt tokens).
@@ -2069,6 +2042,11 @@ func (s *BillingService) applyModelSpecificPricingPolicy(model string, pricing *
 func (s *BillingService) applyModelSpecificPricingPolicyEx(model string, pricing *ModelPricing, forceOfficialDefaultRates bool, pricingAt time.Time) *ModelPricing {
 	if pricing == nil {
 		return nil
+	}
+	if forceOfficialDefaultRates {
+		if official, ok := officialCreditPricing(model); ok {
+			return official
+		}
 	}
 	// DeepSeek 模型：无论 JSON/远端价格表给什么价，一律强制官方高峰价
 	// （Flash 三档为 2026-09-10 官方降价后口径，全天不分峰谷）。这是覆盖远端旧价的关键——远端

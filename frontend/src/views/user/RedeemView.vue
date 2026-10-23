@@ -17,7 +17,7 @@
                     {{ t('redeem.currentBalance') }}
                   </dt>
                   <dd class="mt-1 text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">
-                    ${{ user?.balance?.toFixed(2) || '0.00' }}
+                    {{ withCreditUnit(user?.balance?.toFixed(2) || '0.00') }}
                   </dd>
                 </div>
                 <div>
@@ -214,6 +214,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, computed, onMounted } from 'vue'
@@ -286,7 +287,7 @@ const getHistoryTone = (item: RedeemHistoryItem) => {
 // 庆祝内容取自兑换响应，不依赖随后的余额刷新。
 const getCelebrationDetail = (result: RedeemHistoryItem) => {
   if (result.type === 'balance') {
-    return `${t('redeem.added')} $${result.value.toFixed(2)}`
+    return `${t('redeem.added')} ${withCreditUnit(result.value.toFixed(2))}`
   }
   if (result.type === 'concurrency') {
     return `${t('redeem.added')} ${result.value} ${t('redeem.concurrentRequests')}`
@@ -321,11 +322,11 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {
-  if (item.canvas_card) return `-$${item.canvas_card.denomination.toFixed(2)}`
-  if (item.type === 'balance_cashback') return `+$${formatCashbackAmount(item.value, locale.value)}`
+  if (item.canvas_card) return `-${withCreditUnit(item.canvas_card.denomination.toFixed(2))}`
+  if (item.type === 'balance_cashback') return `+${withCreditUnit(formatCashbackAmount(item.value, locale.value))}`
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
-    return `${sign}$${item.value.toFixed(2)}`
+    return `${sign}${withCreditUnit(item.value.toFixed(2))}`
   } else if (isSubscriptionType(item.type)) {
     // 订阅类型显示有效天数和分组名称
     const days = item.validity_days || Math.round(item.value)

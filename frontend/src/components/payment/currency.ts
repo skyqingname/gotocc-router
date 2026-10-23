@@ -1,3 +1,5 @@
+import { withCreditUnit } from '@/utils/credits'
+
 export const DEFAULT_PAYMENT_CURRENCY = 'CNY'
 
 const PAYMENT_CURRENCY_SYMBOLS: Record<string, string> = {
@@ -56,4 +58,11 @@ export function formatPaymentAmount(amount: number, currency?: string | null, lo
   } catch {
     return `${normalized} ${(Number.isFinite(amount) ? amount : 0).toFixed(fractionDigits)}`
   }
+}
+
+// Balance orders hold site credits; subscription orders hold a plan price.
+export function formatOrderAmount(amount: number, order: { order_type?: string; currency?: string | null }): string {
+  return order.order_type === 'subscription'
+    ? formatPaymentAmount(amount, order.currency)
+    : withCreditUnit(amount.toFixed(2))
 }

@@ -1,0 +1,72 @@
+{
+  "unit": "credits",
+  "official_price_policy": "Use the published numeric price in its source currency as credits. Never convert USD to CNY or CNY to USD.",
+  "source_units": {
+    "USD": 1,
+    "CNY": 1
+  },
+  "deepseek": {
+    "source_currency": "CNY",
+    "source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+    "routing_source": "https://api-docs.deepseek.com/zh-cn/news/news260910/",
+    "verified_on": "2026-10-23",
+    "period": "peak_all_day",
+    "flash_per_million": {
+      "input": 2,
+      "output": 8,
+      "cache_read": 0.04
+    },
+    "pro_per_million": {
+      "input": 9,
+      "output": 27,
+      "cache_read": 0.3
+    }
+  },
+  "models": {
+    "kimi-k2": {
+      "source_currency": "CNY",
+      "source": "https://platform.moonshot.cn/docs/pricing/overview",
+      "price_basis": "Existing maintained CNY face values; remove the former 0.14 USD conversion without changing the price card.",
+      "per_million": {
+        "input": 4,
+        "output": 16,
+        "cache_read": 1
+      },
+      "catalog": {
+        "mode": "chat",
+        "litellm_provider": "moonshot"
+      }
+    },
+    "kimi-k2-thinking": {
+      "source_currency": "CNY",
+      "source": "https://platform.moonshot.cn/docs/pricing/overview",
+      "price_basis": "Existing maintained CNY face values; remove the former 0.14 USD conversion without changing the price card.",
+      "per_million": {
+        "input": 4,
+        "output": 16,
+        "cache_read": 1
+      },
+      "catalog": {
+        "mode": "chat",
+        "litellm_provider": "moonshot"
+      }
+    },
+    "doubao-embedding-vision": {
+      "source_currency": "CNY",
+      "source": "https://docs.volcengine.com/docs/ark/model-pricing?lang=en&redirect=1",
+      "verified_on": "2026-10-23",
+      "prefixes": [
+        "doubao-embedding-vision-"
+      ],
+      "per_million": {
+        "input": 0.7,
+        "image_input": 1.8,
+        "output": 0
+      },
+      "catalog": {
+        "mode": "embedding",
+        "litellm_provider": "volcengine"
+      }
+    }
+  }
+}

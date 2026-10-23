@@ -215,6 +215,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -306,7 +307,7 @@ const teamTabTourMarkers: Partial<Record<TeamTab, string>> = {
   settings: 'team-settings-tab',
 }
 const teamTabTourMarker = (tab: TeamTab) => teamTabTourMarkers[tab]
-const formatMoney = (value: number, digits = 2) => `$${Number(value || 0).toFixed(digits)}`
+const formatMoney = (value: number, digits = 2) => withCreditUnit(Number(value || 0).toFixed(digits))
 const formatLimit = (used: number, limit: number) => limit > 0 ? `${formatMoney(used)} / ${formatMoney(limit)}` : `${formatMoney(used)} / ${t('team.unlimited')}`
 const seriesByMember = computed(() => new Map(memberSeries.value.map((item) => [item.actor_user_id, item.summary])))
 const memberSortOptions = computed<SelectOption[]>(() => [

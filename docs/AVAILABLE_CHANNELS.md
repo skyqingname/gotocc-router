@@ -72,8 +72,8 @@ Each model offer contains:
 
 Arrays for groups, models and pricing intervals remain arrays when empty.
 Nullable price fields preserve null and explicit zero. Optional condition arrays
-may be absent. Prices are USD per token or per declared original unit, **before**
-the group/personal/media rate. The frontend converts token prices to USD per
+may be absent. Prices are credits per token or per declared original unit, **before**
+the group/personal/media rate. The frontend converts token prices to credits per
 million and applies the appropriate rate exactly once. No credentials, account
 identifiers, upstream URLs, mapping targets or internal channel/pricing IDs are
 serialized. Catalog requests incorporate rates; the user page does not join a

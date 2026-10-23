@@ -1,5 +1,33 @@
 # Model Plaza Visibility
 
+## GoToCC billing credits
+
+Site balances, quotas, price cards and usage costs are denominated in **credits**
+(`积分`). The numeric official price is preserved: USD 5 becomes 5 credits and
+CNY 2 becomes 2 credits. No USD/CNY conversion is applied. Per-token prices are
+still scaled by 1,000,000 for the per-million display.
+
+[`billing-credits.json`](../billing-credits.json) owns the unit and maintained
+CNY face-value cards. `python3 tools/generate_billing_credits.py` regenerates the
+Go defaults and distributed pricing catalog. DeepSeek uses all-day peak prices:
+2 input / 8 output / 0.04 cached input credits per million tokens. Its existing
+Pro-to-Flash routing time remains in effect. Legacy Kimi K2/K2 Thinking and
+Doubao embedding-vision cards retain their original CNY figures instead of the
+previous converted USD figures. Other official USD cards keep their numeric
+values; a provider having a domestic site does not implicitly select a different
+regional price card.
+
+Registered face-value defaults are used by billing and official plaza prices;
+the models.dev snapshot cannot overwrite them with converted or off-peak prices.
+Saved group/channel prices and effective multipliers retain precedence. Existing
+balances, quota counters, historical usage and frozen task prices are not scaled
+or rewritten. The legacy `*_usd` JSON/database field names remain unchanged,
+but site amounts in them are credits. `/v1/usage` returns `unit: "credits"`.
+
+Payment-provider charges and upstream-provider balance snapshots retain their
+real currency. Recharge multipliers, promotions, subscription payment conversion
+and existing payment/refund rules are unchanged by this pricing-unit PR.
+
 ## Group display translations
 
 Administrators may set a group's `i18n` map with locale keys and optional

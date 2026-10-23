@@ -36,7 +36,7 @@ func NewModelPlazaHandler(
 	}
 }
 
-// modelPlazaOfficialPricing 官方参考价（USD per token，与计费目录同源）。
+// modelPlazaOfficialPricing 官方参考价（积分/token，与计费目录同源）。
 type modelPlazaOfficialPricing struct {
 	InputPrice        *float64 `json:"input_price"`
 	OutputPrice       *float64 `json:"output_price"`

@@ -28,11 +28,11 @@ export interface RechargeBonusQuote {
   percent: number
   /** 网关收款基数（支付币种，不含手续费）；赠金模式 = 输入金额，折扣模式 = 折后金额 */
   payBase: number
-  /** 到账基数（输入金额 × 倍率，USD），不含赠送 */
+  /** 到账基数（输入金额 × 倍率，credits），不含赠送 */
   base: number
-  /** 免费额度（USD）：赠金模式为额外赠送，折扣模式为未付费却到账的部分 */
+  /** 免费额度（credits）：赠金模式为额外赠送，折扣模式为未付费却到账的部分 */
   bonus: number
-  /** 到账总额（USD） */
+  /** 到账总额（credits） */
   credited: number
   tier: RechargeBonusTier | null
 }

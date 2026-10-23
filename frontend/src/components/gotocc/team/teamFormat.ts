@@ -1,7 +1,8 @@
-// 团队页的格式化：金额按美元，相对时间随界面语言。
+import { withCreditUnit } from '@/utils/credits'
+// 团队页的格式化：金额按积分，相对时间随界面语言。
 
 export const formatTeamCost = (value: number): string =>
-  `$${value.toLocaleString('en-US', { minimumFractionDigits: value >= 1 ? 2 : 4, maximumFractionDigits: value >= 1 ? 2 : 4 })}`
+  withCreditUnit(value.toLocaleString('en-US', { minimumFractionDigits: value >= 1 ? 2 : 4, maximumFractionDigits: value >= 1 ? 2 : 4 }))
 
 const RELATIVE_STEPS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 365 * 24 * 3600],
@@ -22,7 +23,7 @@ export const formatRelativeTime = (iso: string, locale: string): string => {
 }
 
 // 限额与已用额度统一保留两位小数。
-export const formatLimitAmount = (value: number): string => `$${value.toFixed(2)}`
+export const formatLimitAmount = (value: number): string => withCreditUnit(value.toFixed(2))
 
 // 姓名首两个字符，作为没有头像时的占位。
 export const initialsOf = (name: string): string => name.substring(0, 2).toUpperCase()

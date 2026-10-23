@@ -8317,15 +8317,15 @@
                 >
                 <div class="relative">
                   <span
-                    class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    >$</span
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    >{{ creditUnit() }}</span
                   >
                   <input
                     v-model.number="form.balance_low_notify_threshold"
                     type="number"
                     min="0"
                     step="0.01"
-                    class="input pl-7"
+                    class="input pr-20"
                   />
                 </div>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -8683,6 +8683,7 @@
 </template>
 
 <script setup lang="ts">
+import { creditUnit } from '@/utils/credits'
 import AdminModelPlazaOverrides from '@/components/gotocc/plaza/AdminModelPlazaOverrides.vue'
 import affiliateDefaults from "../../../../affiliate-defaults.json";
 const affiliateRateKeys = ["affiliate_rebate_rate", "affiliate_rebate_rate_l2", "affiliate_rebate_rate_l3"] as const;
