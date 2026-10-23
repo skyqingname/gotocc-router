@@ -6,10 +6,12 @@
 import { apiClient } from '../client'
 import type {
   RedeemCode,
+  RedeemCodeUsage,
   GenerateRedeemCodesRequest,
   BatchUpdateRedeemCodeFields,
   RedeemCodeType,
-  PaginatedResponse
+  PaginatedResponse,
+  BasePaginationResponse
 } from '@/types'
 
 /**
@@ -62,21 +64,24 @@ export async function getById(id: number): Promise<RedeemCode> {
  * @param groupId - Group ID (required for subscription type)
  * @param validityDays - Validity days (for subscription type)
  * @param expiresInDays - Days before the code itself expires
+ * @param maxUses - Redemptions per code: 1 single-use, 0 unlimited, otherwise each user once
  * @returns Array of generated redeem codes
  */
 export async function generate(
   count: number,
   type: RedeemCodeType,
   value: number,
-  groupId?: number | null,
-  validityDays?: number,
-  expiresInDays?: number | null,
-  order?: { generate_order: boolean; order_currency: string; order_plan_id: number | null }
+  groupId: number | null | undefined,
+  validityDays: number | undefined,
+  expiresInDays: number | null | undefined,
+  order: { generate_order: boolean; order_currency: string; order_plan_id: number | null } | undefined,
+  maxUses: number
 ): Promise<RedeemCode[]> {
   const payload: GenerateRedeemCodesRequest = {
     count,
     type,
     value,
+    max_uses: maxUses,
     ...order
   }
 
@@ -193,6 +198,22 @@ export async function exportCodes(filters?: {
   return response.data
 }
 
+/**
+ * List the users who redeemed a shared redeem code
+ * @param id - Redeem code ID
+ */
+export async function getUsages(
+  id: number,
+  page: number,
+  pageSize: number
+): Promise<BasePaginationResponse<RedeemCodeUsage>> {
+  const { data } = await apiClient.get<BasePaginationResponse<RedeemCodeUsage>>(
+    `/admin/redeem-codes/${id}/usages`,
+    { params: { page, page_size: pageSize } }
+  )
+  return data
+}
+
 export const redeemAPI = {
   list,
   getById,
@@ -202,7 +223,8 @@ export const redeemAPI = {
   batchUpdate,
   expire,
   getStats,
-  exportCodes
+  exportCodes,
+  getUsages
 }
 
 export default redeemAPI

@@ -76,6 +76,8 @@ type UsageLog struct {
 	RequestedServiceTier *string `json:"requested_service_tier,omitempty"`
 	// ResponseServiceTier holds the value of the "response_service_tier" field.
 	ResponseServiceTier *string `json:"response_service_tier,omitempty"`
+	// ServiceHost holds the value of the "service_host" field.
+	ServiceHost *string `json:"service_host,omitempty"`
 	// CodexRolloutBudgetUnits holds the value of the "codex_rollout_budget_units" field.
 	CodexRolloutBudgetUnits *float64 `json:"codex_rollout_budget_units,omitempty"`
 	// InputCost holds the value of the "input_cost" field.
@@ -250,7 +252,7 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldBillingUserID, usagelog.FieldTeamID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldAudioOutputTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldTimingVersion, usagelog.FieldFirstByteMs, usagelog.FieldFirstTokenMs, usagelog.FieldLastTokenMs, usagelog.FieldFirstOutputMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldRequestedServiceTier, usagelog.FieldResponseServiceTier, usagelog.FieldFirstOutputKind, usagelog.FieldCompletionStatus, usagelog.FieldUsageSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldUpstreamResponseModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldRequestedServiceTier, usagelog.FieldResponseServiceTier, usagelog.FieldServiceHost, usagelog.FieldFirstOutputKind, usagelog.FieldCompletionStatus, usagelog.FieldUsageSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -443,6 +445,13 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ResponseServiceTier = new(string)
 				*_m.ResponseServiceTier = value.String
+			}
+		case usagelog.FieldServiceHost:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field service_host", values[i])
+			} else if value.Valid {
+				_m.ServiceHost = new(string)
+				*_m.ServiceHost = value.String
 			}
 		case usagelog.FieldCodexRolloutBudgetUnits:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -840,6 +849,11 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	if v := _m.ResponseServiceTier; v != nil {
 		builder.WriteString("response_service_tier=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ServiceHost; v != nil {
+		builder.WriteString("service_host=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

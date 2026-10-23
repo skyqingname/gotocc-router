@@ -120,6 +120,11 @@
           </div>
         </template>
 
+        <template #cell-service_host="{ row }">
+          <span v-if="row.service_host" class="whitespace-nowrap font-mono text-sm text-gray-600 dark:text-gray-400">{{ row.service_host }}</span>
+          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+        </template>
+
         <template #cell-reasoning_effort="{ row }">
           <div v-if="hasReasoningEffortMapping(row)" data-testid="reasoning-effort-cell" class="space-y-0.5 text-xs">
             <div class="font-medium text-gray-900 dark:text-white">
