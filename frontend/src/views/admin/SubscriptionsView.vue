@@ -259,9 +259,9 @@
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    &#36;{{ row.five_hour_usage_usd?.toFixed(2) || '0.00' }}
+                    {{ withCreditUnit(row.five_hour_usage_usd?.toFixed(2) || '0.00') }}
                     <span class="text-gray-400">/</span>
-                    &#36;{{ row.group?.five_hour_limit_usd?.toFixed(2) }}
+                    {{ withCreditUnit(row.group?.five_hour_limit_usd?.toFixed(2)) }}
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.five_hour_window_start">

@@ -164,7 +164,7 @@
                   </div>
                   <div v-if="selectedPlan.five_hour_limit_usd != null">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.fiveHourLimit') }}</span>
-                    <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">&#36;{{ selectedPlan.five_hour_limit_usd }}</div>
+                    <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">{{ withCreditUnit(selectedPlan.five_hour_limit_usd) }}</div>
                   </div>
                   <div v-if="selectedPlan.daily_limit_usd == null && selectedPlan.weekly_limit_usd == null && selectedPlan.monthly_limit_usd == null && selectedPlan.five_hour_limit_usd == null">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.quota') }}</span>

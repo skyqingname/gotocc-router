@@ -107,9 +107,7 @@
                   {{ t('userSubscriptions.fiveHour') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  &#36;{{ (subscription.five_hour_usage_usd || 0).toFixed(2) }} / &#36;{{
-                    subscription.group.five_hour_limit_usd.toFixed(2)
-                  }}
+                  {{ withCreditUnit((subscription.five_hour_usage_usd || 0).toFixed(2)) }} / {{ withCreditUnit(subscription.group.five_hour_limit_usd.toFixed(2)) }}
                 </span>
               </div>
               <div class="relative h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
