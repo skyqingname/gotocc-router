@@ -35,35 +35,20 @@
     </div>
   </div>
 
-  <div
-    v-else-if="!accepted && documents.length > 0"
-    class="rounded-lg border border-primary-100 bg-primary-50/70 p-3 text-sm text-primary-900 dark:border-primary-500/20 dark:bg-primary-500/10 dark:text-primary-100"
-  >
-    <div class="flex items-start gap-3">
-      <Icon name="shield" size="sm" class="mt-0.5 flex-shrink-0 text-primary-600 dark:text-primary-300" />
-      <div class="min-w-0 flex-1">
-        <p class="font-medium">{{ t('legal.loginAgreementPrompt.noticeTitle') }}</p>
-        <p class="mt-1 text-primary-700 dark:text-primary-200/80">
-          {{ t('legal.loginAgreementPrompt.noticeDescription') }}
-        </p>
-      </div>
-      <button
-        type="button"
-        class="flex-shrink-0 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-primary-700"
-        @click="emit('open')"
-      >
-        {{ t('legal.loginAgreementPrompt.viewTerms') }}
-      </button>
-    </div>
-  </div>
-
   <Teleport to="body">
     <Transition name="agreement-fade">
       <div
         v-if="dialogVisible"
         class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm"
       >
-        <div class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-dark-900 dark:ring-white/10">
+        <div
+          ref="dialogRef"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="login-agreement-title"
+          class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-dark-900 dark:ring-white/10"
+          @keydown.tab="handleDialogTab"
+        >
           <div class="border-b border-gray-100 bg-white px-6 py-6 dark:border-dark-800 dark:bg-dark-900">
             <div class="flex items-start gap-4">
               <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100 dark:bg-primary-500/10 dark:text-primary-300 dark:ring-primary-500/20">
@@ -71,7 +56,7 @@
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h2 class="text-xl font-bold tracking-normal text-gray-950 dark:text-white">
+                  <h2 id="login-agreement-title" class="text-xl font-bold tracking-normal text-gray-950 dark:text-white">
                     {{ t('legal.loginAgreementPrompt.dialogTitle') }}
                   </h2>
                   <span
@@ -143,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { LoginAgreementDocument } from '@/types'
@@ -163,7 +148,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   accept: []
   reject: []
-  open: []
 }>()
 
 const dialogVisible = computed(() => props.visible && documents.value.length > 0)
@@ -171,6 +155,33 @@ const documents = computed(() => props.documents.filter((doc) => doc.title.trim(
 const updatedAt = computed(() => props.updatedAt || '')
 const accepted = computed(() => props.accepted)
 const mode = computed(() => props.mode === 'checkbox' ? 'checkbox' : 'modal')
+const dialogRef = ref<HTMLElement | null>(null)
+let returnFocus: HTMLElement | null = null
+
+watch(dialogVisible, async (visible) => {
+  if (visible) {
+    returnFocus = document.activeElement as HTMLElement
+    await nextTick()
+    dialogRef.value?.querySelector<HTMLElement>('a[href], button')?.focus()
+  } else {
+    await nextTick()
+    returnFocus?.focus()
+    returnFocus = null
+  }
+}, { immediate: true })
+
+function handleDialogTab(event: KeyboardEvent): void {
+  const controls = dialogRef.value!.querySelectorAll<HTMLElement>('a[href], button')
+  const first = controls[0]
+  const last = controls[controls.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
 
 function documentRoute(doc: LoginAgreementDocument) {
   return {

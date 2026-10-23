@@ -37,7 +37,11 @@
           <label for="email" class="input-label">
             {{ t('auth.emailLabel') }}
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="mail" size="md" class="text-gray-400 dark:text-dark-500" />
             </div>
@@ -48,12 +52,14 @@
               required
               autofocus
               autocomplete="email"
-              :disabled="registrationActionDisabled"
+              :disabled="registrationInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11"
               :class="{ 'input-error': errors.email }"
               :placeholder="t('auth.emailPlaceholder')"
             />
-          </div>
+          </LoginAgreementInputHint>
         </div>
 
         <!-- Password Input -->
@@ -61,7 +67,11 @@
           <label for="password" class="input-label">
             {{ t('auth.passwordLabel') }}
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="lock" size="md" class="text-gray-400 dark:text-dark-500" />
             </div>
@@ -71,7 +81,9 @@
               :type="showPassword ? 'text' : 'password'"
               required
               autocomplete="new-password"
-              :disabled="registrationActionDisabled"
+              :disabled="registrationInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11 pr-11"
               :class="{ 'input-error': errors.password }"
               :placeholder="t('auth.createPasswordPlaceholder')"
@@ -85,7 +97,7 @@
               <Icon v-if="showPassword" name="eyeOff" size="md" />
               <Icon v-else name="eye" size="md" />
             </button>
-          </div>
+          </LoginAgreementInputHint>
           <p class="input-hint">
             {{ t('auth.passwordHint') }}
           </p>
@@ -96,7 +108,11 @@
           <label for="confirmPassword" class="input-label">
             {{ t('auth.confirmPassword') }}
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="lock" size="md" class="text-gray-400 dark:text-dark-500" />
             </div>
@@ -106,7 +122,9 @@
               :type="showConfirmPassword ? 'text' : 'password'"
               required
               autocomplete="new-password"
-              :disabled="registrationActionDisabled"
+              :disabled="registrationInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11 pr-11"
               :class="{ 'input-error': errors.confirmPassword }"
               :placeholder="t('auth.confirmPasswordPlaceholder')"
@@ -120,7 +138,7 @@
               <Icon v-if="showConfirmPassword" name="eyeOff" size="md" />
               <Icon v-else name="eye" size="md" />
             </button>
-          </div>
+          </LoginAgreementInputHint>
         </div>
 
         <!-- Invitation Code Input (Required when enabled) -->
@@ -129,7 +147,11 @@
             {{ t('auth.invitationCodeLabel') }}
             <span v-if="!invitationCodeEnabled" class="ml-1 text-xs font-normal text-gray-400">({{ t('common.optional') }})</span>
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="key" size="md" :class="invitationValidation.valid ? 'text-green-500' : 'text-gray-400 dark:text-dark-500'" />
             </div>
@@ -137,7 +159,9 @@
               id="invitation_code"
               v-model="formData.invitation_code"
               type="text"
-              :disabled="registrationActionDisabled"
+              :disabled="registrationInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11 pr-10"
               :class="{
                 'border-green-500 focus:border-green-500 focus:ring-green-500': invitationValidation.valid,
@@ -159,7 +183,7 @@
             <div v-else-if="invitationValidation.invalid || errors.invitation_code" class="absolute inset-y-0 right-0 flex items-center pr-3.5">
               <Icon name="exclamationCircle" size="md" class="text-red-500" />
             </div>
-          </div>
+          </LoginAgreementInputHint>
           <!-- Invitation code validation result -->
           <transition name="fade">
             <div v-if="invitationValidation.valid" class="mt-2 flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 dark:bg-green-900/20">
@@ -177,7 +201,11 @@
             {{ t('auth.promoCodeLabel') }}
             <span class="ml-1 text-xs font-normal text-gray-400 dark:text-dark-500">({{ t('common.optional') }})</span>
           </label>
-          <div class="relative">
+          <LoginAgreementInputHint
+            v-slot="{ hintId }"
+            :blocked="agreementGateActive"
+            @open="showAgreementModal = true"
+          >
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
               <Icon name="gift" size="md" :class="promoValidation.valid ? 'text-green-500' : 'text-gray-400 dark:text-dark-500'" />
             </div>
@@ -185,7 +213,9 @@
               id="promo_code"
               v-model="formData.promo_code"
               type="text"
-              :disabled="registrationActionDisabled"
+              :disabled="registrationInputDisabled"
+              :readonly="agreementGateActive"
+              :aria-describedby="hintId"
               class="input pl-11 pr-10"
               :class="{
                 'border-green-500 focus:border-green-500 focus:ring-green-500': promoValidation.valid,
@@ -207,7 +237,7 @@
             <div v-else-if="promoValidation.invalid" class="absolute inset-y-0 right-0 flex items-center pr-3.5">
               <Icon name="exclamationCircle" size="md" class="text-red-500" />
             </div>
-          </div>
+          </LoginAgreementInputHint>
           <!-- Promo code validation result -->
           <transition name="fade">
             <div v-if="promoValidation.valid" class="mt-2 flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 dark:bg-green-900/20">
@@ -247,7 +277,6 @@
           :visible="showAgreementModal"
           @accept="acceptLoginAgreement"
           @reject="rejectLoginAgreement"
-          @open="showAgreementModal = true"
         />
 
         <!-- Submit Button -->
@@ -358,6 +387,7 @@ import OidcOAuthSection from '@/components/auth/OidcOAuthSection.vue'
 import WechatOAuthSection from '@/components/auth/WechatOAuthSection.vue'
 import EmailOAuthButtons from '@/components/auth/EmailOAuthButtons.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
+import LoginAgreementInputHint from '@/components/auth/LoginAgreementInputHint.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/CaptchaChallenge.vue'
 import { useAuthStore, useAppStore } from '@/stores'
@@ -529,8 +559,12 @@ const agreementGateActive = computed(
   () => loginAgreementEnabled.value && !agreementAccepted.value
 )
 
+const registrationInputDisabled = computed(
+  () => isLoading.value || !settingsLoaded.value || resellerInvitationBlocked.value
+)
+
 const registrationActionDisabled = computed(
-  () => isLoading.value || !settingsLoaded.value || agreementGateActive.value || resellerInvitationBlocked.value
+  () => registrationInputDisabled.value || agreementGateActive.value
 )
 
 watch(validationToastMessage, (value, previousValue) => {
