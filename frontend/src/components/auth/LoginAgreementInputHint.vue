@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="fieldRef"
     class="relative"
     @focusin="active = true"
     @focusout="handleFocusOut"
@@ -21,7 +22,7 @@
         type="button"
         aria-haspopup="dialog"
         class="relative flex items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm font-medium text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500"
-        @click.stop="emit('open')"
+        @click.stop="openAgreement"
       >
         <span
           aria-hidden="true"
@@ -42,7 +43,14 @@ const emit = defineEmits<{ open: [] }>()
 const { t } = useI18n()
 const hintId = useId()
 const active = ref(false)
+const fieldRef = ref<HTMLElement | null>(null)
 const visible = computed(() => props.blocked && active.value)
+
+function openAgreement(): void {
+  // The hint disappears when focus enters the dialog; return to its input.
+  fieldRef.value!.querySelector('input')!.focus()
+  emit('open')
+}
 
 function handleFocusOut(event: FocusEvent): void {
   active.value = (event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)

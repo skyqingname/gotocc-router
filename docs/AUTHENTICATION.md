@@ -108,3 +108,5 @@ validate and are rejected as invalid or expired; this is intentional fail-closed
 behavior and there is no plaintext compatibility path. Affected users request a new
 link from the sign-in page. Token TTL (30 minutes) and the reset-email cooldown
 (30 seconds) are unchanged.
+
+The service-terms dialog moves keyboard focus into its controls, keeps Tab and Shift+Tab inside the dialog, and returns focus to the input that opened the hint after accepting or rejecting. The input remains read-only when consent is rejected.

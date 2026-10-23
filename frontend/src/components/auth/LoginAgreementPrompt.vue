@@ -42,10 +42,12 @@
         class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4 backdrop-blur-sm"
       >
         <div
+          ref="dialogRef"
           role="dialog"
           aria-modal="true"
           aria-labelledby="login-agreement-title"
           class="w-full max-w-[600px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10 dark:bg-dark-900 dark:ring-white/10"
+          @keydown.tab="handleDialogTab"
         >
           <div class="border-b border-gray-100 bg-white px-6 py-6 dark:border-dark-800 dark:bg-dark-900">
             <div class="flex items-start gap-4">
@@ -126,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { LoginAgreementDocument } from '@/types'
@@ -153,6 +155,33 @@ const documents = computed(() => props.documents.filter((doc) => doc.title.trim(
 const updatedAt = computed(() => props.updatedAt || '')
 const accepted = computed(() => props.accepted)
 const mode = computed(() => props.mode === 'checkbox' ? 'checkbox' : 'modal')
+const dialogRef = ref<HTMLElement | null>(null)
+let returnFocus: HTMLElement | null = null
+
+watch(dialogVisible, async (visible) => {
+  if (visible) {
+    returnFocus = document.activeElement as HTMLElement
+    await nextTick()
+    dialogRef.value?.querySelector<HTMLElement>('a[href], button')?.focus()
+  } else {
+    await nextTick()
+    returnFocus?.focus()
+    returnFocus = null
+  }
+}, { immediate: true })
+
+function handleDialogTab(event: KeyboardEvent): void {
+  const controls = dialogRef.value!.querySelectorAll<HTMLElement>('a[href], button')
+  const first = controls[0]
+  const last = controls[controls.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
 
 function documentRoute(doc: LoginAgreementDocument) {
   return {
