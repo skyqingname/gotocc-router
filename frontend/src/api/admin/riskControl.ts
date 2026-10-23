@@ -261,8 +261,8 @@ export interface ContentModerationLog {
   highest_category: string
   highest_score: number
   matched_keyword: string
-  category_scores: Record<string, number>
-  threshold_snapshot: Record<string, number>
+  category_scores: Record<string, number> | null
+  threshold_snapshot: Record<string, number> | null
   input_excerpt: string
   input_content: string
   input_content_truncated: boolean
