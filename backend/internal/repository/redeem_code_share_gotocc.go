@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/ent/redeemcode"
+	"github.com/LuckyKuang/sub2api-plus/ent/user"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/pagination"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 
@@ -94,6 +95,18 @@ func redeemCodeRedeemedBy(userID int64) func(*entsql.Selector) {
 			entsql.EQ(s.C(redeemcode.FieldUsedBy), userID),
 			entsql.In(s.C(redeemcode.FieldID), entsql.Select(usages.C("redeem_code_id")).From(usages).Where(entsql.EQ(usages.C("user_id"), userID))),
 		))
+	}
+}
+
+// Shared codes keep their redeemers in the usage table rather than used_by.
+func redeemCodeSharedUserEmailContains(email string) func(*entsql.Selector) {
+	return func(s *entsql.Selector) {
+		usages := entsql.Table("redeem_code_usages")
+		users := entsql.Table(user.Table)
+		s.Where(entsql.In(s.C(redeemcode.FieldID),
+			entsql.Select(usages.C("redeem_code_id")).From(usages).
+				Join(users).On(usages.C("user_id"), users.C(user.FieldID)).
+				Where(entsql.ContainsFold(users.C(user.FieldEmail), email))))
 	}
 }
 
