@@ -17,13 +17,14 @@ import (
 )
 
 var (
-	ErrRedeemCodeNotFound  = infraerrors.NotFound("REDEEM_CODE_NOT_FOUND", "redeem code not found")
-	ErrRedeemCodeUsed      = infraerrors.Conflict("REDEEM_CODE_USED", "redeem code already used")
-	ErrRedeemCodeExpired   = infraerrors.Conflict("REDEEM_CODE_EXPIRED", "redeem code expired")
-	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
-	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
-	ErrRedeemCodeLocked    = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
-	ErrRedeemCodeRedeemed  = infraerrors.Conflict("REDEEM_CODE_ALREADY_REDEEMED", "you have already redeemed this code")
+	ErrRedeemCodeNotFound   = infraerrors.NotFound("REDEEM_CODE_NOT_FOUND", "redeem code not found")
+	ErrRedeemCodeUsed       = infraerrors.Conflict("REDEEM_CODE_USED", "redeem code already used")
+	ErrRedeemCodeExpired    = infraerrors.Conflict("REDEEM_CODE_EXPIRED", "redeem code expired")
+	ErrInsufficientBalance  = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
+	ErrRedeemRateLimited    = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
+	ErrRedeemCodeLocked     = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
+	ErrRedeemCodeDeleteUsed = infraerrors.Conflict("REDEEM_CODE_DELETE_USED", "cannot delete used redeem code")
+	ErrRedeemCodeRedeemed   = infraerrors.Conflict("REDEEM_CODE_ALREADY_REDEEMED", "you have already redeemed this code")
 )
 
 const (
@@ -691,8 +692,8 @@ func (s *RedeemService) Delete(ctx context.Context, id int64) error {
 	}
 
 	// 不允许删除已使用的兑换码
-	if code.IsUsed() {
-		return infraerrors.Conflict("REDEEM_CODE_DELETE_USED", "cannot delete used redeem code")
+	if code.IsUsed() || code.UsedCount > 0 {
+		return ErrRedeemCodeDeleteUsed
 	}
 
 	if err := s.redeemRepo.Delete(ctx, id); err != nil {

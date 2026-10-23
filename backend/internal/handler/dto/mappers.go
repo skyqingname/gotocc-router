@@ -685,7 +685,7 @@ func RedeemCodeFromServiceAdmin(rc *service.RedeemCode) *AdminRedeemCode {
 		OrderAmount:   rc.OrderAmount,
 		OrderPlanID:   rc.OrderPlanID,
 		OrderPlanName: rc.OrderPlanName,
-		MaxUses:       *rc.MaxUses,
+		MaxUses:       rc.MaxUses,
 		UsedCount:     rc.UsedCount,
 	}
 }

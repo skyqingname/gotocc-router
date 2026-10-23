@@ -553,7 +553,7 @@ type AdminRedeemCode struct {
 	OrderAmount   float64 `json:"order_amount"`
 	OrderPlanID   *int64  `json:"order_plan_id"`
 	OrderPlanName string  `json:"order_plan_name"`
-	MaxUses       int     `json:"max_uses"`
+	MaxUses       *int    `json:"max_uses,omitempty"`
 	UsedCount     int     `json:"used_count"`
 
 	Notes string `json:"notes"`

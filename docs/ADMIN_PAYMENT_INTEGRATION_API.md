@@ -301,3 +301,5 @@ create an order; the subsequent redemption performs those actions.
 ### 6) Recommended `doc_url`
 - View URL: `https://github.com/skyqingname/gotocc-router/blob/main/docs/ADMIN_PAYMENT_INTEGRATION_API.md`
 - Download URL: `https://raw.githubusercontent.com/skyqingname/gotocc-router/main/docs/ADMIN_PAYMENT_INTEGRATION_API.md`
+
+共享码一旦有兑换记录，删除及批量修改状态、有效期、订阅分组均按已兑换码处理；备注仍可修改。删除条件在数据库写入时同时判断，批量修改在事务内锁定码记录。`create-and-redeem` 遇到已有共享码返回 `REDEEM_CODE_CONFLICT`，不会把它当作单次订单码消费。省略 `max_uses` 在 HTTP 与内部服务入口均沿用数据库单次默认值。管理员余额历史中的佣金转余额等合成记录不包含 `max_uses`，该字段只描述实际兑换码。

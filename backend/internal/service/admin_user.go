@@ -1125,7 +1125,7 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(time.Now()) {
 		return nil, ErrRedeemCodeExpired
 	}
-	if input.MaxUses != 1 && (input.Type == RedeemTypeInvitation || input.GenerateOrder) {
+	if input.MaxUses != nil && *input.MaxUses != 1 && (input.Type == RedeemTypeInvitation || input.GenerateOrder) {
 		return nil, infraerrors.BadRequest("REDEEM_CODE_MAX_USES_UNSUPPORTED", "invitation and order codes are single-use")
 	}
 
@@ -1173,7 +1173,7 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			Value:         input.Value,
 			Status:        StatusUnused,
 			ExpiresAt:     input.ExpiresAt,
-			MaxUses:       &input.MaxUses,
+			MaxUses:       input.MaxUses,
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {

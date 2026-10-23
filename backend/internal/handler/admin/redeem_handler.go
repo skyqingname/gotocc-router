@@ -151,11 +151,6 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 		return
 	}
 
-	maxUses := 1
-	if req.MaxUses != nil {
-		maxUses = *req.MaxUses
-	}
-
 	executeAdminIdempotentJSON(c, "admin.redeem_codes.generate", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		codes, execErr := h.adminService.GenerateRedeemCodes(ctx, &service.GenerateRedeemCodesInput{
 			GenerateOrder: req.GenerateOrder,
@@ -167,7 +162,7 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 			GroupID:       req.GroupID,
 			ValidityDays:  req.ValidityDays,
 			ExpiresAt:     expiresAt,
-			MaxUses:       maxUses,
+			MaxUses:       req.MaxUses,
 		})
 		if execErr != nil {
 			return nil, execErr
@@ -262,7 +257,7 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 }
 
 func (h *RedeemHandler) resolveCreateAndRedeemExisting(ctx context.Context, existing *service.RedeemCode, userID int64) (any, error) {
-	if existing == nil {
+	if existing == nil || existing.IsShared() {
 		return nil, infraerrors.Conflict("REDEEM_CODE_CONFLICT", "redeem code conflict")
 	}
 
