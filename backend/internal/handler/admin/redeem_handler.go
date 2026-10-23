@@ -44,6 +44,9 @@ type GenerateRedeemCodesRequest struct {
 	ValidityDays  int        `json:"validity_days"` // 订阅类型使用，正数增加/负数退款扣减
 	ExpiresAt     *time.Time `json:"expires_at"`
 	ExpiresInDays *int       `json:"expires_in_days" binding:"omitempty,min=1,max=3650"`
+	// MaxUses is the redemption limit: 1 single-use, 0 unlimited, otherwise a
+	// shared code each user redeems once. Omitted keeps the single-use code.
+	MaxUses *int `json:"max_uses" binding:"omitempty,min=0"`
 }
 
 // CreateAndRedeemCodeRequest represents creating a fixed code and redeeming it for a target user.
@@ -148,6 +151,11 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 		return
 	}
 
+	maxUses := 1
+	if req.MaxUses != nil {
+		maxUses = *req.MaxUses
+	}
+
 	executeAdminIdempotentJSON(c, "admin.redeem_codes.generate", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		codes, execErr := h.adminService.GenerateRedeemCodes(ctx, &service.GenerateRedeemCodesInput{
 			GenerateOrder: req.GenerateOrder,
@@ -159,6 +167,7 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 			GroupID:       req.GroupID,
 			ValidityDays:  req.ValidityDays,
 			ExpiresAt:     expiresAt,
+			MaxUses:       maxUses,
 		})
 		if execErr != nil {
 			return nil, execErr

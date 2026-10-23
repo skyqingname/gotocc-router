@@ -472,6 +472,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ServiceTier:              result.ServiceTier,
 		RequestedServiceTier:     &requestedServiceTier,
 		ResponseServiceTier:      &responseServiceTier,
+		ServiceHost:              usageServiceHost(ctx),
 		ReasoningEffort:          result.ReasoningEffort,
 		RequestedReasoningEffort: coalesceRequestedReasoningEffort(result.RequestedReasoningEffort, result.ReasoningEffort),
 		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),

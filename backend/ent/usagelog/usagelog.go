@@ -66,6 +66,8 @@ const (
 	FieldRequestedServiceTier = "requested_service_tier"
 	// FieldResponseServiceTier holds the string denoting the response_service_tier field in the database.
 	FieldResponseServiceTier = "response_service_tier"
+	// FieldServiceHost holds the string denoting the service_host field in the database.
+	FieldServiceHost = "service_host"
 	// FieldCodexRolloutBudgetUnits holds the string denoting the codex_rollout_budget_units field in the database.
 	FieldCodexRolloutBudgetUnits = "codex_rollout_budget_units"
 	// FieldInputCost holds the string denoting the input_cost field in the database.
@@ -223,6 +225,7 @@ var Columns = []string{
 	FieldAudioOutputTokens,
 	FieldRequestedServiceTier,
 	FieldResponseServiceTier,
+	FieldServiceHost,
 	FieldCodexRolloutBudgetUnits,
 	FieldInputCost,
 	FieldOutputCost,
@@ -305,6 +308,8 @@ var (
 	RequestedServiceTierValidator func(string) error
 	// ResponseServiceTierValidator is a validator for the "response_service_tier" field. It is called by the builders before save.
 	ResponseServiceTierValidator func(string) error
+	// ServiceHostValidator is a validator for the "service_host" field. It is called by the builders before save.
+	ServiceHostValidator func(string) error
 	// DefaultInputCost holds the default value on creation for the "input_cost" field.
 	DefaultInputCost float64
 	// DefaultOutputCost holds the default value on creation for the "output_cost" field.
@@ -499,6 +504,11 @@ func ByRequestedServiceTier(opts ...sql.OrderTermOption) OrderOption {
 // ByResponseServiceTier orders the results by the response_service_tier field.
 func ByResponseServiceTier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResponseServiceTier, opts...).ToFunc()
+}
+
+// ByServiceHost orders the results by the service_host field.
+func ByServiceHost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceHost, opts...).ToFunc()
 }
 
 // ByCodexRolloutBudgetUnits orders the results by the codex_rollout_budget_units field.

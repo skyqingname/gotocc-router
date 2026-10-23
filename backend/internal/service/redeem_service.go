@@ -23,6 +23,7 @@ var (
 	ErrInsufficientBalance = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrRedeemRateLimited   = infraerrors.TooManyRequests("REDEEM_RATE_LIMITED", "too many failed attempts, please try again later")
 	ErrRedeemCodeLocked    = infraerrors.Conflict("REDEEM_CODE_LOCKED", "redeem code is being processed, please try again")
+	ErrRedeemCodeRedeemed  = infraerrors.Conflict("REDEEM_CODE_ALREADY_REDEEMED", "you have already redeemed this code")
 )
 
 const (
@@ -64,6 +65,15 @@ type RedeemCodeRepository interface {
 	ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]RedeemCode, *pagination.PaginationResult, error)
 	// SumPositiveBalanceByUser returns the total recharged amount (sum of positive balance values) for a user.
 	SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error)
+}
+
+// RedeemCodeShareRepository records redemptions of shared codes. The redeem
+// code repository implements it alongside RedeemCodeRepository.
+type RedeemCodeShareRepository interface {
+	// UseShared records one redemption of a shared code for a user who has not
+	// redeemed it before, closing the code when its limit is reached.
+	UseShared(ctx context.Context, id, userID int64) error
+	ListUsages(ctx context.Context, id int64, params pagination.PaginationParams) ([]RedeemCodeUsage, *pagination.PaginationResult, error)
 }
 
 // GenerateCodesRequest 生成兑换码请求
@@ -132,6 +142,7 @@ type RedeemCodeBatchUpdateResult struct {
 // RedeemService 兑换码服务
 type RedeemService struct {
 	redeemRepo           RedeemCodeRepository
+	redeemShareRepo      RedeemCodeShareRepository
 	userRepo             UserRepository
 	redeemUserRepo       RedeemUserAdjustmentRepository
 	subscriptionService  *SubscriptionService
@@ -154,8 +165,10 @@ func NewRedeemService(
 	affiliateService *AffiliateService,
 ) *RedeemService {
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
+	redeemShareRepo, _ := redeemRepo.(RedeemCodeShareRepository)
 	return &RedeemService{
 		redeemRepo:           redeemRepo,
+		redeemShareRepo:      redeemShareRepo,
 		userRepo:             userRepo,
 		redeemUserRepo:       redeemUserRepo,
 		subscriptionService:  subscriptionService,
@@ -506,8 +519,15 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	}
 
 	// 【关键】先标记兑换码为已使用，确保并发安全
-	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性
-	if err := s.redeemRepo.Use(txCtx, redeemCode.ID, userID); err != nil {
+	// 利用数据库乐观锁（WHERE status = 'unused'）保证原子性；共享码按次数计数并记录兑换人
+	useCode := s.redeemRepo.Use
+	if redeemCode.IsShared() {
+		useCode = s.redeemShareRepo.UseShared
+	}
+	if err := useCode(txCtx, redeemCode.ID, userID); err != nil {
+		if errors.Is(err, ErrRedeemCodeRedeemed) {
+			return nil, ErrRedeemCodeRedeemed
+		}
 		if errors.Is(err, ErrRedeemCodeNotFound) || errors.Is(err, ErrRedeemCodeUsed) {
 			return nil, ErrRedeemCodeUsed
 		}
@@ -696,6 +716,11 @@ func (s *RedeemService) GetStats(ctx context.Context) (map[string]any, error) {
 	}
 
 	return stats, nil
+}
+
+// ListUsages returns the users who redeemed a shared code.
+func (s *RedeemService) ListUsages(ctx context.Context, id int64, params pagination.PaginationParams) ([]RedeemCodeUsage, *pagination.PaginationResult, error) {
+	return s.redeemShareRepo.ListUsages(ctx, id, params)
 }
 
 // GetUserHistory 获取用户的兑换历史

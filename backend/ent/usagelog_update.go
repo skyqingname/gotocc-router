@@ -544,6 +544,26 @@ func (_u *UsageLogUpdate) ClearResponseServiceTier() *UsageLogUpdate {
 	return _u
 }
 
+// SetServiceHost sets the "service_host" field.
+func (_u *UsageLogUpdate) SetServiceHost(v string) *UsageLogUpdate {
+	_u.mutation.SetServiceHost(v)
+	return _u
+}
+
+// SetNillableServiceHost sets the "service_host" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableServiceHost(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetServiceHost(*v)
+	}
+	return _u
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (_u *UsageLogUpdate) ClearServiceHost() *UsageLogUpdate {
+	_u.mutation.ClearServiceHost()
+	return _u
+}
+
 // SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
 func (_u *UsageLogUpdate) SetCodexRolloutBudgetUnits(v float64) *UsageLogUpdate {
 	_u.mutation.ResetCodexRolloutBudgetUnits()
@@ -1403,6 +1423,11 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "response_service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.response_service_tier": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ServiceHost(); ok {
+		if err := usagelog.ServiceHostValidator(v); err != nil {
+			return &ValidationError{Name: "service_host", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_host": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.FirstByteMs(); ok {
 		if err := usagelog.FirstByteMsValidator(v); err != nil {
 			return &ValidationError{Name: "first_byte_ms", err: fmt.Errorf(`ent: validator failed for field "UsageLog.first_byte_ms": %w`, err)}
@@ -1601,6 +1626,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ResponseServiceTierCleared() {
 		_spec.ClearField(usagelog.FieldResponseServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ServiceHost(); ok {
+		_spec.SetField(usagelog.FieldServiceHost, field.TypeString, value)
+	}
+	if _u.mutation.ServiceHostCleared() {
+		_spec.ClearField(usagelog.FieldServiceHost, field.TypeString)
 	}
 	if value, ok := _u.mutation.CodexRolloutBudgetUnits(); ok {
 		_spec.SetField(usagelog.FieldCodexRolloutBudgetUnits, field.TypeFloat64, value)
@@ -2520,6 +2551,26 @@ func (_u *UsageLogUpdateOne) ClearResponseServiceTier() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetServiceHost sets the "service_host" field.
+func (_u *UsageLogUpdateOne) SetServiceHost(v string) *UsageLogUpdateOne {
+	_u.mutation.SetServiceHost(v)
+	return _u
+}
+
+// SetNillableServiceHost sets the "service_host" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableServiceHost(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetServiceHost(*v)
+	}
+	return _u
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (_u *UsageLogUpdateOne) ClearServiceHost() *UsageLogUpdateOne {
+	_u.mutation.ClearServiceHost()
+	return _u
+}
+
 // SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
 func (_u *UsageLogUpdateOne) SetCodexRolloutBudgetUnits(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetCodexRolloutBudgetUnits()
@@ -3392,6 +3443,11 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "response_service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.response_service_tier": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ServiceHost(); ok {
+		if err := usagelog.ServiceHostValidator(v); err != nil {
+			return &ValidationError{Name: "service_host", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_host": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.FirstByteMs(); ok {
 		if err := usagelog.FirstByteMsValidator(v); err != nil {
 			return &ValidationError{Name: "first_byte_ms", err: fmt.Errorf(`ent: validator failed for field "UsageLog.first_byte_ms": %w`, err)}
@@ -3607,6 +3663,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.ResponseServiceTierCleared() {
 		_spec.ClearField(usagelog.FieldResponseServiceTier, field.TypeString)
+	}
+	if value, ok := _u.mutation.ServiceHost(); ok {
+		_spec.SetField(usagelog.FieldServiceHost, field.TypeString, value)
+	}
+	if _u.mutation.ServiceHostCleared() {
+		_spec.ClearField(usagelog.FieldServiceHost, field.TypeString)
 	}
 	if value, ok := _u.mutation.CodexRolloutBudgetUnits(); ok {
 		_spec.SetField(usagelog.FieldCodexRolloutBudgetUnits, field.TypeFloat64, value)

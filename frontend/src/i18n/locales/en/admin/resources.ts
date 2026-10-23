@@ -332,12 +332,19 @@ export default {
         value: 'Value',
         status: 'Status',
         usedBy: 'Used By',
+        usage: 'Redemptions',
         usedAt: 'Used At',
         createdAt: 'Created At',
         expiresAt: 'Expires At',
         actions: 'Actions'
       },
       userPrefix: 'User #{id}',
+      maxUses: 'Redemption limit',
+      maxUsesHint: '0 = unlimited, once per user',
+      singleUse: 'Single use',
+      usageRecords: 'Redemption records',
+      noUsages: 'No redemptions yet',
+      failedToLoadUsages: 'Failed to load redemption records',
       exportCsv: 'Export CSV',
       batchUpdate: 'Batch Update',
       batchUpdateTitle: 'Batch Update Redeem Codes',
@@ -630,6 +637,7 @@ export default {
 
     // Usage Records
     usage: {
+      serviceHost: 'Service endpoint',
       serviceTier: 'Service tier',
       serviceTierRequest: 'Request',
       serviceTierResponse: 'Response',

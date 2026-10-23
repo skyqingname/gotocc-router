@@ -21,6 +21,12 @@ const redeemActivityRows = `
  FROM redeem_codes rc LEFT JOIN groups g ON g.id=rc.group_id
  WHERE rc.used_by=$1 AND rc.type<>'canvas_card'
  UNION ALL
+ SELECT rc.id,rc.code,rc.type,rc.value,'used',u.used_at,rc.created_at,'',
+   rc.group_id,rc.validity_days,g.name,
+   NULL::bigint,NULL::uuid,NULL::integer,NULL::text,NULL::bigint,NULL::numeric,NULL::text,g.i18n
+ FROM redeem_code_usages u JOIN redeem_codes rc ON rc.id=u.redeem_code_id LEFT JOIN groups g ON g.id=rc.group_id
+ WHERE u.user_id=$1
+ UNION ALL
  SELECT -o.id,'','canvas_card',-o.denomination,'used',o.created_at,o.created_at,
    '',NULL,0,NULL,o.id,o.operation_id,o.denomination,o.funding_source,o.team_id,o.balance_after,i.code,NULL::jsonb
  FROM canvas_card_orders o JOIN canvas_card_inventory i ON i.issued_order_id=o.id
@@ -30,6 +36,7 @@ func (r *canvasCardRepository) Activity(ctx context.Context, userID int64, param
 	var total int64
 	err := r.db.QueryRowContext(ctx, `SELECT
    (SELECT COUNT(*) FROM redeem_codes WHERE used_by=$1 AND type<>'canvas_card')+
+   (SELECT COUNT(*) FROM redeem_code_usages WHERE user_id=$1)+
    (SELECT COUNT(*) FROM canvas_card_orders WHERE user_id=$1)`, userID).Scan(&total)
 	if err != nil {
 		return nil, 0, err

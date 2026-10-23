@@ -159,6 +159,19 @@
             </span>
           </template>
 
+          <template #cell-max_uses="{ value, row }">
+            <button
+              v-if="value !== 1"
+              type="button"
+              class="text-sm font-medium text-primary-600 hover:underline dark:text-primary-400"
+              :title="t('admin.redeem.usageRecords')"
+              @click="handleViewUsages(row)"
+            >
+              {{ row.used_count }} / {{ value === 0 ? '∞' : value }}
+            </button>
+            <span v-else class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.redeem.singleUse') }}</span>
+          </template>
+
           <template #cell-used_by="{ value, row }">
             <span class="text-sm text-gray-500 dark:text-dark-400">
               {{ row.user?.email || (value ? t('admin.redeem.userPrefix', { id: value }) : '-') }}
@@ -187,7 +200,7 @@
           <template #cell-actions="{ row }">
             <div class="flex items-center space-x-2">
               <button
-                v-if="row.status === 'unused'"
+                v-if="row.status === 'unused' && !row.used_count"
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -413,6 +426,20 @@
                 class="input"
               />
             </div>
+            <div v-if="generateForm.type !== 'invitation' && !generateForm.generate_order">
+              <label class="input-label">
+                {{ t('admin.redeem.maxUses') }}
+                <span class="ml-1 text-xs font-normal text-gray-400">({{ t('admin.redeem.maxUsesHint') }})</span>
+              </label>
+              <input
+                v-model.number="generateForm.max_uses"
+                type="number"
+                min="0"
+                step="1"
+                required
+                class="input"
+              />
+            </div>
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" @click="showGenerateDialog = false" class="btn btn-secondary">
                 {{ t('common.cancel') }}
@@ -624,6 +651,56 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Shared Code Usages Dialog -->
+    <BaseDialog
+      :show="showUsagesDialog"
+      :title="t('admin.redeem.usageRecords')"
+      width="wide"
+      @close="showUsagesDialog = false"
+    >
+      <div v-if="usagesLoading" class="flex items-center justify-center py-8">
+        <Icon name="refresh" size="lg" class="animate-spin text-gray-400" />
+      </div>
+      <div v-else-if="usages.length === 0" class="py-8 text-center text-gray-500 dark:text-gray-400">
+        {{ t('admin.redeem.noUsages') }}
+      </div>
+      <div v-else class="space-y-3">
+        <div
+          v-for="usage in usages"
+          :key="usage.id"
+          class="flex items-center gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600"
+        >
+          <div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+            <Icon name="user" size="sm" class="text-green-600 dark:text-green-400" />
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ usage.user?.email || t('admin.redeem.userPrefix', { id: usage.user_id }) }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ formatDateTime(usage.used_at) }}
+            </p>
+          </div>
+        </div>
+        <div v-if="usagesTotal > usagesPageSize" class="mt-4">
+          <Pagination
+            :page="usagesPage"
+            :total="usagesTotal"
+            :page-size="usagesPageSize"
+            @update:page="(page: number) => { usagesPage = page; loadUsages() }"
+            @update:page-size="(size: number) => { usagesPageSize = size; usagesPage = 1; loadUsages() }"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <button type="button" @click="showUsagesDialog = false" class="btn btn-secondary">
+            {{ t('common.close') }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -645,6 +722,7 @@ import {
 } from '@/utils/format'
 import type {
   RedeemCode,
+  RedeemCodeUsage,
   RedeemCodeType,
   Group,
   GroupPlatform,
@@ -657,6 +735,7 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
@@ -678,6 +757,13 @@ interface GroupOption {
 
 const showGenerateDialog = ref(false)
 const showResultDialog = ref(false)
+const showUsagesDialog = ref(false)
+const usagesCodeId = ref(0)
+const usages = ref<RedeemCodeUsage[]>([])
+const usagesLoading = ref(false)
+const usagesPage = ref(1)
+const usagesPageSize = ref(20)
+const usagesTotal = ref(0)
 const generatedCodes = ref<RedeemCode[]>([])
 const subscriptionGroups = ref<Group[]>([])
 
@@ -753,6 +839,7 @@ const columns = computed<Column[]>(() => [
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
+  { key: 'max_uses', label: t('admin.redeem.columns.usage') },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
   { key: 'expires_at', label: t('admin.redeem.columns.expiresAt'), sortable: true },
@@ -872,7 +959,8 @@ const generateForm = reactive({
   group_id: null as number | null,
   validity_days: 30,
   expiry_option: 'never' as RedeemCodeExpiryOption,
-  custom_expiry_days: 7
+  custom_expiry_days: 7,
+  max_uses: 1
 })
 
 // 监听类型变化，邀请码类型时自动设置 value 为 0
@@ -1080,7 +1168,9 @@ const handleGenerateCodes = async () => {
       generateForm.type === 'subscription' && !generateForm.generate_order ? generateForm.group_id : undefined,
       generateForm.type === 'subscription' && !generateForm.generate_order ? generateForm.validity_days : undefined,
       expiresInDays,
-      { generate_order: generateForm.generate_order, order_currency: generateForm.order_currency, order_plan_id: generateForm.order_plan_id == null ? null : Number(generateForm.order_plan_id) }
+      { generate_order: generateForm.generate_order, order_currency: generateForm.order_currency, order_plan_id: generateForm.order_plan_id == null ? null : Number(generateForm.order_plan_id) },
+      // 邀请码与带订单的码固定单次使用
+      generateForm.type === 'invitation' || generateForm.generate_order ? 1 : generateForm.max_uses
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
@@ -1093,6 +1183,7 @@ const handleGenerateCodes = async () => {
     generateForm.validity_days = 30
     generateForm.expiry_option = 'never'
     generateForm.custom_expiry_days = 7
+    generateForm.max_uses = 1
     loadCodes()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToGenerate'))
@@ -1157,7 +1248,8 @@ const confirmDeleteUnused = async () => {
   try {
     // Get all unused codes and delete them
     const unusedCodesResponse = await adminAPI.redeem.list(1, 1000, { status: 'unused' })
-    const unusedCodeIds = unusedCodesResponse.items.map((code) => code.id)
+    // 已有人兑换的共享码保留兑换记录，不随未使用码一起删除
+    const unusedCodeIds = unusedCodesResponse.items.filter((code) => !code.used_count).map((code) => code.id)
 
     if (unusedCodeIds.length === 0) {
       appStore.showInfo(t('admin.redeem.noUnusedCodes'))
@@ -1172,6 +1264,26 @@ const confirmDeleteUnused = async () => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToDeleteUnused'))
     console.error('Error deleting unused codes:', error)
+  }
+}
+
+const handleViewUsages = async (code: RedeemCode) => {
+  usagesCodeId.value = code.id
+  usagesPage.value = 1
+  showUsagesDialog.value = true
+  await loadUsages()
+}
+
+const loadUsages = async () => {
+  usagesLoading.value = true
+  try {
+    const response = await adminAPI.redeem.getUsages(usagesCodeId.value, usagesPage.value, usagesPageSize.value)
+    usages.value = response.items
+    usagesTotal.value = response.total
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToLoadUsages'))
+  } finally {
+    usagesLoading.value = false
   }
 }
 

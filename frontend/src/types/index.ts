@@ -1812,6 +1812,7 @@ export interface AdminUsageLog extends UsageLog {
   service_tier?: string | null
   requested_service_tier?: string | null
   response_service_tier?: string | null
+  service_host?: string | null
   upstream_model?: string | null
   upstream_reasoning_effort?: string | null
   upstream_response_model?: string | null
@@ -1879,8 +1880,18 @@ export interface RedeemCode {
   notes?: string
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
+  max_uses?: number // 管理员接口：1 单次，0 不限，其他为多人共享码
+  used_count?: number
   user?: User
   group?: Group // 关联的分组
+}
+
+export interface RedeemCodeUsage {
+  id: number
+  redeem_code_id: number
+  user_id: number
+  used_at: string
+  user?: User
 }
 
 export interface GenerateRedeemCodesRequest {
@@ -1894,6 +1905,7 @@ export interface GenerateRedeemCodesRequest {
   validity_days?: number // 订阅类型专用
   expires_at?: string | null
   expires_in_days?: number
+  max_uses: number
 }
 
 export interface BatchUpdateRedeemCodeFields {

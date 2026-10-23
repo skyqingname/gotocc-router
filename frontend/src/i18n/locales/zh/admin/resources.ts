@@ -320,6 +320,7 @@ export default {
         value: '面值',
         status: '状态',
         usedBy: '使用者',
+        usage: '兑换次数',
         usedAt: '使用时间',
         expiresAt: '过期时间',
         createdAt: '创建时间',
@@ -381,6 +382,12 @@ export default {
       codesDeleted: '成功删除 {count} 个未使用的兑换码',
       noUnusedCodes: '没有未使用的兑换码可删除',
       userPrefix: '用户 #{id}',
+      maxUses: '兑换次数',
+      maxUsesHint: '0 表示不限，每个用户限兑一次',
+      singleUse: '单次',
+      usageRecords: '兑换记录',
+      noUsages: '暂无兑换记录',
+      failedToLoadUsages: '加载兑换记录失败',
       failedToExport: '导出兑换码失败',
       failedToDeleteUnused: '删除未使用的兑换码失败',
       failedToCopy: '复制失败',
@@ -627,6 +634,7 @@ export default {
 
     // Usage Records
     usage: {
+      serviceHost: '服务端点',
       serviceTier: '服务档位',
       serviceTierRequest: '请求',
       serviceTierResponse: '响应',

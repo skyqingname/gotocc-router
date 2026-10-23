@@ -553,6 +553,8 @@ type AdminRedeemCode struct {
 	OrderAmount   float64 `json:"order_amount"`
 	OrderPlanID   *int64  `json:"order_plan_id"`
 	OrderPlanName string  `json:"order_plan_name"`
+	MaxUses       int     `json:"max_uses"`
+	UsedCount     int     `json:"used_count"`
 
 	Notes string `json:"notes"`
 }
@@ -740,6 +742,7 @@ type AdminUsageLog struct {
 	ServiceTier          *string `json:"service_tier,omitempty"`
 	RequestedServiceTier *string `json:"requested_service_tier"`
 	ResponseServiceTier  *string `json:"response_service_tier"`
+	ServiceHost          *string `json:"service_host"`
 
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.
 	// Omitted when no mapping was applied (requested model was used as-is).

@@ -137,6 +137,9 @@ type UsageLog struct {
 	// RequestedServiceTier is captured before billing resolution.
 	RequestedServiceTier *string
 	ResponseServiceTier  *string
+	// ServiceHost is the public entry host that received the request, e.g.
+	// gotocc.xyz or api.gotocc.xyz. Nil means not recorded.
+	ServiceHost *string
 	// ReasoningEffort is the effective effort recorded for this request after
 	// group policy rewriting and model-family remapping (e.g. max -> xhigh).
 	// OpenAI: "low" / "medium" / "high" / "xhigh"; Claude: "low" / "medium" / "high" / "max".

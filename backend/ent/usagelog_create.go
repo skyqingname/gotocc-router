@@ -352,6 +352,20 @@ func (_c *UsageLogCreate) SetNillableResponseServiceTier(v *string) *UsageLogCre
 	return _c
 }
 
+// SetServiceHost sets the "service_host" field.
+func (_c *UsageLogCreate) SetServiceHost(v string) *UsageLogCreate {
+	_c.mutation.SetServiceHost(v)
+	return _c
+}
+
+// SetNillableServiceHost sets the "service_host" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableServiceHost(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetServiceHost(*v)
+	}
+	return _c
+}
+
 // SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
 func (_c *UsageLogCreate) SetCodexRolloutBudgetUnits(v float64) *UsageLogCreate {
 	_c.mutation.SetCodexRolloutBudgetUnits(v)
@@ -1085,6 +1099,11 @@ func (_c *UsageLogCreate) check() error {
 			return &ValidationError{Name: "response_service_tier", err: fmt.Errorf(`ent: validator failed for field "UsageLog.response_service_tier": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ServiceHost(); ok {
+		if err := usagelog.ServiceHostValidator(v); err != nil {
+			return &ValidationError{Name: "service_host", err: fmt.Errorf(`ent: validator failed for field "UsageLog.service_host": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.InputCost(); !ok {
 		return &ValidationError{Name: "input_cost", err: errors.New(`ent: missing required field "UsageLog.input_cost"`)}
 	}
@@ -1306,6 +1325,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ResponseServiceTier(); ok {
 		_spec.SetField(usagelog.FieldResponseServiceTier, field.TypeString, value)
 		_node.ResponseServiceTier = &value
+	}
+	if value, ok := _c.mutation.ServiceHost(); ok {
+		_spec.SetField(usagelog.FieldServiceHost, field.TypeString, value)
+		_node.ServiceHost = &value
 	}
 	if value, ok := _c.mutation.CodexRolloutBudgetUnits(); ok {
 		_spec.SetField(usagelog.FieldCodexRolloutBudgetUnits, field.TypeFloat64, value)
@@ -2048,6 +2071,24 @@ func (u *UsageLogUpsert) UpdateResponseServiceTier() *UsageLogUpsert {
 // ClearResponseServiceTier clears the value of the "response_service_tier" field.
 func (u *UsageLogUpsert) ClearResponseServiceTier() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldResponseServiceTier)
+	return u
+}
+
+// SetServiceHost sets the "service_host" field.
+func (u *UsageLogUpsert) SetServiceHost(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldServiceHost, v)
+	return u
+}
+
+// UpdateServiceHost sets the "service_host" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateServiceHost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldServiceHost)
+	return u
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (u *UsageLogUpsert) ClearServiceHost() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldServiceHost)
 	return u
 }
 
@@ -3248,6 +3289,27 @@ func (u *UsageLogUpsertOne) UpdateResponseServiceTier() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearResponseServiceTier() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearResponseServiceTier()
+	})
+}
+
+// SetServiceHost sets the "service_host" field.
+func (u *UsageLogUpsertOne) SetServiceHost(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetServiceHost(v)
+	})
+}
+
+// UpdateServiceHost sets the "service_host" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateServiceHost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateServiceHost()
+	})
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (u *UsageLogUpsertOne) ClearServiceHost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearServiceHost()
 	})
 }
 
@@ -4719,6 +4781,27 @@ func (u *UsageLogUpsertBulk) UpdateResponseServiceTier() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearResponseServiceTier() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearResponseServiceTier()
+	})
+}
+
+// SetServiceHost sets the "service_host" field.
+func (u *UsageLogUpsertBulk) SetServiceHost(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetServiceHost(v)
+	})
+}
+
+// UpdateServiceHost sets the "service_host" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateServiceHost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateServiceHost()
+	})
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (u *UsageLogUpsertBulk) ClearServiceHost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearServiceHost()
 	})
 }
 

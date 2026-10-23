@@ -1125,6 +1125,9 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(time.Now()) {
 		return nil, ErrRedeemCodeExpired
 	}
+	if input.MaxUses != 1 && (input.Type == RedeemTypeInvitation || input.GenerateOrder) {
+		return nil, infraerrors.BadRequest("REDEEM_CODE_MAX_USES_UNSUPPORTED", "invitation and order codes are single-use")
+	}
 
 	snapshot := RedeemCode{Type: input.Type, Value: input.Value, GenerateOrder: input.GenerateOrder, OrderCurrency: input.OrderCurrency, OrderPlanID: input.OrderPlanID, GroupID: input.GroupID, ValidityDays: input.ValidityDays}
 	if err := freezeRedeemOrder(ctx, s.entClient, &snapshot); err != nil {
@@ -1170,6 +1173,7 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			Value:         input.Value,
 			Status:        StatusUnused,
 			ExpiresAt:     input.ExpiresAt,
+			MaxUses:       &input.MaxUses,
 		}
 		// 订阅类型专用字段
 		if input.Type == RedeemTypeSubscription {
