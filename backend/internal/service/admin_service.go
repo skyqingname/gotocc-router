@@ -575,6 +575,7 @@ type GenerateRedeemCodesInput struct {
 	GroupID      *int64 // 订阅类型专用：关联的分组ID
 	ValidityDays int    // 订阅类型专用：有效天数
 	ExpiresAt    *time.Time
+	MaxUses      *int // nil 使用数据库单次默认值；0 不限次数，其他为每人一次的次数上限
 }
 
 type ProxyBatchDeleteResult struct {

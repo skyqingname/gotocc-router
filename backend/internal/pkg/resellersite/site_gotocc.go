@@ -22,7 +22,10 @@ type requestSite struct {
 
 type contextKey struct{}
 
+type entryHostKey struct{}
+
 func WithHost(ctx context.Context, host string) context.Context {
+	ctx = WithEntryHost(ctx, host)
 	for _, site := range configuredSites {
 		primary, _ := url.Parse(site.PrimaryOrigin)
 		if strings.EqualFold(host, primary.Host) {
@@ -36,6 +39,18 @@ func WithHost(ctx context.Context, host string) context.Context {
 		}
 	}
 	return ctx
+}
+
+// WithEntryHost records the public Host that received the request. Usage
+// recording runs on a detached context and carries this value over explicitly.
+func WithEntryHost(ctx context.Context, host string) context.Context {
+	return context.WithValue(ctx, entryHostKey{}, strings.ToLower(host))
+}
+
+// EntryHost returns the public Host recorded by WithEntryHost.
+func EntryHost(ctx context.Context) string {
+	host, _ := ctx.Value(entryHostKey{}).(string)
+	return host
 }
 
 func IsCustomer(ctx context.Context) bool {

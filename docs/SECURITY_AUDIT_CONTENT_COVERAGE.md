@@ -30,6 +30,17 @@ resolution retain the same canonical policy and ingress audit boundaries.
 
 ## Boundary And Ordering
 
+The GoToCC risk-control page reports whether a saved record has a review result.
+Completed reviews display that result even when extraction diagnostics note
+unrecognized sibling or historical items. Records without a result display
+"Not reviewed" and "Not scored"; new records distinguish `audit_timeout`,
+`audit_canceled` and `audit_no_endpoint` from the existing generic
+`audit_dependency_failed`. Historical generic errors are not reclassified from
+latency or guessed causes. The extraction counters remain in runtime diagnostics
+and structured logs, but are not presented as review outcomes on the page.
+Recording scope, sampling, extraction, thresholds, blocking and penalties are
+unchanged. The record list does not claim to cover every gateway request.
+
 The automatic hosted `image_generation` bridge is limited to OpenAI platform
 accounts. Native Responses suppliers do not receive this OpenAI-only injected
 tool. This decision is made after ingress audit and account selection and does

@@ -205,6 +205,14 @@ fulfillment behavior without creating an extra order. The generated-code API
 created atomically. Admin list/detail DTOs and redeem-code CSV exports include
 the frozen order fields.
 
+The generate API also accepts `max_uses`: omitted or `1` keeps a single-use
+code, `0` is unlimited, and a larger value makes a shared code that each user
+redeems once until the limit is reached (`REDEEM_CODE_ALREADY_REDEEMED` on a
+repeat). Invitation and order codes stay single-use
+(`REDEEM_CODE_MAX_USES_UNSUPPORTED`). Admin DTOs include `max_uses` and
+`used_count`; `GET /api/v1/admin/redeem-codes/:id/usages` lists the redeemers of
+a shared code. Fixed codes created through `create-and-redeem` stay single-use.
+
 User/admin order lists and the payment dashboard accept
 `order_source=payment|redeem`; omitting it includes both, and an unknown source
 returns `400` (`INVALID_ORDER_SOURCE`). List filters also retain
@@ -293,3 +301,5 @@ create an order; the subsequent redemption performs those actions.
 ### 6) Recommended `doc_url`
 - View URL: `https://github.com/skyqingname/gotocc-router/blob/main/docs/ADMIN_PAYMENT_INTEGRATION_API.md`
 - Download URL: `https://raw.githubusercontent.com/skyqingname/gotocc-router/main/docs/ADMIN_PAYMENT_INTEGRATION_API.md`
+
+共享码一旦有兑换记录，删除及批量修改状态、有效期、订阅分组均按已兑换码处理；备注仍可修改。删除条件在数据库写入时同时判断，批量修改在事务内锁定码记录。`create-and-redeem` 遇到已有共享码返回 `REDEEM_CODE_CONFLICT`，不会把它当作单次订单码消费。省略 `max_uses` 在 HTTP 与内部服务入口均沿用数据库单次默认值。管理员余额历史中的佣金转余额等合成记录不包含 `max_uses`，该字段只描述实际兑换码。

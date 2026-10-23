@@ -1,17 +1,14 @@
-# 0.2.17+custom.002 — Plus 0.2.17, creative studio, unified content audit and official data
+# 0.2.17+custom.003 — PR review and combined release
 
-Upstream baseline is Plus `v0.2.17+custom.001` (official Sub2API `v0.2.17`). It adds Gemini explicit context caching (AI Studio, Vertex and gateway upstreams), Vertex API-key authentication and upstream model sync, Gemini 4 Argon billing, GPT-5.5 retirement handling on ChatGPT upstreams, Antigravity tool-result images and model catalogs, minimum output token floors, `created_at` on gateway Responses objects and payment fixes for EasyPay, Alipay refunds and Stripe. The Gemini explicit-cache migrations are numbered 307–309 in GoToCC; they are forward-only.
+Based on published GoToCC 0.2.17+custom.002 and Plus v0.2.17+custom.001 (official Sub2API v0.2.17).
 
-The creative studio selects image size tiers, aspect ratios, quality and background per model family, following the TokenRouter media capability registration. GPT Image 2 aliases such as `gpt-image-2.5` receive the 1K/2K/4K tiers and five aspect ratios previously limited to the exact `gpt-image-2` name; GPT Image 1, Grok Imagine and Gemini image models receive their own registered pixel tables in the root `creative-studio.json`. The composer shows the estimated price per image and the requested total from the model plaza, using the billed size tier of the submitted pixels and the plaza's effective rate.
+- Login and registration show an input-adjacent service-terms hint. The terms dialog keeps keyboard focus inside and returns to the input after acceptance or rejection.
+- Gateway redeem codes support one use, a shared-use limit, or unlimited users; each user can redeem a shared code once. Invitation codes, payment-order codes, fixed create-and-redeem codes and Canvas cards retain their single-use contracts.
+- Shared redemption counts, balances, rebates and cashback are committed together. Existing redemption records survive deletion requests and cannot have their status, expiry or subscription group rewritten through batch editing. Synthetic affiliate-transfer history omits code-only usage limits. Omitted limits remain single-use at both HTTP and internal service entry points.
+- Admin usage records show the public service host, including gotocc.xyz, api.gotocc.xyz and customer domains. Historical and detached asynchronous records without a captured host show a dash.
+- Risk-control results distinguish reviewed pass/hit from unreviewed timeout, cancellation or unavailable endpoints. This includes the change accepted on 2026-10-20.
+- Both binaries are built with Go 1.27.3 from the same fixed source and embedded frontend.
 
-Content audit is unified. Content Moderation endpoints can use TypeSafe Jev (`/v1/systemone`) besides the OpenAI moderation protocol: one request asks every registered risk category, and the probabilities use the existing thresholds, blocking or observe mode, group scope, email notification, violation count and automatic ban. Jev reviews the current user input only; text above the per-request limit in the root `content-audit-jev.json` is split and evaluated in parallel. Prompt Audit categories jailbreak, politically sensitive topics, unethical acts and copyright violation join the threshold table. Prompt Audit no longer takes part in request handling; its admin page redirects to Content Audit and its history remains. When every audit endpoint fails, requests continue and the failure is recorded.
+Migrations 310 and 311 add service_host, redeem-code limits and redemption usage records. After shared codes are created or redeemed, old binaries do not preserve their semantics: they can consume a shared code as a single-use code or omit shared history. Keep current data and use a forward fix; restoring an old dump would discard later activity.
 
-Model plaza official information uses a refreshed models.dev snapshot and only first-party entries published by the model's vendor, so cloud resale prices are no longer shown as official prices. Versioned names such as `deepseek-v4-pro-0813` and `deepseek-v4.1-flash` now match DeepSeek's own entries.
-
-DeepSeek default price cards bill the official peak price at every hour. Flash names and the Pro name, which DeepSeek serves and bills as V4.1 Flash, cost $0.30 input, $1.20 output and $0.006 cache hit per million tokens (CNY 2/8/0.04). The peak-hour multiplier and the plaza's DeepSeek time periods are removed, and the plaza official reference for DeepSeek shows the same peak price. Group and channel custom prices are unchanged.
-
-The model fingerprint reference follows lm-detector `5b676af`: 60 reference models including DeepSeek V4.1 Flash 1017, Gemini 4 Argon and Muse Wonder, the float32 detector artifact, and a sequence-shape check that reports program-like number lists instead of ranking them.
-
-The review fixes make Gemini cache charges check the actual team wallet, include the subscription's rolling five-hour limit in fixed-charge admission and reservations, and make creative-studio estimates use the selected key's personal or team-owner rates. Switching keys clears the old estimate until the matching rates load. Price loading also follows the model-plaza feature setting when it arrives after a page refresh.
-
-Key ownership, image task history and storage contracts are otherwise unchanged. Production installation is separate from this GitHub release.
+No production installation or restart is included in this GitHub release. No paid upstream probes or test suites were run for this release.

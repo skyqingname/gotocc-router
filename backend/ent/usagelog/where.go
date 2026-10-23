@@ -185,6 +185,11 @@ func ResponseServiceTier(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldResponseServiceTier, v))
 }
 
+// ServiceHost applies equality check predicate on the "service_host" field. It's identical to ServiceHostEQ.
+func ServiceHost(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldServiceHost, v))
+}
+
 // CodexRolloutBudgetUnits applies equality check predicate on the "codex_rollout_budget_units" field. It's identical to CodexRolloutBudgetUnitsEQ.
 func CodexRolloutBudgetUnits(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCodexRolloutBudgetUnits, v))
@@ -1633,6 +1638,81 @@ func ResponseServiceTierEqualFold(v string) predicate.UsageLog {
 // ResponseServiceTierContainsFold applies the ContainsFold predicate on the "response_service_tier" field.
 func ResponseServiceTierContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldResponseServiceTier, v))
+}
+
+// ServiceHostEQ applies the EQ predicate on the "service_host" field.
+func ServiceHostEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldServiceHost, v))
+}
+
+// ServiceHostNEQ applies the NEQ predicate on the "service_host" field.
+func ServiceHostNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldServiceHost, v))
+}
+
+// ServiceHostIn applies the In predicate on the "service_host" field.
+func ServiceHostIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldServiceHost, vs...))
+}
+
+// ServiceHostNotIn applies the NotIn predicate on the "service_host" field.
+func ServiceHostNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldServiceHost, vs...))
+}
+
+// ServiceHostGT applies the GT predicate on the "service_host" field.
+func ServiceHostGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldServiceHost, v))
+}
+
+// ServiceHostGTE applies the GTE predicate on the "service_host" field.
+func ServiceHostGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldServiceHost, v))
+}
+
+// ServiceHostLT applies the LT predicate on the "service_host" field.
+func ServiceHostLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldServiceHost, v))
+}
+
+// ServiceHostLTE applies the LTE predicate on the "service_host" field.
+func ServiceHostLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldServiceHost, v))
+}
+
+// ServiceHostContains applies the Contains predicate on the "service_host" field.
+func ServiceHostContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldServiceHost, v))
+}
+
+// ServiceHostHasPrefix applies the HasPrefix predicate on the "service_host" field.
+func ServiceHostHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldServiceHost, v))
+}
+
+// ServiceHostHasSuffix applies the HasSuffix predicate on the "service_host" field.
+func ServiceHostHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldServiceHost, v))
+}
+
+// ServiceHostIsNil applies the IsNil predicate on the "service_host" field.
+func ServiceHostIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldServiceHost))
+}
+
+// ServiceHostNotNil applies the NotNil predicate on the "service_host" field.
+func ServiceHostNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldServiceHost))
+}
+
+// ServiceHostEqualFold applies the EqualFold predicate on the "service_host" field.
+func ServiceHostEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldServiceHost, v))
+}
+
+// ServiceHostContainsFold applies the ContainsFold predicate on the "service_host" field.
+func ServiceHostContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldServiceHost, v))
 }
 
 // CodexRolloutBudgetUnitsEQ applies the EQ predicate on the "codex_rollout_budget_units" field.

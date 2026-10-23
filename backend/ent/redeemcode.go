@@ -51,6 +51,10 @@ type RedeemCode struct {
 	OrderPlanName string `json:"order_plan_name,omitempty"`
 	// ValidityDays holds the value of the "validity_days" field.
 	ValidityDays int `json:"validity_days,omitempty"`
+	// MaxUses holds the value of the "max_uses" field.
+	MaxUses int `json:"max_uses,omitempty"`
+	// UsedCount holds the value of the "used_count" field.
+	UsedCount int `json:"used_count,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the RedeemCodeQuery when eager-loading is set.
 	Edges        RedeemCodeEdges `json:"edges"`
@@ -99,7 +103,7 @@ func (*RedeemCode) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case redeemcode.FieldValue, redeemcode.FieldOrderAmount:
 			values[i] = new(sql.NullFloat64)
-		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldGroupID, redeemcode.FieldOrderPlanID, redeemcode.FieldValidityDays:
+		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldGroupID, redeemcode.FieldOrderPlanID, redeemcode.FieldValidityDays, redeemcode.FieldMaxUses, redeemcode.FieldUsedCount:
 			values[i] = new(sql.NullInt64)
 		case redeemcode.FieldCode, redeemcode.FieldType, redeemcode.FieldStatus, redeemcode.FieldNotes, redeemcode.FieldOrderCurrency, redeemcode.FieldOrderPlanName:
 			values[i] = new(sql.NullString)
@@ -228,6 +232,18 @@ func (_m *RedeemCode) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ValidityDays = int(value.Int64)
 			}
+		case redeemcode.FieldMaxUses:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field max_uses", values[i])
+			} else if value.Valid {
+				_m.MaxUses = int(value.Int64)
+			}
+		case redeemcode.FieldUsedCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field used_count", values[i])
+			} else if value.Valid {
+				_m.UsedCount = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -333,6 +349,12 @@ func (_m *RedeemCode) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("validity_days=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ValidityDays))
+	builder.WriteString(", ")
+	builder.WriteString("max_uses=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MaxUses))
+	builder.WriteString(", ")
+	builder.WriteString("used_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UsedCount))
 	builder.WriteByte(')')
 	return builder.String()
 }

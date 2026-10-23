@@ -28,8 +28,18 @@ type RedeemCode struct {
 	GroupID      *int64
 	ValidityDays int
 
+	// MaxUses is the redemption limit: nil keeps the schema default of a
+	// single-use code, 0 is unlimited, other values make a shared code.
+	MaxUses   *int
+	UsedCount int
+
 	User  *User
 	Group *Group
+}
+
+// IsShared reports whether several users may redeem this code, each once.
+func (r *RedeemCode) IsShared() bool {
+	return r.MaxUses != nil && *r.MaxUses != 1
 }
 
 func (r *RedeemCode) IsUsed() bool {
@@ -52,6 +62,16 @@ func (r *RedeemCode) IsExpiredAt(now time.Time) bool {
 
 func (r *RedeemCode) CanUse() bool {
 	return r.Status == StatusUnused && !r.IsExpired()
+}
+
+// RedeemCodeUsage is one user's redemption of a shared code.
+type RedeemCodeUsage struct {
+	ID           int64
+	RedeemCodeID int64
+	UserID       int64
+	UsedAt       time.Time
+
+	User *User
 }
 
 func GenerateRedeemCode() (string, error) {

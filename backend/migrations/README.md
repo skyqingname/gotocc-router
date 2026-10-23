@@ -59,6 +59,15 @@ tables, channel-usage snapshots, and mutation leases. Official numbered these
 243–245 and Plus imports them as 287–289; GoToCC already uses 287–289, so they
 land at 307–309 after `306_group_i18n.sql`. Historical SQL is unchanged.
 
+Migration `310_usage_service_host.sql` adds a nullable usage-log column with the
+public entry host that received the request (for example `gotocc.xyz` or
+`api.gotocc.xyz`). Historical rows stay NULL; billing is unchanged.
+
+Migration `311_shared_redeem_codes.sql` lets an administrator give a redeem code
+a redemption limit like promo codes. Existing codes keep `max_uses = 1` and the
+original single-use `used_by` record; shared codes (`max_uses` 0 for unlimited or
+greater than 1) record each user once in `redeem_code_usages`.
+
 ## File Naming
 
 Regular migration:

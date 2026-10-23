@@ -77,6 +77,12 @@ func (RedeemCode) Fields() []ent.Field {
 		field.String("order_plan_name").MaxLen(255).Default(""),
 		field.Int("validity_days").
 			Default(30),
+		// MaxUses 1 is a single-use code recorded in used_by; 0 is unlimited and
+		// other values are shared codes recorded in redeem_code_usages.
+		field.Int("max_uses").
+			Default(1),
+		field.Int("used_count").
+			Default(0),
 	}
 }
 

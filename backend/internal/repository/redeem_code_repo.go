@@ -34,6 +34,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
 		SetNillableGroupID(code.GroupID).
+		SetNillableMaxUses(code.MaxUses).
 		SetGenerateOrder(code.GenerateOrder).
 		SetOrderCurrency(code.OrderCurrency).
 		SetOrderAmount(code.OrderAmount).
@@ -43,6 +44,7 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 	if err == nil {
 		code.ID = created.ID
 		code.CreatedAt = created.CreatedAt
+		code.MaxUses = &created.MaxUses
 	}
 	return err
 }
@@ -66,6 +68,7 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
 			SetNillableGroupID(c.GroupID).
+			SetNillableMaxUses(c.MaxUses).
 			SetGenerateOrder(c.GenerateOrder).
 			SetOrderCurrency(c.OrderCurrency).
 			SetOrderAmount(c.OrderAmount).
@@ -104,8 +107,17 @@ func (r *redeemCodeRepository) GetByCode(ctx context.Context, code string) (*ser
 }
 
 func (r *redeemCodeRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.client.RedeemCode.Delete().Where(redeemcode.IDEQ(id)).Exec(ctx)
-	return err
+	affected, err := r.client.RedeemCode.Delete().Where(
+		redeemcode.IDEQ(id), redeemcode.StatusNEQ(service.StatusUsed),
+		redeemcode.UsedByIsNil(), redeemcode.UsedCountEQ(0),
+	).Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return service.ErrRedeemCodeDeleteUsed
+	}
+	return nil
 }
 
 func (r *redeemCodeRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.RedeemCode, *pagination.PaginationResult, error) {
@@ -147,6 +159,7 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 			redeemcode.Or(
 				redeemcode.CodeContainsFold(search),
 				redeemcode.HasUserWith(user.EmailContainsFold(search)),
+				redeemCodeSharedUserEmailContains(search),
 			),
 		)
 	}
@@ -284,6 +297,8 @@ func (r *redeemCodeRepository) BatchUpdate(ctx context.Context, ids []int64, fie
 func (r *redeemCodeRepository) batchUpdate(ctx context.Context, client *dbent.Client, ids []int64, fields service.RedeemCodeBatchUpdateFields) (int64, error) {
 	existing, err := client.RedeemCode.Query().
 		Where(redeemcode.IDIn(ids...)).
+		Order(dbent.Asc(redeemcode.FieldID)).
+		ForUpdate().
 		All(ctx)
 	if err != nil {
 		return 0, err
@@ -300,7 +315,7 @@ func (r *redeemCodeRepository) batchUpdate(ctx context.Context, client *dbent.Cl
 	}
 	if fields.TouchesUsedSensitiveFields() {
 		for _, code := range existing {
-			if code.Status == service.StatusUsed {
+			if code.Status == service.StatusUsed || code.UsedCount > 0 {
 				return 0, service.ErrRedeemCodeUsed
 			}
 		}
@@ -362,23 +377,24 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 	}
 
 	codes, err := r.client.RedeemCode.Query().
-		Where(redeemcode.UsedByEQ(userID)).
+		Where(redeemCodeRedeemedBy(userID)).
 		WithGroup().
-		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldID)).
+		Order(redeemCodeRedeemedAtDesc(userID), dbent.Desc(redeemcode.FieldID)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return redeemCodeEntitiesToService(codes), nil
+	out := redeemCodeEntitiesToService(codes)
+	return out, r.presentSharedRedemptions(ctx, userID, out)
 }
 
 // ListByUserPaginated returns paginated balance/concurrency history for a user.
 // Supports optional type filter (e.g. "balance", "admin_balance", "concurrency", "admin_concurrency", "subscription").
 func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	q := r.client.RedeemCode.Query().
-		Where(redeemcode.UsedByEQ(userID))
+		Where(redeemCodeRedeemedBy(userID))
 
 	// Optional type filter
 	if codeType != "" {
@@ -394,13 +410,17 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 		WithGroup().
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldID)).
+		Order(redeemCodeRedeemedAtDesc(userID), dbent.Desc(redeemcode.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return redeemCodeEntitiesToService(codes), paginationResultFromTotal(int64(total), params), nil
+	out := redeemCodeEntitiesToService(codes)
+	if err := r.presentSharedRedemptions(ctx, userID, out); err != nil {
+		return nil, nil, err
+	}
+	return out, paginationResultFromTotal(int64(total), params), nil
 }
 
 // SumPositiveBalanceByUser returns total recharged amount (sum of value > 0 where type is balance/admin_balance).
@@ -410,7 +430,7 @@ func (r *redeemCodeRepository) SumPositiveBalanceByUser(ctx context.Context, use
 	}
 	err := r.client.RedeemCode.Query().
 		Where(
-			redeemcode.UsedByEQ(userID),
+			redeemCodeRedeemedBy(userID),
 			redeemcode.ValueGT(0),
 			redeemcode.TypeIn("balance", "admin_balance"),
 		).
@@ -447,6 +467,8 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		ExpiresAt:     m.ExpiresAt,
 		GroupID:       m.GroupID,
 		ValidityDays:  m.ValidityDays,
+		MaxUses:       &m.MaxUses,
+		UsedCount:     m.UsedCount,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

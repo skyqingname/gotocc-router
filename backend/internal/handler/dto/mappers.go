@@ -685,6 +685,8 @@ func RedeemCodeFromServiceAdmin(rc *service.RedeemCode) *AdminRedeemCode {
 		OrderAmount:   rc.OrderAmount,
 		OrderPlanID:   rc.OrderPlanID,
 		OrderPlanName: rc.OrderPlanName,
+		MaxUses:       rc.MaxUses,
+		UsedCount:     rc.UsedCount,
 	}
 }
 
@@ -834,6 +836,7 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 		ServiceTier:             l.ServiceTier,
 		RequestedServiceTier:    l.RequestedServiceTier,
 		ResponseServiceTier:     l.ResponseServiceTier,
+		ServiceHost:             l.ServiceHost,
 		UpstreamModel:           l.UpstreamModel,
 		UpstreamReasoningEffort: adminUpstreamReasoningEffort(l),
 		UpstreamResponseModel:   l.UpstreamResponseModel,

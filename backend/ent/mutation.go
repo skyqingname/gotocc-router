@@ -45420,6 +45420,10 @@ type RedeemCodeMutation struct {
 	order_plan_name  *string
 	validity_days    *int
 	addvalidity_days *int
+	max_uses         *int
+	addmax_uses      *int
+	used_count       *int
+	addused_count    *int
 	clearedFields    map[string]struct{}
 	user             *int64
 	cleareduser      bool
@@ -46263,6 +46267,118 @@ func (m *RedeemCodeMutation) ResetValidityDays() {
 	m.addvalidity_days = nil
 }
 
+// SetMaxUses sets the "max_uses" field.
+func (m *RedeemCodeMutation) SetMaxUses(i int) {
+	m.max_uses = &i
+	m.addmax_uses = nil
+}
+
+// MaxUses returns the value of the "max_uses" field in the mutation.
+func (m *RedeemCodeMutation) MaxUses() (r int, exists bool) {
+	v := m.max_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxUses returns the old "max_uses" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldMaxUses(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxUses is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxUses requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxUses: %w", err)
+	}
+	return oldValue.MaxUses, nil
+}
+
+// AddMaxUses adds i to the "max_uses" field.
+func (m *RedeemCodeMutation) AddMaxUses(i int) {
+	if m.addmax_uses != nil {
+		*m.addmax_uses += i
+	} else {
+		m.addmax_uses = &i
+	}
+}
+
+// AddedMaxUses returns the value that was added to the "max_uses" field in this mutation.
+func (m *RedeemCodeMutation) AddedMaxUses() (r int, exists bool) {
+	v := m.addmax_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxUses resets all changes to the "max_uses" field.
+func (m *RedeemCodeMutation) ResetMaxUses() {
+	m.max_uses = nil
+	m.addmax_uses = nil
+}
+
+// SetUsedCount sets the "used_count" field.
+func (m *RedeemCodeMutation) SetUsedCount(i int) {
+	m.used_count = &i
+	m.addused_count = nil
+}
+
+// UsedCount returns the value of the "used_count" field in the mutation.
+func (m *RedeemCodeMutation) UsedCount() (r int, exists bool) {
+	v := m.used_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsedCount returns the old "used_count" field's value of the RedeemCode entity.
+// If the RedeemCode object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RedeemCodeMutation) OldUsedCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsedCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsedCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsedCount: %w", err)
+	}
+	return oldValue.UsedCount, nil
+}
+
+// AddUsedCount adds i to the "used_count" field.
+func (m *RedeemCodeMutation) AddUsedCount(i int) {
+	if m.addused_count != nil {
+		*m.addused_count += i
+	} else {
+		m.addused_count = &i
+	}
+}
+
+// AddedUsedCount returns the value that was added to the "used_count" field in this mutation.
+func (m *RedeemCodeMutation) AddedUsedCount() (r int, exists bool) {
+	v := m.addused_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUsedCount resets all changes to the "used_count" field.
+func (m *RedeemCodeMutation) ResetUsedCount() {
+	m.used_count = nil
+	m.addused_count = nil
+}
+
 // SetUserID sets the "user" edge to the User entity by id.
 func (m *RedeemCodeMutation) SetUserID(id int64) {
 	m.user = &id
@@ -46364,7 +46480,7 @@ func (m *RedeemCodeMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RedeemCodeMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 18)
 	if m.code != nil {
 		fields = append(fields, redeemcode.FieldCode)
 	}
@@ -46413,6 +46529,12 @@ func (m *RedeemCodeMutation) Fields() []string {
 	if m.validity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
+	if m.max_uses != nil {
+		fields = append(fields, redeemcode.FieldMaxUses)
+	}
+	if m.used_count != nil {
+		fields = append(fields, redeemcode.FieldUsedCount)
+	}
 	return fields
 }
 
@@ -46453,6 +46575,10 @@ func (m *RedeemCodeMutation) Field(name string) (ent.Value, bool) {
 		return m.OrderPlanName()
 	case redeemcode.FieldValidityDays:
 		return m.ValidityDays()
+	case redeemcode.FieldMaxUses:
+		return m.MaxUses()
+	case redeemcode.FieldUsedCount:
+		return m.UsedCount()
 	}
 	return nil, false
 }
@@ -46494,6 +46620,10 @@ func (m *RedeemCodeMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldOrderPlanName(ctx)
 	case redeemcode.FieldValidityDays:
 		return m.OldValidityDays(ctx)
+	case redeemcode.FieldMaxUses:
+		return m.OldMaxUses(ctx)
+	case redeemcode.FieldUsedCount:
+		return m.OldUsedCount(ctx)
 	}
 	return nil, fmt.Errorf("unknown RedeemCode field %s", name)
 }
@@ -46615,6 +46745,20 @@ func (m *RedeemCodeMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetValidityDays(v)
 		return nil
+	case redeemcode.FieldMaxUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxUses(v)
+		return nil
+	case redeemcode.FieldUsedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsedCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode field %s", name)
 }
@@ -46635,6 +46779,12 @@ func (m *RedeemCodeMutation) AddedFields() []string {
 	if m.addvalidity_days != nil {
 		fields = append(fields, redeemcode.FieldValidityDays)
 	}
+	if m.addmax_uses != nil {
+		fields = append(fields, redeemcode.FieldMaxUses)
+	}
+	if m.addused_count != nil {
+		fields = append(fields, redeemcode.FieldUsedCount)
+	}
 	return fields
 }
 
@@ -46651,6 +46801,10 @@ func (m *RedeemCodeMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedOrderPlanID()
 	case redeemcode.FieldValidityDays:
 		return m.AddedValidityDays()
+	case redeemcode.FieldMaxUses:
+		return m.AddedMaxUses()
+	case redeemcode.FieldUsedCount:
+		return m.AddedUsedCount()
 	}
 	return nil, false
 }
@@ -46687,6 +46841,20 @@ func (m *RedeemCodeMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddValidityDays(v)
+		return nil
+	case redeemcode.FieldMaxUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxUses(v)
+		return nil
+	case redeemcode.FieldUsedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUsedCount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode numeric field %s", name)
@@ -46801,6 +46969,12 @@ func (m *RedeemCodeMutation) ResetField(name string) error {
 		return nil
 	case redeemcode.FieldValidityDays:
 		m.ResetValidityDays()
+		return nil
+	case redeemcode.FieldMaxUses:
+		m.ResetMaxUses()
+		return nil
+	case redeemcode.FieldUsedCount:
+		m.ResetUsedCount()
 		return nil
 	}
 	return fmt.Errorf("unknown RedeemCode field %s", name)
@@ -58188,6 +58362,7 @@ type UsageLogMutation struct {
 	addaudio_output_tokens        *int
 	requested_service_tier        *string
 	response_service_tier         *string
+	service_host                  *string
 	codex_rollout_budget_units    *float64
 	addcodex_rollout_budget_units *float64
 	input_cost                    *float64
@@ -59656,6 +59831,55 @@ func (m *UsageLogMutation) ResponseServiceTierCleared() bool {
 func (m *UsageLogMutation) ResetResponseServiceTier() {
 	m.response_service_tier = nil
 	delete(m.clearedFields, usagelog.FieldResponseServiceTier)
+}
+
+// SetServiceHost sets the "service_host" field.
+func (m *UsageLogMutation) SetServiceHost(s string) {
+	m.service_host = &s
+}
+
+// ServiceHost returns the value of the "service_host" field in the mutation.
+func (m *UsageLogMutation) ServiceHost() (r string, exists bool) {
+	v := m.service_host
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceHost returns the old "service_host" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldServiceHost(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceHost is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceHost requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceHost: %w", err)
+	}
+	return oldValue.ServiceHost, nil
+}
+
+// ClearServiceHost clears the value of the "service_host" field.
+func (m *UsageLogMutation) ClearServiceHost() {
+	m.service_host = nil
+	m.clearedFields[usagelog.FieldServiceHost] = struct{}{}
+}
+
+// ServiceHostCleared returns if the "service_host" field was cleared in this mutation.
+func (m *UsageLogMutation) ServiceHostCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldServiceHost]
+	return ok
+}
+
+// ResetServiceHost resets all changes to the "service_host" field.
+func (m *UsageLogMutation) ResetServiceHost() {
+	m.service_host = nil
+	delete(m.clearedFields, usagelog.FieldServiceHost)
 }
 
 // SetCodexRolloutBudgetUnits sets the "codex_rollout_budget_units" field.
@@ -61736,7 +61960,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 61)
+	fields := make([]string, 0, 62)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -61814,6 +62038,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.response_service_tier != nil {
 		fields = append(fields, usagelog.FieldResponseServiceTier)
+	}
+	if m.service_host != nil {
+		fields = append(fields, usagelog.FieldServiceHost)
 	}
 	if m.codex_rollout_budget_units != nil {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
@@ -61980,6 +62207,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestedServiceTier()
 	case usagelog.FieldResponseServiceTier:
 		return m.ResponseServiceTier()
+	case usagelog.FieldServiceHost:
+		return m.ServiceHost()
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.CodexRolloutBudgetUnits()
 	case usagelog.FieldInputCost:
@@ -62111,6 +62340,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldRequestedServiceTier(ctx)
 	case usagelog.FieldResponseServiceTier:
 		return m.OldResponseServiceTier(ctx)
+	case usagelog.FieldServiceHost:
+		return m.OldServiceHost(ctx)
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.OldCodexRolloutBudgetUnits(ctx)
 	case usagelog.FieldInputCost:
@@ -62371,6 +62602,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetResponseServiceTier(v)
+		return nil
+	case usagelog.FieldServiceHost:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceHost(v)
 		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		v, ok := value.(float64)
@@ -63028,6 +63266,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldResponseServiceTier) {
 		fields = append(fields, usagelog.FieldResponseServiceTier)
 	}
+	if m.FieldCleared(usagelog.FieldServiceHost) {
+		fields = append(fields, usagelog.FieldServiceHost)
+	}
 	if m.FieldCleared(usagelog.FieldCodexRolloutBudgetUnits) {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
 	}
@@ -63137,6 +63378,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldResponseServiceTier:
 		m.ClearResponseServiceTier()
+		return nil
+	case usagelog.FieldServiceHost:
+		m.ClearServiceHost()
 		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		m.ClearCodexRolloutBudgetUnits()
@@ -63277,6 +63521,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldResponseServiceTier:
 		m.ResetResponseServiceTier()
+		return nil
+	case usagelog.FieldServiceHost:
+		m.ResetServiceHost()
 		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		m.ResetCodexRolloutBudgetUnits()
