@@ -1,5 +1,18 @@
 # Payment System Configuration Guide
 
+## Credits and payment face values
+
+New recharge principal is credited 1:1: CNY 1 or USD 1 adds 1 site credit. A
+subscription price of 10 is charged as CNY 10 or USD 10 in the selected channel.
+Recharge multipliers and subscription FX controls are retired. Legacy API fields
+`balance_recharge_multiplier` / `subscription_usd_to_cny_rate` remain `1` / `0`;
+stored values and submitted legacy rates no longer affect new orders.
+
+Promotions, discounts and fees are separate items. Existing orders retain their
+frozen `amount`, `pay_amount`, `bonus_amount` and currency through callbacks,
+retries and proportional refunds. Existing balances and ledgers are not scaled.
+
+
 Sub2API Plus has a built-in payment system that enables user self-service top-up without deploying a separate payment service.
 
 Checkout and subscription-plan group names follow the
@@ -90,8 +103,8 @@ Each setting can also be provided as the same-named deployment environment varia
 
 | Field | Meaning |
 |-------|---------|
-| `amount` | Total USD credited to the balance, including the free part |
-| `bonus_amount` | Free USD part included in `amount` (0 for historical and non-incentivized orders) |
+| `amount` | Total credits added to the balance, including the free part |
+| `bonus_amount` | Free credit part included in `amount` (0 for historical and non-incentivized orders) |
 | `pay_amount` | Amount actually collected by the payment channel, including fees, in the order's frozen payment currency |
 | `fee_rate` | Fee percentage applied on top of the payment base |
 
@@ -112,7 +125,7 @@ settings or to the selected provider currency never rewrite an existing order.
 - Historical orders migrate with `bonus_amount = 0` and keep the previous refund
   behavior; no promotion is applied retroactively.
 - Daily limit basis: balance orders are compared using the channel-collected amount
-  including fees (`pay_amount`) in the order's frozen payment currency. Credited USD
+  including fees (`pay_amount`) in the order's frozen payment currency. Credited points
   and the free bonus never enlarge the payment limit. Subscription orders keep the
   prior plan-price basis. If previously paid balance orders use a different frozen
   currency and no reliable conversion exists, order creation fails with the stable
@@ -365,7 +378,7 @@ Both config APIs validate an absolute HTTP(S) URL without credentials or control
 
 The iframe sandbox permits scripts, forms, its own origin and payment popups, including popups that escape the sandbox; it does not permit navigation of the enclosing page. Embedding remains subject to the third party's `X-Frame-Options` and `frame-ancestors` policies; use the new-tab control when embedding is unavailable.
 
-Only balance and subscription codes can opt into orders (off by default). Balance currency is CNY/USD, default CNY: a face value of 100 with CNY order currency credits 100 USD and records 100 CNY, without FX, fees or recharge promotions. Subscription codes select an existing plan (including off-sale) and freeze its selling `price`, currency, ID/name, group and effective duration at generation (week × 7, month × 30, capped at 36500 days). Empty currency means CNY; other currencies cannot generate these redemption orders. Ordinary payment currency support is unchanged. Later plan edits/deletion do not change snapshots; unavailable entitlement groups reject redemption.
+Only balance and subscription codes can opt into orders (off by default). Balance currency is CNY/USD, default CNY: a face value of 100 with CNY order currency adds 100 credits and records 100 CNY, without FX, fees or recharge promotions. Subscription codes select an existing plan (including off-sale) and freeze its selling `price`, currency, ID/name, group and effective duration at generation (week × 7, month × 30, capped at 36500 days). Empty currency means CNY; other currencies cannot generate these redemption orders. Ordinary payment currency support is unchanged. Later plan edits/deletion do not change snapshots; unavailable entitlement groups reject redemption.
 
 Consumption, benefits, a COMPLETED order and `REDEEM_ORDER_COMPLETED` audit commit atomically. A unique redeem-code reference prevents duplicates and has no cascading deletion. Orders use `order_source=redeem`, `payment_type=redeem` and retain `order_type=balance|subscription`; historical and ordinary payments use `order_source=payment`. Timestamps are redemption time. No provider, payment URL, fee or bonus is recorded, and ordinary user DTOs never expose raw redeem codes. Internal PAY codes remain opt-out and do not duplicate fulfillment or affiliate rebates. Subscription snapshots cannot be rewritten by ordinary batch editing. Conflicting group/duration inputs are rejected at generation; admin redeem-code list/detail DTOs and CSV exports retain the frozen order fields.
 

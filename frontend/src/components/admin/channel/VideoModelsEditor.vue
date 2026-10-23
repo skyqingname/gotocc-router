@@ -113,7 +113,7 @@
         <fieldset class="space-y-3 rounded-lg bg-primary-50/50 p-4 dark:bg-primary-950/20">
           <legend class="sr-only">{{ tr('价格', 'Price') }}</legend>
           <div class="flex flex-wrap items-center gap-3 text-sm">
-            <span class="font-medium">{{ tr('价格（USD）', 'Price (USD)') }}</span>
+            <span class="font-medium">{{ tr('价格（积分）', 'Price (credits)') }}</span>
             <label class="flex items-center gap-1"><input type="radio" :checked="priceMode(name) === 'video'" @change="setMode(name, 'video')" />{{ tr('按秒', 'Per second') }}</label>
             <label class="flex items-center gap-1"><input type="radio" :checked="priceMode(name) === 'per_request'" @change="setMode(name, 'per_request')" />{{ tr('按次', 'Per request') }}</label>
           </div>
@@ -140,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
@@ -319,7 +320,7 @@ function priceSummary(name: string) {
   const p = price(name)
   const unit = p.mode === 'video' ? tr('/秒', '/s') : tr('/次', '/req')
   const tiers = Object.entries(p.tiers).filter(([, value]) => value !== null)
-  return tiers.length ? `${tiers.map(([label, value]) => `${label} $${value}`).join(' · ')} ${unit}` : `$${p.price} ${unit}`
+  return tiers.length ? `${tiers.map(([label, value]) => `${label} ${(value == null ? '-' : withCreditUnit(value))}`).join(' · ')} ${unit}` : `${(p.price == null ? '-' : withCreditUnit(p.price))} ${unit}`
 }
 
 function setProviderOptions(name: string, value: string) {

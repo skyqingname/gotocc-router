@@ -1,3 +1,4 @@
+import { withCreditUnit } from '@/utils/credits'
 import type { TeamUsageDaily, TeamUsageModel, TeamUsageSummary } from '@/api/team'
 import { formatDateLocalInput, formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
 import { formatTeamCost } from './teamFormat'
@@ -40,7 +41,7 @@ export const formatMetric = (value: number, metric: TeamCardMetric): string => {
 
 // 纵轴刻度用短格式：金额最多两位小数且去掉末尾的 0，避免出现 $0.0000。
 export const formatAxis = (value: number, metric: TeamMetric): string => {
-  if (metric === 'cost') return `$${Number(value.toFixed(2))}`
+  if (metric === 'cost') return withCreditUnit(Number(value.toFixed(2)))
   if (metric === 'tokens') return formatTokensK(value)
   return formatNumber(value)
 }

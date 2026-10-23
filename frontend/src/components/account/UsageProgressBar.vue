@@ -13,14 +13,14 @@
           {{ formatTokens }}
         </span>
         <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800" :title="t('usage.accountBilled')">
-          A ${{ formatAccountCost }}
+          A {{ withCreditUnit(formatAccountCost) }}
         </span>
         <span
           v-if="windowStats?.user_cost != null"
           class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800"
           :title="t('usage.userBilled')"
         >
-          U ${{ formatUserCost }}
+          U {{ withCreditUnit(formatUserCost) }}
         </span>
         <span
           v-if="estimatedTotalCost != null"
@@ -62,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'

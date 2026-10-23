@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, LineElement, PointElement, Tooltip, type TooltipItem } from 'chart.js'
@@ -38,7 +39,7 @@ const PALETTE = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e
 const colorOf = (index: number) => PALETTE[index % PALETTE.length]
 const visibleSeries = computed(() => props.series.filter((item) => item.summary.request_count > 0 || item.summary.actual_cost > 0))
 const dates = computed(() => Array.from(new Set(visibleSeries.value.flatMap((item) => item.summary.daily.map((point) => point.date)))).sort())
-const money = (value: number) => `$${value.toFixed(4)}`
+const money = (value: number) => withCreditUnit(value.toFixed(4))
 
 const lineData = computed(() => dates.value.length && visibleSeries.value.length ? {
   labels: dates.value.map((date) => date.slice(5)),

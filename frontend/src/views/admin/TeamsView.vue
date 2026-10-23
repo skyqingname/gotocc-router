@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
@@ -172,7 +173,7 @@ const filteredTeams = computed(() => { const query = searchQuery.value.trim().to
 const paginatedTeams = computed(() => filteredTeams.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 const memberOptions = computed<SelectOption[]>(() => detailsMembers.value.filter((member) => member.role === 'member').map((member) => ({ value: member.user_id, label: member.username || member.email })))
 const statisticsMetrics = computed(() => [
-  { label: t('team.totalCost'), value: `$${Number(statisticsSummary.value?.actual_cost || 0).toFixed(4)}` },
+  { label: t('team.totalCost'), value: withCreditUnit(Number(statisticsSummary.value?.actual_cost || 0).toFixed(4)) },
   { label: t('team.requests'), value: Number(statisticsSummary.value?.request_count || 0).toLocaleString() },
   { label: t('team.inputTokens'), value: Number(statisticsSummary.value?.input_tokens || 0).toLocaleString() },
   { label: t('team.outputTokens'), value: Number(statisticsSummary.value?.output_tokens || 0).toLocaleString() },

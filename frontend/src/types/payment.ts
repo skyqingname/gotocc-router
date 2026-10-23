@@ -39,7 +39,9 @@ export interface PaymentConfig {
   max_pending_orders: number
   order_timeout_minutes: number
   balance_disabled: boolean
+  /** Retired configuration field; always 1. */
   balance_recharge_multiplier: number
+  /** Retired configuration field; always 0 (no FX). */
   subscription_usd_to_cny_rate: number
   enabled_payment_types: PaymentType[]
   help_image_url: string
@@ -76,8 +78,9 @@ export interface CheckoutInfoResponse {
   global_max: number
   plans: SubscriptionPlan[]
   balance_disabled: boolean
+  /** Retired configuration field; always 1. */
   balance_recharge_multiplier: number
-  /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
+  /** Retired configuration field; always 0 (no FX). */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
   /** 充值赠送阶梯（按 min_amount 升序）；缺失/空数组 = 不赠送 */
@@ -107,7 +110,7 @@ export interface PaymentOrder {
   pay_amount: number
   currency?: string
   fee_rate: number
-  /** 充值赠送额度（USD），已计入 amount */
+  /** 充值赠送额度（积分），已计入 amount */
   bonus_amount?: number
   payment_type: string
   out_trade_no: string

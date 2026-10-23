@@ -1222,7 +1222,7 @@ func buildUsageAlertMessage(
 					continue
 				}
 				ws := row.Progress.WindowStats
-				md.WriteString(fmt.Sprintf("| %s | %d | %s | $%.2f | $%.2f |\n",
+				md.WriteString(fmt.Sprintf("| %s | %d | %s | %.2f 积分 | %.2f 积分 |\n",
 					row.Name, ws.Requests, formatCompactTokenCount(ws.Tokens), ws.Cost, ws.UserCost))
 			}
 		}
@@ -1360,8 +1360,8 @@ func formatUsageAlertLocalTable(rows []usageAlertWindowRow) string {
 		b.WriteString(padUsageAlertCell(row.Name, colWindow))
 		b.WriteString(padUsageAlertCell(fmt.Sprintf("%d", ws.Requests), colReq))
 		b.WriteString(padUsageAlertCell(formatCompactTokenCount(ws.Tokens), colTok))
-		b.WriteString(padUsageAlertCell(fmt.Sprintf("$%.2f", ws.Cost), colCost))
-		b.WriteString(padUsageAlertCell(fmt.Sprintf("$%.2f", ws.UserCost), colUser))
+		b.WriteString(padUsageAlertCell(fmt.Sprintf("%.2f 积分", ws.Cost), colCost))
+		b.WriteString(padUsageAlertCell(fmt.Sprintf("%.2f 积分", ws.UserCost), colUser))
 		b.AppendByte('\n')
 	}
 	return strings.TrimRight(b.String(), "\n")
@@ -1378,7 +1378,7 @@ func formatUsageAlertLocalLines(rows []usageAlertWindowRow) string {
 		if n > 0 {
 			b.AppendByte('\n')
 		}
-		b.WriteString(fmt.Sprintf("窗口：%s　请求：%d　Token：%s　核算：$%.2f　用户：$%.2f",
+		b.WriteString(fmt.Sprintf("窗口：%s　请求：%d　Token：%s　核算：%.2f 积分　用户：%.2f 积分",
 			row.Name, ws.Requests, formatCompactTokenCount(ws.Tokens), ws.Cost, ws.UserCost))
 		n++
 	}

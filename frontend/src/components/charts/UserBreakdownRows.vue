@@ -25,19 +25,20 @@
         {{ formatTokens(user.total_tokens) }} <span v-if="tokenShare(user.total_tokens)" class="text-gray-400">({{ tokenShare(user.total_tokens) }})</span>
       </td>
       <td class="py-1 text-right text-green-600 dark:text-green-400">
-        ${{ formatCost(user.actual_cost) }}
+        {{ withCreditUnit(formatCost(user.actual_cost)) }}
       </td>
       <td v-if="showAccountCost" class="py-1 text-right text-orange-500 dark:text-orange-400">
-        ${{ formatCost(user.account_cost) }}
+        {{ withCreditUnit(formatCost(user.account_cost)) }}
       </td>
       <td class="py-1 text-right text-gray-400 dark:text-gray-500">
-        ${{ formatCost(user.cost) }}
+        {{ withCreditUnit(formatCost(user.cost)) }}
       </td>
     </tr>
   </template>
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'

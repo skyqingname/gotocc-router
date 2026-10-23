@@ -28,11 +28,11 @@ export interface RechargeBonusQuote {
   percent: number
   /** 网关收款基数（支付币种，不含手续费）；赠金模式 = 输入金额，折扣模式 = 折后金额 */
   payBase: number
-  /** 到账基数（输入金额 × 倍率，USD），不含赠送 */
+  /** 到账基数（输入金额原数值，积分），不含赠送 */
   base: number
-  /** 免费额度（USD）：赠金模式为额外赠送，折扣模式为未付费却到账的部分 */
+  /** 免费额度（credits）：赠金模式为额外赠送，折扣模式为未付费却到账的部分 */
   bonus: number
-  /** 到账总额（USD） */
+  /** 到账总额（credits） */
   credited: number
   tier: RechargeBonusTier | null
 }
@@ -145,6 +145,7 @@ export function calculateRechargeBonus(baseCredited: number, percent: number): n
 }
 
 export interface RechargeBonusQuoteOptions {
+  /** Retired option, ignored: principal is credited 1:1. */
   multiplier?: number
   mode?: RechargeBonusMode
   /** 支付币种小数位，折扣模式实付基数按此精度四舍五入 */
@@ -158,12 +159,11 @@ export function quoteRechargeBonus(
   paymentAmount: number,
   options: RechargeBonusQuoteOptions | number = {},
 ): RechargeBonusQuote {
-  const opts: RechargeBonusQuoteOptions = typeof options === 'number' ? { multiplier: options } : options
+  const opts: RechargeBonusQuoteOptions = typeof options === 'number' ? {} : options
   const mode = opts.mode ?? 'bonus'
   const amount = Number.isFinite(paymentAmount) && paymentAmount > 0 ? paymentAmount : 0
-  const rate = typeof opts.multiplier === 'number' && Number.isFinite(opts.multiplier) && opts.multiplier > 0 ? opts.multiplier : 1
   const digits = typeof opts.currencyDigits === 'number' && Number.isInteger(opts.currencyDigits) && opts.currencyDigits >= 0 ? opts.currencyDigits : 2
-  const base = roundRechargeAmount(amount * rate)
+  const base = roundRechargeAmount(amount)
   const quote: RechargeBonusQuote = { mode, percent: 0, payBase: amount, base, bonus: 0, credited: base, tier: null }
   const tier = matchRechargeBonusTier(tiers, amount)
   if (!tier || tier.bonus_percent <= 0) return quote
@@ -172,7 +172,7 @@ export function quoteRechargeBonus(
     if (tier.bonus_percent >= 100) return quote
     const payBase = roundRechargeAmount((amount * (100 - tier.bonus_percent)) / 100, digits)
     if (payBase <= 0 || payBase >= amount) return quote
-    const paidCredit = roundRechargeAmount(payBase * rate)
+    const paidCredit = roundRechargeAmount(payBase)
     quote.payBase = payBase
     quote.bonus = Math.max(0, roundRechargeAmount(base - paidCredit))
     quote.percent = tier.bonus_percent

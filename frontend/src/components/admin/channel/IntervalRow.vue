@@ -15,27 +15,27 @@
             type="number" min="0" class="input mt-0.5 text-xs" :placeholder="'∞'" />
         </div>
         <div>
-          <label class="text-xs text-gray-400">{{ t('admin.channels.form.inputPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">$/M</span></label>
+          <label class="text-xs text-gray-400">{{ t('admin.channels.form.inputPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">{{ creditUnit() }}/M</span></label>
           <input :value="interval.input_price" @input="emitField('input_price', ($event.target as HTMLInputElement).value)"
             type="number" step="any" min="0" class="input mt-0.5 text-xs" />
         </div>
         <div>
-          <label class="text-xs text-gray-400">{{ t('admin.channels.form.outputPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">$/M</span></label>
+          <label class="text-xs text-gray-400">{{ t('admin.channels.form.outputPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">{{ creditUnit() }}/M</span></label>
           <input :value="interval.output_price" @input="emitField('output_price', ($event.target as HTMLInputElement).value)"
             type="number" step="any" min="0" class="input mt-0.5 text-xs" />
         </div>
         <div>
-          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheWrite5mPriceShort') }} <span class="text-gray-300">$/M</span></label>
+          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheWrite5mPriceShort') }} <span class="text-gray-300">{{ creditUnit() }}/M</span></label>
           <input :value="interval.cache_write_price" @input="emitField('cache_write_price', ($event.target as HTMLInputElement).value)"
             type="number" step="any" min="0" class="input mt-0.5 text-xs" />
         </div>
         <div>
-          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheWrite1hPriceShort') }} <span class="text-gray-300">$/M</span></label>
+          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheWrite1hPriceShort') }} <span class="text-gray-300">{{ creditUnit() }}/M</span></label>
           <input :value="interval.cache_write_1h_price" @input="emitField('cache_write_1h_price', ($event.target as HTMLInputElement).value)"
             type="number" step="any" min="0" class="input mt-0.5 text-xs" />
         </div>
         <div>
-          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheReadPriceShort') }} <span class="text-gray-300">$/M</span></label>
+          <label class="text-xs text-gray-400">{{ t('admin.channels.form.cacheReadPriceShort') }} <span class="text-gray-300">{{ creditUnit() }}/M</span></label>
           <input :value="interval.cache_read_price" @input="emitField('cache_read_price', ($event.target as HTMLInputElement).value)"
             type="number" step="any" min="0" class="input mt-0.5 text-xs" />
         </div>
@@ -84,7 +84,7 @@
           type="number" min="0" class="input mt-0.5 text-xs" :placeholder="'∞'" />
       </div>
       <div class="flex-1">
-        <label class="text-xs text-gray-400">{{ t('admin.channels.form.perRequestPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">$</span></label>
+        <label class="text-xs text-gray-400">{{ t('admin.channels.form.perRequestPrice') }} <span v-if="isEmpty" class="text-red-500">*</span> <span class="text-gray-300">{{ creditUnit() }}</span></label>
         <input :value="interval.per_request_price" @input="emitField('per_request_price', ($event.target as HTMLInputElement).value)"
           type="number" step="any" min="0" class="input mt-0.5 text-xs" />
       </div>
@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { creditUnit } from '@/utils/credits'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'

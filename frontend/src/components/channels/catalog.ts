@@ -1,3 +1,4 @@
+import { withCreditUnit } from '@/utils/credits'
 import type { CatalogBillingUnit, CatalogGroup, CatalogOffer } from '@/api/channels'
 
 export interface CatalogFilters {
@@ -103,8 +104,8 @@ export function catalogMoney(price: number | null | undefined, rate = 1, perMill
   if (price == null || !Number.isFinite(price)) return '—'
   const value = price * rate * (perMillion ? 1_000_000 : 1)
   if (!Number.isFinite(value)) return '—'
-  if (value === 0) return '$0'
-  return '$' + new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(value)
+  if (value === 0) return withCreditUnit('0')
+  return withCreditUnit(new Intl.NumberFormat('en-US', { maximumSignificantDigits: 6 }).format(value))
 }
 export function catalogRange(range: CatalogPriceRange | null, unit: CatalogBillingUnit): string {
   if (!range) return '—'

@@ -70,6 +70,7 @@
   </AppLayout>
 </template>
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -93,7 +94,7 @@ const workspaceOpen = ref(false); const workspaceCustomer = ref<ResellerCustomer
 function openCustomer(customer: ResellerCustomer|null) { workspaceCustomer.value = customer; workspaceOpen.value = true }
 async function refreshCustomerData() { await Promise.all([loadCustomers(), loadEarnings()]); overview.value = await resellerAPI.overview() }
 const inviteLink = computed(() => overview.value?.invitation_url ?? '')
-const money = (v: number) => new Intl.NumberFormat(locale.value, {style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:8}).format(v)
+const money = (v: number) => withCreditUnit(new Intl.NumberFormat(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(v))
 const date = (v: string) => new Date(v).toLocaleString(locale.value)
 const baseRate = (g: ResellerGroup) => g.platform === 'video' && g.video_independent ? g.video_multiplier : g.base_multiplier
 function updateProfile(profile: ResellerProfile) { if (overview.value) overview.value.profile = profile }
