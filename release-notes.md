@@ -1,7 +1,14 @@
-# 0.2.17+custom.003 — Clear review outcomes in risk control
+# 0.2.17+custom.003 — PR review and combined release
 
-Risk-control records now say “Reviewed” with their result, or “Not reviewed” with the reason. Records without a score show “Not scored”. The input detail dialog and the unreviewed filter follow the same wording. The page no longer presents extraction counters as review results; internal extraction diagnostics remain available.
+Based on published GoToCC 0.2.17+custom.002 and Plus v0.2.17+custom.001 (official Sub2API v0.2.17).
 
-New unreviewed records distinguish timeouts, canceled requests and unavailable review endpoints. Historical generic errors remain unreviewed without guessing their cause. Audit input selection, sampling, thresholds, blocking, penalties and production configuration are unchanged. No database migration is added.
+- Login and registration show an input-adjacent service-terms hint. The terms dialog keeps keyboard focus inside and returns to the input after acceptance or rejection.
+- Gateway redeem codes support one use, a shared-use limit, or unlimited users; each user can redeem a shared code once. Invitation codes, payment-order codes, fixed create-and-redeem codes and Canvas cards retain their single-use contracts.
+- Shared redemption counts, balances, rebates and cashback are committed together. Existing redemption records survive deletion requests and cannot have their status, expiry or subscription group rewritten through batch editing. Synthetic affiliate-transfer history omits code-only usage limits. Omitted limits remain single-use at both HTTP and internal service entry points.
+- Admin usage records show the public service host, including gotocc.xyz, api.gotocc.xyz and customer domains. Historical and detached asynchronous records without a captured host show a dash.
+- Risk-control results distinguish reviewed pass/hit from unreviewed timeout, cancellation or unavailable endpoints. This includes the change accepted on 2026-10-20.
+- Both binaries are built with Go 1.27.3 from the same fixed source and embedded frontend.
 
-Continues GoToCC `0.2.17+custom.002` on Plus `v0.2.17+custom.001` / official Sub2API `v0.2.17`. Both Linux/arm64 and Linux/amd64 packages share the same source and embedded frontend. This is a local candidate pending owner acceptance; publication and production installation are separate.
+Migrations 310 and 311 add service_host, redeem-code limits and redemption usage records. After shared codes are created or redeemed, old binaries do not preserve their semantics: they can consume a shared code as a single-use code or omit shared history. Keep current data and use a forward fix; restoring an old dump would discard later activity.
+
+No production installation or restart is included in this GitHub release. No paid upstream probes or test suites were run for this release.

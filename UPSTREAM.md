@@ -22,28 +22,14 @@ Completed integration narratives remain in Git history.
 
 ## GoToCC candidate
 
-The owned candidate is `0.2.17+custom.003`, continuing published GoToCC
-`0.2.17+custom.002`. The risk-control page shows completed reviews with their
-results and unreviewed records with their reasons; extraction diagnostics no
-longer appear as a competing review status. Unreviewed records have no score.
-This presentation change preserves extraction, audit decisions and penalties.
-The inherited integration is based on GoToCC
-`0.2.15+custom.007` and Plus `v0.2.17+custom.001`
-(`8df03635ac4b9e15e746f9d6b0e7456734b06e1c`). Plus Gemini explicit-cache
-migrations 287–289 land at 307–309. The creative studio selects sizes, aspect ratios, quality
-and background per model family and shows plaza-priced estimates. Content
-audit is unified: Content Moderation endpoints may use TypeSafe Jev, and Prompt
-Audit leaves the ingress path while its upstream code and history remain.
-Model plaza official data uses first-party models.dev entries, and the model
-fingerprint reference follows lm-detector `5b676af`. DeepSeek default price
-cards bill the official peak price at every hour, replacing the Plus peak-hour
-multiplier. Existing Key ownership, image task history and storage contracts are
-unchanged.
-Review fixes preserve team-wallet funding for Gemini cache charges, enforce
-subscription five-hour headroom for fixed charges, and use the selected key's
-billing-owner rates for creative-studio estimates.
-Both Linux/arm64 and Linux/amd64 packages use this source and the same embedded
-frontend. Publication uses the accepted artifacts; production installation is separate.
+The owned candidate is `0.2.17+custom.003`, based on published GoToCC
+`0.2.17+custom.002` and Plus `v0.2.17+custom.001`
+(`8df03635ac4b9e15e746f9d6b0e7456734b06e1c`). It integrates PRs #37, #38
+and #39, review corrections, and the risk-control status change accepted on
+2026-10-20. Both Linux/arm64 and Linux/amd64 packages use Go 1.27.3, this
+fixed source and the same embedded frontend. See [release notes](release-notes.md)
+for behavior and migration/rollback limitations. Publication uses the accepted
+artifacts; production installation is separate.
 
 ## Removed Upstream Paths
 
