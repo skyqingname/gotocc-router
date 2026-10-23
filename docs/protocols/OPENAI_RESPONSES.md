@@ -728,10 +728,11 @@ returned normally. See [error diagnostics](../ERROR_REQUEST_DIAGNOSTICS.md).
 
 ## Administrator usage service-tier diagnostics
 
-The administrator usage table has a default-visible **Service tier** column,
-which can be hidden through column settings. It shows two lines, for example
-`Request Fast` and `Response default`, for both OAuth and API-key accounts.
-`requested_service_tier` records the final outbound tier after pass/filter/force
+These diagnostics stay in the administrator usage API for troubleshooting.
+GoToCC replaced the former **Service tier** table column with **Service
+endpoint**, the public entry host that received the request (`usage_logs.service_host`,
+migration 310, for example `gotocc.xyz` or `api.gotocc.xyz`; historical rows show
+`-`). `requested_service_tier` records the final outbound tier after pass/filter/force
 policy, before billing resolution; `priority` and `fast` display as `Fast`.
 `response_service_tier` independently records the upstream declaration, preserving
 `default`, `priority`, `fast` and unknown provider values (trimmed, at most 64

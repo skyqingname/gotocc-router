@@ -205,6 +205,14 @@ fulfillment behavior without creating an extra order. The generated-code API
 created atomically. Admin list/detail DTOs and redeem-code CSV exports include
 the frozen order fields.
 
+The generate API also accepts `max_uses`: omitted or `1` keeps a single-use
+code, `0` is unlimited, and a larger value makes a shared code that each user
+redeems once until the limit is reached (`REDEEM_CODE_ALREADY_REDEEMED` on a
+repeat). Invitation and order codes stay single-use
+(`REDEEM_CODE_MAX_USES_UNSUPPORTED`). Admin DTOs include `max_uses` and
+`used_count`; `GET /api/v1/admin/redeem-codes/:id/usages` lists the redeemers of
+a shared code. Fixed codes created through `create-and-redeem` stay single-use.
+
 User/admin order lists and the payment dashboard accept
 `order_source=payment|redeem`; omitting it includes both, and an unknown source
 returns `400` (`INVALID_ORDER_SOURCE`). List filters also retain
