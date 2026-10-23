@@ -1,5 +1,18 @@
 # Payment System Configuration Guide
 
+## Credits and payment face values
+
+New recharge principal is credited 1:1: CNY 1 or USD 1 adds 1 site credit. A
+subscription price of 10 is charged as CNY 10 or USD 10 in the selected channel.
+Recharge multipliers and subscription FX controls are retired. Legacy API fields
+`balance_recharge_multiplier` / `subscription_usd_to_cny_rate` remain `1` / `0`;
+stored values and submitted legacy rates no longer affect new orders.
+
+Promotions, discounts and fees are separate items. Existing orders retain their
+frozen `amount`, `pay_amount`, `bonus_amount` and currency through callbacks,
+retries and proportional refunds. Existing balances and ledgers are not scaled.
+
+
 Sub2API Plus has a built-in payment system that enables user self-service top-up without deploying a separate payment service.
 
 Checkout and subscription-plan group names follow the

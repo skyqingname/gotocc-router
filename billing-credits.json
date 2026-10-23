@@ -68,5 +68,11 @@
         "litellm_provider": "volcengine"
       }
     }
+  },
+  "payment_policy": {
+    "recharge_principal": "face_value",
+    "subscription_price": "face_value",
+    "existing_orders": "preserve_frozen_amounts",
+    "promotions_and_fees": "separate_from_principal"
   }
 }

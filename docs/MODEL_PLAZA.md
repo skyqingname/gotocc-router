@@ -25,8 +25,11 @@ or rewritten. The legacy `*_usd` JSON/database field names remain unchanged,
 but site amounts in them are credits. `/v1/usage` returns `unit: "credits"`.
 
 Payment-provider charges and upstream-provider balance snapshots retain their
-real currency. Recharge multipliers, promotions, subscription payment conversion
-and existing payment/refund rules are unchanged by this pricing-unit PR.
+real currency. New recharge principal is 1:1 (USD 1 or CNY 1 adds 1 credit), and
+subscription prices use their numeric face value in the selected payment
+currency. Recharge multipliers and subscription FX are retired. Promotions and
+fees remain separate items. Existing orders retain their frozen credited/pay
+amounts and refund ratio; they are never repriced using the new policy.
 
 ## Group display translations
 

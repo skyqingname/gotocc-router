@@ -23,7 +23,9 @@ export interface AdminPaymentConfig {
   max_pending_orders: number
   enabled_payment_types: string[]
   balance_disabled: boolean
+  /** Retired configuration field; always 1. */
   balance_recharge_multiplier: number
+  /** Retired configuration field; always 0 (no FX). */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
   load_balance_strategy: string

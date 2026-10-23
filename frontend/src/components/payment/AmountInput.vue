@@ -87,8 +87,6 @@ const props = withDefaults(defineProps<{
   bonusTiers?: RechargeBonusTier[]
   /** 阶梯模式：bonus 赠金 / discount 折扣 */
   bonusMode?: RechargeBonusMode
-  /** 充值倍率（1 支付币种 = multiplier 积分），用于计算到账金额 */
-  multiplier?: number
   /** 支付币种（折扣模式第二行实付金额的币种与精度） */
   currency?: string
 }>(), {
@@ -97,7 +95,6 @@ const props = withDefaults(defineProps<{
   max: 0,
   bonusTiers: () => [],
   bonusMode: 'bonus',
-  multiplier: 1,
   currency: undefined,
 })
 
@@ -127,7 +124,6 @@ function currencyDigits(): number {
 
 function quoteFor(amt: number) {
   return quoteRechargeBonus(props.bonusTiers, amt, {
-    multiplier: props.multiplier,
     mode: props.bonusMode,
     currencyDigits: currencyDigits(),
   })
