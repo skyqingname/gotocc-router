@@ -20,6 +20,26 @@ create a replacement administrator, or fail because of old bootstrap values.
 `default.admin_email` / `default.admin_password` are legacy configuration fields;
 use the setup wizard or `ADMIN_EMAIL` / `ADMIN_PASSWORD` for initialization.
 
+## Service Terms on Sign-in and Registration
+
+When login agreements are enabled and the current revision has not been accepted,
+account fields remain read-only but can receive focus. Clicking or focusing a
+field shows a compact validation-style bubble below it: **Please accept the service
+terms first.** The bubble opens the existing terms dialog when clicked. It does
+not take up space in the form, and disappears when focus leaves the field or
+Escape is pressed. Checkbox mode keeps the checkbox and document links near the
+submit button; modal mode still opens the dialog on entry.
+
+**Accept and continue** records consent for the current revision, checks the
+checkbox in checkbox mode, dismisses the dialog and removes the hint. Account
+fields and sign-in/registration actions then become available subject to their
+other existing conditions. Rejecting the dialog or unchecking consent keeps the
+fields read-only; interacting with a field shows the hint again.
+
+Consent for the same revision survives a reload. Disabled agreements do not show
+the hint or block the form. This guidance does not change agreement settings,
+authentication endpoints or the stored consent format.
+
 ## Passkeys
 
 Passkey sign-in is optional. It requires both a valid WebAuthn relying-party
@@ -88,3 +108,5 @@ validate and are rejected as invalid or expired; this is intentional fail-closed
 behavior and there is no plaintext compatibility path. Affected users request a new
 link from the sign-in page. Token TTL (30 minutes) and the reset-email cooldown
 (30 seconds) are unchanged.
+
+The service-terms dialog moves keyboard focus into its controls, keeps Tab and Shift+Tab inside the dialog, and returns focus to the input that opened the hint after accepting or rejecting. The input remains read-only when consent is rejected.

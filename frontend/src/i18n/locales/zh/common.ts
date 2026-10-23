@@ -146,9 +146,7 @@ export default {
     loginAgreementPrompt: {
       checkboxPrefix: '我已阅读并同意',
       documentSeparator: '、',
-      noticeTitle: '继续登录前需要先同意最新条款。',
-      noticeDescription: '未同意前，账号密码输入和快捷登录会保持禁用。',
-      viewTerms: '查看条款',
+      inputHint: '请先同意服务条款。',
       dialogTitle: '条款更新通知',
       dialogDescription: '我们的服务条款已于 {date} 更新。在继续使用服务之前，请仔细阅读并同意以下条款。',
       recently: '近期',
