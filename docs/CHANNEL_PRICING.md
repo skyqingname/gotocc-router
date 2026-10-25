@@ -5,6 +5,9 @@ prices, how they are matched, and what to do when a price is missing. It is the
 durable specification for the admin API contract; code changes that alter this
 behavior must update this file in the same commit.
 
+All site reference and selling prices are credits. Official USD/CNY prices use
+their published numeric value without FX; see [credit pricing](MODEL_PLAZA.md#gotocc-billing-credits).
+
 ## 1. Design principles
 
 1. Channel prices are operator selling prices. A reference price is only a

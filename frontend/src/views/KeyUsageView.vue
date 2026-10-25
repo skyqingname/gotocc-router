@@ -419,6 +419,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
@@ -863,7 +864,7 @@ function totalTokenShare(tokens: number | null | undefined): string | null {
 
 function usd(value: number | null | undefined): string {
   if (value == null || value < 0) return '-'
-  return '$' + Number(value).toFixed(2)
+  return withCreditUnit(Number(value).toFixed(2))
 }
 
 function fmtNum(val: number | null | undefined): string {

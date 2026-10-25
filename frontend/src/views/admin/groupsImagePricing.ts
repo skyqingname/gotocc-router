@@ -40,7 +40,7 @@ const defaultImagePricePlaceholders: Record<
   },
 };
 
-// 视频价为每秒单价（USD/s）。480p/720p 取 grok-imagine-video（文生视频实际走该模型）的
+// 视频价为每秒单价（credits/s）。480p/720p 取 grok-imagine-video（文生视频实际走该模型）的
 // 官方每秒价；1080p 仅 grok-imagine-video-1.5 图生视频支持，取 1.5 的每秒价。
 const defaultVideoPricePlaceholders: Record<
   string,

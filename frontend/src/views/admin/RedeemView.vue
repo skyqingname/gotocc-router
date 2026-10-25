@@ -132,8 +132,8 @@
           <template #cell-value="{ value, row }">
             <p v-if="row.generate_order" class="mb-1 text-xs text-primary-600">{{ t('featureExtensions.redeemOrder') }} · {{ row.order_amount }} {{ row.order_currency }}<span v-if="row.order_plan_name"> · {{ row.order_plan_name }}</span></p>
             <span class="text-sm font-medium text-gray-900 dark:text-white">
-              <template v-if="row.type === 'balance_cashback'">${{ formatCashbackAmount(value, locale) }}</template>
-              <template v-else-if="row.type === 'balance'">${{ value.toFixed(2) }}</template>
+              <template v-if="row.type === 'balance_cashback'">{{ withCreditUnit(formatCashbackAmount(value, locale)) }}</template>
+              <template v-else-if="row.type === 'balance'">{{ withCreditUnit(value.toFixed(2)) }}</template>
               <template v-else-if="row.type === 'subscription'">
                 {{ row.validity_days || 30 }} {{ t('admin.redeem.days') }}
                 <span v-if="row.group" class="ml-1 text-xs text-gray-500 dark:text-gray-400"
@@ -705,6 +705,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { formatCashbackAmount } from '@/utils/balanceCashback'
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
