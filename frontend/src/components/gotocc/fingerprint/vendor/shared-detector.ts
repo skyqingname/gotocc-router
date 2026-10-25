@@ -109,7 +109,7 @@ export function calibrateRanking(ranking:Vector,artifact:SharedDetector):Vector|
   return weights.map(value=>value/sum)
 }
 
-function rankSharedNumbers(numbers:Matrix,artifact:SharedDetector):Vector {
+export function rankSharedNumbers(numbers:Matrix,artifact:SharedDetector):Vector {
   const a=artifact.ranker,full=numbers.map(blocks)
   const ax=full.map(b=>transform(b,a.full_params))
   const lda=numbers.map(n=>{
@@ -126,9 +126,9 @@ function rankSharedNumbers(numbers:Matrix,artifact:SharedDetector):Vector {
 }
 
 /**
- * Language-model replies jump between distant values (strongly negative lag-1 autocorrelation, almost no
- * steps of 20 or less); program RNG output and sorted or shuffled lists do not. The limits are the 99.5%
- * quantiles over the reference bank's three-answer groups.
+ * Reference replies tend to have negative lag-1 autocorrelation and few steps of 20 or less.
+ * The limits come from the 99.5% quantiles over reference three-answer groups. Reject only when
+ * both signals exceed their limits: a model reply can have weak autocorrelation but few small steps.
  */
 const SEQUENCE_LIMITS={autocorrelation:-.23,small_step_share:.05}
 
@@ -140,7 +140,7 @@ function sequenceShape(numbers:Matrix) {
   })
   const autocorrelation=median(shapes.map(s=>s.autocorrelation)),small_step_share=median(shapes.map(s=>s.small_step_share))
   return {autocorrelation,small_step_share,
-    model_like:autocorrelation<=SEQUENCE_LIMITS.autocorrelation && small_step_share<=SEQUENCE_LIMITS.small_step_share}
+    model_like:autocorrelation<=SEQUENCE_LIMITS.autocorrelation || small_step_share<=SEQUENCE_LIMITS.small_step_share}
 }
 
 export function analyzeSharedOutputs(outputs:Output[],bank:Bank,artifact:SharedDetector,options:{allowPartial?:boolean}={}):Analysis {

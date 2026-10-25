@@ -80,3 +80,20 @@ An invalid supplied JWT is rejected by optional authentication middleware; it
 does not silently fall back to an anonymous request. In backend mode, the
 existing backend-mode user guard remains in effect. Global IP access control is
 applied before this route and cannot be bypassed through optional JWT handling.
+
+## Official reference refresh
+
+The models.dev snapshot is frozen during preparation, bundled, and read offline.
+The provider order in `model-plaza-catalog.json` selects Z.AI before Zhipu AI for
+shared GLM IDs, matching the existing official USD billing cards. Zhipu AI's
+converted USD prices do not replace the Z.AI native USD figures. Registered CNY
+face-value cards continue to take precedence without currency conversion.
+
+The 2026-10-25 snapshot has 298 provider entries (four added, twenty removed by
+the source, 137 modified). Retiring a source entry does not remove configured
+accounts, group membership, saved pricing, or historical usage.
+`model-pricing-defaults.json` also updates the exact backend price cards for
+`gemini-pro-latest`, Kimi K3/K3.1 Pro/Highspeed, GLM-4.5V and GLM-4.6V.
+Kimi's 5-minute and 1-hour cache write prices follow its official pricing page.
+Other changed models.dev prices remain plaza references; the snapshot does not
+change billing defaults automatically.
