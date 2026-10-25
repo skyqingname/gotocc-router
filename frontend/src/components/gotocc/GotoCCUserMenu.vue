@@ -120,6 +120,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { useResellerCustomer } from '@/composables/useResellerCustomer'
 const resellerCustomer = useResellerCustomer()
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -221,7 +222,7 @@ const themeOptions = computed<Array<{ mode: ThemeMode; icon: MenuIcon | null; la
 ])
 
 function formatMoney(value: number): string {
-  return `$${value.toFixed(2)}`
+  return withCreditUnit(value.toFixed(2))
 }
 
 function replayGuide() {

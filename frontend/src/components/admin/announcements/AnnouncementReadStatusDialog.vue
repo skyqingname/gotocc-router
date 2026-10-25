@@ -35,7 +35,7 @@
         </template>
 
         <template #cell-balance="{ value }">
-          <span class="font-medium text-gray-900 dark:text-white">${{ Number(value ?? 0).toFixed(2) }}</span>
+          <span class="font-medium text-gray-900 dark:text-white">{{ withCreditUnit(Number(value ?? 0).toFixed(2)) }}</span>
         </template>
 
         <template #cell-eligible="{ value }">
@@ -70,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'

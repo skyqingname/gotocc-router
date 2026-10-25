@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/testutil/externalredis"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
@@ -46,11 +47,13 @@ func TestAuthRegisterRateLimitThresholdHitReturns429(t *testing.T) {
 
 func startAuthRouteRedis(t *testing.T, ctx context.Context) *redis.Client {
 	t.Helper()
-	if addr := strings.TrimSpace(os.Getenv("SUB2API_TEST_REDIS_ADDR")); addr != "" {
-		rdb := redis.NewClient(&redis.Options{Addr: addr, Password: os.Getenv("SUB2API_TEST_REDIS_PASSWORD")})
-		t.Cleanup(func() { require.NoError(t, rdb.Close()) })
-		require.NoError(t, rdb.Ping(ctx).Err())
-		return rdb
+	if address := strings.TrimSpace(os.Getenv("SUB2API_TEST_REDIS_ADDR")); address != "" {
+		options, err := externalredis.Options(address, "SUB2API_TEST_REDIS_DB")
+		require.NoError(t, err)
+		client := redis.NewClient(options)
+		require.NoError(t, client.Ping(ctx).Err())
+		t.Cleanup(func() { _ = client.Close() })
+		return client
 	}
 	ensureAuthRouteDockerAvailable(t)
 

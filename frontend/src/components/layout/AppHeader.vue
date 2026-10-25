@@ -113,6 +113,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { useUserView } from '@/composables/useUserView'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -184,8 +185,8 @@ function toggleMobileSidebar() {
 }
 
 function formatHeaderMoney(value: number) {
-  if (!Number.isFinite(value)) return '$0.00'
-  return `$${value.toFixed(2)}`
+  if (!Number.isFinite(value)) return withCreditUnit('0.00')
+  return withCreditUnit(value.toFixed(2))
 }
 </script>
 

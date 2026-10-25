@@ -125,7 +125,9 @@ func (r *usageBillingRepository) applyOpenAIVideoBalance(ctx context.Context, cm
 			}
 		}
 		if cmd.AccountQuotaCost > 0 {
-			if _, err = incrementUsageBillingAccountQuota(ctx, tx, cmd.AccountID, cmd.AccountQuotaCost); err != nil {
+			// Video tasks do not snapshot daily/weekly quota hints; use the full
+			// statement so settlement follows the account's current quota settings.
+			if _, err = incrementUsageBillingAccountQuota(ctx, tx, cmd.AccountID, cmd.AccountQuotaCost, true, true); err != nil {
 				return err
 			}
 		}

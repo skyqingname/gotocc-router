@@ -23,14 +23,14 @@
             <span class="text-xs text-gray-400 ml-2">{{ t('profile.balanceNotify.thresholdHint') }}</span>
           </label>
           <div class="flex items-center gap-2">
-            <span class="text-gray-500">$</span>
+            <span class="text-gray-500">{{ creditUnit() }}</span>
             <input
               v-model.number="customThreshold"
               type="number"
               min="0"
               step="0.01"
               class="input flex-1"
-              :placeholder="systemDefaultThreshold > 0 ? `${t('profile.balanceNotify.systemDefault')} $${systemDefaultThreshold}` : t('profile.balanceNotify.thresholdPlaceholder')"
+              :placeholder="systemDefaultThreshold > 0 ? `${t('profile.balanceNotify.systemDefault')} ${withCreditUnit(systemDefaultThreshold)}` : t('profile.balanceNotify.thresholdPlaceholder')"
             />
             <button
               @click="handleThresholdUpdate"
@@ -151,6 +151,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit, creditUnit } from '@/utils/credits'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'

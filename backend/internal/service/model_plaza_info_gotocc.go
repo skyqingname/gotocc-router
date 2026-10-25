@@ -115,8 +115,8 @@ func (s *SettingService) SetModelPlazaOverrides(ctx context.Context, overrides m
 }
 
 // EnrichModels 为广场分组中的每个模型补充官方信息、后台覆盖和近 24 小时状态；
-// 官方目录有 token 单价的模型，官方参考价改用目录价（含上下文分档）；DeepSeek 目录只有低谷价，
-// 官方参考价沿用计费的官方高峰价。
+// 官方目录提供 token 参考价（含上下文分档）；根参数登记的原币种价卡与计费同源，
+// 不被目录美元价覆盖。DeepSeek 继续使用全天高峰价。
 func (s *ModelPlazaService) EnrichModels(ctx context.Context, groups []PlazaGroup, settings *SettingService) error {
 	overrides, err := settings.GetModelPlazaOverrides(ctx)
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *ModelPlazaService) EnrichModels(ctx context.Context, groups []PlazaGrou
 				}
 			}
 			model.Info = &info
-			if found && entry.Model.Cost != nil && entry.Model.Cost.Input != nil && !isDeepSeekModel(model.Name) {
+			if found && entry.Model.Cost != nil && entry.Model.Cost.Input != nil && !hasOfficialCreditPricing(model.Name) {
 				model.OfficialPricing = plazaOfficialFromCatalog(entry.Model.Cost)
 			}
 			if stat, ok := stats[key]; ok {
@@ -249,7 +249,7 @@ func plazaPurposesFromModalities(outputs []string) []string {
 	return purposes
 }
 
-// plazaOfficialFromCatalog 把目录的美元 / 百万 token 单价换成每 token 单价；有上下文分档时生成区间，
+// plazaOfficialFromCatalog 把目录官方标价数值（积分 / 百万 token）换成每 token 单价；有上下文分档时生成区间，
 // 首档为基础价，之后每档从其阈值开始。
 func plazaOfficialFromCatalog(cost *modelcatalog.Cost) *PlazaOfficialPricing {
 	official := &PlazaOfficialPricing{

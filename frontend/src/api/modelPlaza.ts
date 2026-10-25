@@ -8,7 +8,7 @@ import { apiClient } from './client'
 import type { UserPricingInterval, UserSupportedModelPricing } from './channels'
 import type { VideoCapabilities } from '@/components/admin/channel/video-models'
 
-/** 官方参考价（USD per token，与计费目录同源；字段缺失 = 目录未覆盖）。 */
+/** 官方参考价（credits per token，与计费目录同源；字段缺失 = 目录未覆盖）。 */
 export interface PlazaOfficialPricing {
   input_price: number | null
   output_price: number | null

@@ -1,3 +1,4 @@
+import { withCreditUnit } from '@/utils/credits'
 /**
  * 格式化工具函数
  * 参考 CRS 项目的 format.js 实现
@@ -52,26 +53,14 @@ export function formatNumber(num: number | null | undefined): string {
   return formatter.format(num)
 }
 
-/**
- * 格式化货币金额
- * @param amount 金额
- * @param currency 货币代码，默认 USD
- * @returns 格式化后的字符串，如 "$1.25"
- */
-export function formatCurrency(amount: number | null | undefined, currency: string = 'USD'): string {
-  if (amount === null || amount === undefined) return '$0.00'
-
-  const locale = getLocale()
-
-  // For very small amounts, show more decimals
-  const fractionDigits = amount > 0 && amount < 0.01 ? 6 : 2
-
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency,
+/** Format the site balance in credits without changing its numeric amount. */
+export function formatCurrency(amount: number | null | undefined): string {
+  const value = amount ?? 0
+  const fractionDigits = value !== 0 && Math.abs(value) < 0.01 ? 6 : 2
+  return withCreditUnit(new Intl.NumberFormat(getLocale(), {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits
-  }).format(amount)
+  }).format(value))
 }
 
 /**

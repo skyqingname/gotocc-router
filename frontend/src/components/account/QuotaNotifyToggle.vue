@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { creditUnit } from '@/utils/credits'
 import Toggle from '@/components/common/Toggle.vue'
 import { QUOTA_THRESHOLD_TYPE_FIXED, QUOTA_THRESHOLD_TYPE_PERCENTAGE, type QuotaThresholdType } from '@/constants/account'
 
@@ -36,7 +37,7 @@ const emit = defineEmits<{
         @change="emit('update:thresholdType', ($event.target as HTMLSelectElement).value as QuotaThresholdType)"
         class="input py-1 text-xs w-[4.5rem] flex-shrink-0 text-center"
       >
-        <option :value="QUOTA_THRESHOLD_TYPE_FIXED">$</option>
+        <option :value="QUOTA_THRESHOLD_TYPE_FIXED">{{ creditUnit() }}</option>
         <option :value="QUOTA_THRESHOLD_TYPE_PERCENTAGE">%</option>
       </select>
     </template>

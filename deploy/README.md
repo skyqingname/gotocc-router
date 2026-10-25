@@ -629,13 +629,13 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 For a downloaded `install.sh`, invoke one operation at a time. For example:
 
 ```bash
-sudo ./install.sh install --version 'v0.2.17+custom.001'
+sudo ./install.sh install --version 'v0.2.18+custom.001'
 ```
 
 Roll back a downloaded-script installation one operation at a time:
 
 ```bash
-sudo ./install.sh rollback 'v0.2.15+custom.003'
+sudo ./install.sh rollback 'v0.2.17+custom.001'
 ```
 
 Or uninstall while preserving `/etc/sub2api`:

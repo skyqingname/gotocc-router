@@ -752,6 +752,7 @@
 </template>
 
 <script setup lang="ts">
+import { withCreditUnit } from '@/utils/credits'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -2394,8 +2395,8 @@ function friendlyItemError(error: BatchImageItem['error']) {
 }
 
 function formatMoney(value: number | null | undefined) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return '$0.00'
-  return `$${Number(value).toFixed(2)}`
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return withCreditUnit('0.00')
+  return withCreditUnit(Number(value).toFixed(2))
 }
 
 function terminalZeroCost(job: Pick<BatchImageJob, 'status' | 'actual_cost'>) {

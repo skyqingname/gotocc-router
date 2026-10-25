@@ -2078,9 +2078,9 @@
           @update:quotaNotifyTotalThresholdType="quotaNotifyState.total.thresholdType = $event"
         />
       </div>
-      <!-- 配额控制 (非 Anthropic apikey/bedrock) -->
+      <!-- 配额控制 (非 Anthropic apikey/bedrock，以及 Vertex service_account) -->
       <div
-        v-else-if="account?.type === 'apikey' || account?.type === 'bedrock'"
+        v-else-if="supportsAccountQuota(account?.type)"
         class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4"
       >
         <div class="mb-3">
@@ -2441,13 +2441,13 @@
             <div>
               <label class="input-label">{{ t('admin.accounts.quotaControl.windowCost.limit') }}</label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">{{ creditUnit() }}</span>
                 <input
                   v-model.number="windowCostLimit"
                   type="number"
                   min="0"
                   step="1"
-                  class="input pl-7"
+                  class="input pr-20"
                   :placeholder="t('admin.accounts.quotaControl.windowCost.limitPlaceholder')"
                 />
               </div>
@@ -2456,13 +2456,13 @@
             <div>
               <label class="input-label">{{ t('admin.accounts.quotaControl.windowCost.stickyReserve') }}</label>
               <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">$</span>
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">{{ creditUnit() }}</span>
                 <input
                   v-model.number="windowCostStickyReserve"
                   type="number"
                   min="0"
                   step="1"
-                  class="input pl-7"
+                  class="input pr-20"
                   :placeholder="t('admin.accounts.quotaControl.windowCost.stickyReservePlaceholder')"
                 />
               </div>
@@ -2835,6 +2835,7 @@
 </template>
 
 <script setup lang="ts">
+import { creditUnit } from '@/utils/credits'
 import CNOAuthPanel from './CNOAuthPanel.vue'
 import { isCNOAuthPlatform } from '@/api/admin/cnOAuth'
 import OutboundIdentityEditor from './OutboundIdentityEditor.vue'
@@ -2927,6 +2928,7 @@ import {
   parseDateTimeLocalInput
 } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import { supportsAccountQuota } from '@/utils/accountQuota'
 import { getAccountExpiryTimestamp } from '@/components/account/accountExpiry'
 import { allSelectedGroupsEnableLongContextPricing } from '@/components/account/longContextBilling'
 import { VERTEX_LOCATION_OPTIONS } from '@/constants/account'
@@ -3978,8 +3980,8 @@ const syncFormFromAccount = (newAccount: Account | null) => {
     }
   }
 
-  // Load quota limit for apikey/bedrock accounts (bedrock quota is also loaded in its own branch above)
-  if (newAccount.type === 'apikey' || newAccount.type === 'bedrock') {
+  // Load quota limit for apikey/bedrock/service_account accounts (bedrock quota is also loaded in its own branch above)
+  if (supportsAccountQuota(newAccount.type)) {
     const quotaVal = extra?.quota_limit as number | undefined
     editQuotaLimit.value = (quotaVal && quotaVal > 0) ? quotaVal : null
     const dailyVal = extra?.quota_daily_limit as number | undefined
@@ -5572,8 +5574,8 @@ const handleSubmit = async () => {
       updatePayload.extra = newExtra
     }
 
-    // For apikey/bedrock accounts, handle quota_limit in extra
-    if (props.account.type === 'apikey' || props.account.type === 'bedrock') {
+    // For apikey/bedrock/service_account accounts, handle quota_limit in extra
+    if (supportsAccountQuota(props.account.type)) {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }

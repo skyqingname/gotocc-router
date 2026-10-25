@@ -68,6 +68,11 @@ a redemption limit like promo codes. Existing codes keep `max_uses = 1` and the
 original single-use `used_by` record; shared codes (`max_uses` 0 for unlimited or
 greater than 1) record each user once in `redeem_code_usages`.
 
+Migration `312_enable_gemini_image_generation_groups.sql` enables image
+permissions for existing Gemini and Antigravity groups. Composite and other
+platforms retain their saved value. Official migration 246 uses a prefix
+already occupied by Plus, so only this new migration is imported as 295.
+
 ## File Naming
 
 Regular migration:
@@ -220,3 +225,6 @@ Migration 280 removes `grok_client_tool_cache_enabled` only from Grok account
 extra objects. Credentials, unrelated extras, foreign-platform rows and
 non-object historical values are preserved. The retired switch no longer grants
 hosted search tools or changes cache routing. See [Grok](../../docs/providers/GROK.md#cache-and-tool-declarations).
+
+Migration 295 leaves prefixes 290–294 available for existing independently
+deployed Plus work, avoiding reuse of already applied migration numbers.
