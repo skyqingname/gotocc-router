@@ -2,12 +2,12 @@
 
 ## GoToCC billing credits
 
-Site balances, quotas, price cards and usage costs are denominated in **credits**
-(`积分`). The numeric official price is preserved: USD 5 becomes 5 credits and
-CNY 2 becomes 2 credits. No USD/CNY conversion is applied. Per-token prices are
+Site balances, quotas, price cards and usage costs display the **$** accounting
+symbol. The numeric official price is preserved: USD 5 becomes $5 and CNY 2
+becomes $2. The symbol denotes the site balance unit, not an exchange to USD. No USD/CNY conversion is applied. Per-token prices are
 still scaled by 1,000,000 for the per-million display.
 
-[`billing-credits.json`](../billing-credits.json) owns the unit and maintained
+[`billing-credits.json`](../billing-credits.json) owns the internal unit, `display_symbol`, and maintained
 CNY face-value cards. `python3 tools/generate_billing_credits.py` regenerates the
 Go defaults and distributed pricing catalog. DeepSeek uses all-day peak prices:
 2 input / 8 output / 0.04 cached input credits per million tokens. Its existing
@@ -22,7 +22,10 @@ the models.dev snapshot cannot overwrite them with converted or off-peak prices.
 Saved group/channel prices and effective multipliers retain precedence. Existing
 balances, quota counters, historical usage and frozen task prices are not scaled
 or rewritten. The legacy `*_usd` JSON/database field names remain unchanged,
-but site amounts in them are credits. `/v1/usage` returns `unit: "credits"`.
+but site amounts keep their existing numeric values. `/v1/usage` returns
+`unit: "$"` for client display. Internal catalog `billing_unit: "credits"` remains
+a machine identifier. Shared UI formatters and default notifications read the
+symbol from the root parameter; payment receipts keep their actual currency.
 
 Payment-provider charges and upstream-provider balance snapshots retain their
 real currency. New recharge principal is 1:1 (USD 1 or CNY 1 adds 1 credit), and

@@ -398,7 +398,7 @@ func (s *BalanceNotifyService) sendQuotaAlertEmails(adminEmails []string, accoun
 	}
 
 	// Format the remaining-based threshold for display
-	thresholdDisplay := fmt.Sprintf("%.2f 积分", dim.threshold)
+	thresholdDisplay := fmt.Sprintf(BillingCreditSymbol+"%.2f", dim.threshold)
 	if dim.thresholdType == thresholdTypePercentage {
 		thresholdDisplay = fmt.Sprintf("%.0f%%", dim.threshold)
 	}
@@ -480,10 +480,10 @@ const balanceLowEmailTemplate = `<!DOCTYPE html>
         <div class="content">
             <p style="font-size: 18px; color: #333;">%s，您的余额不足</p>
             <p style="color: #666;">Dear %s, your balance is running low</p>
-            <div class="balance">%.2f 积分</div>
+            <div class="balance">` + BillingCreditSymbol + `%.2f</div>
             <div class="info">
-                <p>您的账户余额已低于提醒阈值 <strong>%.2f 积分</strong>。</p>
-                <p>Your account balance has fallen below the alert threshold of <strong>%.2f 积分</strong>.</p>
+                <p>您的账户余额已低于提醒阈值 <strong>` + BillingCreditSymbol + `%.2f</strong>。</p>
+                <p>Your account balance has fallen below the alert threshold of <strong>` + BillingCreditSymbol + `%.2f</strong>.</p>
                 <p>请及时充值以免服务中断。</p>
                 <p>Please top up to avoid service interruption.</p>
             </div>
@@ -522,9 +522,9 @@ const quotaAlertEmailTemplate = `<!DOCTYPE html>
             <div class="metric"><span class="metric-label">账号 / Account</span><span class="metric-value">%s</span></div>
             <div class="metric"><span class="metric-label">平台 / Platform</span><span class="metric-value">%s</span></div>
             <div class="metric"><span class="metric-label">维度 / Dimension</span><span class="metric-value">%s</span></div>
-            <div class="metric"><span class="metric-label">已使用 / Used</span><span class="metric-value">%.2f 积分</span></div>
+            <div class="metric"><span class="metric-label">已使用 / Used</span><span class="metric-value">` + BillingCreditSymbol + `%.2f</span></div>
             <div class="metric"><span class="metric-label">限额 / Limit</span><span class="metric-value">%s</span></div>
-            <div class="metric"><span class="metric-label">剩余额度 / Remaining</span><span class="metric-value">%.2f 积分</span></div>
+            <div class="metric"><span class="metric-label">剩余额度 / Remaining</span><span class="metric-value">` + BillingCreditSymbol + `%.2f</span></div>
             <div class="metric"><span class="metric-label">提醒阈值 / Alert Threshold</span><span class="metric-value">%s</span></div>
             <div class="info">
                 <p>账号剩余额度已低于提醒阈值，请及时关注。</p>
@@ -547,7 +547,7 @@ func (s *BalanceNotifyService) buildBalanceLowEmailBody(userName string, balance
 
 // buildQuotaAlertEmailBody builds HTML email for account quota alert.
 func (s *BalanceNotifyService) buildQuotaAlertEmailBody(accountID int64, accountName, platform, dimLabel string, used, limit, remaining float64, thresholdDisplay, siteName string) string {
-	limitStr := fmt.Sprintf("%.2f 积分", limit)
+	limitStr := fmt.Sprintf(BillingCreditSymbol+"%.2f", limit)
 	if limit <= 0 {
 		limitStr = "无限制 / Unlimited"
 	}

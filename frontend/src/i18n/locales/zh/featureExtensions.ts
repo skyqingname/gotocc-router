@@ -20,7 +20,7 @@ export default {
     "noOrder": "不生成订单（默认）",
     "withOrder": "生成订单",
     "orderCurrency": "订单币种",
-    "noExchange": "币种仅用于订单记录，不计算汇率。面值 100 始终到账 100 积分。",
+    "noExchange": "币种仅用于订单记录，不计算汇率。面值 100 始终到账 $100。",
     "orderPlan": "订阅套餐",
     "selectPlan": "请选择订阅套餐",
     "planSnapshot": "生成时冻结 {name} 的售价 {price} {currency}、分组和有效期。",

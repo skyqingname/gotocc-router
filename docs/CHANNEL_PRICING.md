@@ -5,7 +5,7 @@ prices, how they are matched, and what to do when a price is missing. It is the
 durable specification for the admin API contract; code changes that alter this
 behavior must update this file in the same commit.
 
-All site reference and selling prices are credits. Official USD/CNY prices use
+All site reference and selling prices display the $ accounting symbol. Official USD/CNY prices use
 their published numeric value without FX; see [credit pricing](MODEL_PLAZA.md#gotocc-billing-credits).
 
 ## 1. Design principles
@@ -205,7 +205,7 @@ platform returns `400`. A missing price is **not** an error:
 }
 ```
 
-All prices are USD per token, matching the backend storage unit. The frontend
+All prices retain the official numeric value per token, displayed with $; no currency conversion applies. The frontend
 converts them to USD per million tokens for display and back on submit.
 
 ### 5.2 Refresh and sync

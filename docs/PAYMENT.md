@@ -1,5 +1,11 @@
 # Payment System Configuration Guide
 
+## Site accounting symbol
+
+Balances and site prices display `$` (for example `$10.00`). A CNY 1 or USD 1
+recharge principal adds $1 with no FX. This display symbol does not change the
+real payment currency, fees, bonuses, refunds or historical order snapshots.
+
 ## Credits and payment face values
 
 New recharge principal is credited 1:1: CNY 1 or USD 1 adds 1 site credit. A

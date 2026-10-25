@@ -63,9 +63,9 @@ export interface TimePricingFormEntry {
 
 export const DEFAULT_TIME_PRICING_TIMEZONE = 'Asia/Shanghai'
 
-const CLOCK_TIME = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dcredits/
-const LEGACY_CLOCK_TIME = /^(?:[01]\d|2[0-3]):[0-5]\dcredits/
-const TWO_DECIMAL_MULTIPLIER = /^\d+(?:\.\d{1,2})?credits/
+const CLOCK_TIME = /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/
+const LEGACY_CLOCK_TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+const TWO_DECIMAL_MULTIPLIER = /^\d+(?:\.\d{1,2})?$/
 
 export function isValidTimePricingMultiplier(value: number | string): boolean {
   const multiplier = String(value)
@@ -171,7 +171,7 @@ export function formatTimezoneOffset(timezone: string, at = new Date()): string 
       timeZoneName: 'shortOffset',
     }).formatToParts(at).find(item => item.type === 'timeZoneName')?.value
     if (!part || part === 'GMT') return 'UTC+00:00'
-    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?credits/.exec(part)
+    const match = /^GMT([+-])(\d{1,2})(?::(\d{2}))?$/.exec(part)
     if (!match) return ''
     return `UTC${match[1]}${match[2].padStart(2, '0')}:${match[3] || '00'}`
   } catch {
@@ -179,7 +179,7 @@ export function formatTimezoneOffset(timezone: string, at = new Date()): string 
   }
 }
 
-// 价格转换：后端存 per-token，前端显示 per-MTok (credits/1M tokens)
+// 价格转换：后端存 per-token，前端显示 per-MTok ($/1M tokens)
 const MTOK = 1_000_000
 
 export function toNullableNumber(val: number | string | null | undefined): number | null {
@@ -218,13 +218,13 @@ export function validateReasoningEffortMultipliers(
   return null
 }
 
-/** 前端显示值(credits/MTok) → 后端存储值(per-token) */
+/** 前端显示值($/MTok) → 后端存储值(per-token) */
 export function mTokToPerToken(val: number | string | null | undefined): number | null {
   const num = toNullableNumber(val)
   return num === null ? null : parseFloat((num / MTOK).toPrecision(10))
 }
 
-/** 后端存储值(per-token) → 前端显示值(credits/MTok) */
+/** 后端存储值(per-token) → 前端显示值($/MTok) */
 export function perTokenToMTok(val: number | null | undefined): number | null {
   if (val === null || val === undefined) return null
   // toPrecision(10) 消除 IEEE 754 浮点乘法精度误差，如 5e-8 * 1e6 = 0.04999...96 → 0.05
@@ -239,7 +239,7 @@ export interface PricedModelRule {
   reference: ModelPricingReference
 }
 
-/** per-token → credits/MTok；null 保持 null（缺字段不是免费）。 */
+/** per-token → $/MTok；null 保持 null（缺字段不是免费）。 */
 function toMTokOrNull(value: number | null | undefined): number | null {
   return value === null || value === undefined ? null : perTokenToMTok(value)
 }

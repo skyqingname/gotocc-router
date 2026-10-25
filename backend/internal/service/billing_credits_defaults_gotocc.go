@@ -3,6 +3,7 @@ package service
 
 const (
 	BillingCreditUnit        = "credits"
+	BillingCreditSymbol      = "$"
 	deepseekFlashInputPrice  = 0.000002
 	deepseekFlashOutputPrice = 0.000008
 	deepseekFlashCacheRead   = 4e-8

@@ -74,5 +74,7 @@
     "subscription_price": "face_value",
     "existing_orders": "preserve_frozen_amounts",
     "promotions_and_fees": "separate_from_principal"
-  }
+  },
+  "display_symbol": "$",
+  "display_policy": "Use $ as the site accounting symbol. USD 1 and CNY 1 each credit $1; do not apply FX."
 }

@@ -50,7 +50,7 @@ export default {
       tokens: 'Token',
       cache: '缓存',
       recentUsage: '最近使用',
-      actualSpending: '实际消费 (积分)',
+      actualSpending: '实际消费 ($)',
       viewModelDistribution: '模型分布',
       viewSpendingRanking: '用户消费榜',
       spendingRankingTitle: '用户消费榜',
@@ -478,7 +478,7 @@ export default {
         sources: { admin_recharge: '管理员充值', redeem_code: '兑换码充值', legacy: '历史返佣', payment: '在线充值' },
         rebateLevel: "返佣代次",
         rebateRate: "返佣比例",
-        rebateBase: "返佣本金 (积分)",
+        rebateBase: "返佣本金 ($)",
         generation: "第 {level} 代",
         search: '搜索',
         searchPlaceholder: '邮箱、用户名、用户 ID、订单号',
@@ -854,9 +854,9 @@ export default {
         subtitle: '为用户 {email} 配置各上游平台的日 / 周 / 月用量上限',
         columns: {
           platform: '平台',
-          daily: '日 (积分)',
-          weekly: '周 (积分)',
-          monthly: '月 (积分, 30天滚动)',
+          daily: '日 ($)',
+          weekly: '周 ($)',
+          monthly: '月 ($, 30天滚动)',
           usage: '当前用量',
         },
         placeholder: '不限制',
@@ -1110,10 +1110,10 @@ export default {
         typeNotEditable: '分组创建后无法修改计费类型。',
         standard: '标准（余额）',
         subscription: '订阅（配额）',
-        dailyLimit: '每日限额（积分）',
-        weeklyLimit: '每周限额（积分）',
-        monthlyLimit: '每月限额（积分）',
-        fiveHourLimit: '5小时限额（积分）',
+        dailyLimit: '每日限额（$）',
+        weeklyLimit: '每周限额（$）',
+        monthlyLimit: '每月限额（$）',
+        fiveHourLimit: '5小时限额（$）',
         defaultValidityDays: '默认有效期（天）',
         validityHint: '分配给用户时订阅的有效天数',
         noLimit: '无限制',
@@ -1156,7 +1156,7 @@ export default {
       videoPricing: {
         title: '视频生成计费',
         description:
-          '配置 Grok 视频生成的每秒单价（积分/秒），留空则使用默认每秒价（grok-imagine-video：480p 0.05 积分/s、720p 0.07 积分/s；video-1.5：480p 0.08 积分/s、720p 0.14 积分/s、1080p 0.25 积分/s）',
+          '配置 Grok 视频生成的每秒单价（$/秒），留空则使用默认每秒价（grok-imagine-video：480p $0.05/s、720p $0.07/s；video-1.5：480p $0.08/s、720p $0.14/s、1080p $0.25/s）',
         modelOverridesTitle: '按模型覆盖视频价格',
         modelOverridesDescription: '已填写的单元格会覆盖该模型族的平面分辨率价格。video-1.5 的 preview 与 legacy 别名共用同一模型族；留空则回退到平面分辨率价格。',
         independentMultiplier: '视频倍率独立',
@@ -1168,8 +1168,8 @@ export default {
       },
       explicitPricing: {
         title: 'Grok 搜索与 Voice 定价',
-        description: '分组级 web_search（每千次）与 Voice realtime / TTS / STT 单价（积分）。留空表示未配置。',
-        searchPricePer1k: '搜索每千次价格（积分）',
+        description: '分组级 web_search（每千次）与 Voice realtime / TTS / STT 单价（$）。留空表示未配置。',
+        searchPricePer1k: '搜索每千次价格（$）',
         pricePlaceholder: '可选'
       },
       modelPricing: {
@@ -1181,17 +1181,17 @@ export default {
       },
       voicePricing: {
         title: 'Grok Voice 定价',
-        description: '分组级 Voice realtime / TTS / STT 单价（积分）。留空表示未配置。',
-        audioRealtimePerMin: 'Realtime 每分钟价格（积分）',
-        audioTtsPerMillionChars: 'TTS 每百万字符价格（积分）',
-        audioSttPerHour: 'STT 每小时价格（积分）',
+        description: '分组级 Voice realtime / TTS / STT 单价（$）。留空表示未配置。',
+        audioRealtimePerMin: 'Realtime 每分钟价格（$）',
+        audioTtsPerMillionChars: 'TTS 每百万字符价格（$）',
+        audioSttPerHour: 'STT 每小时价格（$）',
         pricePlaceholder: '可选'
       },
       webSearchPricing: {
         title: 'Codex 网页搜索计费',
-        pricePerCall: '搜索单次价格（积分/次）',
+        pricePerCall: '搜索单次价格（$/次）',
         pricePerCallHint:
-          '留空使用默认价 0.01 积分/次（官方定价 10 积分/1000 次）；填 0 表示免费。实际扣费会叠加分组费率倍数。',
+          '留空使用默认价 $0.01/次（官方定价 $10/1000 次）；填 0 表示免费。实际扣费会叠加分组费率倍数。',
         finalPricePreview: '应用当前倍率后的单次价格：{price}'
       },
       peakRate: {

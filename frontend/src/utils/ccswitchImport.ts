@@ -1,5 +1,6 @@
 import type { GroupPlatform } from '@/types'
 import clientAccessDefaults from '../../../client-access-defaults.json'
+import { creditUnit } from '@/utils/credits'
 
 export const OPENAI_CC_SWITCH_CODEX_MODEL = clientAccessDefaults.openai_model
 export const OPENAI_CODEX_DEFAULT_CLIENT_TAB = clientAccessDefaults.openai_codex_client_tab
@@ -38,7 +39,7 @@ export const CC_SWITCH_USAGE_SCRIPT = `({
     },
     extractor: function(response) {
       const remaining = response?.remaining ?? response?.quota?.remaining ?? response?.balance;
-      const unit = response?.unit ?? response?.quota?.unit ?? "credits";
+      const unit = response?.unit ?? response?.quota?.unit ?? ${JSON.stringify(creditUnit())};
       return {
         isValid: response?.is_active ?? response?.isValid ?? true,
         remaining,

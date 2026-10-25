@@ -20,7 +20,7 @@ export default {
     "noOrder": "No order (default)",
     "withOrder": "Create an order",
     "orderCurrency": "Order currency",
-    "noExchange": "Currency applies to the order record only. A face value of 100 always credits 100 credits without currency conversion.",
+    "noExchange": "Currency applies to the order record only. A face value of 100 always adds $100 without currency conversion.",
     "orderPlan": "Subscription plan",
     "selectPlan": "Select a subscription plan",
     "planSnapshot": "The price of {name} ({price} {currency}), group and duration are frozen when codes are generated.",
