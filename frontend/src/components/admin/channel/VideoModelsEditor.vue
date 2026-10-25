@@ -113,7 +113,7 @@
         <fieldset class="space-y-3 rounded-lg bg-primary-50/50 p-4 dark:bg-primary-950/20">
           <legend class="sr-only">{{ tr('价格', 'Price') }}</legend>
           <div class="flex flex-wrap items-center gap-3 text-sm">
-            <span class="font-medium">{{ tr('价格（积分）', 'Price (credits)') }}</span>
+            <span class="font-medium">{{ tr('价格', 'Price') }} ({{ creditUnit() }})</span>
             <label class="flex items-center gap-1"><input type="radio" :checked="priceMode(name) === 'video'" @change="setMode(name, 'video')" />{{ tr('按秒', 'Per second') }}</label>
             <label class="flex items-center gap-1"><input type="radio" :checked="priceMode(name) === 'per_request'" @change="setMode(name, 'per_request')" />{{ tr('按次', 'Per request') }}</label>
           </div>
@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { withCreditUnit } from '@/utils/credits'
+import { withCreditUnit, creditUnit } from '@/utils/credits'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'

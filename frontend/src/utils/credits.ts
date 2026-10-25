@@ -1,6 +1,6 @@
-import { i18n } from '@/i18n'
+import billingCredits from '../../../billing-credits.json'
 
-export const creditUnit = (): string => i18n.global.t('common.creditUnit')
+export const creditUnit = (): string => billingCredits.display_symbol
 
-// Keep the caller's precision; changing the unit never changes the amount.
-export const withCreditUnit = (amount: string | number): string => `${amount} ${creditUnit()}`
+// Keep the caller's precision; changing the symbol never changes the amount.
+export const withCreditUnit = (amount: string | number): string => `${creditUnit()}${amount}`

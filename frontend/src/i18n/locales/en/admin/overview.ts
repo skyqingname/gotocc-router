@@ -50,7 +50,7 @@ export default {
       accountCost: 'Cost',
       noDataAvailable: 'No data available',
       recentUsage: 'Recent Usage',
-      actualSpending: 'Actual spending (credits)',
+      actualSpending: 'Actual spending ($)',
       viewModelDistribution: 'Model Distribution',
       viewSpendingRanking: 'User Spending Ranking',
       spendingRankingTitle: 'User Spending Ranking',
@@ -478,7 +478,7 @@ export default {
         sources: { admin_recharge: 'Admin deposit', redeem_code: 'Redeem code recharge', legacy: 'Legacy commission', payment: 'Online recharge' },
         rebateLevel: "Generation",
         rebateRate: "Commission rate",
-        rebateBase: "Commission principal (credits)",
+        rebateBase: "Commission principal ($)",
         generation: "Generation {level}",
         search: 'Search',
         searchPlaceholder: 'Email, username, user ID, or order number',
@@ -854,12 +854,12 @@ export default {
       platformQuota: {
         menuItem: 'Platform Quotas',
         title: 'Platform Quotas',
-        subtitle: 'Configure daily / weekly / monthly credits usage limits for each upstream platform for user {email}',
+        subtitle: 'Configure daily / weekly / monthly spending limits for each upstream platform for user {email}',
         columns: {
           platform: 'Platform',
-          daily: 'Daily (credits)',
-          weekly: 'Weekly (credits)',
-          monthly: 'Monthly (credits, 30-day rolling)',
+          daily: 'Daily ($)',
+          weekly: 'Weekly ($)',
+          monthly: 'Monthly ($, 30-day rolling)',
           usage: 'Current Usage',
         },
         placeholder: 'unlimited',
@@ -1113,10 +1113,10 @@ export default {
         typeNotEditable: 'Billing type cannot be changed after group creation.',
         standard: 'Standard (Balance)',
         subscription: 'Subscription (Quota)',
-        dailyLimit: 'Daily Limit (credits)',
-        weeklyLimit: 'Weekly Limit (credits)',
-        monthlyLimit: 'Monthly Limit (credits)',
-        fiveHourLimit: '5-Hour Limit (credits)',
+        dailyLimit: 'Daily Limit ($)',
+        weeklyLimit: 'Weekly Limit ($)',
+        monthlyLimit: 'Monthly Limit ($)',
+        fiveHourLimit: '5-Hour Limit ($)',
         defaultValidityDays: 'Default Validity (Days)',
         validityHint: 'Number of days the subscription is valid when assigned to a user',
         noLimit: 'No limit',
@@ -1159,7 +1159,7 @@ export default {
       videoPricing: {
         title: 'Video Generation Pricing',
         description:
-          'Configure Grok video generation prices in credits per second of output video. Leave empty to use the default per-second rates (grok-imagine-video: 0.05 credits/s 480p, 0.07 credits/s 720p; video-1.5: 0.08 credits/s 480p, 0.14 credits/s 720p, 0.25 credits/s 1080p).',
+          'Configure Grok video generation prices in $ per second of output video. Leave empty to use the default per-second rates (grok-imagine-video: $0.05/s 480p, $0.07/s 720p; video-1.5: $0.08/s 480p, $0.14/s 720p, $0.25/s 1080p).',
         modelOverridesTitle: 'Per-model video price overrides',
         modelOverridesDescription: 'Each populated cell overrides the flat resolution price for that model family. Preview and legacy aliases for video-1.5 use the same family; empty cells fall back to the flat resolution price.',
         independentMultiplier: 'Use independent video multiplier',
@@ -1171,8 +1171,8 @@ export default {
       },
       explicitPricing: {
         title: 'Grok Search & Voice Pricing',
-        description: 'Optional per-group prices for web_search (per 1k calls) and Voice realtime / TTS / STT (credits). Leave empty if unused.',
-        searchPricePer1k: 'Search price per 1k calls (credits)',
+        description: 'Optional per-group prices for web_search (per 1k calls) and Voice realtime / TTS / STT ($). Leave empty if unused.',
+        searchPricePer1k: 'Search price per 1k calls ($)',
         pricePlaceholder: 'optional'
       },
       modelPricing: {
@@ -1184,17 +1184,17 @@ export default {
       },
       voicePricing: {
         title: 'Grok Voice Pricing',
-        description: 'Optional per-group prices for Voice realtime / TTS / STT (credits). Leave empty to leave unpriced.',
-        audioRealtimePerMin: 'Realtime price per minute (credits)',
-        audioTtsPerMillionChars: 'TTS price per million chars (credits)',
-        audioSttPerHour: 'STT price per hour (credits)',
+        description: 'Optional per-group prices for Voice realtime / TTS / STT ($). Leave empty to leave unpriced.',
+        audioRealtimePerMin: 'Realtime price per minute ($)',
+        audioTtsPerMillionChars: 'TTS price per million chars ($)',
+        audioSttPerHour: 'STT price per hour ($)',
         pricePlaceholder: 'optional'
       },
       webSearchPricing: {
         title: 'Codex Web Search Pricing',
-        pricePerCall: 'Price per search call (credits)',
+        pricePerCall: 'Price per search call ($)',
         pricePerCallHint:
-          'Leave empty to use the default 0.01 credits per call (official pricing: 10 credits per 1,000 calls); 0 means free. The group rate multiplier is applied on top.',
+          'Leave empty to use the default $0.01 per call (official pricing: $10 per 1,000 calls); 0 means free. The group rate multiplier is applied on top.',
         finalPricePreview: 'Per-call price after current multiplier: {price}'
       },
       peakRate: {

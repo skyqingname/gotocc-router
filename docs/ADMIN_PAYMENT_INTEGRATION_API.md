@@ -175,7 +175,7 @@ Optional redemption-order fields:
 | Field | Behavior |
 | --- | --- |
 | `generate_order` | Defaults to `false`; only `balance` and `subscription` accept `true`. |
-| `order_currency` | Balance orders: `CNY` (default) or `USD`. A face value of 100 adds 100 credits and records 100 in the selected order currency; no exchange rate, fee or recharge promotion applies. |
+| `order_currency` | Balance orders: `CNY` (default) or `USD`. A face value of 100 adds $100 to the site balance and records 100 in the selected order currency; no exchange rate, fee or recharge promotion applies. |
 | `order_plan_id` | Required for subscription orders. The server freezes the existing plan's selling `price`, currency, ID/name, entitlement group and duration when creating the code. Off-sale plans are allowed. |
 
 For a subscription with `generate_order=true`, omit `value`, `group_id` and
