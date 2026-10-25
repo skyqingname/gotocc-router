@@ -41,6 +41,13 @@ and structured logs, but are not presented as review outcomes on the page.
 Recording scope, sampling, extraction, thresholds, blocking and penalties are
 unchanged. The record list does not claim to cover every gateway request.
 
+Saved upstream `cyber_policy` events confirm a hit without moderation category
+scores. The log API can return `null` for `category_scores` and
+`threshold_snapshot`; the frontend types preserve this contract. A confirmed
+hit remains reviewed, while null or empty category scores display "Not scored"
+in both the record list and input details. The stored highest-score marker is
+not presented as a category probability when no category scores exist.
+
 The automatic hosted `image_generation` bridge is limited to OpenAI platform
 accounts. Native Responses suppliers do not receive this OpenAI-only injected
 tool. This decision is made after ingress audit and account selection and does

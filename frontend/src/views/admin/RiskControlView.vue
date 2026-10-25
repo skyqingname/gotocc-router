@@ -2642,11 +2642,15 @@ function resultLabel(row: ContentModerationLog): string {
 }
 
 function hasReviewResult(row: ContentModerationLog): boolean {
-  return Object.keys(row.category_scores).length > 0 || row.flagged || (row.action !== 'error' && !row.error)
+  return hasReviewScores(row) || row.flagged || (row.action !== 'error' && !row.error)
+}
+
+function hasReviewScores(row: ContentModerationLog): boolean {
+  return row.category_scores !== null && Object.keys(row.category_scores).length > 0
 }
 
 function reviewScoreText(row: ContentModerationLog): string {
-  return hasReviewResult(row) && Object.keys(row.category_scores).length > 0
+  return hasReviewScores(row)
     ? percent(row.highest_score)
     : t('admin.riskControl.notScored')
 }
