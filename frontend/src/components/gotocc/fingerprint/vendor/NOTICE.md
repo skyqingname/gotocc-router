@@ -2,7 +2,7 @@
 
 Source: https://github.com/Ikaleio/lm-detector
 
-Revision: 5b676af7af393a180390925c2b2d61c6746d50e8
+Revision: 4dcb4216151cbd5066d515297720130a9fd3b198
 
 MIT license, copyright (c) 2026 xqy2006. The full license is in the product root
 `LICENSE.lm-detector`, included in release assets by the existing LICENSE pattern.
@@ -16,3 +16,8 @@ Source modules also carry the full MIT notice as preserved browser-bundle commen
 
 The trained numerical constants are part of the frozen reference protocol, not
 site settings. Site execution parameters come from `model-fingerprint.json`.
+
+The 2026-10-25 bank contains 63 identities, adding Kimi K3.1 Pro, Gemini 3.5
+Flash Lite and MiniMax M3.1 Flash. The paired sequence-shape rule rejects a
+reply only when both signals exceed their upstream limits. No SDK, automatic
+sampling or tokenizer probe is enabled by this reference refresh.
