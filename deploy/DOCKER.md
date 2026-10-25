@@ -93,7 +93,7 @@ application container after changing these values.
 ## Tags
 
 - `latest` - Latest stable release
-- `vX.Y.Z-custom.NNN` - Immutable fork release, for example `v0.2.17-custom.001`
+- `vX.Y.Z-custom.NNN` - Immutable fork release, for example `v0.2.18-custom.001`
 - `x.y` - Latest patch of minor version
 - `x` - Latest minor of major version
 

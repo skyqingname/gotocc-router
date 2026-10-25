@@ -6,10 +6,9 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current tree integrates official `v0.2.17` through Plus
-`v0.2.17+custom.001`: official annotated tag object
-`6d6c4e701a463dcf83c261e8428e93423d6c0b3e`, peeled commit
-`060d0160417782cd962a0c7f460f6cd4565d4916`. Plus behavior governs conflict
+The current tree integrates official `v0.2.18`: annotated tag object
+`de86961b627e48db75d61fff8c05535d44a00cbe`, peeled commit
+`ac1b8f1271be0d674fa6f074403c1410f30a3a81`. Plus behavior governs conflict
 resolution; importing source does not itself publish a Plus release.
 
 Preserve intentional Plus behavior during every import. Current contracts live
@@ -20,16 +19,29 @@ in [outbound identity](docs/OUTBOUND_IDENTITY.md),
 [upgrade prerequisites](backend/migrations/README.md#upgrade-prerequisites).
 Completed integration narratives remain in Git history.
 
-## GoToCC candidate
+The v0.2.18 integration preserves Plus Codex account/global/default identity
+priority and complete configured client fingerprints. Official TUI-to-CLI
+normalization does not override accepted Plus identities. Anthropic/Gemini
+stream cancellation and upstream-error handling retain Plus partial usage,
+completion diagnostics, timing, audit ordering, channel pricing and billing
+idempotency. Vertex account quotas and Gemini image permissions use the same
+Plus security boundaries. Official migration 246 is imported as Plus 295 (GoToCC 312);
+historical migrations remain unchanged. GoToCC retains its owned build workflow,
+vendored SheetJS dependency and upstream dependency floors.
 
-The owned candidate is `0.2.17+custom.003`, based on published GoToCC
-`0.2.17+custom.002` and Plus `v0.2.17+custom.001`
-(`8df03635ac4b9e15e746f9d6b0e7456734b06e1c`). It integrates PRs #37, #38
-and #39, review corrections, and the risk-control status change accepted on
-2026-10-20. Both Linux/arm64 and Linux/amd64 packages use Go 1.27.3, this
-fixed source and the same embedded frontend. See [release notes](release-notes.md)
-for behavior and migration/rollback limitations. Publication uses the accepted
-artifacts; production installation is separate.
+## GoToCC source integration (2026-10-25)
+
+This source integrates Plus `v0.2.18+custom.001`
+(`eb2f23d6da01d792d641b63be1b63c580846947a`) and GoToCC PRs #41
+(face-value credit billing/payments) and #42 (nullable risk-control scores).
+The latest published GoToCC artifact remains `0.2.17+custom.003`; this source
+integration assigns no new owned release version and does not deploy production.
+Development builds retain that version marker and identify this source by commit.
+
+The imported Gemini image-permission migration is numbered **312** here because
+295 is already occupied. Existing migrations are unchanged. GoToCC keeps its
+owned CI, offline delivery, local-image storage, team wallets, auto-key routing,
+content-audit semantics, pricing overrides and retired-feature contracts.
 
 ## Removed Upstream Paths
 
@@ -42,8 +54,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.17+custom.001
-Application: 0.2.17+custom.001
+Git/GitHub: v0.2.18+custom.001
+Application: 0.2.18+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.18-custom.001
 ```
 
 ## Release Mapping
@@ -119,12 +132,21 @@ Application: 0.2.17+custom.001
 | `v0.2.14+custom.004` | `v0.2.14` | `0363b8cdba8cec3e2ba4b2dbd49c4481143fa55d` | published |
 | `v0.2.15+custom.001` | `v0.2.15` | `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2` | published |
 | `v0.2.15+custom.002` | `v0.2.15` | `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2` | published |
-| `v0.2.15+custom.003` | `v0.2.15` | `ab80abc6d1f929a6864c8804fd077b509d21fda2` | upstream published |
-| `v0.2.17+custom.001` | `v0.2.17` | `060d0160417782cd962a0c7f460f6cd4565d4916` | upstream published |
+| `v0.2.15+custom.003` | `v0.2.15` | `ab80abc6d1f929a6864c8804fd077b509d21fda2` | published |
+| `v0.2.17+custom.001` | `v0.2.17` | `060d0160417782cd962a0c7f460f6cd4565d4916` | published |
+| `v0.2.18+custom.001` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | upstream published |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
 `v0.2.15` / `f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`.
+
+`v0.2.17+custom.001` records official tag `v0.2.17` / peeled
+`060d0160417782cd962a0c7f460f6cd4565d4916`. Official tag VERSION is `0.2.16`;
+Plus writes `0.2.17+custom.001`.
+
+`v0.2.18+custom.001` records official tag `v0.2.18` / peeled
+`ac1b8f1271be0d674fa6f074403c1410f30a3a81`. Official tag VERSION is `0.2.17`;
+Plus writes `0.2.18+custom.001`. Its mapping is finalized after publication.
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 

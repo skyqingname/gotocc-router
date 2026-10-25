@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 	userExistsForBillingSQL     = `(?s)SELECT 1\s+FROM users\s+WHERE id = \$1 AND deleted_at IS NULL`
 	apiKeyQuotaIncrementSQL     = `(?s)UPDATE api_keys\s+SET quota_used = quota_used \+ \$1,.*WHERE id = \$2 AND deleted_at IS NULL\s+RETURNING`
 	apiKeyRateLimitIncrementSQL = `(?s)UPDATE api_keys SET\s+usage_5h = .*WHERE id = \$2 AND deleted_at IS NULL`
+	accountQuotaIncrementSQL    = `(?s)UPDATE accounts SET extra = .*WHERE id = \$2 AND deleted_at IS NULL.*RETURNING`
 )
 
 func TestDeductUsageBillingBalance_UsesSufficientBalanceGuard(t *testing.T) {
@@ -103,46 +105,99 @@ func TestApplyUsageBillingEffects_FlagsBalanceOverdraft(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUsageBillingRepository_TeamLimitFailureRollsBackOwnerDeduction(t *testing.T) {
+func TestApplyUsageBillingEffects_DeletedAPIKeyStillBillsBalance(t *testing.T) {
 	ctx := context.Background()
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	teamID := int64(7)
 	mock.ExpectBegin()
-	mock.ExpectQuery(`(?s)INSERT INTO usage_billing_dedup`).
-		WithArgs("req-team-limit", int64(303), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
-	mock.ExpectQuery(`(?s)SELECT request_fingerprint\s+FROM usage_billing_dedup_archive`).
-		WithArgs("req-team-limit", int64(303)).
-		WillReturnError(sql.ErrNoRows)
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
 	mock.ExpectQuery(conditionalBalanceDeductSQL).
-		WithArgs(1.0, int64(101)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(9.0))
-	mock.ExpectQuery(`(?s)UPDATE team_memberships SET.*RETURNING id`).
-		WithArgs(teamID, int64(202), 1.0, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(10.0, int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(90.0))
+	mock.ExpectQuery(apiKeyQuotaIncrementSQL).
+		WithArgs(10.0, int64(7), service.StatusAPIKeyActive, service.StatusAPIKeyQuotaExhausted).
 		WillReturnError(sql.ErrNoRows)
-	mock.ExpectQuery(`(?s)SELECT role, daily_limit_usd.*FROM team_memberships`).
-		WithArgs(teamID, int64(202)).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"role", "daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
-			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd",
-			"daily_window_start", "weekly_window_start", "monthly_window_start",
-		}).AddRow(service.TeamRoleMember, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, time.Now(), nil, nil))
+	mock.ExpectExec(apiKeyRateLimitIncrementSQL).
+		WithArgs(10.0, int64(7)).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectCommit()
+
+	result := &service.UsageBillingApplyResult{Applied: true}
+	err = (&usageBillingRepository{}).applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
+		UserID:              42,
+		APIKeyID:            7,
+		BalanceCost:         10,
+		APIKeyQuotaCost:     10,
+		APIKeyRateLimitCost: 10,
+	}, result)
+	require.NoError(t, err)
+	require.NotNil(t, result.NewBalance)
+	require.InDelta(t, 90.0, *result.NewBalance, 0.000001)
+	require.False(t, result.APIKeyQuotaExhausted)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestApplyUsageBillingEffects_DeletedAccountStillBillsBalance(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(conditionalBalanceDeductSQL).
+		WithArgs(10.0, int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(90.0))
+	mock.ExpectQuery(accountQuotaIncrementSQL).
+		WithArgs(4.0, int64(9)).
+		WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns))
+	mock.ExpectQuery(accountQuotaIncrementSQL).
+		WithArgs(4.0, int64(9)).
+		WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns))
+	mock.ExpectCommit()
+
+	result := &service.UsageBillingApplyResult{Applied: true}
+	err = (&usageBillingRepository{}).applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
+		UserID:           42,
+		AccountID:        9,
+		AccountType:      service.AccountTypeServiceAccount,
+		BalanceCost:      10,
+		AccountQuotaCost: 4,
+	}, result)
+	require.NoError(t, err)
+	require.NotNil(t, result.NewBalance)
+	require.InDelta(t, 90.0, *result.NewBalance, 0.000001)
+	require.Nil(t, result.QuotaState)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestApplyUsageBillingEffects_APIKeyCounterErrorStillFails(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectExec(apiKeyRateLimitIncrementSQL).
+		WithArgs(10.0, int64(7)).
+		WillReturnError(sql.ErrConnDone)
 	mock.ExpectRollback()
 
-	repo := &usageBillingRepository{db: db}
-	_, err = repo.Apply(ctx, &service.UsageBillingCommand{
-		RequestID:   "req-team-limit",
-		UserID:      101,
-		ActorUserID: 202,
-		TeamID:      &teamID,
-		APIKeyID:    303,
-		AccountID:   404,
-		BalanceCost: 1,
-	})
-	require.ErrorIs(t, err, service.ErrTeamMemberDailyExceeded)
+	err = (&usageBillingRepository{}).applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
+		UserID:              42,
+		APIKeyID:            7,
+		APIKeyRateLimitCost: 10,
+	}, &service.UsageBillingApplyResult{Applied: true})
+	require.ErrorIs(t, err, sql.ErrConnDone)
+	require.NoError(t, tx.Rollback())
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -167,6 +222,100 @@ func TestDeductUsageBillingBalance_ReturnsUserNotFoundWhenNoUserUpdated(t *testi
 	require.ErrorIs(t, err, service.ErrUserNotFound)
 	require.NoError(t, tx.Rollback())
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+var accountQuotaStateColumns = []string{"quota_used", "quota_limit", "quota_daily_used", "quota_daily_limit", "quota_weekly_used", "quota_weekly_limit"}
+
+func TestAccountQuotaIncrementSQLs_GuardOmittedDimensions(t *testing.T) {
+	for _, daily := range []bool{false, true} {
+		for _, weekly := range []bool{false, true} {
+			query := accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(daily, weekly)]
+			set, where, ok := strings.Cut(query, "WHERE ")
+			require.True(t, ok)
+			require.Equal(t, !daily || !weekly, strings.Contains(where, accountQuotaExtraIsObjectCond), "daily=%v weekly=%v", daily, weekly)
+			require.Equal(t, daily, strings.Contains(set, "'quota_daily_used'"), "daily=%v weekly=%v", daily, weekly)
+			require.Equal(t, weekly, strings.Contains(set, "'quota_weekly_used'"), "daily=%v weekly=%v", daily, weekly)
+			require.Equal(t, !daily, strings.Contains(where, accountQuotaDailyLimitUnsetCond), "daily=%v weekly=%v", daily, weekly)
+			require.Equal(t, !weekly, strings.Contains(where, accountQuotaWeeklyLimitUnsetCond), "daily=%v weekly=%v", daily, weekly)
+		}
+	}
+}
+
+func TestIncrementUsageBillingAccountQuota_UsesStatementMatchingHints(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(true, false)]).
+		WithArgs(2.5, int64(9)).
+		WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns).AddRow(12.5, 100.0, 2.5, 50.0, 0.0, 0.0))
+	mock.ExpectCommit()
+
+	state, err := incrementUsageBillingAccountQuota(ctx, tx, 9, 2.5, true, false)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.InDelta(t, 12.5, state.TotalUsed, 0.000001)
+	require.InDelta(t, 2.5, state.DailyUsed, 0.000001)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIncrementUsageBillingAccountQuota_FallsBackToFullStatementWhenGuardMisses(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(false, false)]).
+		WithArgs(2.5, int64(9)).
+		WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns))
+	mock.ExpectQuery(accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(true, true)]).
+		WithArgs(2.5, int64(9)).
+		WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns).AddRow(2.5, 0.0, 0.0, 0.0, 2.5, 20.0))
+	mock.ExpectCommit()
+
+	state, err := incrementUsageBillingAccountQuota(ctx, tx, 9, 2.5, false, false)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.InDelta(t, 2.5, state.WeeklyUsed, 0.000001)
+	require.InDelta(t, 20.0, state.WeeklyLimit, 0.000001)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestIncrementUsageBillingAccountQuota_ReturnsNotFoundWhenFullStatementMisses(t *testing.T) {
+	for _, hints := range [][2]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
+		ctx := context.Background()
+		db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+		require.NoError(t, err)
+
+		mock.ExpectBegin()
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+		mock.ExpectQuery(accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(hints[0], hints[1])]).
+			WithArgs(2.5, int64(9)).
+			WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns))
+		if !(hints[0] && hints[1]) {
+			mock.ExpectQuery(accountQuotaIncrementSQLs[accountQuotaIncrementSQLIndex(true, true)]).
+				WithArgs(2.5, int64(9)).
+				WillReturnRows(sqlmock.NewRows(accountQuotaStateColumns))
+		}
+		mock.ExpectRollback()
+
+		state, err := incrementUsageBillingAccountQuota(ctx, tx, 9, 2.5, hints[0], hints[1])
+		require.ErrorIs(t, err, service.ErrAccountNotFound, "hints=%v", hints)
+		require.Nil(t, state)
+		require.NoError(t, tx.Rollback())
+		require.NoError(t, mock.ExpectationsWereMet(), "hints=%v", hints)
+		_ = db.Close()
+	}
 }
 
 func TestReserveUsageBillingBatchImageBalance_MovesAvailableToFrozen(t *testing.T) {
@@ -304,6 +453,49 @@ func TestReleaseUsageBillingBatchImageBalance_SkipsWhenHoldNeverReserved(t *test
 	require.Nil(t, result.NewBalance)
 	require.Nil(t, result.FrozenBalance)
 	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageBillingRepository_TeamLimitFailureRollsBackOwnerDeduction(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	teamID := int64(7)
+	mock.ExpectBegin()
+	mock.ExpectQuery(`(?s)INSERT INTO usage_billing_dedup`).
+		WithArgs("req-team-limit", int64(303), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(1)))
+	mock.ExpectQuery(`(?s)SELECT request_fingerprint\s+FROM usage_billing_dedup_archive`).
+		WithArgs("req-team-limit", int64(303)).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(conditionalBalanceDeductSQL).
+		WithArgs(1.0, int64(101)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(9.0))
+	mock.ExpectQuery(`(?s)UPDATE team_memberships SET.*RETURNING id`).
+		WithArgs(teamID, int64(202), 1.0, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(`(?s)SELECT role, daily_limit_usd.*FROM team_memberships`).
+		WithArgs(teamID, int64(202)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"role", "daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
+			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd",
+			"daily_window_start", "weekly_window_start", "monthly_window_start",
+		}).AddRow(service.TeamRoleMember, 1.0, 0.0, 0.0, 0.5, 0.0, 0.0, time.Now(), nil, nil))
+	mock.ExpectRollback()
+
+	repo := &usageBillingRepository{db: db}
+	_, err = repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   "req-team-limit",
+		UserID:      101,
+		ActorUserID: 202,
+		TeamID:      &teamID,
+		APIKeyID:    303,
+		AccountID:   404,
+		BalanceCost: 1,
+	})
+	require.ErrorIs(t, err, service.ErrTeamMemberDailyExceeded)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -470,65 +662,5 @@ func TestApplyBatchImageAllowance_LegacyCaptureChargesActualWithoutNewFingerprin
 	}, batchImageAllowanceCapture)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestApplyUsageBillingEffects_DeletedAPIKeyStillBillsBalance(t *testing.T) {
-	ctx := context.Background()
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
-	mock.ExpectBegin()
-	tx, err := db.BeginTx(ctx, nil)
-	require.NoError(t, err)
-	mock.ExpectQuery(conditionalBalanceDeductSQL).
-		WithArgs(10.0, int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(90.0))
-	mock.ExpectQuery(apiKeyQuotaIncrementSQL).
-		WithArgs(10.0, int64(7), service.StatusAPIKeyActive, service.StatusAPIKeyQuotaExhausted).
-		WillReturnError(sql.ErrNoRows)
-	mock.ExpectExec(apiKeyRateLimitIncrementSQL).
-		WithArgs(10.0, int64(7)).
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectCommit()
-
-	result := &service.UsageBillingApplyResult{Applied: true}
-	err = (&usageBillingRepository{}).applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
-		UserID:              42,
-		APIKeyID:            7,
-		BalanceCost:         10,
-		APIKeyQuotaCost:     10,
-		APIKeyRateLimitCost: 10,
-	}, result)
-	require.NoError(t, err)
-	require.NotNil(t, result.NewBalance)
-	require.InDelta(t, 90.0, *result.NewBalance, 0.000001)
-	require.False(t, result.APIKeyQuotaExhausted)
-	require.NoError(t, tx.Commit())
-	require.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestApplyUsageBillingEffects_APIKeyCounterErrorStillFails(t *testing.T) {
-	ctx := context.Background()
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer func() { _ = db.Close() }()
-
-	mock.ExpectBegin()
-	tx, err := db.BeginTx(ctx, nil)
-	require.NoError(t, err)
-	mock.ExpectExec(apiKeyRateLimitIncrementSQL).
-		WithArgs(10.0, int64(7)).
-		WillReturnError(sql.ErrConnDone)
-	mock.ExpectRollback()
-
-	err = (&usageBillingRepository{}).applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
-		UserID:              42,
-		APIKeyID:            7,
-		APIKeyRateLimitCost: 10,
-	}, &service.UsageBillingApplyResult{Applied: true})
-	require.ErrorIs(t, err, sql.ErrConnDone)
-	require.NoError(t, tx.Rollback())
 	require.NoError(t, mock.ExpectationsWereMet())
 }
