@@ -34,9 +34,10 @@ vendored SheetJS dependency and upstream dependency floors.
 This source integrates Plus `v0.2.18+custom.001`
 (`eb2f23d6da01d792d641b63be1b63c580846947a`) and GoToCC PRs #41
 (face-value credit billing/payments) and #42 (nullable risk-control scores).
-The latest published GoToCC artifact remains `0.2.17+custom.003`; this source
-integration assigns no new owned release version and does not deploy production.
-Development builds retain that version marker and identify this source by commit.
+The owned GoToCC release identity is `0.2.18+custom.001`, including PRs #41–#45.
+Its fixed artifacts include both Linux architectures and the verified model
+reference refresh. Publication status is recorded by the owned GitHub Release;
+this source version does not imply a production deployment.
 
 The imported Gemini image-permission migration is numbered **312** here because
 295 is already occupied. Existing migrations are unchanged. GoToCC keeps its
@@ -146,7 +147,8 @@ Plus writes `0.2.17+custom.001`.
 
 `v0.2.18+custom.001` records official tag `v0.2.18` / peeled
 `ac1b8f1271be0d674fa6f074403c1410f30a3a81`. Official tag VERSION is `0.2.17`;
-Plus writes `0.2.18+custom.001`. Its mapping is finalized after publication.
+Plus and the owned GoToCC artifact both use `0.2.18+custom.001`; repositories
+and their release assets remain separate.
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 
@@ -156,10 +158,11 @@ still require a maintainer audit. Do not reuse or retag `.007`.
 
 ## Repository Roles
 
-- `origin`: [Sub2API Plus](https://github.com/LuckyKuang/sub2api-plus), the
+- `origin`: [GoToCC](https://github.com/skyqingname/gotocc-router), the owned
   installation, update, rollback and release source.
-- `upstream`: [official Sub2API](https://github.com/Wei-Shaw/sub2api), the source
-  input for imports.
+- [Sub2API Plus](https://github.com/LuckyKuang/sub2api-plus) supplies the fixed
+  Plus baseline; [official Sub2API](https://github.com/Wei-Shaw/sub2api) supplies
+  its underlying official baseline.
 
 Update this mapping in the same change as an upstream integration. Keep tag,
 embedded version and OCI naming synchronized through the release workflow;
