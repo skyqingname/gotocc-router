@@ -1,16 +1,14 @@
-# 0.2.18+custom.001 — Plus update, official prices and model fingerprints
+# GoToCC 0.2.18+custom.002
 
-Based on Plus `v0.2.18+custom.001` (`eb2f23d6`) and official Sub2API `v0.2.18`. Includes GoToCC PRs #41–#45 on top of the previous owned `0.2.17+custom.003` release.
+基于 Plus `v0.2.18+custom.001`，保留现有 GoToCC 定制与上一发行的模型价格、指纹参考库。本版包含 PR #47 的内容审计在线测试。
 
-- Integrates the latest Plus stream interruption and usage handling, Vertex account quotas, Gemini image permissions, scheduling snapshots and dependency updates. GoToCC retains its configured client identities, team wallets, automatic-key routing, local image storage and owned update channel.
-- Site balances, quotas and model prices display `$` as the accounting symbol. Official numeric prices are preserved without USD/CNY conversion: USD 1 and CNY 1 each represent $1. Explicit group and channel prices remain higher priority.
-- New recharge principal and subscription charges use their face value in the selected payment currency. Existing balances, frozen order amounts, currencies and refund semantics are not recalculated.
-- Fixes risk-control hit lists and details when score maps are null, preserving the distinction between reviewed, unreviewed and unscored records. Restores validation of channel time-pricing periods.
-- Refreshes the bundled model-plaza directory and six exact backend price cards, including Kimi K3.1 Pro/Highspeed, Kimi K3 cache TTL pricing and Gemini Pro Latest context tiers. GLM reference prices use Z.AI native USD values; maintained CNY face-value cards retain their precedence.
-- Updates the offline model-fingerprint reference from 60 to 63 identities, adding Kimi K3.1 Pro, Gemini 3.5 Flash Lite and MiniMax M3.1 Flash. Includes the upstream sequence-shape correction and paired float32 reference artifact.
+- 在内容审计 Worker 区域增加在线测试，选择已保存的审核节点并输入文字，查看分类评分、阈值和命中判定；其他运行模式在审核记录前显示同一入口。
+- 支持 OpenAI Moderations 与 TypeSafe Jev，沿用已保存的模型、代理、超时、审核标准和阈值。显示本次节点、Key 掩码、HTTP 状态及耗时。
+- 上游报错保留完整原文，超时、解析失败、缺少评分均显示「未评分」。日志仅记录失败元信息，输入和错误正文不写入应用日志。
+- 区分「命中阈值」和「当前配置允许模型前置拦截」。测试不写内容审核记录、不计违规、不触发封号，也不更新节点/Key 健康状态；暂停、冷却节点和冻结 Key 可主动诊断。
 
-Migration 312 enables image generation for existing Gemini/Antigravity groups; composite groups keep their configuration. Existing migrations are unchanged. Preserve current data and use a forward correction after new payments or usage: replacing an older binary does not undo a data migration or restore the previous pricing contract, and restoring an older database would discard later activity.
+无新增数据库迁移，不修改生产审核配置。真实请求仍受分组、模型范围、抽样、节点可用性及用户白名单影响；关键词和历史封禁不在本次测试内。测试按钮会实际调用上游，费用由供应商规则决定。
 
-Both Linux/arm64 and Linux/amd64 packages contain the same verified frontend and fixed source, built with Go 1.27.3. Local builds, type/static checks, price APIs, billing/payment fixtures, risk-control UI and offline fingerprint Worker checks were completed during integration. Fingerprint samples came from the upstream reference collection and are not an independent accuracy evaluation. No paid upstream probes or test suites were run for this release.
+用户已验收界面与功能。Linux/arm64 和 Linux/amd64 使用同一固定源码与已验收前端；本地类型/静态检查、构建及模拟上游验证覆盖评分、命中、完整 HTTP 403、超时和桌面/390px 页面。本轮不新增或运行测试套件，不执行本地 SHA sum，不调用收费上游。
 
-Publishing this release does not install or restart production.
+发布不会安装或重启生产。相对 0.2.18+custom.001 没有 schema 变化；已有数据库与业务写入仍应保留，不能用旧 dump 覆盖后续数据。

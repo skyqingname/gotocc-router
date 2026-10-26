@@ -34,9 +34,10 @@ vendored SheetJS dependency and upstream dependency floors.
 This source integrates Plus `v0.2.18+custom.001`
 (`eb2f23d6da01d792d641b63be1b63c580846947a`) and GoToCC PRs #41
 (face-value credit billing/payments) and #42 (nullable risk-control scores).
-The owned GoToCC release identity is `0.2.18+custom.001`, including PRs #41–#45.
-Its fixed artifacts include both Linux architectures and the verified model
-reference refresh. Publication status is recorded by the owned GitHub Release;
+The owned GoToCC release identity is `0.2.18+custom.002`. It retains PRs #41–#45
+and adds PR #47 content-audit online diagnostics, complete upstream error
+details and structured diagnostic-failure metadata. Both Linux architectures
+reuse the accepted frontend and the existing model-reference resources. Publication status is recorded by the owned GitHub Release;
 this source version does not imply a production deployment.
 
 The imported Gemini image-permission migration is numbered **312** here because
@@ -136,6 +137,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.18-custom.001
 | `v0.2.15+custom.003` | `v0.2.15` | `ab80abc6d1f929a6864c8804fd077b509d21fda2` | published |
 | `v0.2.17+custom.001` | `v0.2.17` | `060d0160417782cd962a0c7f460f6cd4565d4916` | published |
 | `v0.2.18+custom.001` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | upstream published |
+| `v0.2.18+custom.002` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; see GitHub Release |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
