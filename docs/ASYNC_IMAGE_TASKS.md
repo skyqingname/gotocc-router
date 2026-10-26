@@ -64,6 +64,16 @@ image_storage:
 
 When a task completes, each generated image is uploaded to the bucket and the result is rewritten to a compact form: `data[].url` points at the stored object (a permanent `public_base_url/key` link, or a time-limited presigned URL) and `b64_json` is removed. Only this small JSON and the private exact object keys needed for ZIP downloads are stored in Redis. The object keys are not exposed in the public task response. If an upload fails, the task is marked `failed` rather than persisting the raw base64.
 
+For URL-only OpenAI and Grok results, CDN downloads retain the actual generation
+credential owner's captured proxy and trusted client identity, including account
+failover or refresh. Account/proxy edits after generation do not change that
+task's download route. A missing configured proxy, proxy timeout, refusal, or
+authentication failure fails offloading and never retries from the host network;
+environment proxies cannot replace the account route. Every redirect still
+passes the existing public-destination checks. Provider authorization tokens and
+cookies are never copied to the CDN. Object-storage uploads and ZIP reads keep
+their independently configured storage transport.
+
 ### Local writes with existing S3 images
 
 Set `image_storage.routing_file` in the server YAML to an absolute path to a

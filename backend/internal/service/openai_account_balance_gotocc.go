@@ -125,3 +125,38 @@ func openAIAccountQuotaPressure(account *Account, now time.Time) (float64, bool)
 	}
 	return used, known
 }
+
+// Canonical routes keep their generation and owner during temporary overflow.
+// Only the request's execution account changes; complete-history validation at
+// the forwarding boundary still applies before sending to a different account.
+func (a *openAISessionRouteAttempt) expectedOwnerAccountID() int64 {
+	if a.preserveOwner {
+		return a.route.OwnerAccountID
+	}
+	return a.accountID
+}
+
+func (s *OpenAIGatewayService) overflowCanonicalOpenAIAccount(ctx context.Context, req OpenAIAccountScheduleRequest, sticky *AccountSelectionResult) *AccountSelectionResult {
+	if sticky.Acquired || sticky.WaitPlan == nil {
+		return nil
+	}
+	guardianParentID := int64(0)
+	if strings.TrimSpace(req.PreviousResponseID) == "" {
+		guardianParentID = s.resolveOpenAIGuardianParentAccountID(ctx, req.GroupID)
+	}
+	req.BalanceSamePriority = useBalancedOpenAISelection(ctx, NormalizeOpenAICompatiblePlatform(req.Platform), req.PreviousResponseID, req.PreviousResponseCanMove, guardianParentID, preserveOpenAIGuardianParentBinding(ctx, req.SessionHash))
+	if !req.BalanceSamePriority {
+		return nil
+	}
+	req.RequirePrivacySet = s.openAIGroupRequiresPrivacySet(ctx, req.GroupID)
+	s.openAIAccountSchedulerCore()
+	canonical := &defaultOpenAIAccountScheduler{service: s, stats: s.openaiAccountStats}
+	overflow := canonical.overflowFullStickyAccount(ctx, req, sticky)
+	if overflow != nil {
+		if err := s.checkOpenAIClientRestriction(ctx, overflow.Account); err != nil {
+			overflow.ReleaseFunc()
+			return nil
+		}
+	}
+	return overflow
+}

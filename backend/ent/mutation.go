@@ -15374,6 +15374,7 @@ type ChannelMonitorMutation struct {
 	created_by              *int64
 	addcreated_by           *int64
 	extra_headers           *map[string]string
+	stream_probe            *bool
 	body_override_mode      *string
 	body_override           *map[string]interface{}
 	clearedFields           map[string]struct{}
@@ -16320,6 +16321,42 @@ func (m *ChannelMonitorMutation) ResetExtraHeaders() {
 	m.extra_headers = nil
 }
 
+// SetStreamProbe sets the "stream_probe" field.
+func (m *ChannelMonitorMutation) SetStreamProbe(b bool) {
+	m.stream_probe = &b
+}
+
+// StreamProbe returns the value of the "stream_probe" field in the mutation.
+func (m *ChannelMonitorMutation) StreamProbe() (r bool, exists bool) {
+	v := m.stream_probe
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStreamProbe returns the old "stream_probe" field's value of the ChannelMonitor entity.
+// If the ChannelMonitor object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorMutation) OldStreamProbe(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStreamProbe is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStreamProbe requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStreamProbe: %w", err)
+	}
+	return oldValue.StreamProbe, nil
+}
+
+// ResetStreamProbe resets all changes to the "stream_probe" field.
+func (m *ChannelMonitorMutation) ResetStreamProbe() {
+	m.stream_probe = nil
+}
+
 // SetBodyOverrideMode sets the "body_override_mode" field.
 func (m *ChannelMonitorMutation) SetBodyOverrideMode(s string) {
 	m.body_override_mode = &s
@@ -16587,7 +16624,7 @@ func (m *ChannelMonitorMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 22)
 	if m.created_at != nil {
 		fields = append(fields, channelmonitor.FieldCreatedAt)
 	}
@@ -16645,6 +16682,9 @@ func (m *ChannelMonitorMutation) Fields() []string {
 	if m.extra_headers != nil {
 		fields = append(fields, channelmonitor.FieldExtraHeaders)
 	}
+	if m.stream_probe != nil {
+		fields = append(fields, channelmonitor.FieldStreamProbe)
+	}
 	if m.body_override_mode != nil {
 		fields = append(fields, channelmonitor.FieldBodyOverrideMode)
 	}
@@ -16697,6 +16737,8 @@ func (m *ChannelMonitorMutation) Field(name string) (ent.Value, bool) {
 		return m.TemplateID()
 	case channelmonitor.FieldExtraHeaders:
 		return m.ExtraHeaders()
+	case channelmonitor.FieldStreamProbe:
+		return m.StreamProbe()
 	case channelmonitor.FieldBodyOverrideMode:
 		return m.BodyOverrideMode()
 	case channelmonitor.FieldBodyOverride:
@@ -16748,6 +16790,8 @@ func (m *ChannelMonitorMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldTemplateID(ctx)
 	case channelmonitor.FieldExtraHeaders:
 		return m.OldExtraHeaders(ctx)
+	case channelmonitor.FieldStreamProbe:
+		return m.OldStreamProbe(ctx)
 	case channelmonitor.FieldBodyOverrideMode:
 		return m.OldBodyOverrideMode(ctx)
 	case channelmonitor.FieldBodyOverride:
@@ -16893,6 +16937,13 @@ func (m *ChannelMonitorMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExtraHeaders(v)
+		return nil
+	case channelmonitor.FieldStreamProbe:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStreamProbe(v)
 		return nil
 	case channelmonitor.FieldBodyOverrideMode:
 		v, ok := value.(string)
@@ -17098,6 +17149,9 @@ func (m *ChannelMonitorMutation) ResetField(name string) error {
 	case channelmonitor.FieldExtraHeaders:
 		m.ResetExtraHeaders()
 		return nil
+	case channelmonitor.FieldStreamProbe:
+		m.ResetStreamProbe()
+		return nil
 	case channelmonitor.FieldBodyOverrideMode:
 		m.ResetBodyOverrideMode()
 		return nil
@@ -17258,6 +17312,10 @@ type ChannelMonitorDailyRollupMutation struct {
 	adderror_count         *int
 	sum_first_byte_ms      *int64
 	addsum_first_byte_ms   *int64
+	sum_first_text_ms      *int64
+	addsum_first_text_ms   *int64
+	count_first_text       *int
+	addcount_first_text    *int
 	count_first_byte       *int
 	addcount_first_byte    *int
 	sum_latency_ms         *int64
@@ -17875,6 +17933,118 @@ func (m *ChannelMonitorDailyRollupMutation) ResetSumFirstByteMs() {
 	m.addsum_first_byte_ms = nil
 }
 
+// SetSumFirstTextMs sets the "sum_first_text_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) SetSumFirstTextMs(i int64) {
+	m.sum_first_text_ms = &i
+	m.addsum_first_text_ms = nil
+}
+
+// SumFirstTextMs returns the value of the "sum_first_text_ms" field in the mutation.
+func (m *ChannelMonitorDailyRollupMutation) SumFirstTextMs() (r int64, exists bool) {
+	v := m.sum_first_text_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSumFirstTextMs returns the old "sum_first_text_ms" field's value of the ChannelMonitorDailyRollup entity.
+// If the ChannelMonitorDailyRollup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorDailyRollupMutation) OldSumFirstTextMs(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSumFirstTextMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSumFirstTextMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSumFirstTextMs: %w", err)
+	}
+	return oldValue.SumFirstTextMs, nil
+}
+
+// AddSumFirstTextMs adds i to the "sum_first_text_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) AddSumFirstTextMs(i int64) {
+	if m.addsum_first_text_ms != nil {
+		*m.addsum_first_text_ms += i
+	} else {
+		m.addsum_first_text_ms = &i
+	}
+}
+
+// AddedSumFirstTextMs returns the value that was added to the "sum_first_text_ms" field in this mutation.
+func (m *ChannelMonitorDailyRollupMutation) AddedSumFirstTextMs() (r int64, exists bool) {
+	v := m.addsum_first_text_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSumFirstTextMs resets all changes to the "sum_first_text_ms" field.
+func (m *ChannelMonitorDailyRollupMutation) ResetSumFirstTextMs() {
+	m.sum_first_text_ms = nil
+	m.addsum_first_text_ms = nil
+}
+
+// SetCountFirstText sets the "count_first_text" field.
+func (m *ChannelMonitorDailyRollupMutation) SetCountFirstText(i int) {
+	m.count_first_text = &i
+	m.addcount_first_text = nil
+}
+
+// CountFirstText returns the value of the "count_first_text" field in the mutation.
+func (m *ChannelMonitorDailyRollupMutation) CountFirstText() (r int, exists bool) {
+	v := m.count_first_text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCountFirstText returns the old "count_first_text" field's value of the ChannelMonitorDailyRollup entity.
+// If the ChannelMonitorDailyRollup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorDailyRollupMutation) OldCountFirstText(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCountFirstText is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCountFirstText requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCountFirstText: %w", err)
+	}
+	return oldValue.CountFirstText, nil
+}
+
+// AddCountFirstText adds i to the "count_first_text" field.
+func (m *ChannelMonitorDailyRollupMutation) AddCountFirstText(i int) {
+	if m.addcount_first_text != nil {
+		*m.addcount_first_text += i
+	} else {
+		m.addcount_first_text = &i
+	}
+}
+
+// AddedCountFirstText returns the value that was added to the "count_first_text" field in this mutation.
+func (m *ChannelMonitorDailyRollupMutation) AddedCountFirstText() (r int, exists bool) {
+	v := m.addcount_first_text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCountFirstText resets all changes to the "count_first_text" field.
+func (m *ChannelMonitorDailyRollupMutation) ResetCountFirstText() {
+	m.count_first_text = nil
+	m.addcount_first_text = nil
+}
+
 // SetCountFirstByte sets the "count_first_byte" field.
 func (m *ChannelMonitorDailyRollupMutation) SetCountFirstByte(i int) {
 	m.count_first_byte = &i
@@ -18252,7 +18422,7 @@ func (m *ChannelMonitorDailyRollupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorDailyRollupMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 18)
 	if m.monitor != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldMonitorID)
 	}
@@ -18282,6 +18452,12 @@ func (m *ChannelMonitorDailyRollupMutation) Fields() []string {
 	}
 	if m.sum_first_byte_ms != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldSumFirstByteMs)
+	}
+	if m.sum_first_text_ms != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldSumFirstTextMs)
+	}
+	if m.count_first_text != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldCountFirstText)
 	}
 	if m.count_first_byte != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldCountFirstByte)
@@ -18329,6 +18505,10 @@ func (m *ChannelMonitorDailyRollupMutation) Field(name string) (ent.Value, bool)
 		return m.ErrorCount()
 	case channelmonitordailyrollup.FieldSumFirstByteMs:
 		return m.SumFirstByteMs()
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		return m.SumFirstTextMs()
+	case channelmonitordailyrollup.FieldCountFirstText:
+		return m.CountFirstText()
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		return m.CountFirstByte()
 	case channelmonitordailyrollup.FieldSumLatencyMs:
@@ -18370,6 +18550,10 @@ func (m *ChannelMonitorDailyRollupMutation) OldField(ctx context.Context, name s
 		return m.OldErrorCount(ctx)
 	case channelmonitordailyrollup.FieldSumFirstByteMs:
 		return m.OldSumFirstByteMs(ctx)
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		return m.OldSumFirstTextMs(ctx)
+	case channelmonitordailyrollup.FieldCountFirstText:
+		return m.OldCountFirstText(ctx)
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		return m.OldCountFirstByte(ctx)
 	case channelmonitordailyrollup.FieldSumLatencyMs:
@@ -18461,6 +18645,20 @@ func (m *ChannelMonitorDailyRollupMutation) SetField(name string, value ent.Valu
 		}
 		m.SetSumFirstByteMs(v)
 		return nil
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSumFirstTextMs(v)
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstText:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCountFirstText(v)
+		return nil
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		v, ok := value.(int)
 		if !ok {
@@ -18532,6 +18730,12 @@ func (m *ChannelMonitorDailyRollupMutation) AddedFields() []string {
 	if m.addsum_first_byte_ms != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldSumFirstByteMs)
 	}
+	if m.addsum_first_text_ms != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldSumFirstTextMs)
+	}
+	if m.addcount_first_text != nil {
+		fields = append(fields, channelmonitordailyrollup.FieldCountFirstText)
+	}
 	if m.addcount_first_byte != nil {
 		fields = append(fields, channelmonitordailyrollup.FieldCountFirstByte)
 	}
@@ -18569,6 +18773,10 @@ func (m *ChannelMonitorDailyRollupMutation) AddedField(name string) (ent.Value, 
 		return m.AddedErrorCount()
 	case channelmonitordailyrollup.FieldSumFirstByteMs:
 		return m.AddedSumFirstByteMs()
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		return m.AddedSumFirstTextMs()
+	case channelmonitordailyrollup.FieldCountFirstText:
+		return m.AddedCountFirstText()
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		return m.AddedCountFirstByte()
 	case channelmonitordailyrollup.FieldSumLatencyMs:
@@ -18636,6 +18844,20 @@ func (m *ChannelMonitorDailyRollupMutation) AddField(name string, value ent.Valu
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSumFirstByteMs(v)
+		return nil
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSumFirstTextMs(v)
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstText:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCountFirstText(v)
 		return nil
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		v, ok := value.(int)
@@ -18728,6 +18950,12 @@ func (m *ChannelMonitorDailyRollupMutation) ResetField(name string) error {
 		return nil
 	case channelmonitordailyrollup.FieldSumFirstByteMs:
 		m.ResetSumFirstByteMs()
+		return nil
+	case channelmonitordailyrollup.FieldSumFirstTextMs:
+		m.ResetSumFirstTextMs()
+		return nil
+	case channelmonitordailyrollup.FieldCountFirstText:
+		m.ResetCountFirstText()
 		return nil
 	case channelmonitordailyrollup.FieldCountFirstByte:
 		m.ResetCountFirstByte()
@@ -18835,6 +19063,9 @@ type ChannelMonitorHistoryMutation struct {
 	status             *channelmonitorhistory.Status
 	first_byte_ms      *int
 	addfirst_byte_ms   *int
+	first_text_ms      *int
+	addfirst_text_ms   *int
+	stream_probe       *bool
 	latency_ms         *int
 	addlatency_ms      *int
 	ping_latency_ms    *int
@@ -19124,6 +19355,125 @@ func (m *ChannelMonitorHistoryMutation) ResetFirstByteMs() {
 	m.first_byte_ms = nil
 	m.addfirst_byte_ms = nil
 	delete(m.clearedFields, channelmonitorhistory.FieldFirstByteMs)
+}
+
+// SetFirstTextMs sets the "first_text_ms" field.
+func (m *ChannelMonitorHistoryMutation) SetFirstTextMs(i int) {
+	m.first_text_ms = &i
+	m.addfirst_text_ms = nil
+}
+
+// FirstTextMs returns the value of the "first_text_ms" field in the mutation.
+func (m *ChannelMonitorHistoryMutation) FirstTextMs() (r int, exists bool) {
+	v := m.first_text_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstTextMs returns the old "first_text_ms" field's value of the ChannelMonitorHistory entity.
+// If the ChannelMonitorHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorHistoryMutation) OldFirstTextMs(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstTextMs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstTextMs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstTextMs: %w", err)
+	}
+	return oldValue.FirstTextMs, nil
+}
+
+// AddFirstTextMs adds i to the "first_text_ms" field.
+func (m *ChannelMonitorHistoryMutation) AddFirstTextMs(i int) {
+	if m.addfirst_text_ms != nil {
+		*m.addfirst_text_ms += i
+	} else {
+		m.addfirst_text_ms = &i
+	}
+}
+
+// AddedFirstTextMs returns the value that was added to the "first_text_ms" field in this mutation.
+func (m *ChannelMonitorHistoryMutation) AddedFirstTextMs() (r int, exists bool) {
+	v := m.addfirst_text_ms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFirstTextMs clears the value of the "first_text_ms" field.
+func (m *ChannelMonitorHistoryMutation) ClearFirstTextMs() {
+	m.first_text_ms = nil
+	m.addfirst_text_ms = nil
+	m.clearedFields[channelmonitorhistory.FieldFirstTextMs] = struct{}{}
+}
+
+// FirstTextMsCleared returns if the "first_text_ms" field was cleared in this mutation.
+func (m *ChannelMonitorHistoryMutation) FirstTextMsCleared() bool {
+	_, ok := m.clearedFields[channelmonitorhistory.FieldFirstTextMs]
+	return ok
+}
+
+// ResetFirstTextMs resets all changes to the "first_text_ms" field.
+func (m *ChannelMonitorHistoryMutation) ResetFirstTextMs() {
+	m.first_text_ms = nil
+	m.addfirst_text_ms = nil
+	delete(m.clearedFields, channelmonitorhistory.FieldFirstTextMs)
+}
+
+// SetStreamProbe sets the "stream_probe" field.
+func (m *ChannelMonitorHistoryMutation) SetStreamProbe(b bool) {
+	m.stream_probe = &b
+}
+
+// StreamProbe returns the value of the "stream_probe" field in the mutation.
+func (m *ChannelMonitorHistoryMutation) StreamProbe() (r bool, exists bool) {
+	v := m.stream_probe
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStreamProbe returns the old "stream_probe" field's value of the ChannelMonitorHistory entity.
+// If the ChannelMonitorHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorHistoryMutation) OldStreamProbe(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStreamProbe is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStreamProbe requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStreamProbe: %w", err)
+	}
+	return oldValue.StreamProbe, nil
+}
+
+// ClearStreamProbe clears the value of the "stream_probe" field.
+func (m *ChannelMonitorHistoryMutation) ClearStreamProbe() {
+	m.stream_probe = nil
+	m.clearedFields[channelmonitorhistory.FieldStreamProbe] = struct{}{}
+}
+
+// StreamProbeCleared returns if the "stream_probe" field was cleared in this mutation.
+func (m *ChannelMonitorHistoryMutation) StreamProbeCleared() bool {
+	_, ok := m.clearedFields[channelmonitorhistory.FieldStreamProbe]
+	return ok
+}
+
+// ResetStreamProbe resets all changes to the "stream_probe" field.
+func (m *ChannelMonitorHistoryMutation) ResetStreamProbe() {
+	m.stream_probe = nil
+	delete(m.clearedFields, channelmonitorhistory.FieldStreamProbe)
 }
 
 // SetLatencyMs sets the "latency_ms" field.
@@ -19461,7 +19811,7 @@ func (m *ChannelMonitorHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.monitor != nil {
 		fields = append(fields, channelmonitorhistory.FieldMonitorID)
 	}
@@ -19473,6 +19823,12 @@ func (m *ChannelMonitorHistoryMutation) Fields() []string {
 	}
 	if m.first_byte_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
+	}
+	if m.first_text_ms != nil {
+		fields = append(fields, channelmonitorhistory.FieldFirstTextMs)
+	}
+	if m.stream_probe != nil {
+		fields = append(fields, channelmonitorhistory.FieldStreamProbe)
 	}
 	if m.latency_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
@@ -19505,6 +19861,10 @@ func (m *ChannelMonitorHistoryMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case channelmonitorhistory.FieldFirstByteMs:
 		return m.FirstByteMs()
+	case channelmonitorhistory.FieldFirstTextMs:
+		return m.FirstTextMs()
+	case channelmonitorhistory.FieldStreamProbe:
+		return m.StreamProbe()
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.LatencyMs()
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19532,6 +19892,10 @@ func (m *ChannelMonitorHistoryMutation) OldField(ctx context.Context, name strin
 		return m.OldStatus(ctx)
 	case channelmonitorhistory.FieldFirstByteMs:
 		return m.OldFirstByteMs(ctx)
+	case channelmonitorhistory.FieldFirstTextMs:
+		return m.OldFirstTextMs(ctx)
+	case channelmonitorhistory.FieldStreamProbe:
+		return m.OldStreamProbe(ctx)
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.OldLatencyMs(ctx)
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19579,6 +19943,20 @@ func (m *ChannelMonitorHistoryMutation) SetField(name string, value ent.Value) e
 		}
 		m.SetFirstByteMs(v)
 		return nil
+	case channelmonitorhistory.FieldFirstTextMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstTextMs(v)
+		return nil
+	case channelmonitorhistory.FieldStreamProbe:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStreamProbe(v)
+		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		v, ok := value.(int)
 		if !ok {
@@ -19625,6 +20003,9 @@ func (m *ChannelMonitorHistoryMutation) AddedFields() []string {
 	if m.addfirst_byte_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
 	}
+	if m.addfirst_text_ms != nil {
+		fields = append(fields, channelmonitorhistory.FieldFirstTextMs)
+	}
 	if m.addlatency_ms != nil {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
 	}
@@ -19641,6 +20022,8 @@ func (m *ChannelMonitorHistoryMutation) AddedField(name string) (ent.Value, bool
 	switch name {
 	case channelmonitorhistory.FieldFirstByteMs:
 		return m.AddedFirstByteMs()
+	case channelmonitorhistory.FieldFirstTextMs:
+		return m.AddedFirstTextMs()
 	case channelmonitorhistory.FieldLatencyMs:
 		return m.AddedLatencyMs()
 	case channelmonitorhistory.FieldPingLatencyMs:
@@ -19660,6 +20043,13 @@ func (m *ChannelMonitorHistoryMutation) AddField(name string, value ent.Value) e
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFirstByteMs(v)
+		return nil
+	case channelmonitorhistory.FieldFirstTextMs:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFirstTextMs(v)
 		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		v, ok := value.(int)
@@ -19685,6 +20075,12 @@ func (m *ChannelMonitorHistoryMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(channelmonitorhistory.FieldFirstByteMs) {
 		fields = append(fields, channelmonitorhistory.FieldFirstByteMs)
+	}
+	if m.FieldCleared(channelmonitorhistory.FieldFirstTextMs) {
+		fields = append(fields, channelmonitorhistory.FieldFirstTextMs)
+	}
+	if m.FieldCleared(channelmonitorhistory.FieldStreamProbe) {
+		fields = append(fields, channelmonitorhistory.FieldStreamProbe)
 	}
 	if m.FieldCleared(channelmonitorhistory.FieldLatencyMs) {
 		fields = append(fields, channelmonitorhistory.FieldLatencyMs)
@@ -19714,6 +20110,12 @@ func (m *ChannelMonitorHistoryMutation) ClearField(name string) error {
 	switch name {
 	case channelmonitorhistory.FieldFirstByteMs:
 		m.ClearFirstByteMs()
+		return nil
+	case channelmonitorhistory.FieldFirstTextMs:
+		m.ClearFirstTextMs()
+		return nil
+	case channelmonitorhistory.FieldStreamProbe:
+		m.ClearStreamProbe()
 		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		m.ClearLatencyMs()
@@ -19746,6 +20148,12 @@ func (m *ChannelMonitorHistoryMutation) ResetField(name string) error {
 		return nil
 	case channelmonitorhistory.FieldFirstByteMs:
 		m.ResetFirstByteMs()
+		return nil
+	case channelmonitorhistory.FieldFirstTextMs:
+		m.ResetFirstTextMs()
+		return nil
+	case channelmonitorhistory.FieldStreamProbe:
+		m.ResetStreamProbe()
 		return nil
 	case channelmonitorhistory.FieldLatencyMs:
 		m.ResetLatencyMs()
@@ -19853,6 +20261,7 @@ type ChannelMonitorRequestTemplateMutation struct {
 	api_mode           *string
 	description        *string
 	extra_headers      *map[string]string
+	stream_probe       *bool
 	body_override_mode *string
 	body_override      *map[string]interface{}
 	clearedFields      map[string]struct{}
@@ -20227,6 +20636,42 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetExtraHeaders() {
 	m.extra_headers = nil
 }
 
+// SetStreamProbe sets the "stream_probe" field.
+func (m *ChannelMonitorRequestTemplateMutation) SetStreamProbe(b bool) {
+	m.stream_probe = &b
+}
+
+// StreamProbe returns the value of the "stream_probe" field in the mutation.
+func (m *ChannelMonitorRequestTemplateMutation) StreamProbe() (r bool, exists bool) {
+	v := m.stream_probe
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStreamProbe returns the old "stream_probe" field's value of the ChannelMonitorRequestTemplate entity.
+// If the ChannelMonitorRequestTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelMonitorRequestTemplateMutation) OldStreamProbe(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStreamProbe is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStreamProbe requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStreamProbe: %w", err)
+	}
+	return oldValue.StreamProbe, nil
+}
+
+// ResetStreamProbe resets all changes to the "stream_probe" field.
+func (m *ChannelMonitorRequestTemplateMutation) ResetStreamProbe() {
+	m.stream_probe = nil
+}
+
 // SetBodyOverrideMode sets the "body_override_mode" field.
 func (m *ChannelMonitorRequestTemplateMutation) SetBodyOverrideMode(s string) {
 	m.body_override_mode = &s
@@ -20400,7 +20845,7 @@ func (m *ChannelMonitorRequestTemplateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelMonitorRequestTemplateMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 10)
 	if m.created_at != nil {
 		fields = append(fields, channelmonitorrequesttemplate.FieldCreatedAt)
 	}
@@ -20421,6 +20866,9 @@ func (m *ChannelMonitorRequestTemplateMutation) Fields() []string {
 	}
 	if m.extra_headers != nil {
 		fields = append(fields, channelmonitorrequesttemplate.FieldExtraHeaders)
+	}
+	if m.stream_probe != nil {
+		fields = append(fields, channelmonitorrequesttemplate.FieldStreamProbe)
 	}
 	if m.body_override_mode != nil {
 		fields = append(fields, channelmonitorrequesttemplate.FieldBodyOverrideMode)
@@ -20450,6 +20898,8 @@ func (m *ChannelMonitorRequestTemplateMutation) Field(name string) (ent.Value, b
 		return m.Description()
 	case channelmonitorrequesttemplate.FieldExtraHeaders:
 		return m.ExtraHeaders()
+	case channelmonitorrequesttemplate.FieldStreamProbe:
+		return m.StreamProbe()
 	case channelmonitorrequesttemplate.FieldBodyOverrideMode:
 		return m.BodyOverrideMode()
 	case channelmonitorrequesttemplate.FieldBodyOverride:
@@ -20477,6 +20927,8 @@ func (m *ChannelMonitorRequestTemplateMutation) OldField(ctx context.Context, na
 		return m.OldDescription(ctx)
 	case channelmonitorrequesttemplate.FieldExtraHeaders:
 		return m.OldExtraHeaders(ctx)
+	case channelmonitorrequesttemplate.FieldStreamProbe:
+		return m.OldStreamProbe(ctx)
 	case channelmonitorrequesttemplate.FieldBodyOverrideMode:
 		return m.OldBodyOverrideMode(ctx)
 	case channelmonitorrequesttemplate.FieldBodyOverride:
@@ -20538,6 +20990,13 @@ func (m *ChannelMonitorRequestTemplateMutation) SetField(name string, value ent.
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExtraHeaders(v)
+		return nil
+	case channelmonitorrequesttemplate.FieldStreamProbe:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStreamProbe(v)
 		return nil
 	case channelmonitorrequesttemplate.FieldBodyOverrideMode:
 		v, ok := value.(string)
@@ -20637,6 +21096,9 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetField(name string) error {
 		return nil
 	case channelmonitorrequesttemplate.FieldExtraHeaders:
 		m.ResetExtraHeaders()
+		return nil
+	case channelmonitorrequesttemplate.FieldStreamProbe:
+		m.ResetStreamProbe()
 		return nil
 	case channelmonitorrequesttemplate.FieldBodyOverrideMode:
 		m.ResetBodyOverrideMode()

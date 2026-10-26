@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/outboundidentity"
 )
 
 type openAIWSDialError struct {
@@ -35,9 +37,11 @@ func (e *openAIWSDialError) Unwrap() error {
 }
 
 type openAIWSAcquireRequest struct {
-	Account *Account
-	WSURL   string
-	Headers http.Header
+	Account              *Account
+	WSURL                string
+	Headers              http.Header
+	outboundIdentity     outboundidentity.Identity
+	credentialGeneration string
 	// HeadersFactory is evaluated inside dialConn. It exists so credentials
 	// whose authorization is per-dial (Agent Identity) are never cached in
 	// lastAcquire.
@@ -51,15 +55,16 @@ type openAIWSAcquireRequest struct {
 }
 
 type openAIWSHandshakeCompatibilityKey struct {
-	betaFeatures        string
-	sessionIdentity     string
-	userAgent           string
-	originator          string
-	version             string
-	codexInstallationID string
-	threadID            string
-	clientRequestID     string
-	codexWindowID       string
+	credentialGeneration string
+	betaFeatures         string
+	sessionIdentity      string
+	userAgent            string
+	originator           string
+	version              string
+	codexInstallationID  string
+	threadID             string
+	clientRequestID      string
+	codexWindowID        string
 }
 
 type openAIWSConnLease struct {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"sort"
@@ -264,4 +265,14 @@ func closeOpenAIWSConns(conns []*openAIWSConn) {
 
 func stringsTrim(value string) string {
 	return strings.TrimSpace(value)
+}
+
+func (req openAIWSAcquireRequest) handshakeCompatibility() openAIWSHandshakeCompatibilityKey {
+	key := normalizeOpenAIWSHandshakeCompatibility(req.Headers)
+	key.credentialGeneration = req.credentialGeneration
+	return key
+}
+
+func (p *openAIWSConnPool) upstreamAllowed(ctx context.Context, account *Account) bool {
+	return p == nil || p.allowUpstream == nil || p.allowUpstream(ctx, account)
 }

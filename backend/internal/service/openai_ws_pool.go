@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/outboundidentity"
 )
 
 const (
@@ -84,7 +85,8 @@ type openAIWSPoolMetrics struct {
 }
 
 type openAIWSConnPool struct {
-	cfg *config.Config
+	allowUpstream func(context.Context, *Account) bool
+	cfg           *config.Config
 	// 通过接口解耦底层 WS 客户端实现，默认使用 coder/websocket。
 	clientDialer openAIWSClientDialer
 
@@ -105,8 +107,13 @@ type openAIWSConnPool struct {
 }
 
 func newOpenAIWSConnPool(cfg *config.Config) *openAIWSConnPool {
+	return newOpenAIWSConnPoolWithPolicy(cfg, nil)
+}
+
+func newOpenAIWSConnPoolWithPolicy(cfg *config.Config, allowed func(context.Context, *Account) bool) *openAIWSConnPool {
 	lifecycleCtx, cancelLifecycle := context.WithCancel(context.Background())
 	pool := &openAIWSConnPool{
+		allowUpstream:   allowed,
 		lifecycleCtx:    lifecycleCtx,
 		cancelLifecycle: cancelLifecycle,
 		cleanupWakeCh:   make(chan struct{}, 1),
@@ -152,6 +159,10 @@ func (p *openAIWSConnPool) setClientDialerForTest(dialer openAIWSClientDialer) {
 }
 
 func (p *openAIWSConnPool) Acquire(ctx context.Context, req openAIWSAcquireRequest) (*openAIWSConnLease, error) {
+	req.credentialGeneration = openAIWSCredentialGeneration(ctx, req)
+	if identity, ok := outboundidentity.FromContext(ctx); ok && identity.Preset == "grok" {
+		req.outboundIdentity = identity
+	}
 	if p == nil {
 		return nil, errors.New("invalid ws acquire request")
 	}
@@ -167,7 +178,13 @@ func (p *openAIWSConnPool) Acquire(ctx context.Context, req openAIWSAcquireReque
 	stop := context.AfterFunc(p.lifecycleCtx, cancel)
 	defer func() { stop(); cancel() }()
 	p.metrics.acquireTotal.Add(1)
-	return p.acquireFromPool(acquireCtx, cloneOpenAIWSAcquireRequest(req))
+	lease, err := p.acquireFromPool(acquireCtx, cloneOpenAIWSAcquireRequest(req))
+	if lease != nil && !p.upstreamAllowed(ctx, req.Account) {
+		lease.MarkBroken()
+		lease.Release()
+		return nil, errCodexUpstreamWSDisabled
+	}
+	return lease, err
 }
 
 func (p *openAIWSConnPool) recordConnPickDuration(duration time.Duration) {
@@ -393,6 +410,12 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	if p == nil || p.clientDialer == nil {
 		return nil, errors.New("openai ws client dialer is nil")
 	}
+	if !p.upstreamAllowed(ctx, req.Account) {
+		return nil, errCodexUpstreamWSDisabled
+	}
+	if req.outboundIdentity.UserAgent != "" {
+		ctx = outboundidentity.WithIdentity(ctx, req.outboundIdentity)
+	}
 	headers := cloneHeader(req.Headers)
 	var err error
 	if req.HeadersFactory != nil {
@@ -415,6 +438,12 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 			Err:             err,
 		}
 	}
+	if !p.upstreamAllowed(ctx, req.Account) {
+		if conn != nil {
+			_ = conn.Close()
+		}
+		return nil, errCodexUpstreamWSDisabled
+	}
 	if conn == nil {
 		return nil, &openAIWSDialError{
 			StatusCode:      status,
@@ -429,7 +458,7 @@ func (p *openAIWSConnPool) dialConn(ctx context.Context, req openAIWSAcquireRequ
 	pooledConn.onPeerClosed.Store(&evict)
 	pooledConn.wsURL = stringsTrim(req.WSURL)
 	pooledConn.proxyURL = stringsTrim(req.ProxyURL)
-	pooledConn.handshakeCompatibility = normalizeOpenAIWSHandshakeCompatibility(req.Headers)
+	pooledConn.handshakeCompatibility = req.handshakeCompatibility()
 	pooledConn.routingAffinity = normalizeOpenAIWSRoutingAffinity(req.Headers)
 	return pooledConn, nil
 }

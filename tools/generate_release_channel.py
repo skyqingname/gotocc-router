@@ -40,7 +40,6 @@ CHANNEL_IMAGE_FILES = (
     ROOT / "deploy/docker-compose.local.yml",
     ROOT / "deploy/docker-compose.standalone.yml",
     ROOT / "deploy/apple-container.sh",
-    ROOT / "UPSTREAM.md",
 )
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 VERSION_RE = re.compile(r"^v\d+\.\d+\.\d+\+custom\.\d{3}$")

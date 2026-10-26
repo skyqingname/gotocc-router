@@ -28,9 +28,9 @@ machine paths, passwords, or production data to tracked documentation.
 
 ## Install and Build
 
-One entry point builds the frontend and the server with the embedded frontend.
-Local release packages run it inside the build image from
-`deploy/Dockerfile.validation`, and CI runs the same script:
+The product build entry compiles the frontend and server with the embedded
+frontend, and CI runs it. Oracle's final dual-architecture packaging uses the
+maintenance workspace entry described in [RELEASING.md](docs/RELEASING.md):
 
 ```bash
 python3 tools/gotocc_build.py --output backend/bin/sub2api
@@ -66,10 +66,18 @@ go -C backend vet -tags=unit ./...
 go -C backend vet -tags=integration ./...
 ```
 
-Run a focused test only to diagnose an observed problem. `unit` is in-process;
-`integration` uses Docker or a real DSN.
+Follow the owner's execution policy in `AGENTS.md`: do not add or run test
+suites. Use affected builds, type/static checks, existing generator checks,
+logs and actual behavior verification. The `go vet` commands compile/check
+existing test sources but do not execute them.
 
 ## Code Generation
+
+Root parameter and version changes follow
+[Generated artifacts](docs/GENERATED_ARTIFACTS.md). Regenerate affected outputs
+before fixing package source; build and CI do not automatically run the
+release-channel generator. Verify the running candidate's upstream baseline
+separately from its application version.
 
 After editing `backend/ent/schema`:
 
@@ -96,7 +104,7 @@ then reinstall with pnpm. Do not use npm or yarn for this project.
 ### Interface compilation failure
 
 When a Go interface gains a method, update all production implementations and
-test stubs/mocks before running the broader test suite.
+existing test stubs/mocks, then use the affected compile/static checks.
 
 ### Configuration ignored from the environment
 

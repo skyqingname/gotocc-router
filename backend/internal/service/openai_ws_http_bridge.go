@@ -443,6 +443,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	if writeClientMessage == nil {
 		return nil, errors.New("client websocket writer is nil")
 	}
+	if account.Platform == PlatformGrok {
+		ctx = withGrokLogicalTurn(ctx, turn)
+	}
 	responseModelObserver := &upstreamResponseModelObserver{}
 
 	body, err := prepareOpenAIWSHTTPBridgeBody(account, payload)
@@ -525,14 +528,6 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if buildErr != nil {
 			return nil, buildErr
 		}
-		// The HTTP bridge represents one established WebSocket turn. Preserve the
-		// ingress thread as its request correlation ID even when device/session
-		// fingerprint convergence rewrites the wider Codex identity surface.
-		if c != nil && c.Request != nil {
-			if threadID := strings.TrimSpace(c.Request.Header.Get("thread-id")); threadID != "" {
-				upstreamReq.Header.Set("x-client-request-id", threadID)
-			}
-		}
 		if account.Platform != PlatformGrok && isOpenAIResponsesLiteWebSocketPayload(payload) {
 			upstreamReq.Header.Set(responsesLiteHeader, "true")
 		}
@@ -555,9 +550,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	}
 	SetOpsUpstreamModel(c, actualModel)
 
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
+	proxyURL, err := requestCredentialOwnerProxyURL(ctx, account)
+	if err != nil {
+		return nil, err
 	}
 	if c != nil {
 		c.Set("openai_passthrough", true)
@@ -653,7 +648,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	responseID := ""
 	usage := OpenAIUsage{}
 	imageCounter := newOpenAIImageOutputCounter()
-	var timing streamOutputTiming
+	timing := requestStreamOutputTiming(c)
 	reqStream := openAIWSPayloadBoolFromRaw(body, "stream", true)
 	eventCount := 0
 	tokenEventCount := 0
@@ -673,6 +668,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	var bareErrorPayload []byte
 	var createdAtStamper responsesCreatedAtStamper
 	bareErrorMessage := ""
+	var modelNotFoundTerminalError error
 	failureAccountSideEffectsApplied := false
 	mappedModel := actualModel
 	needModelReplace := false
@@ -687,6 +683,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 	resultWithUsage := func() *OpenAIForwardResult {
 		imageCount := imageCounter.Count()
 		result := &OpenAIForwardResult{
+			codexUsageOwner:               capturedCodexUsageOwner(ctx, account),
 			RequestID:                     responseID,
 			Usage:                         usage,
 			Model:                         originalModel,
@@ -701,6 +698,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			Stream:                        reqStream,
 			OpenAIWSMode:                  true,
 			UpstreamTerminalEvent:         upstreamTerminalEvent,
+			modelNotFoundTerminalError:    modelNotFoundTerminalError,
 			ResponseHeaders:               cloneHeader(resp.Header),
 			Duration:                      time.Since(turnStart),
 		}
@@ -831,6 +829,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		replayCollector.AddEvent(eventType, upstreamMessage)
 
 		var upstreamEventErr error
+		if eventType == "response.completed" || eventType == "response.done" {
+			modelNotFoundTerminalError = nil
+		}
 		if officialOpenAIResponses && bareErrorPending && (eventType == "response.completed" || eventType == "response.done") {
 			// Some upstreams emit a recoverable bare error before the authoritative
 			// successful terminal. Do not replace that terminal with a synthetic
@@ -842,6 +843,11 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		suppressClientMessage := officialOpenAIResponses && bareErrorPending && eventType != "response.failed"
 		if eventType == "error" || eventType == "response.failed" {
 			errMessage := extractOpenAISSEErrorMessage(upstreamMessage)
+			if _, ok := openAIModelNotFoundEventStatus(upstreamMessage); ok {
+				modelNotFoundTerminalError = &openAIModelNotFoundTerminalError{cause: fmt.Errorf("upstream model_not_found: %s", errMessage)}
+			} else {
+				modelNotFoundTerminalError = nil
+			}
 			if errMessage == "" {
 				errMessage = "upstream error event"
 			}
@@ -942,7 +948,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 							)
 							break
 						}
-						return nil, wrapOpenAIWSIngressTurnError(
+						return resultWithUsage(), wrapOpenAIWSIngressTurnError(
 							"write_client",
 							fmt.Errorf("write client websocket event: %w", err),
 							wroteDownstream,
@@ -985,6 +991,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 				firstTokenMsValue,
 				clientDisconnected,
 			)
+			if openAISessionTakeoverPending(ctx) {
+				return resultWithUsage(), ErrOpenAISessionRouteNotAccepted
+			}
 			return resultWithUsage(), nil
 		}
 	}

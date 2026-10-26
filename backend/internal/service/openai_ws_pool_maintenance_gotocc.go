@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sort"
 	"time"
 
@@ -247,6 +248,16 @@ func (p *openAIWSConnPool) cleanupAccountLocked(ap *openAIWSAccountPool, now tim
 		return nil
 	}
 	retired := p.retireExpiredConnsLocked(ap, now)
+	if ap.lastAcquire != nil && !p.upstreamAllowed(context.Background(), ap.lastAcquire.Account) {
+		for id, conn := range ap.conns {
+			if conn.tryAcquire() {
+				delete(ap.conns, id)
+				delete(ap.pinnedConns, id)
+				retired = append(retired, conn)
+			}
+		}
+	}
+
 	if maxConns <= 0 {
 		maxConns = p.maxConnsHardCap()
 	}
