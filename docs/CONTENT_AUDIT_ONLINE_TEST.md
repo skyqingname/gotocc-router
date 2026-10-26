@@ -29,4 +29,6 @@
 
 OpenAI Moderations 和 TypeSafe Jev 共用原协议调用。错误响应完整读取；非 2xx、非 JSON、空评分/缺失 Jev 答案保留响应原文。已有健康状态摘要仍按原逻辑处理，在线测试不写这些摘要。调用沿用 `callModerationOnceWithInput` 的可信出站身份、已保存代理与超时。浏览器不再用通用 30 秒限制截断这条请求，离开面板会取消调用。
 
+上游调用失败时输出 `content_moderation.online_test_failed` 结构化日志，包含请求ID、固定接口路径、审核协议、阶段、稳定错误分类、输入字节数、HTTP状态与耗时。日志不包含输入、Key或上游错误正文；错误原文仍只返回管理员页面。
+
 实现：`content_moderation_online_gotocc.go`（service/handler）、`ContentAuditOnlineTest.vue`、`riskControl.ts`。无数据库迁移，无新增业务参数，无发布版本变更。

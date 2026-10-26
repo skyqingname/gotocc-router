@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 )
 
@@ -70,6 +72,19 @@ func (s *ContentModerationService) TestText(ctx context.Context, input ContentMo
 	audit, callErr := s.callModerationOnceWithInput(ctx, cfg, key, prompt, &result.HTTPStatus)
 	result.LatencyMS = time.Since(started).Milliseconds()
 	if callErr != nil {
+		requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+		slog.WarnContext(ctx, "content_moderation.online_test_failed",
+			"request_id", requestID,
+			"endpoint", "/api/v1/admin/risk-control/test-text",
+			"protocol", cfg.Protocol,
+			"stage", "online_test",
+			"error_code", contentModerationNotReviewedReason(callErr),
+			"error_kind", contentModerationErrorKind(callErr),
+			"input_bytes", len(input.Prompt),
+			"audit_input_bytes", len(prompt),
+			"upstream_http_status", result.HTTPStatus,
+			"latency_ms", result.LatencyMS,
+		)
 		result.Error = callErr.Error()
 		return result, nil
 	}
