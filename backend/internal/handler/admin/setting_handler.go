@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -62,7 +61,6 @@ type SettingHandler struct {
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
 	userService              *service.UserService
-	codexVersionSync         *service.OpenAICodexVersionSyncService
 }
 
 // NewSettingHandler 创建系统设置处理器
@@ -99,32 +97,6 @@ func (h *SettingHandler) SetStepUpDeps(totpService *service.TotpService, userSer
 	h.userService = userService
 }
 
-func (h *SettingHandler) SetCodexVersionSync(codexVersionSync *service.OpenAICodexVersionSyncService) {
-	h.codexVersionSync = codexVersionSync
-}
-
-// SyncOpenAICodexVersion POST /api/v1/admin/settings/openai-codex-version/sync
-func (h *SettingHandler) SyncOpenAICodexVersion(c *gin.Context) {
-	if h == nil || h.codexVersionSync == nil {
-		response.Error(c, http.StatusServiceUnavailable, "codex version sync is unavailable")
-		return
-	}
-	result := h.codexVersionSync.SyncNow(c.Request.Context())
-	settings, err := h.settingService.GetAllSettings(c.Request.Context())
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-	response.Success(c, dto.OpenAICodexVersionSyncResponse{
-		SyncedVersion:    settings.OpenAICodexClientVersionSynced,
-		CheckedAt:        settings.OpenAICodexClientVersionSyncedCheckedAt,
-		Error:            settings.OpenAICodexClientVersionSyncError,
-		Updated:          result.Updated,
-		EffectiveVersion: settings.OpenAICodexClientVersionEffective,
-		Source:           settings.OpenAICodexClientVersionSource,
-	})
-}
-
 // GetSettings 获取所有系统设置
 // GET /api/v1/admin/settings
 func (h *SettingHandler) GetSettings(c *gin.Context) {
@@ -143,8 +115,6 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 	opsEnabled := h.opsService != nil && h.opsService.IsMonitoringEnabled(c.Request.Context())
 	payload := h.loadSystemSettingsResponse(c.Request.Context(), settings)
 	payload.OpsMonitoringEnabled = opsEnabled && settings.OpsMonitoringEnabled
-	payload.OpenAICodexClientVersionSyncedCheckedAt = settings.OpenAICodexClientVersionSyncedCheckedAt
-	payload.OpenAICodexClientVersionSyncError = settings.OpenAICodexClientVersionSyncError
 	payload.OpenAICodexClientVersionEffective = settings.OpenAICodexClientVersionEffective
 	payload.OpenAICodexClientVersionSource = settings.OpenAICodexClientVersionSource
 	payload.ClaudeCodeClientVersion = settings.ClaudeCodeClientVersion

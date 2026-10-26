@@ -28,6 +28,7 @@ belong in GitHub Release notes.
 - [Codex client profile restrictions](protocols/CODEX_CLIENT_PROFILES.md)
 - [Asynchronous image tasks and Gemini/Vertex batches](ASYNC_IMAGE_TASKS.md)
 - [Usage timing and completion semantics](USAGE_TIMING.md)
+- [Console layout, request inspection and refresh](UI_INTERACTION.md)
 
 ## Access, Pricing and Administration
 
@@ -57,8 +58,10 @@ belong in GitHub Release notes.
 
 ## Development and Maintenance
 
+- [Official agent sources, versions and outbound review entrypoints](OFFICIAL_AGENT_BASELINES.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Release process](RELEASING.md)
+- [Parameters, generated artifacts and runtime evidence](GENERATED_ARTIFACTS.md)
 - [Upstream mapping](../UPSTREAM.md)
 - [Database migrations and upgrade prerequisites](../backend/migrations/README.md)
 - [Plugin development](PLUGIN_DEVELOPMENT.md)

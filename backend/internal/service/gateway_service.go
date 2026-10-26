@@ -583,11 +583,14 @@ type AccountWaitPlan struct {
 }
 
 type AccountSelectionResult struct {
-	Account     *Account
-	Acquired    bool
-	ReleaseFunc func()
-	WaitPlan    *AccountWaitPlan // nil means no wait allowed
-	// PreserveStickyBinding keeps a temporary overflow from becoming the session owner.
+	// Preserve auxiliary/compatible scope when handlers replay admission context.
+	sessionRouteDisabled bool
+	routeAttempt         *openAISessionRouteAttempt
+	Account              *Account
+	Acquired             bool
+	ReleaseFunc          func()
+	WaitPlan             *AccountWaitPlan // nil means no wait allowed
+	// Temporary overflow does not replace the sticky session owner.
 	PreserveStickyBinding bool
 	// stickySessionHit 标记账号来自会话粘性绑定命中，供非高级调度路径回填决策标签。
 	stickySessionHit bool
@@ -745,6 +748,14 @@ func (e *UpstreamFailoverError) Error() string {
 
 func (e *UpstreamFailoverError) ShouldRetryNextAccount() bool {
 	return e != nil && e.NextAccountAction != NextAccountStop
+}
+
+// AllowsOpenAIAccountSwitch separates a safe next-attempt decision from health
+// scoring. An explicitly retryable transport/credential failure may change the
+// selected account without attributing a shared failure to that credential.
+// Legacy request/provider-scoped errors still cannot authorize owner migration.
+func (e *UpstreamFailoverError) AllowsOpenAIAccountSwitch() bool {
+	return e.ShouldRetryNextAccount() && (e.NextAccountAction == NextAccountRetry || e.ShouldReportAccountScheduleFailure())
 }
 
 func (e *UpstreamFailoverError) IsCredentialFailure() bool {
@@ -1355,6 +1366,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 	if !account.IsGrok() {
 		return nil, errors.New("grok account required")
 	}
+	ctx = WithOutboundIdentityScope(ctx, nil)
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		// Credential/token failures should try the next Grok account in the pool.
@@ -1363,6 +1375,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 			Reason:     GatewayFailureReason("grok_search_token"),
 		}
 	}
+	ctx = withRequestCredentialOwner(ctx, account, token)
 	targetURL, err := buildGrokResponsesURL(account, nil, s.settingService)
 	if err != nil {
 		return nil, err
@@ -1385,7 +1398,9 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 	upstreamReq.Header.Set("Accept", grokSamplerAcceptHeader(false))
 	upstreamReq.Header.Set("User-Agent", defaultGrokUpstreamUserAgent())
 	applyGrokCLIHeaders(upstreamReq.Header)
-	applyGrokRequestMetadata(upstreamReq.Header, body, grokConversationSnapshot{}, account.GetCredential("sub"))
+	if err := applyGrokRequestMetadataForRequest(upstreamReq, nil, account, body, ""); err != nil {
+		return nil, err
+	}
 	account.ApplyHeaderOverrides(upstreamReq.Header)
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -1438,7 +1453,10 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		return models
 	}
 	cacheKey := modelsListCacheKey(groupID, platform)
-	if s.modelsListCache != nil {
+	// Start permission is bound to the current owner, selected identity and
+	// observation deadline. The group-only cache cannot prove those values.
+	cacheModels := platform != PlatformZhipu && platform != ""
+	if cacheModels && s.modelsListCache != nil {
 		if cached, found := s.modelsListCache.Get(cacheKey); found {
 			if models, ok := cached.([]string); ok {
 				modelsListCacheHitTotal.Add(1)
@@ -1477,8 +1495,17 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	// Collect unique models from all accounts
 	modelSet := make(map[string]struct{})
 	hasAnyMapping := false
+	startPlanOnly := len(accounts) > 0
 
 	for _, acc := range accounts {
+		if isZhipuStartPlan(&acc) {
+			cacheModels = false
+			for _, model := range startPlanPublicModelIDs(ctx, &acc) {
+				modelSet[model] = struct{}{}
+			}
+			continue
+		}
+		startPlanOnly = false
 		// Passthrough routing accepts models independently of model_mapping, so a
 		// stale mapping on a passthrough account must not narrow the public list.
 		// Treat it like an unmapped account: skip its mapping here and let
@@ -1524,7 +1551,12 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	}
 	// Without configured or discovered candidates, let the handler use defaults.
 	if len(modelSet) == 0 {
-		if s.modelsListCache != nil {
+		// Non-nil empty is authoritative: Start has no proven public models.
+		// A caller must not replace unknown/negative permission with defaults.
+		if startPlanOnly {
+			return []string{}
+		}
+		if cacheModels && s.modelsListCache != nil {
 			s.modelsListCache.Set(cacheKey, []string(nil), s.modelsListCacheTTL)
 			modelsListCacheStoreTotal.Add(1)
 		}
@@ -1548,7 +1580,7 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		}
 	}
 
-	if s.modelsListCache != nil {
+	if cacheModels && s.modelsListCache != nil {
 		s.modelsListCache.Set(cacheKey, cloneStringSlice(models), s.modelsListCacheTTL)
 		modelsListCacheStoreTotal.Add(1)
 	}

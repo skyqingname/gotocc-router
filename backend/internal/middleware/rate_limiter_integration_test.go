@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/testutil/externalredis"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
@@ -92,10 +93,17 @@ func performRequest(router *gin.Engine) *httptest.ResponseRecorder {
 
 func startRedis(t *testing.T, ctx context.Context) *redis.Client {
 	t.Helper()
-	if addr := strings.TrimSpace(os.Getenv("SUB2API_TEST_REDIS_ADDR")); addr != "" {
-		rdb := redis.NewClient(&redis.Options{Addr: addr, Password: os.Getenv("SUB2API_TEST_REDIS_PASSWORD")})
-		t.Cleanup(func() { require.NoError(t, rdb.Close()) })
+	if address := strings.TrimSpace(os.Getenv("SUB2API_TEST_REDIS_ADDR")); address != "" {
+		options, err := externalredis.Options(address, "SUB2API_TEST_REDIS_DB")
+		require.NoError(t, err)
+		rdb := redis.NewClient(options)
 		require.NoError(t, rdb.Ping(ctx).Err())
+		keys := []string{"rate_limit:ttl-test:127.0.0.1", "rate_limit:ttl-missing:127.0.0.1"}
+		require.NoError(t, rdb.Del(ctx, keys...).Err())
+		t.Cleanup(func() {
+			require.NoError(t, rdb.Del(context.Background(), keys...).Err())
+			require.NoError(t, rdb.Close())
+		})
 		return rdb
 	}
 	ensureDockerAvailable(t)

@@ -71,6 +71,7 @@ const (
 	ContentModerationProtocolGemini            = "gemini"
 	ContentModerationProtocolOpenAIImages      = "openai_images"
 	ContentModerationProtocolTypeSafeSystemOne = "typesafe_systemone"
+	ContentModerationProtocolProviderFiles     = "provider_files"
 
 	defaultContentModerationBaseURL          = "https://api.openai.com"
 	defaultContentModerationModel            = "omni-moderation-latest"
@@ -114,50 +115,6 @@ const (
 	contentModerationRuntimeCacheTTL       = time.Second
 	contentModerationRuntimeRefreshTimeout = 5 * time.Second
 )
-
-var contentModerationCategoryOrder = []string{
-	"harassment",
-	"harassment/threatening",
-	"hate",
-	"hate/threatening",
-	"illicit",
-	"illicit/violent",
-	"self-harm",
-	"self-harm/intent",
-	"self-harm/instructions",
-	"sexual",
-	"sexual/minors",
-	"violence",
-	"violence/graphic",
-}
-
-func ContentModerationDefaultThresholds() map[string]float64 {
-	thresholds := map[string]float64{
-		"harassment":             0.98,
-		"harassment/threatening": 0.90,
-		"hate":                   0.65,
-		"hate/threatening":       0.65,
-		"illicit":                0.95,
-		"illicit/violent":        0.95,
-		"self-harm":              0.65,
-		"self-harm/intent":       0.85,
-		"self-harm/instructions": 0.65,
-		"sexual":                 0.65,
-		"sexual/minors":          0.65,
-		"violence":               0.95,
-		"violence/graphic":       0.95,
-	}
-	for _, category := range contentAuditJev.ExtraCategories {
-		thresholds[category.Category] = category.Threshold
-	}
-	return thresholds
-}
-
-func ContentModerationCategories() []string {
-	out := make([]string, len(contentModerationCategoryOrder))
-	copy(out, contentModerationCategoryOrder)
-	return out
-}
 
 type ContentModerationConfig struct {
 	Enabled bool   `json:"enabled"`
@@ -1232,6 +1189,7 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 			"stage", contentModerationAuditStage(input.Stage),
 			"body_bytes", len(input.Body),
 			"error_code", extractionErrorCode,
+			"file_bytes", auditcontent.FileBytes(input.Protocol, input.Body),
 			"error_kind", "content_extraction",
 			"incomplete_reasons", auditcontent.SanitizeIncompleteReasons(incompleteReasons))
 	}
@@ -2503,6 +2461,9 @@ func (s *ContentModerationService) callModerationOnceWithIdentity(ctx context.Co
 	var out moderationAPIResponse
 	if err := json.Unmarshal(body, &out); err != nil {
 		return nil, fmt.Errorf("decode moderation response: %w; response: %s", err, string(body))
+	}
+	if len(out.Results) > 0 {
+		out.Results[0].CategoryScores = mergeContentModerationCategoryScores(out.Results[0].CategoryScores)
 	}
 	if len(out.Results) == 0 || len(out.Results[0].CategoryScores) == 0 {
 		return nil, fmt.Errorf("moderation api returned no category scores; response: %s", string(body))

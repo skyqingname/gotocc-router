@@ -17,7 +17,7 @@ type openAIWSConnectionKey struct {
 func openAIWSKeyForRequest(req openAIWSAcquireRequest) openAIWSConnectionKey {
 	return openAIWSConnectionKey{
 		wsURL: stringsTrim(req.WSURL), proxyURL: stringsTrim(req.ProxyURL),
-		handshake: normalizeOpenAIWSHandshakeCompatibility(req.Headers),
+		handshake: req.handshakeCompatibility(),
 	}
 }
 
@@ -94,6 +94,9 @@ func (p *openAIWSConnPool) acquireFromPool(ctx context.Context, req openAIWSAcqu
 	}()
 
 	for {
+		if !p.upstreamAllowed(ctx, req.Account) {
+			return nil, errCodexUpstreamWSDisabled
+		}
 		if p.stopped.Load() {
 			return nil, errOpenAIWSConnClosed
 		}

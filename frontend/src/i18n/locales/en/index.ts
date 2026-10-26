@@ -1,3 +1,5 @@
+import workspace from './workspace'
+import requestList from './requestList'
 import featureExtensions from './featureExtensions'
 import canvasCard from './canvasCard'
 import creativeGotocc from './creativeGotocc'
@@ -14,8 +16,12 @@ import misc from './misc'
 import team from './team'
 import gotocc from './gotocc'
 import fingerprint from './fingerprint'
+import inspection from './inspection'
 
 export default {
+  ...workspace,
+  ...requestList,
+  ...inspection,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

@@ -261,11 +261,12 @@ type UpdateSettingsRequest struct {
 	OpenAICodexUserAgent                         *string `json:"openai_codex_user_agent"`
 	OpenAICodexEnvironmentTimezone               *string `json:"openai_codex_environment_timezone"`
 	OpenAICodexEgressCountry                     *string `json:"openai_codex_egress_country"`
+	OpenAICodexWSEnabled                         *bool   `json:"openai_codex_ws_enabled"`
+	OpenAICodexHTTPWSEnabled                     *bool   `json:"openai_codex_http_ws_enabled"`
 	OpenAICodexResidency                         *string `json:"codex_residency"`
 	CodexLegacyClientProfileCompatibilityEnabled *bool   `json:"codex_legacy_client_profile_compatibility_enabled"`
 	OpenAICodexLocalGroupQuotaEnabled            *bool   `json:"openai_codex_local_group_quota_enabled"`
 	OpenAICodexClientVersion                     *string `json:"openai_codex_client_version"`
-	OpenAICodexVersionAutoSyncEnabled            *bool   `json:"openai_codex_version_auto_sync_enabled"`
 
 	// codex_cli_only profile policy (global-only)
 	MinCodexVersion                      string  `json:"min_codex_version"`
@@ -1563,7 +1564,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		// 该值会被拼进出站 User-Agent 与 version 头，必须是合法版本号；空串表示跟随自动同步。
 		normalized := strings.TrimSpace(*req.OpenAICodexClientVersion)
 		if normalized != "" && service.NormalizeCodexClientVersion(normalized) == "" {
-			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.158.0)")
+			response.Error(c, http.StatusBadRequest, "openai_codex_client_version must be empty or a valid version (e.g. 0.164.0)")
 			return
 		}
 		if normalized != "" && service.CompareVersions(normalized, service.OpenAICodexUpstreamMinVersion) < 0 {
@@ -1907,6 +1908,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.OpenAICodexEgressCountry
 		}(),
+		OpenAICodexWSEnabled: func() bool {
+			if req.OpenAICodexWSEnabled != nil {
+				return *req.OpenAICodexWSEnabled
+			}
+			return previousSettings.OpenAICodexWSEnabled
+		}(),
+		OpenAICodexHTTPWSEnabled: func() bool {
+			if req.OpenAICodexHTTPWSEnabled != nil {
+				return *req.OpenAICodexHTTPWSEnabled
+			}
+			return previousSettings.OpenAICodexHTTPWSEnabled
+		}(),
 		OpenAICodexResidency: func() string {
 			if req.OpenAICodexResidency != nil {
 				return *req.OpenAICodexResidency
@@ -1930,14 +1943,6 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return *req.OpenAICodexClientVersion
 			}
 			return previousSettings.OpenAICodexClientVersion
-		}(),
-		// 同步值由自动同步任务独占写入，面板保存时原样带回，避免被清空。
-		OpenAICodexClientVersionSynced: previousSettings.OpenAICodexClientVersionSynced,
-		OpenAICodexVersionAutoSyncEnabled: func() bool {
-			if req.OpenAICodexVersionAutoSyncEnabled != nil {
-				return *req.OpenAICodexVersionAutoSyncEnabled
-			}
-			return previousSettings.OpenAICodexVersionAutoSyncEnabled
 		}(),
 		MinCodexVersion:       strings.TrimSpace(req.MinCodexVersion),
 		MaxCodexVersion:       strings.TrimSpace(req.MaxCodexVersion),

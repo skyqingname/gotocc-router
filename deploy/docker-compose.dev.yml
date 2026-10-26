@@ -54,6 +54,10 @@ services:
       - SETUP_MIGRATION_TIMEOUT_SECONDS=${SETUP_MIGRATION_TIMEOUT_SECONDS:-0}
       - SKIP_SETUP=${SKIP_SETUP:-false}
       - TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY:-}
+      - ZHIPU_OFFPEAK_PERSISTENCE_ENABLED=${ZHIPU_OFFPEAK_PERSISTENCE_ENABLED:-false}
+      - ZHIPU_OFFPEAK_ACTIVE_KEY_ID=${ZHIPU_OFFPEAK_ACTIVE_KEY_ID:-}
+      - ZHIPU_OFFPEAK_SNAPSHOT_KEYS=${ZHIPU_OFFPEAK_SNAPSHOT_KEYS:-}
+      - ZHIPU_OFFPEAK_SNAPSHOT_RETENTION_HOURS=${ZHIPU_OFFPEAK_SNAPSHOT_RETENTION_HOURS:-168}
       - TZ=${TZ:-Asia/Shanghai}
       # Local mainland-China development proxy. Containers cannot use
       # 127.0.0.1 for the host proxy, so default to Docker Desktop's host name.
@@ -174,7 +178,11 @@ services:
     networks:
       - sub2api-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD-SHELL
+        - >-
+          if [ -z "$${REDISCLI_AUTH:-}" ]; then unset REDISCLI_AUTH; fi;
+          reply=$$(redis-cli -e --raw ping 2>&1) && [ "$$reply" = PONG ]
       interval: 10s
       timeout: 5s
       retries: 5

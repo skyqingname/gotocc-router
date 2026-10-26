@@ -98,6 +98,13 @@ Show workload state and run live health probes:
 ./apple-container.sh status
 ```
 
+Redis readiness requires a successful `redis-cli -e --raw ping` with exactly
+`PONG` and no diagnostic output. Authentication failures, ACL errors and
+connection failures make `status` fail. The probe sends the selected deployment
+password through stdin and sets it inside the exec shell, overriding a stale
+container environment without putting the password in command arguments. An
+empty configured password clears inherited authentication.
+
 Show Apple Containers disk usage:
 
 ```bash
@@ -292,22 +299,22 @@ the release workflow preserves the leading `v` and replaces only `+` with
 `-`. The current mapping is:
 
 ```text
-Git/GitHub:         v0.2.17+custom.001
-Application:        0.2.17+custom.001
-Apple/OCI image:    ghcr.io/skyqingname/sub2api-plus:v0.2.17-custom.001
+Git/GitHub:         v0.2.18+custom.003
+Application:        0.2.18+custom.003
+Apple/OCI image:    ghcr.io/skyqingname/sub2api-plus:v0.2.18-custom.003
 ```
 
 Use the following values when building or publishing this OCI image:
 
 ```bash
 docker build \
-  --build-arg VERSION=0.2.17+custom.001 \
-  --tag ghcr.io/skyqingname/sub2api-plus:v0.2.17-custom.001 \
+  --build-arg VERSION=0.2.18+custom.003 \
+  --tag ghcr.io/skyqingname/sub2api-plus:v0.2.18-custom.003 \
   .
 ```
 
 After that image is available to the Apple `container` runtime, set
-`APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/skyqingname/sub2api-plus:v0.2.17-custom.001`. Until then, keep
+`APPLE_CONTAINER_SUB2API_IMAGE=ghcr.io/skyqingname/sub2api-plus:v0.2.18-custom.003`. Until then, keep
 the published image as the runtime base and use `APPLE_CONTAINER_SUB2API_BINARY`
 for the custom binary.
 

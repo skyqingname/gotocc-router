@@ -97,6 +97,19 @@ dist/
 build/
 release/
 
+# Exact runtime staging paths used by the distributed Release workflow. Keep
+# other untracked files visible to Git and Go's VCS build stamping.
+/.release-tooling/
+/.release-plan/
+/.release-output/
+/.release-build.yaml
+/.release-publish.yaml
+/.release-context/
+/.release-pricing/
+/.release-docker-config/
+/release-input/
+/release-leaf/
+
 # 后端嵌入的前端构建产物
 # Keep a placeholder file so `//go:embed all:dist` always has a match in CI/lint,
 # while still ignoring generated frontend build outputs.
@@ -124,6 +137,8 @@ tests
 CLAUDE.md
 .claude
 scripts
+!frontend/scripts/
+!frontend/scripts/consoleSurfaces.js
 !backend/scripts/
 !backend/scripts/resolve-version.sh
 !skills/compress-cli/scripts/
@@ -137,11 +152,18 @@ deploy/docker-compose.override.yml
 vite.config.js
 docs/*
 !docs/CHANNEL_MONITOR.md
+!docs/CHANNEL_MONITOR_V2.md
 !docs/AUTHENTICATION.md
 !docs/MODEL_PLAZA.md
 !docs/OUTBOUND_IDENTITY.md
+!docs/OFFICIAL_AGENT_BASELINES.md
+!docs/OFFICIAL_AGENT_REQUEST_STATE.md
+!docs/SEVEN_PROVIDER_TEST_MATRIX.md
+!docs/PROXY_LIFECYCLE.md
+!docs/SEVEN_PROVIDER_SUPPORTED_BUSINESS.md
 !docs/README.md
 !docs/RELEASING.md
+!docs/GENERATED_ARTIFACTS.md
 !docs/CI_VALIDATION.md
 !docs/ANTIGRAVITY_ATTRIBUTION_429.md
 !docs/PAYMENT.md
@@ -149,6 +171,7 @@ docs/*
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
 !docs/USAGE_TIMING.md
+!docs/UI_INTERACTION.md
 !docs/ERROR_REQUEST_DIAGNOSTICS.md
 !docs/SECURITY_AUDIT_CONTENT_COVERAGE.md
 !docs/CONTENT_AUDIT_ONLINE_TEST.md

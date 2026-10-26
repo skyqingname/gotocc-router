@@ -29,6 +29,10 @@
 
 OpenAI Moderations 和 TypeSafe Jev 共用原协议调用。错误响应完整读取；非 2xx、非 JSON、空评分/缺失 Jev 答案保留响应原文。已有健康状态摘要仍按原逻辑处理，在线测试不写这些摘要。调用沿用 `callModerationOnceWithInput` 的可信出站身份、已保存代理与超时。浏览器不再用通用 30 秒限制截断这条请求，离开面板会取消调用。
 
+TypeSafe System One 路径兼容百炼 `decision-model-preview`：根 `content-audit-jev.json` 定义合并后的 7 类风险，每段文字只提交一次请求、7 个问题。骚扰、仇恨、违法、自伤和暴力的细分类分别合并，成人色情与未成年人色情独立保留；越狱、政治敏感、不道德、版权不再送审或配置阈值。`instructions` 为审核标准与该类别问题组成的字符串，待审文字只放在 `state.content`；文字仍按 `input_limit_runes` 分段，各类别取所有文本段的最高概率。
+
+OpenAI 审核接口返回的细分类分数按根参数 `score_categories` 取最大值归入主类，之后再做阈值判定、显示和记录。合并类别保留主类已保存阈值，子类不再独立设阈值；未设置的主类沿用根参数默认值。新配置与结果使用 7 类，历史日志和阈值快照保持原样。同步、异步、节点诊断及在线测试共用这些规则。
+
 上游调用失败时输出 `content_moderation.online_test_failed` 结构化日志，包含请求ID、固定接口路径、审核协议、阶段、稳定错误分类、输入字节数、HTTP状态与耗时。日志不包含输入、Key或上游错误正文；错误原文仍只返回管理员页面。
 
 实现：`content_moderation_online_gotocc.go`（service/handler）、`ContentAuditOnlineTest.vue`、`riskControl.ts`。无数据库迁移，无新增业务参数，无发布版本变更。

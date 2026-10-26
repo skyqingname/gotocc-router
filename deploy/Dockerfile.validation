@@ -13,6 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GOCACHE=/tmp/sub2api-home/go/cache \
     GOMODCACHE=/tmp/sub2api-home/go/pkg/mod \
     PNPM_HOME=/tmp/sub2api-home/pnpm \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/sub2api-playwright \
     HOME=/tmp/sub2api-home \
     PATH=/usr/local/go/bin:/usr/local/node/bin:/usr/local/bin:/tmp/sub2api-home/pnpm:$PATH
 
@@ -25,10 +26,14 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' \
     && apt-get install -y --no-install-recommends \
         bash \
         curl \
+        gcc \
         git \
         make \
+        libc6-dev \
         python3 \
         python3-pip \
+        redis-server \
+        redis-tools \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -56,6 +61,15 @@ RUN set -eu; \
     mkdir -p /tmp/sub2api-home; \
     chmod 777 /tmp/sub2api-home; \
     printf 'sub2api-validation\n' >/etc/sub2api-validation
+
+# Playwright and its Chromium revision must match the exact frontend pin.
+# The browser is an image resource, never a host installation or mutable cache.
+RUN pnpm dlx "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium \
+    && chmod -R a+rX /opt/sub2api-playwright \
+    && rm -rf /var/lib/apt/lists/* /tmp/sub2api-home/.cache /tmp/sub2api-home/.local
+
+# Keep the pinned package manager available when runtime networking is disabled.
+RUN corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
 WORKDIR /workspace
 CMD ["python3", "--version"]

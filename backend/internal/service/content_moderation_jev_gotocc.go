@@ -1,6 +1,6 @@
 package service
 
-// GoToCC：内容审计接入 TypeSafe Jev。一次请求按风险类别提问，各类别 noul
+// GoToCC：内容审计接入 TypeSafe System One。一次请求按合并后的风险类别提问，各类别 noul
 // 概率作为分数进入内容审计原有的阈值、拦截、通知与封号流程。
 
 import (
@@ -29,25 +29,22 @@ const (
 var contentAuditJevJSON []byte
 
 type contentAuditJevRisk struct {
-	Category    string `json:"category"`
-	QuestionID  string `json:"question_id"`
-	Description string `json:"description"`
-}
-
-type contentAuditJevCategory struct {
-	Category  string  `json:"category"`
-	Threshold float64 `json:"threshold"`
+	Category        string   `json:"category"`
+	QuestionID      string   `json:"question_id"`
+	Description     string   `json:"description"`
+	Threshold       float64  `json:"threshold"`
+	ScoreCategories []string `json:"score_categories"`
 }
 
 type contentAuditJevParameters struct {
-	BaseURL         string                    `json:"base_url"`
-	Model           string                    `json:"model"`
-	InputLimitRunes int                       `json:"input_limit_runes"`
-	Policy          string                    `json:"policy"`
-	Question        string                    `json:"question"`
-	Criteria        map[string]string         `json:"criteria"`
-	Risks           []contentAuditJevRisk     `json:"risks"`
-	ExtraCategories []contentAuditJevCategory `json:"extra_categories"`
+	BaseURL           string                `json:"base_url"`
+	Model             string                `json:"model"`
+	InputLimitRunes   int                   `json:"input_limit_runes"`
+	Policy            string                `json:"policy"`
+	Question          string                `json:"question"`
+	Criteria          map[string]string     `json:"criteria"`
+	Risks             []contentAuditJevRisk `json:"risks"`
+	RetiredCategories []string              `json:"retired_categories"`
 }
 
 var contentAuditJev = func() contentAuditJevParameters {
@@ -57,14 +54,6 @@ var contentAuditJev = func() contentAuditJevParameters {
 	}
 	return parameters
 }()
-
-// Jev 独有的风险类别并入内容审计类别表，阈值与其他类别同样配置和判定；
-// OpenAI 审核接口不返回这些类别，对其不产生分数。
-func init() {
-	for _, category := range contentAuditJev.ExtraCategories {
-		contentModerationCategoryOrder = append(contentModerationCategoryOrder, category.Category)
-	}
-}
 
 func contentModerationInputText(input any) string {
 	switch value := input.(type) {
@@ -129,12 +118,9 @@ func (s *ContentModerationService) callJevChunk(ctx context.Context, cfg *Conten
 	questions := make(map[string]any, len(contentAuditJev.Risks))
 	for _, risk := range contentAuditJev.Risks {
 		questions[risk.QuestionID] = map[string]any{
-			"type": "noul",
-			"instructions": map[string]string{
-				"policy":   cfg.JevPolicy,
-				"question": strings.ReplaceAll(contentAuditJev.Question, "{risk}", risk.Description),
-			},
-			"criteria": contentAuditJev.Criteria,
+			"type":         "noul",
+			"instructions": cfg.JevPolicy + "\n\n" + strings.ReplaceAll(contentAuditJev.Question, "{risk}", risk.Description),
+			"criteria":     contentAuditJev.Criteria,
 		}
 	}
 	raw, err := json.Marshal(map[string]any{"model": cfg.Model, "state": map[string]string{"content": content}, "questions": questions})
