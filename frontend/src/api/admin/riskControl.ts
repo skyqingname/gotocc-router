@@ -146,6 +146,30 @@ export interface ContentModerationTestAuditResult {
   thresholds: Record<string, number>
 }
 
+export interface ContentModerationOnlineTestResult {
+  endpoint_id: string
+  endpoint_name: string
+  model: string
+  api_key_masked: string
+  http_status: number
+  latency_ms: number
+  blocking_enabled: boolean
+  audit_result: ContentModerationTestAuditResult | null
+  error: string
+}
+
+export async function testText(
+  payload: { endpoint_id: string; prompt: string },
+  signal?: AbortSignal,
+): Promise<ContentModerationOnlineTestResult> {
+  // The saved endpoint timeout owns this call; do not cut it short with the
+  // API client's generic timeout. Leaving the panel cancels the request.
+  const { data } = await apiClient.post<ContentModerationOnlineTestResult>(
+    '/admin/risk-control/test-text', payload, { timeout: 0, signal },
+  )
+  return data
+}
+
 export interface UpdateContentModerationConfig {
   enabled?: boolean
   mode?: ModerationMode
@@ -439,6 +463,7 @@ export const riskControlAPI = {
   updateConfig,
   getStatus,
   testAPIKeys,
+  testText,
   setEndpointPaused,
   listLogs,
   unbanUser,

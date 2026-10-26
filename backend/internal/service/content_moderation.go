@@ -2493,16 +2493,19 @@ func (s *ContentModerationService) callModerationOnceWithIdentity(ctx context.Co
 		*httpStatus = resp.StatusCode
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read moderation response (HTTP %d): %w", resp.StatusCode, err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return nil, fmt.Errorf("moderation api status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var out moderationAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("decode moderation response: %w; response: %s", err, string(body))
 	}
-	if len(out.Results) == 0 {
-		return nil, errors.New("moderation api returned empty results")
+	if len(out.Results) == 0 || len(out.Results[0].CategoryScores) == 0 {
+		return nil, fmt.Errorf("moderation api returned no category scores; response: %s", string(body))
 	}
 	return &out.Results[0], nil
 }

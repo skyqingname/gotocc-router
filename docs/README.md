@@ -33,6 +33,7 @@ belong in GitHub Release notes.
 
 - [Authentication and Passkeys](AUTHENTICATION.md)
 - [Security audit content coverage](SECURITY_AUDIT_CONTENT_COVERAGE.md)
+- [Content audit online diagnostics](CONTENT_AUDIT_ONLINE_TEST.md)
 - [Model Plaza visibility](MODEL_PLAZA.md)
 - [Available-channel model catalog](AVAILABLE_CHANNELS.md)
 - [Channel pricing](CHANNEL_PRICING.md)

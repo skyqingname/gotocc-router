@@ -226,8 +226,13 @@
                   <span class="h-2.5 w-2.5 rounded-full" :class="workerDotClass(worker.state)"></span>
                 </div>
               </div>
+              <ContentAuditOnlineTest class="mt-6 border-t border-gray-100 pt-5 dark:border-dark-700" :endpoints="status?.endpoints ?? []" />
             </div>
           </div>
+        </div>
+
+        <div v-if="!showWorkerRuntimeCard" class="card p-6">
+          <ContentAuditOnlineTest :endpoints="status?.endpoints ?? []" />
         </div>
 
         <div class="card">
@@ -1342,6 +1347,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import ContentAuditOnlineTest from '@/components/admin/ContentAuditOnlineTest.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Select from '@/components/common/Select.vue'

@@ -221,6 +221,7 @@ func registerContentModerationRoutes(admin *gin.RouterGroup, h *handler.Handlers
 		risk.GET("/config", h.Admin.ContentModeration.GetConfig)
 		risk.PUT("/config", h.Admin.ContentModeration.UpdateConfig)
 		risk.POST("/api-keys/test", h.Admin.ContentModeration.TestAPIKeys)
+		risk.POST("/test-text", h.Admin.ContentModeration.TestText)
 		risk.POST("/endpoints/:endpoint_id/pause", h.Admin.ContentModeration.PauseEndpoint)
 		risk.POST("/endpoints/:endpoint_id/resume", h.Admin.ContentModeration.ResumeEndpoint)
 		risk.GET("/status", h.Admin.ContentModeration.GetStatus)

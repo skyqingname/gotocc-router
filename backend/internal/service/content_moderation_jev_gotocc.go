@@ -164,8 +164,11 @@ func (s *ContentModerationService) callJevChunk(ctx context.Context, cfg *Conten
 	}
 	defer func() { _ = resp.Body.Close() }()
 	*httpStatus = resp.StatusCode
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read typesafe jev response (HTTP %d): %w", resp.StatusCode, err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return nil, fmt.Errorf("typesafe jev status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var out struct {
@@ -174,14 +177,14 @@ func (s *ContentModerationService) callJevChunk(ctx context.Context, cfg *Conten
 			Noul *float64 `json:"noul"`
 		} `json:"answers"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("decode typesafe jev response: %w; response: %s", err, string(body))
 	}
 	scores := make(map[string]float64, len(contentAuditJev.Risks))
 	for _, risk := range contentAuditJev.Risks {
 		answer, ok := out.Answers[risk.QuestionID]
 		if !ok || answer.Type != "noul" || answer.Noul == nil || math.IsNaN(*answer.Noul) || *answer.Noul < 0 || *answer.Noul > 1 {
-			return nil, fmt.Errorf("typesafe jev returned no valid noul for %s", risk.QuestionID)
+			return nil, fmt.Errorf("typesafe jev returned no valid noul for %s; response: %s", risk.QuestionID, string(body))
 		}
 		scores[risk.Category] = *answer.Noul
 	}

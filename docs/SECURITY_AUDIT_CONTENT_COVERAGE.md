@@ -552,3 +552,14 @@ ingress audit, account ownership, billing or concurrency ordering. Existing
 Responses/Chat/Messages/WS/media pass-through and side-effect-order regressions
 remain mandatory; unknown and unextractable content keeps the established
 pass-through contract.
+
+## Administrator content-audit diagnostics
+
+`POST /api/v1/admin/risk-control/test-text` is an administrator-only diagnostic
+call to a saved moderation endpoint. It reuses the moderation protocol, proxy,
+trusted outbound identity and threshold evaluator. It is not an inference
+gateway route and does not create content-audit logs, update endpoint/key health or
+apply user penalties. Successful scores and full upstream failures are returned
+to the administrator. The existing admin operation log keeps call metadata with
+the request body omitted; no input or response body is added to application logs.
+See [online test](CONTENT_AUDIT_ONLINE_TEST.md) for request and result semantics.
