@@ -821,6 +821,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	if err := commitOpenAISessionTakeoverJSON(c.Request.Context(), acceptedBody); err != nil {
 		return &OpenAIForwardResult{RequestID: requestID, Usage: usage, Model: originalModel, BillingModel: billingModel, UpstreamModel: upstreamModel, Duration: time.Since(startTime)}, err
 	}
+	chatResp.GoToCCRoute = newChatResponseRoute(c, upstreamModel)
 	chatResp.GoToCCTiming = newChatResponseTiming(startTime, finalResponse)
 	writeChatResponseTimingHeader(c, chatResp.GoToCCTiming)
 	c.JSON(http.StatusOK, chatResp)
@@ -905,6 +906,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 	writeStreamHeaders := s.newStreamHeaderWriter(c, resp.Header, account)
+	route := newChatResponseRoute(c, upstreamModel)
 
 	state := apicompat.NewResponsesEventToChatState()
 	state.Model = originalModel
@@ -1085,7 +1087,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 			return true
 		}
 		chunks := apicompat.ResponsesEventToChatChunks(&event, state)
-		attachChatFinishTiming(chunks, startTime, event.Response)
+		attachChatFinishMetadata(chunks, startTime, event.Response, route)
 		if !clientDisconnected {
 			for _, chunk := range chunks {
 				refusalDetector.ObserveChatChunk(chunk)
@@ -1147,7 +1149,7 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 			return resultWithUsage(), ErrOpenAISessionRouteNotAccepted
 		}
 		if finalChunks := apicompat.FinalizeResponsesChatStream(state); len(finalChunks) > 0 && !clientDisconnected {
-			attachChatFinishTiming(finalChunks, startTime, nil)
+			attachChatFinishMetadata(finalChunks, startTime, nil, route)
 			for _, chunk := range finalChunks {
 				refusalDetector.ObserveChatChunk(chunk)
 				sse, err := apicompat.ChatChunkToSSE(chunk)
