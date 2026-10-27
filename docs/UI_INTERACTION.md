@@ -97,6 +97,9 @@ Surface positioning is a low-specificity fallback and must preserve component
 and utility positioning, including the sticky toolbar and absolute dropdowns.
 Keep that fallback outside Tailwind's component layer so important card/dropdown
 variants cannot promote positioning on unrelated surfaces.
+Both owned and upstream version panels open below the sidebar version badges.
+They share the version dropdown's viewport height limit, vertical scrolling and
+mobile width/alignment so their headers and refresh actions remain reachable.
 Light/dark themes share geometry and solid surface behavior, including when
 reduced transparency is requested. Reduced-motion preferences disable transitions.
 
