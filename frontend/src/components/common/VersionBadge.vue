@@ -26,7 +26,7 @@
       <transition name="dropdown">
         <div
           v-if="upstreamDropdownOpen"
-          class="absolute left-0 top-full z-50 mt-2 w-80 overflow-hidden whitespace-normal rounded-xl border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
+          class="version-dropdown absolute left-0 top-full z-50 mt-2 w-80 overflow-x-hidden whitespace-normal rounded-xl border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
         >
           <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-dark-700">
             <span class="text-sm font-medium text-gray-700 dark:text-dark-300">{{ t('version.upstreamReleaseOverview') }}</span>
@@ -68,7 +68,7 @@
         <div
           v-if="dropdownOpen"
           ref="dropdownRef"
-          class="version-dropdown glass-surface absolute left-0 z-50 mt-2 w-80 whitespace-normal transition-all duration-200"
+          class="version-dropdown glass-surface absolute left-0 top-full z-50 mt-2 w-80 whitespace-normal transition-all duration-200"
         >
           <!-- Header with refresh button -->
           <div
