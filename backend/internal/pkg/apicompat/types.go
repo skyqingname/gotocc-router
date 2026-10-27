@@ -377,6 +377,7 @@ type ResponsesResponse struct {
 	// absent, so it is always emitted — no omitempty. Same rule as ID (see the
 	// "clients treat it as required" fallback in ChatCompletionsResponseToAnthropic).
 	CreatedAt      int64             `json:"created_at"`
+	CompletedAt    *float64          `json:"completed_at,omitempty"`
 	Model          string            `json:"model"`
 	Status         string            `json:"status"` // "completed" | "incomplete" | "failed"
 	Output         []ResponsesOutput `json:"output"`
@@ -812,15 +813,16 @@ type ChatFunctionCall struct {
 
 // ChatCompletionsResponse is the non-streaming response from POST /v1/chat/completions.
 type ChatCompletionsResponse struct {
-	ID                string          `json:"id"`
-	Object            string          `json:"object"` // "chat.completion"
-	Created           int64           `json:"created"`
-	Model             string          `json:"model"`
-	Choices           []ChatChoice    `json:"choices"`
-	Usage             *ChatUsage      `json:"usage,omitempty"`
-	SystemFingerprint string          `json:"system_fingerprint,omitempty"`
-	ServiceTier       string          `json:"service_tier,omitempty"`
-	ContentFilters    json.RawMessage `json:"content_filters,omitempty"`
+	ID                string              `json:"id"`
+	Object            string              `json:"object"` // "chat.completion"
+	Created           int64               `json:"created"`
+	Model             string              `json:"model"`
+	Choices           []ChatChoice        `json:"choices"`
+	Usage             *ChatUsage          `json:"usage,omitempty"`
+	SystemFingerprint string              `json:"system_fingerprint,omitempty"`
+	ServiceTier       string              `json:"service_tier,omitempty"`
+	ContentFilters    json.RawMessage     `json:"content_filters,omitempty"`
+	GoToCCTiming      *ChatResponseTiming `json:"gotocc_timing,omitempty"`
 }
 
 // ChatChoice is a single completion choice.
@@ -894,15 +896,16 @@ type ChatTokenDetails struct {
 
 // ChatCompletionsChunk is a single streaming chunk from POST /v1/chat/completions.
 type ChatCompletionsChunk struct {
-	ID                string            `json:"id"`
-	Object            string            `json:"object"` // "chat.completion.chunk"
-	Created           int64             `json:"created"`
-	Model             string            `json:"model"`
-	Choices           []ChatChunkChoice `json:"choices"`
-	Usage             *ChatUsage        `json:"usage,omitempty"`
-	SystemFingerprint string            `json:"system_fingerprint,omitempty"`
-	ServiceTier       string            `json:"service_tier,omitempty"`
-	ContentFilters    json.RawMessage   `json:"content_filters,omitempty"`
+	ID                string              `json:"id"`
+	Object            string              `json:"object"` // "chat.completion.chunk"
+	Created           int64               `json:"created"`
+	Model             string              `json:"model"`
+	Choices           []ChatChunkChoice   `json:"choices"`
+	Usage             *ChatUsage          `json:"usage,omitempty"`
+	SystemFingerprint string              `json:"system_fingerprint,omitempty"`
+	ServiceTier       string              `json:"service_tier,omitempty"`
+	ContentFilters    json.RawMessage     `json:"content_filters,omitempty"`
+	GoToCCTiming      *ChatResponseTiming `json:"gotocc_timing,omitempty"`
 	// AggregateOutput marks compatibility fallback content recovered from a
 	// done/terminal aggregate. It is not serialized to downstream clients.
 	AggregateOutput bool `json:"-"`
