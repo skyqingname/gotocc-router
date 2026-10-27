@@ -24,11 +24,12 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	}
 
 	out := &ChatCompletionsResponse{
-		ID:          id,
-		Object:      "chat.completion",
-		Created:     time.Now().Unix(),
-		Model:       model,
-		ServiceTier: resp.ServiceTier,
+		ID:             id,
+		Object:         "chat.completion",
+		Created:        time.Now().Unix(),
+		Model:          model,
+		ServiceTier:    resp.ServiceTier,
+		ContentFilters: resp.ContentFilters,
 	}
 
 	var contentText string
@@ -555,7 +556,11 @@ func resToChatHandleCompleted(evt *ResponsesStreamEvent, state *ResponsesEventTo
 	}
 
 	state.Finalized = true
-	chunks = append(chunks, makeChatFinishChunk(state, finishReason))
+	finishChunk := makeChatFinishChunk(state, finishReason)
+	if evt.Response != nil {
+		finishChunk.ContentFilters = evt.Response.ContentFilters
+	}
+	chunks = append(chunks, finishChunk)
 
 	if state.IncludeUsage && state.Usage != nil {
 		chunks = append(chunks, ChatCompletionsChunk{
@@ -736,12 +741,12 @@ func chatUsageFromResponsesUsage(u *ResponsesUsage) *ChatUsage {
 
 // promptDetailsFromResponses maps Responses-API input_tokens_details into a
 // Chat-Completions prompt_tokens_details. Returns nil when nothing would be
-// emitted, so upstreams that do not break down prompt usage stay clean.
+// emitted. Explicit upstream zero counts remain present.
 func promptDetailsFromResponses(src *ResponsesInputTokensDetails) *ChatTokenDetails {
 	if src == nil {
 		return nil
 	}
-	if src.CachedTokens == 0 && src.AudioTokens == 0 && src.CacheCreationTokens == 0 && src.CacheWriteTokens == 0 {
+	if len(src.presentFields) == 0 && src.CachedTokens == 0 && src.AudioTokens == 0 && src.CacheCreationTokens == 0 && src.CacheWriteTokens == 0 {
 		return nil
 	}
 	return &ChatTokenDetails{
@@ -749,6 +754,7 @@ func promptDetailsFromResponses(src *ResponsesInputTokensDetails) *ChatTokenDeta
 		AudioTokens:         src.AudioTokens,
 		CacheCreationTokens: src.CacheCreationTokens,
 		CacheWriteTokens:    src.CacheWriteTokens,
+		presentFields:       src.presentFields,
 	}
 }
 
@@ -756,12 +762,12 @@ func promptDetailsFromResponses(src *ResponsesInputTokensDetails) *ChatTokenDeta
 // into a Chat-Completions completion_tokens_details. Mirrors the OpenAI
 // official CompletionUsage schema: reasoning_tokens, audio_tokens, and
 // the predicted-outputs accepted/rejected counts. Returns nil when nothing
-// would be emitted so non-reasoning, non-audio responses stay clean.
+// would be emitted; explicit upstream zero counts remain present.
 func completionDetailsFromResponses(src *ResponsesOutputTokensDetails) *ChatTokenDetails {
 	if src == nil {
 		return nil
 	}
-	if src.ReasoningTokens == 0 && src.AudioTokens == 0 &&
+	if len(src.presentFields) == 0 && src.ReasoningTokens == 0 && src.AudioTokens == 0 &&
 		src.AcceptedPredictionTokens == 0 && src.RejectedPredictionTokens == 0 {
 		return nil
 	}
@@ -770,6 +776,7 @@ func completionDetailsFromResponses(src *ResponsesOutputTokensDetails) *ChatToke
 		AudioTokens:              src.AudioTokens,
 		AcceptedPredictionTokens: src.AcceptedPredictionTokens,
 		RejectedPredictionTokens: src.RejectedPredictionTokens,
+		presentFields:            src.presentFields,
 	}
 }
 

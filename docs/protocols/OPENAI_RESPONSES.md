@@ -74,6 +74,27 @@ not start or extend the token clock. Anthropic thinking blocks retain a
 signature. Converted Chat streams retain SSE heartbeat comments without
 counting them as token output.
 
+When Responses is converted to Chat Completions, reported zero-valued token
+details remain present: `input_tokens_details` becomes `prompt_tokens_details`
+and `output_tokens_details` becomes `completion_tokens_details`. Missing counts
+are not filled with zero. Token totals and billing arithmetic are unchanged.
+
+Azure's `content_filters` extension is returned with its original field name
+and JSON structure. Non-streaming clients read it from the Chat response;
+streaming clients read it from the finish chunk, independently of
+`stream_options.include_usage`. Each entry's `source_type` identifies prompt
+or completion annotations. Consumers that only inspect the legacy Azure Chat
+`prompt_filter_results` or `choices[].content_filter_results` fields should also
+read `content_filters`. The gateway does not manufacture filter decisions.
+See [Azure Responses guardrail annotations](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/responses#guardrails).
+
+The HTTP passthrough toggle does not select the Chat upstream protocol.
+Account-level **Responses API support** controls that choice; forcing Chat
+Completions also changes how native Responses clients use that account.
+Upstream response headers still follow `security.response_headers`; a header
+that the supplier does not send cannot be reconstructed as a supplier timing
+or routing measurement.
+
 Responses WS refreshes the same API key's group pricing on later turns through
 the existing authentication cache. A valid snapshot must retain the same key,
 group, platform and subscription type; lookup failure or an ownership/type

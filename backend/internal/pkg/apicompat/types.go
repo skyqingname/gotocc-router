@@ -376,12 +376,13 @@ type ResponsesResponse struct {
 	// it non-optional and abort with `missing field 'created_at'` when it is
 	// absent, so it is always emitted — no omitempty. Same rule as ID (see the
 	// "clients treat it as required" fallback in ChatCompletionsResponseToAnthropic).
-	CreatedAt   int64             `json:"created_at"`
-	Model       string            `json:"model"`
-	Status      string            `json:"status"` // "completed" | "incomplete" | "failed"
-	Output      []ResponsesOutput `json:"output"`
-	Usage       *ResponsesUsage   `json:"usage,omitempty"`
-	ServiceTier string            `json:"service_tier,omitempty"` // upstream tier, echoed back verbatim
+	CreatedAt      int64             `json:"created_at"`
+	Model          string            `json:"model"`
+	Status         string            `json:"status"` // "completed" | "incomplete" | "failed"
+	Output         []ResponsesOutput `json:"output"`
+	Usage          *ResponsesUsage   `json:"usage,omitempty"`
+	ServiceTier    string            `json:"service_tier,omitempty"`    // upstream tier, echoed back verbatim
+	ContentFilters json.RawMessage   `json:"content_filters,omitempty"` // Azure response annotations, preserved verbatim
 
 	// incomplete_details is present when status="incomplete"
 	IncompleteDetails *ResponsesIncompleteDetails `json:"incomplete_details,omitempty"`
@@ -635,6 +636,7 @@ type ResponsesInputTokensDetails struct {
 	AudioTokens         int `json:"audio_tokens,omitempty"`
 	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
 	CacheWriteTokens    int `json:"cache_write_tokens,omitempty"`
+	presentFields       tokenDetailPresence
 }
 
 // ResponsesOutputTokensDetails breaks down output token usage.
@@ -643,6 +645,7 @@ type ResponsesOutputTokensDetails struct {
 	AudioTokens              int `json:"audio_tokens,omitempty"`
 	AcceptedPredictionTokens int `json:"accepted_prediction_tokens,omitempty"`
 	RejectedPredictionTokens int `json:"rejected_prediction_tokens,omitempty"`
+	presentFields            tokenDetailPresence
 }
 
 // ---------------------------------------------------------------------------
@@ -809,14 +812,15 @@ type ChatFunctionCall struct {
 
 // ChatCompletionsResponse is the non-streaming response from POST /v1/chat/completions.
 type ChatCompletionsResponse struct {
-	ID                string       `json:"id"`
-	Object            string       `json:"object"` // "chat.completion"
-	Created           int64        `json:"created"`
-	Model             string       `json:"model"`
-	Choices           []ChatChoice `json:"choices"`
-	Usage             *ChatUsage   `json:"usage,omitempty"`
-	SystemFingerprint string       `json:"system_fingerprint,omitempty"`
-	ServiceTier       string       `json:"service_tier,omitempty"`
+	ID                string          `json:"id"`
+	Object            string          `json:"object"` // "chat.completion"
+	Created           int64           `json:"created"`
+	Model             string          `json:"model"`
+	Choices           []ChatChoice    `json:"choices"`
+	Usage             *ChatUsage      `json:"usage,omitempty"`
+	SystemFingerprint string          `json:"system_fingerprint,omitempty"`
+	ServiceTier       string          `json:"service_tier,omitempty"`
+	ContentFilters    json.RawMessage `json:"content_filters,omitempty"`
 }
 
 // ChatChoice is a single completion choice.
@@ -885,6 +889,7 @@ type ChatTokenDetails struct {
 	ReasoningTokens          int `json:"reasoning_tokens,omitempty"`
 	AcceptedPredictionTokens int `json:"accepted_prediction_tokens,omitempty"`
 	RejectedPredictionTokens int `json:"rejected_prediction_tokens,omitempty"`
+	presentFields            tokenDetailPresence
 }
 
 // ChatCompletionsChunk is a single streaming chunk from POST /v1/chat/completions.
@@ -897,6 +902,7 @@ type ChatCompletionsChunk struct {
 	Usage             *ChatUsage        `json:"usage,omitempty"`
 	SystemFingerprint string            `json:"system_fingerprint,omitempty"`
 	ServiceTier       string            `json:"service_tier,omitempty"`
+	ContentFilters    json.RawMessage   `json:"content_filters,omitempty"`
 	// AggregateOutput marks compatibility fallback content recovered from a
 	// done/terminal aggregate. It is not serialized to downstream clients.
 	AggregateOutput bool `json:"-"`
