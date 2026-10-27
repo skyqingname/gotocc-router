@@ -34,6 +34,13 @@ existing boundary; callback delays must not inflate first-byte timing.
   response IDs retain separate windows, including interleaved turns.
 - `duration_ms` retains its existing forwarding/turn duration. It is not a new
   measurement of the full client-perceived request, including scheduling.
+- Responses-to-Chat output additionally exposes `gotocc_timing.forward_duration_ms`
+  at final JSON/finish-chunk serialization. This snapshot ends before final
+  response delivery and cleanup, so it can be slightly shorter than the usage
+  record. Non-streaming responses expose the same snapshot as the
+  `gotocc_forward` Server-Timing metric. Optional upstream response timestamps
+  and their derived lifecycle are separate supplier-reported data; see
+  [the protocol contract](protocols/OPENAI_RESPONSES.md#compatibility-and-per-turn-billing).
 - Average TPS is `(output_tokens - image_output_tokens - audio_output_tokens) *
   1000 / duration_ms`. It uses raw millisecond precision and includes first-token
   waiting, pauses and stream cleanup within the existing forwarding/turn duration.

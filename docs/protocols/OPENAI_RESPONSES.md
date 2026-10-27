@@ -95,6 +95,29 @@ Upstream response headers still follow `security.response_headers`; a header
 that the supplier does not send cannot be reconstructed as a supplier timing
 or routing measurement.
 
+For Chat Completions forwarded through Responses, `gotocc_timing` reports
+two separate observations. `forward_duration_ms` is measured by GoToCC from
+the existing forwarding start to just before final JSON/finish-chunk
+serialization. It includes upstream waiting/transfer and local conversion;
+it excludes admission/routing before forwarding and subsequent client delivery.
+It does not change the existing usage-log `duration_ms` boundary or billing.
+
+If a completed upstream response reports both timestamps,
+`gotocc_timing.upstream_response` retains `created_at`, `completed_at`, and
+`duration_ms = (completed_at - created_at) * 1000`. This is the immediate
+supplier's reported response lifecycle, not a measurement of pure model
+inference or proof of provider identity. Integer-second timestamps retain
+second-level precision even though the result uses millisecond units. Missing
+or reversed timestamps do not produce an upstream duration.
+
+Non-streaming responses also expose the same values in `Server-Timing` as
+`gotocc_forward` and optional `upstream_response`, with descriptions identifying
+their source. Streaming responses carry `gotocc_timing` in the finish chunk;
+their total duration is not known when the initial HTTP headers are sent.
+The gateway does not write these measurements into `openai-processing-ms`.
+Native Responses and raw Chat passthrough retain their existing response
+contracts; this addition belongs to the Responses-to-Chat path.
+
 Responses WS refreshes the same API key's group pricing on later turns through
 the existing authentication cache. A valid snapshot must retain the same key,
 group, platform and subscription type; lookup failure or an ownership/type
