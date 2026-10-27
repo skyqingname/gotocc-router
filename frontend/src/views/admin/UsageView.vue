@@ -1,8 +1,9 @@
 <template>
-  <AppLayout workspace>
-    <div class="workspace-page usage-workspace">
-      <WorkspaceTabs v-model="workspaceTab" class="workspace-fixed" :tabs="workspaceTabs" :label="t('usage.tabs.usage')" />
-        <div v-show="activeTab !== 'live'" class="card workspace-fixed usage-date p-4">
+  <AppLayout>
+    <div id="admin-usage" class="space-y-6">
+      <UsageStatsCards :stats="usageStats" />
+      <section class="space-y-4" data-testid="usage-charts-panel">
+        <div class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
@@ -20,8 +21,6 @@
             </div>
           </div>
         </div>
-      <section v-show="workspaceTab === 'charts' && activeTab !== 'live'" class="workspace-shell workspace-scroll space-y-4" data-testid="usage-charts-panel">
-      <UsageStatsCards :stats="usageStats" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ModelDistributionChart
             v-model:source="modelDistributionSource"
@@ -64,8 +63,8 @@
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
       </section>
-      <div ref="recordsPanel" v-show="workspaceTab === 'records'" class="card workspace-table-card workspace-shell" data-testid="usage-records-panel">
-        <div class="usage-detail-tabs card-tabs workspace-fixed" role="tablist" :aria-label="t('usage.tabs.usage')">
+      <div ref="recordsPanel" class="card" data-testid="usage-records-panel">
+        <div class="flex flex-wrap items-center border-b border-gray-200 px-2 dark:border-dark-700 sm:px-4" role="tablist" :aria-label="t('usage.tabs.usage')">
           <button
             v-for="tab in detailTabs"
             :key="tab.key"
@@ -74,7 +73,10 @@
             role="tab"
             :aria-selected="activeTab === tab.key"
             data-testid="usage-detail-tab"
-            class="card-tab"
+            class="-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:px-4"
+            :class="activeTab === tab.key
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-dark-500 dark:hover:text-gray-200'"
             @click="switchTab(tab.key)"
           >
             <Icon :name="tab.icon" size="sm" />
@@ -82,7 +84,7 @@
           </button>
         </div>
 
-        <UsageFilters workspace v-if="activeTab !== 'disconnects' && activeTab !== 'live'" v-model="filters" ref="usageFiltersRef" flat :mode="usageFilterMode" class="workspace-fixed border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" :error-view="errView" @update:error-view="onErrorViewChange" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
+        <UsageFilters v-if="activeTab !== 'disconnects' && activeTab !== 'live'" v-model="filters" ref="usageFiltersRef" flat :mode="usageFilterMode" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" :error-view="errView" @update:error-view="onErrorViewChange" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
             <div v-if="activeTab !== 'ranking'" class="relative" ref="columnDropdownRef">
               <button
@@ -129,13 +131,12 @@
           </template>
         </UsageFilters>
 
-        <div v-show="activeTab === 'usage'" class="workspace-body !gap-0">
-          <div class="usage-history-refresh workspace-fixed flex flex-wrap items-center justify-between gap-3 p-4">
+        <div v-show="activeTab === 'usage'" class="overflow-hidden rounded-b-2xl">
+          <div class="flex flex-wrap items-center justify-between gap-3 p-4">
             <RefreshControl :state="historyRefresh" switch-visible manual />
             <button v-if="newRecordsAvailable" type="button" class="btn btn-secondary" @click="showLatestRecords">{{ t('inspection.newRecords') }}</button>
           </div>
           <UsageTable
-            workspace
             flat
             :data="usageLogs"
             :loading="loading"
@@ -147,14 +148,13 @@
             @userClick="handleUserClick"
             @ipGeoBatchFailed="handleIpGeoBatchFailed"
           />
-          <Pagination class="workspace-fixed" v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" />
+          <Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" />
 
         </div>
-        <LiveRequestsPanel workspace v-if="activeTab === 'live'" mode="admin" />
-        <div v-show="activeTab === 'errors'" class="workspace-body !gap-0">
+        <LiveRequestsPanel v-if="activeTab === 'live'" mode="admin" />
+        <div v-show="activeTab === 'errors'" class="overflow-hidden rounded-b-2xl">
           <OpsErrorLogTable
             flat
-            compact
             :active-row-key="showErrorModal ? selectedErrorId ?? undefined : undefined"
             :rows="errRows" :total="errTotal" :loading="errLoading"
             :page="errPage" :page-size="errPageSize"
@@ -170,9 +170,8 @@
 
         </div>
         <!-- 懒挂载：首次切到该 tab 才请求排行数据，之后随筛选自动刷新 -->
-        <div v-if="rankingMounted" v-show="activeTab === 'ranking'" class="workspace-body !gap-0">
+        <div v-if="rankingMounted" v-show="activeTab === 'ranking'" class="overflow-hidden rounded-b-2xl">
           <UserTokenRanking
-            workspace
             ref="rankingRef"
             :start-date="startDate"
             :end-date="endDate"
@@ -182,7 +181,7 @@
             @select-user="handleRankingSelectUser"
           />
         </div>
-        <ClientDisconnectEventsPanel workspace v-if="disconnectEventsMounted" v-show="activeTab === 'disconnects'" class="workspace-body !gap-0" />
+        <ClientDisconnectEventsPanel v-if="disconnectEventsMounted" v-show="activeTab === 'disconnects'" class="overflow-hidden rounded-b-2xl" />
       </div>
     </div>
   </AppLayout>
@@ -205,7 +204,7 @@
 
 <script setup lang="ts">
 import { firstByteMs, strictFirstTokenMs, averageTps, tpsNote } from '@/utils/usageTiming'
-import { ref, reactive, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { saveAs } from 'file-saver'
 import { useRoute, useRouter } from 'vue-router'
@@ -213,7 +212,6 @@ import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admi
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
-import WorkspaceTabs from '@/components/common/WorkspaceTabs.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; import UsageFilters from '@/components/admin/usage/UsageFilters.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
@@ -243,12 +241,7 @@ type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
 const router = useRouter()
-const workspaceTab = ref(Object.keys(route.query).length ? 'records' : 'charts')
 const recordsPanel = ref<HTMLElement | null>(null)
-const workspaceTabs = computed(() => [
-  { value: 'charts', label: t('workspace.charts') },
-  { value: 'records', label: t('workspace.usageRecords') },
-])
 const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
 const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
@@ -306,7 +299,6 @@ const handleUserClick = async (userId: number) => {
 const handleRankingSelectUser = (userId: number, email: string) => {
   filters.value = { ...filters.value, user_id: userId }
   usageFiltersRef.value?.setUserKeyword?.(email || '')
-  workspaceTab.value = 'records'
   activeTab.value = 'usage'
   applyFilters()
 }
@@ -827,13 +819,6 @@ const loadSavedColumns = () => {
 // Detail tabs
 type DetailTab = 'usage' | 'errors' | 'ranking' | 'disconnects' | 'live'
 const activeTab = ref<DetailTab>('usage')
-let lastHistoryTab: typeof activeTab.value = 'usage'
-watch(activeTab, (tab) => { if (tab !== 'live') lastHistoryTab = tab })
-watch(workspaceTab, async (tab) => {
-  if (tab === 'charts' && activeTab.value === 'live') activeTab.value = lastHistoryTab
-  await nextTick()
-  window.dispatchEvent(new Event('resize'))
-})
 const usageFilterMode = computed<'usage' | 'errors' | 'ranking'>(() => (activeTab.value === 'disconnects' || activeTab.value === 'live') ? 'usage' : activeTab.value)
 const detailTabs = computed(() => [
   { key: 'live' as const, label: t('inspection.live'), icon: 'bolt' as const },
@@ -848,7 +833,6 @@ const disconnectEventsMounted = ref(false)
 const rankingRef = ref<InstanceType<typeof UserTokenRanking> | null>(null)
 
 const switchTab = (tab: DetailTab) => {
-  workspaceTab.value = 'records'
   activeTab.value = tab
   if (tab === 'errors' && errRows.value.length === 0) loadAdminErrors()
   if (tab === 'ranking') rankingMounted.value = true
@@ -954,7 +938,7 @@ defineExpose({ requestedModelStats, refreshData })
 const newRecordsAvailable = ref(false)
 const historyRefresh = useAutoRefresh({
   storageKey: useColumnPreferenceKey('admin-usage-auto-refresh'), intervals: [15, 30, 60], defaultInterval: 30, defaultEnabled: true, temporaryPause: true,
-  active: () => workspaceTab.value === 'records' && activeTab.value === 'usage',
+  active: () => activeTab.value === 'usage',
   shouldPause: () => loading.value,
   onRefresh: async () => {
     const params = { ...buildUsageListParams(1, pagination.page_size, false), snapshot_max_id: 'new' as const, sort_by: 'created_at', sort_order: 'desc' as const }
@@ -963,8 +947,9 @@ const historyRefresh = useAutoRefresh({
     abortController?.abort(); abortController = controller
     const res = await adminUsageAPI.list(params, { signal: controller.signal })
     if (controller.signal.aborted || filterKey !== JSON.stringify(filters.value)) return
-    const tableScrollTop = recordsPanel.value?.querySelector<HTMLElement>('.workspace-table-viewport')?.scrollTop ?? 0
-    const reading = window.scrollY >= 160 || tableScrollTop >= 160 || !!window.getSelection()?.toString() || !!document.querySelector('[role="dialog"], [role="tooltip"]') || !!document.activeElement?.closest('button, input, select, textarea, a, summary, [tabindex], [contenteditable="true"]')
+    const tableScrollTop = recordsPanel.value?.querySelector<HTMLElement>('.table-wrapper')?.scrollTop ?? 0
+    const pageScrollTop = recordsPanel.value?.closest<HTMLElement>('.app-main')?.scrollTop ?? 0
+    const reading = window.scrollY >= 160 || pageScrollTop >= 160 || tableScrollTop >= 160 || !!window.getSelection()?.toString() || !!document.querySelector('[role="dialog"], [role="tooltip"]') || !!document.activeElement?.closest('button, input, select, textarea, a, summary, [tabindex], [contenteditable="true"]')
     if (pagination.page === 1 && sortState.sort_by === 'created_at' && sortState.sort_order === 'desc' && !reading) {
       usageLogs.value = res.items; pagination.total = res.total; historySnapshot.accept(res, true)
     } else {
@@ -984,19 +969,65 @@ function showLatestRecords() {
 </script>
 
 <style scoped>
-@media (min-width: 1024px) {
-  .usage-detail-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
-  .usage-detail-tabs > button { flex: none; white-space: nowrap; }
-  .usage-date { padding: 10px 14px; }
-  .usage-history-refresh { padding: 8px 14px; }
-  .usage-workspace :deep(.workspace-fixed .btn) { min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
+/* Keep the pre-workspace appearance local to this page; shared charts and
+   tables retain the current appearance everywhere else. */
+#admin-usage {
+  --surface-fill: theme('colors.white');
+  --surface-field: theme('colors.white');
+  --surface-soft: theme('colors.gray.50');
+  --surface-hover: theme('colors.gray.50');
+  --surface-edge: theme('colors.gray.200');
+  --surface-muted: theme('colors.gray.500');
+  --surface-glint: transparent;
+  --surface-radius: 1rem;
+  --surface-radius-control: 0.5rem;
 }
-@media (min-width: 1024px) and (max-height: 799px) {
-  .usage-date { padding: 8px 12px; }
-  .usage-history-refresh { padding: 4px 12px; }
-  .usage-workspace :deep(.workspace-tabs) { padding: 4px; }
-  .usage-workspace :deep(.pagination-card) { padding: 8px 12px; }
-  .usage-workspace :deep(.pagination-desktop) { gap: 6px; }
-  .usage-workspace :deep(.pagination-card .input), .usage-workspace :deep(.pagination-card .select-trigger) { min-height: 32px; height: 32px; padding: 4px 8px; }
+.dark #admin-usage {
+  --surface-fill: theme('colors.dark.800');
+  --surface-field: theme('colors.dark.800');
+  --surface-soft: theme('colors.dark.900');
+  --surface-hover: theme('colors.dark.700');
+  --surface-edge: theme('colors.dark.700');
+  --surface-muted: theme('colors.gray.400');
+}
+#admin-usage :deep(.card) {
+  @apply rounded-2xl shadow-card;
+  background: var(--surface-fill);
+  border: 1px solid var(--surface-edge);
+}
+#admin-usage :deep(.surface-control) {
+  box-shadow: none;
+}
+#admin-usage :deep(.record-table-scroll) {
+  border: 0 !important;
+  padding: 0 !important;
+  border-radius: 0;
+}
+#admin-usage :deep(table.record-table) {
+  border-collapse: collapse !important;
+}
+#admin-usage :deep(table.record-table > thead > tr > :is(th, td)) {
+  border-bottom: 1px solid var(--surface-edge) !important;
+  background: var(--surface-soft) !important;
+}
+#admin-usage :deep(table.record-table > :is(tbody, tfoot) > tr:not([aria-hidden="true"]) > :is(td, th)) {
+  border: 0 !important;
+  border-bottom: 1px solid var(--surface-edge) !important;
+  border-radius: 0 !important;
+  background: var(--surface-fill) !important;
+  box-shadow: none !important;
+}
+#admin-usage :deep(table.record-table > tbody > tr:hover > td),
+#admin-usage :deep(table.record-table > .record-group:hover > tr > td) {
+  background: var(--surface-hover) !important;
+}
+#admin-usage :deep(table.record-table > tbody > tr:is(.table-row-selected, [aria-selected="true"]) > td) {
+  background: var(--surface-selected) !important;
+}
+#admin-usage :deep(table.record-table .sticky-col::before) {
+  content: none !important;
+}
+#admin-usage :deep(.record-table-compact > thead > tr > th) {
+  background: var(--surface-fill) !important;
 }
 </style>

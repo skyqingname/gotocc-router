@@ -151,6 +151,7 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/ADMIN_USAGE_UI.md
 !docs/CHANNEL_MONITOR.md
 !docs/CHANNEL_MONITOR_V2.md
 !docs/AUTHENTICATION.md
