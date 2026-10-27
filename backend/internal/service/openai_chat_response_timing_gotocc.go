@@ -34,11 +34,12 @@ func writeChatResponseTimingHeader(c *gin.Context, timing *apicompat.ChatRespons
 	c.Writer.Header().Add("Server-Timing", value)
 }
 
-func attachChatFinishTiming(chunks []apicompat.ChatCompletionsChunk, startedAt time.Time, response *apicompat.ResponsesResponse) {
+func attachChatFinishMetadata(chunks []apicompat.ChatCompletionsChunk, startedAt time.Time, response *apicompat.ResponsesResponse, route *apicompat.ChatResponseRoute) {
 	for i := range chunks {
 		for _, choice := range chunks[i].Choices {
 			if choice.FinishReason != nil {
 				chunks[i].GoToCCTiming = newChatResponseTiming(startedAt, response)
+				chunks[i].GoToCCRoute = route
 				break
 			}
 		}

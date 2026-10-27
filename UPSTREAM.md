@@ -73,9 +73,10 @@ GoToCC integration was published as `0.2.18+custom.003` after acceptance on
 2026-10-26. GoToCC `0.2.18+custom.004` added the classic admin usage layout and
 preserved zero-valued token details and Azure `content_filters` during
 Responses-to-Chat conversion. The owned release identity is now
-`0.2.18+custom.005`, adding separately identified gateway forwarding duration
-and upstream-reported response timestamps/lifecycle to that conversion path.
-The owner accepted the verified timing candidate for publication on
+`0.2.18+custom.006`, retaining the separately identified forwarding duration
+and upstream-reported response lifecycle introduced in `.005`, and adding the
+gateway's actual route metadata plus the version-panel positioning fix from
+PR #52. The owner authorized the routing fix, PR merge and publication on
 2026-10-27. Publication status is recorded by the owned GitHub Release;
 this source version does not imply a production deployment.
 
@@ -191,6 +192,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.18-custom.003
 | `skyqingname/gotocc-router@v0.2.18+custom.003` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; integrates Plus `.003`; see GitHub Release |
 | `skyqingname/gotocc-router@v0.2.18+custom.004` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; response metadata and admin usage layout |
 | `skyqingname/gotocc-router@v0.2.18+custom.005` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; separate gateway and upstream-reported response timing |
+| `skyqingname/gotocc-router@v0.2.18+custom.006` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; actual gateway route metadata and version-panel positioning |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains

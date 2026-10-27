@@ -823,6 +823,7 @@ type ChatCompletionsResponse struct {
 	ServiceTier       string              `json:"service_tier,omitempty"`
 	ContentFilters    json.RawMessage     `json:"content_filters,omitempty"`
 	GoToCCTiming      *ChatResponseTiming `json:"gotocc_timing,omitempty"`
+	GoToCCRoute       *ChatResponseRoute  `json:"gotocc_route,omitempty"`
 }
 
 // ChatChoice is a single completion choice.
@@ -906,6 +907,7 @@ type ChatCompletionsChunk struct {
 	ServiceTier       string              `json:"service_tier,omitempty"`
 	ContentFilters    json.RawMessage     `json:"content_filters,omitempty"`
 	GoToCCTiming      *ChatResponseTiming `json:"gotocc_timing,omitempty"`
+	GoToCCRoute       *ChatResponseRoute  `json:"gotocc_route,omitempty"`
 	// AggregateOutput marks compatibility fallback content recovered from a
 	// done/terminal aggregate. It is not serialized to downstream clients.
 	AggregateOutput bool `json:"-"`

@@ -118,6 +118,17 @@ The gateway does not write these measurements into `openai-processing-ms`.
 Native Responses and raw Chat passthrough retain their existing response
 contracts; this addition belongs to the Responses-to-Chat path.
 
+That conversion path also returns `gotocc_route` in the non-streaming response
+or streaming finish chunk. `inbound_endpoint` is the actual incoming URL path;
+`upstream_endpoint` is the endpoint recorded for the current forwarding attempt
+(without the supplier's Base URL prefix); `upstream_model` is the model actually
+sent after mapping/normalization. Values come from the request and forwarding
+context, not from hardcoded supplier assumptions. Account IDs, credentials,
+private Base URLs, provider regions and deployments are not included.
+Consumers should read `gotocc_route` as GoToCC routing information, not as a
+replacement for a supplier's missing `routing` field. The HTTP passthrough
+toggle is not required to receive this metadata on the conversion path.
+
 Responses WS refreshes the same API key's group pricing on later turns through
 the existing authentication cache. A valid snapshot must retain the same key,
 group, platform and subscription type; lookup failure or an ownership/type
