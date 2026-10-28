@@ -169,6 +169,21 @@ adapter sends Chat Completions with that account's Grok API key and validated
 Grok base URL. An empty result from another provider's key getter must never
 quarantine a valid Grok grant.
 
+Messages traffic using the Responses upstream already shares
+`normalizeGrokReasoningEffortValue` with the native Grok endpoints. For
+`grok-4.7` and its `-latest` alias, this mapper removes the unsupported `none`
+effort instead of forwarding it. This includes the `none` generated while
+converting Anthropic `thinking.type=disabled`. It does not replace tool choices
+with `auto`, choose a lower effort, or switch models. Other supported effort
+values retain their existing mappings; usage metadata follows the final
+outbound field rather than a removed compatibility value. No separate Grok
+rewrite rule or configuration generator is introduced.
+
+The provider's [reasoning contract](https://docs.x.ai/developers/model-capabilities/text/reasoning)
+does not allow reasoning to be disabled on Grok 4.7. With `none` omitted the
+provider applies its own default; callers needing a specific supported effort
+should set it explicitly. Native Claude model validation remains separate.
+
 The optional SSO import converts an operator-supplied Grok Web SSO cookie into
 Build OAuth credentials through the trusted xAI device flow. The raw cookie is
 used only for that conversion and is not persisted in account credentials.
