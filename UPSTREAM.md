@@ -72,13 +72,15 @@ and retains its active customization contracts and retired features. The owned
 GoToCC integration was published as `0.2.18+custom.003` after acceptance on
 2026-10-26. GoToCC `0.2.18+custom.004` added the classic admin usage layout and
 preserved zero-valued token details and Azure `content_filters` during
-Responses-to-Chat conversion. The owned release identity is now
-`0.2.18+custom.006`, retaining the separately identified forwarding duration
-and upstream-reported response lifecycle introduced in `.005`, and adding the
-gateway's actual route metadata plus the version-panel positioning fix from
-PR #52. The owner authorized the routing fix, PR merge and publication on
-2026-10-27. Publication status is recorded by the owned GitHub Release;
-this source version does not imply a production deployment.
+Responses-to-Chat conversion. Owned `.005` retains separate forwarding and
+upstream response timing; `.006` adds actual gateway route metadata and the
+version-panel positioning fix. The owned release identity is now
+`0.2.18+custom.007`: Sourcesdata JSON image edits are encoded as multipart by
+upstream host, Grok 4.7 omits unsupported `none` reasoning effort, and padded
+image Base64 is normalized using its unpadded length. The owner authorized
+review, conditional acceptance and publication on 2026-10-28. Publication
+status is recorded by the owned GitHub Release; this source version does not
+imply production deployment.
 
 Content audit now uses seven merged categories, sends string instructions to
 System One and removes the four explicitly retired risks. Parent thresholds

@@ -376,6 +376,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if patchErr != nil {
 			return nil, fmt.Errorf("apply grok prompt cache identity: %w", patchErr)
 		}
+		if responsesReq.Reasoning != nil {
+			responsesReq.Reasoning.Effort = gjson.GetBytes(responsesBody, "reasoning.effort").String()
+		}
 	}
 
 	if credentialAccount.UsesOpenAICodexProtocol() && credentialAccount.Platform != PlatformGrok {

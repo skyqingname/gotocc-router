@@ -737,7 +737,13 @@ func normalizeGrokChatReasoningEffort(body []byte, upstreamModel string) ([]byte
 func normalizeGrokReasoningEffortValue(raw, model string) (string, bool) {
 	value := strings.NewReplacer("-", "", "_", "", " ", "").Replace(strings.ToLower(strings.TrimSpace(raw)))
 	switch value {
-	case "none", "low", "medium", "high":
+	case "none":
+		canonical := strings.ToLower(xai.StripGrokProviderPrefix(strings.TrimSpace(model)))
+		if canonical == "grok-4.7" || canonical == "grok-4.7-latest" {
+			return "", false
+		}
+		return value, true
+	case "low", "medium", "high":
 		return value, true
 	case "minimal":
 		return "low", true

@@ -50,6 +50,9 @@ func (s *OpenAIGatewayService) doOpenAIUpstreamPrepared(request *http.Request, _
 	if err != nil {
 		return nil, err
 	}
+	if err := s.applyUpstreamRequestAdaptations(request, credentialAccount); err != nil {
+		return nil, err
+	}
 	request = prepareAccountOutboundRequest(request, credentialAccount)
 	if err := OutboundPreparationError(request.Context()); err != nil {
 		return nil, err

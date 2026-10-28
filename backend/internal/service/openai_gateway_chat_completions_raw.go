@@ -199,6 +199,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletionsWithStartTime(
 		if err != nil {
 			return nil, fmt.Errorf("normalize Grok chat reasoning effort: %w", err)
 		}
+		reasoningEffort = extractOpenAIReasoningEffortFromBody(upstreamBody, upstreamModel, billingModel, originalModel)
 		upstreamBody, err = sanitizeGrokUnsupportedFields(upstreamBody)
 		if err != nil {
 			return nil, fmt.Errorf("sanitize Grok unsupported fields: %w", err)

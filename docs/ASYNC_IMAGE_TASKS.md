@@ -24,6 +24,11 @@ Every endpoint also has the equivalent no-prefix `/images/...` alias.
 
 Only OpenAI and Grok groups are supported. Requests use the same JSON or multipart payload as the corresponding synchronous endpoint. Streaming image requests are rejected because a polled task returns one final JSON result.
 
+Configured API-key image-edit upstreams receive multipart even when the client
+submits JSON image URLs. Synchronous and asynchronous edits share this conversion;
+see [image-edit upstream protocols](protocols/OPENAI_IMAGES.md) for the parameter
+source, preserved fields and download behavior.
+
 ## Enabling the feature (object storage)
 
 Asynchronous image tasks are **disabled by default** and gated on object storage. When the switch is off — or the S3 credentials are incomplete — the submission endpoints return `404` and never create a task or write to Redis. This is deliberate: without offloading, large `b64_json` results (several MB each, e.g. `gpt-image-1`) would accumulate in Redis and exhaust its memory. List, detail, download, and failed-task deletion remain available for existing tasks after the switch is turned off; ZIP downloads still require the previously configured object-storage credentials to remain complete.
