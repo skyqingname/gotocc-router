@@ -134,7 +134,7 @@ func (a *openAISessionRouteAttempt) current(ctx context.Context) (OpenAISessionR
 		return route, ErrOpenAISessionRouteLeaseLost
 	}
 	if err != nil && !IsOpenAISessionRouteError(err) {
-		return route, fmt.Errorf("%w: read", ErrOpenAISessionRouteStoreUnavailable)
+		return route, fmt.Errorf("%w: read: %w", ErrOpenAISessionRouteStoreUnavailable, err)
 	}
 	return route, err
 }
@@ -570,7 +570,7 @@ func (s *OpenAIGatewayService) selectAccountWithCanonicalRoute(ctx context.Conte
 	domain, digest := openAISessionRouteDomain(derefGroupID(req.GroupID)), OpenAISessionRouteDigest(req.SessionHash)
 	route, err := store.Get(ctx, domain, digest)
 	if err != nil && !errors.Is(err, ErrOpenAISessionRouteNotFound) {
-		return nil, OpenAIAccountScheduleDecision{}, fmt.Errorf("%w: read", ErrOpenAISessionRouteStoreUnavailable)
+		return nil, OpenAIAccountScheduleDecision{}, fmt.Errorf("%w: read: %w", ErrOpenAISessionRouteStoreUnavailable, err)
 	}
 	exists := err == nil
 	if !exists {
@@ -625,7 +625,7 @@ func (s *OpenAIGatewayService) selectAccountWithCanonicalRoute(ctx context.Conte
 		} else {
 			owner, ownerErr := s.getSchedulableAccount(ctx, route.OwnerAccountID)
 			if ownerErr != nil && !errors.Is(ownerErr, ErrAccountNotFound) {
-				return nil, decision, fmt.Errorf("%w: owner lookup", ErrOpenAISessionRouteStoreUnavailable)
+				return nil, decision, fmt.Errorf("%w: owner lookup: %w", ErrOpenAISessionRouteStoreUnavailable, ownerErr)
 			}
 			if owner != nil && owner.IsSchedulable() {
 				if vetoed, _ := openAIProfitControlVetoReason(ctx, owner); vetoed {

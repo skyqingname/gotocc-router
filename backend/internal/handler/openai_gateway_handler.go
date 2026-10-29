@@ -2103,6 +2103,10 @@ func (h *OpenAIGatewayHandler) handleOpenAISessionRouteError(c *gin.Context, err
 	if !service.IsOpenAISessionRouteError(err) {
 		return false
 	}
+	if handleCanceledOpenAISessionRoute(c, err) {
+		return true
+	}
+	requestLogger(c, "handler.openai_gateway.session_route").Warn("openai.session_route_failed", zap.Error(err))
 	if GetInboundEndpoint(c) == EndpointMessages {
 		payload := gin.H{"type": "error", "error": gin.H{"type": "api_error", "code": "session_route_unavailable", "message": "Session routing is temporarily unavailable; retry this request."}}
 		if streamStarted {
@@ -2158,11 +2162,13 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		// 推迟绑定，这里在终检通过后补准入后绑定。
 		{
 			if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
-				reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 				if selection.ReleaseFunc != nil {
 					selection.ReleaseFunc()
 				}
-				writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+				if !handleCanceledOpenAISessionRoute(c, err) {
+					reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+					writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+				}
 				return nil, openAISlotAcquireFailed
 			}
 		}
@@ -2200,11 +2206,13 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		account = latest
 		selection.Account = latest
 		if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
-			reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 			if fastReleaseFunc != nil {
 				fastReleaseFunc()
 			}
-			writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+			if !handleCanceledOpenAISessionRoute(c, err) {
+				reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+				writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+			}
 			return nil, openAISlotAcquireFailed
 		}
 		return wrapReleaseOnDone(ctx, fastReleaseFunc), openAISlotAcquireOK
@@ -2262,11 +2270,13 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	account = latest
 	selection.Account = latest
 	if err := h.gatewayService.BindStickySessionAfterSelection(ctx, groupID, sessionHash, selection); err != nil {
-		reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
-		writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+		if !handleCanceledOpenAISessionRoute(c, err) {
+			reqLog.Warn("openai.bind_sticky_session_after_profit_admission_failed", zap.Int64("account_id", account.ID), zap.Error(err))
+			writeError(http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.")
+		}
 		return nil, openAISlotAcquireFailed
 	}
 	return wrapReleaseOnDone(ctx, accountReleaseFunc), openAISlotAcquireOK

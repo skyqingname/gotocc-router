@@ -64,6 +64,24 @@ they cannot supply or infer a missing selection decision.
 - Selection exhaustion keeps known pool/filter counts. These fields do not
   alter scheduling, model restrictions, account caps or quota policy.
 
+## Session routing and client cancellation
+
+A canceled HTTP client must not become a `session_route_unavailable` 503 when
+the same cancellation closes its route attempt or cancels a route-store read.
+The shared OpenAI HTTP routing handler and post-slot binding paths use the
+existing client-closed classification first: 499 before headers are committed,
+or the existing status after stream commitment. The structured event
+`openai.session_route_client_disconnected` includes `route_error` and
+`client_error`, alongside the request correlation fields. Genuine route
+failures keep their protocol error and emit `openai.session_route_failed`;
+route-read and owner-lookup wrappers preserve the underlying error.
+
+Correlate `ops_error_logs.client_request_id` with
+`client_disconnect_risk_events.request_id`. When usage lacks an upstream request
+ID, its `request_id` can be `client:<client_request_id>`; searching only the
+gateway's `ops_error_logs.request_id` does not establish that usage is absent.
+No historical error, usage or lifecycle rows are rewritten by this change.
+
 ## Body reads
 
 `gateway.request_body_read_failed` logs a safe request ID, canonical endpoint,
