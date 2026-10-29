@@ -128,7 +128,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if parsed == nil {
 		return nil, fmt.Errorf("parse request: empty request")
 	}
-	// API-key mappings and OAuth native IDs are resolved before mimicry.
+	// Resolve the destination model before compatibility and validation so a
+	// client name mapped to an older model keeps that destination's behavior.
 	validationModel := parsed.Model
 	if account != nil {
 		if account.IsBedrock() {
@@ -137,10 +138,16 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			}
 		} else if account.Type == AccountTypeAPIKey {
 			validationModel = account.GetMappedModel(validationModel)
+		} else if account.Type == AccountTypeServiceAccount {
+			if mapped, matched := account.ResolveMappedModel(validationModel); matched {
+				validationModel = mapped
+			} else {
+				validationModel = normalizeVertexAnthropicModelID(claude.NormalizeModelID(validationModel))
+			}
 		}
 	}
 	if account != nil && account.Platform == PlatformAnthropic {
-		if err := validateClaude55Request(parsed.Body.Bytes(), validationModel); err != nil {
+		if err := prepareClaude55MessagesRequest(parsed, validationModel); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"type": "error", "error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
 			return nil, err
 		}

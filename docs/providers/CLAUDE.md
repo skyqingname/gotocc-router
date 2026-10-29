@@ -18,6 +18,39 @@ the same Content Moderation and Prompt Audit gates. Unknown valid blocks pass
 through, and recognized sibling content remains auditable under the shared
 [content coverage contract](../SECURITY_AUDIT_CONTENT_COVERAGE.md).
 
+## Opus 5.5 legacy Messages thinking
+
+For native `POST /v1/messages` and `POST /v1/messages/count_tokens`, the gateway
+adapts legacy thinking settings only when the final account-mapped model is
+Opus 5.5 (including the model aliases recognized by the Claude model catalog).
+The policy is declared in the root `upstream-request-adaptations.json` and
+compiled by `tools/generate_upstream_request_adaptations.py`.
+
+| Incoming setting | Forwarded setting |
+| --- | --- |
+| `thinking.type=enabled` | `thinking.type=adaptive`; remove `thinking.budget_tokens`; preserve any explicit `output_config.effort`. |
+| `thinking.type=disabled` | `thinking.type=adaptive`, `output_config.effort=low`; remove `thinking.budget_tokens`. The disabled intent takes precedence over any contradictory effort value. |
+| `thinking.type=adaptive`, omitted thinking, or any other mode | No compatibility rewrite; existing validation still applies. |
+
+Opus 5.5 cannot disable thinking. The disabled-to-low policy still incurs
+thinking output usage; it does not promise zero reasoning tokens. Manual token
+budgets have no exact effort equivalent. When an enabled request has no effort,
+the field remains absent so the model supplies its default.
+
+Adaptation runs after ingress content audit and final model resolution, before
+Claude 5.5 validation, passthrough, OAuth normalization and upstream signing.
+It updates the account attempt's parsed thinking/effort fields together with the
+body, so usage records reflect the forwarded effort. Account failover starts
+from the original request. The rewrite preserves `max_tokens`, system/messages,
+historical thinking signatures, tools, and unrelated output configuration.
+Forced tool choice and other model restrictions retain their existing errors.
+
+Other Claude models, non-Claude providers, and OpenAI Chat Completions/Responses
+conversion rules are unchanged. Mapping an Opus 5.5 client name to an older
+upstream model retains that older model's behavior. See the
+[official Opus 5.5 migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)
+for the upstream parameter contract.
+
 ## Interrupted compatibility streams
 
 Anthropic-backed Chat Completions and Responses streams stop writing after
