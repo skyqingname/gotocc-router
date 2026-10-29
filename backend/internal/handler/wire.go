@@ -200,12 +200,14 @@ func ProvideOpenAIGatewayHandler(
 	coordinator *securityaudit.Coordinator,
 	compositeResolver *service.CompositeRouteResolver,
 	providerFilesService *service.ProviderFilesService,
+	unfinishedTasks *service.GatewayUnfinishedTaskService,
 ) *OpenAIGatewayHandler {
 	gatewayService.SetPluginManager(pluginManager)
 	h := NewOpenAIGatewayHandler(gatewayService, concurrencyService, billingCacheService, apiKeyService,
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.compositeResolver = compositeResolver
 	h.providerFilesService = providerFilesService
+	h.unfinishedTasks = unfinishedTasks
 	h.securityAuditCoordinator = coordinator
 	h.resellerService = resellerService
 	h.grokMediaEligibilityProber = grokQuotaService
@@ -342,7 +344,7 @@ var ProviderSet = wire.NewSet(
 	NewTotpHandler,
 	ProvidePasskeyHandler,
 	ProvideSettingHandler,
-	NewPaymentHandler,
+	ProvidePaymentHandler,
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
 	NewModelPlazaHandler,
@@ -397,3 +399,10 @@ var ProviderSet = wire.NewSet(
 	ProvideAdminHandlers,
 	ProvideHandlers,
 )
+
+func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, catalog *service.ModelPlazaService, apiKeys *service.APIKeyService) *PaymentHandler {
+	h := NewPaymentHandler(paymentService, configService)
+	h.modelCatalog = catalog
+	h.userRates = apiKeys
+	return h
+}

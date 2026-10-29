@@ -172,7 +172,7 @@ func (s *adminServiceImpl) ensureNotLastAdmin(ctx context.Context) error {
 		return fmt.Errorf("count admin users: %w", err)
 	}
 	if result == nil || result.Total <= 1 {
-		return errors.New("cannot demote the last admin user")
+		return infraerrors.BadRequest("LAST_ADMIN_DEMOTE_FORBIDDEN", "cannot demote the last admin user")
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 		return err
 	}
 	if user.Role == "admin" {
-		return errors.New("cannot delete admin user")
+		return infraerrors.BadRequest("ADMIN_DELETE_FORBIDDEN", "cannot delete admin user; change the role to user first")
 	}
 
 	apiKeys, err := s.listUserAPIKeysForDeletion(ctx, id)

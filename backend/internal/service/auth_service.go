@@ -219,7 +219,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 
 	grantPlan := resellerSignupGrantPlan(s.resolveSignupGrantPlan(ctx, "email"), registrationInvitation)
 
-	// 新用户默认 RPM（0 = 不限制）。注册时写入，后续作为用户级兜底。
+	// 新用户默认 RPM（0 = 不限制）。注册时写入，后续作为用户全局硬上限。
 	var defaultRPMLimit int
 	if s.settingService != nil {
 		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)

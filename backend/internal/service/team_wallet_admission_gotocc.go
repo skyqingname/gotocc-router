@@ -82,3 +82,11 @@ func inflightBalanceScopeID(user *User) int64 {
 	}
 	return user.ID
 }
+
+func (s *BillingCacheService) balanceForInflightScope(ctx context.Context, scopeID int64) (float64, error) {
+	if scopeID < 0 {
+		teamID := -scopeID
+		return s.balanceForRequest(ctx, &User{TeamWalletID: &teamID})
+	}
+	return s.GetUserBalance(ctx, scopeID)
+}

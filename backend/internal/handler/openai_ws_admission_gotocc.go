@@ -30,7 +30,7 @@ func (h *ConcurrencyHelper) acquireUserSlotWithWaitForAPIKey(c *gin.Context, use
 		}
 		defer h.DecrementWaitCount(ctx, userID)
 		streamStarted := false
-		release, err = h.waitForSlotWithPingTimeout(c, "user", userID, maxConcurrency, maxConcurrencyWait, false, &streamStarted, false)
+		release, err = h.waitForSlotWithPingTimeout(c, "user", userID, maxConcurrency, maxConcurrencyWait, false, &streamStarted)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (h *ConcurrencyHelper) acquireAccountSlotWithWait(c *gin.Context, plan serv
 	}
 	defer h.DecrementAccountWaitCount(ctx, plan.AccountID)
 	streamStarted := false
-	return h.waitForSlotWithPingTimeout(c, "account", plan.AccountID, plan.MaxConcurrency, plan.Timeout, false, &streamStarted, false)
+	return h.waitForSlotWithPingTimeout(c, "account", plan.AccountID, plan.MaxConcurrency, plan.Timeout, false, &streamStarted)
 }
 
 // openAIWSBoundAccountWaitPlan 用于连接已绑定账号的后续轮次和同账号重试：

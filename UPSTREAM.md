@@ -6,96 +6,45 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current tree integrates official `v0.2.18`: annotated tag object
-`de86961b627e48db75d61fff8c05535d44a00cbe`, peeled commit
-`ac1b8f1271be0d674fa6f074403c1410f30a3a81`. Plus behavior governs conflict
-resolution; importing source does not itself publish a Plus release.
+The current GoToCC tree integrates the complete fixed Plus release
+`LuckyKuang/sub2api-plus@v0.2.19+custom.001`: tag object
+`e1e1862294281e333c32370ade896e1fa0e26f8f`, peeled commit
+`6599d4b29e125277232dba75ad5b84d5b14799c4`. Its official baseline is
+`Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
+The owned release is `skyqingname/gotocc-router@v0.2.19+custom.001`; identical
+tag text in these repositories does not identify the same source or package.
 
-Preserve intentional Plus behavior during every import. Current contracts live
-in [outbound identity](docs/OUTBOUND_IDENTITY.md),
-[ingress audit](docs/SECURITY_AUDIT_CONTENT_COVERAGE.md),
-[provider/protocol documentation](docs/README.md),
-[pricing](docs/CHANNEL_PRICING.md) and
-[upgrade prerequisites](backend/migrations/README.md#upgrade-prerequisites).
-Completed integration narratives remain in Git history.
+## GoToCC source integration (2026-10-29)
 
-The v0.2.18 integration preserves Plus Codex account/global/default identity
-priority and complete configured client fingerprints. Official TUI-to-CLI
-normalization does not override accepted Plus identities. Anthropic/Gemini
-stream cancellation and upstream-error handling retain Plus partial usage,
-completion diagnostics, timing, audit ordering, channel pricing and billing
-idempotency. Vertex account quotas and Gemini image permissions use the same
-Plus security boundaries. Official migration 246 is imported as Plus 295 (GoToCC 312);
-historical migrations remain unchanged. GoToCC retains its owned build workflow,
-vendored SheetJS dependency and upstream dependency floors.
+This integration retains the active GoToCC customizations and retired features
+from owned `0.2.18+custom.007`, and includes PR #55 (client cancellation before
+session-route errors) and PR #56 (native Opus 5.5 legacy thinking adaptation).
+Sourcesdata multipart edits, Grok reasoning adaptation, timing/route metadata,
+local image storage, owned release channels and the existing brand remain.
 
-The Codex egress review merges Plus `main` at
-`0b5acf5796b40a695f1e42ebc01aa48875283823` and compares the client contract with
-openai/codex `770ed6dcea40fedb83bb831f6d5e3760a933cc9a`. OpenAI OAuth and API-key
-accounts keep native Codex identity; compatible upstream suppliers retain their
-explicit family mapping. Codex version changes are maintained manually in code
-or by an explicit administrator pin, without remote version synchronization.
-The existing Plus identity priority, fingerprint controls and ingress audit
-boundaries remain governed by the owning contracts above. Historical migrations
-from both branches retain their complete filenames and checksums.
+The Plus update adds frozen pricing generations and composite rate policies,
+user/account/unfinished-task admission, scoped administrator keys, opt-in
+image-count billing, Gemini retry/discovery improvements and GPT-6.1 Terra
+pricing. The inherited pinned Codex identity is 0.165.0; credential-owner and
+global-setting precedence remain unchanged. This is a fixed-release import,
+not automatic identity-version synchronization.
 
-The seven-platform synchronization starts from Plus branch commit
-`90d9f67e0fc891bee6e9d13d97271d8daf7d1924` and merges Plus `main` at
-`1818c299307ac394c0e3101b45d6c6ef22515c0c`. The existing official-agent baselines
-in [OFFICIAL_AGENT_BASELINES.md](docs/OFFICIAL_AGENT_BASELINES.md) govern OpenAI,
-xAI, DeepSeek, Kimi, MiniMax, StepFun and Zhipu. Codex retains its manually
-selected `0.164.0` default, credential-owner/global/default precedence, trusted
-fingerprints, model-rejection failover and audit boundary. Compatible upstream
-fixes add semantic-output-aware overload recovery, stream cancellation billing,
-quota/scheduler improvements and authenticated Redis health checks. DeepSeek
-image aliases retain the branch's deployed compatibility behavior. Migrations
-290–294 and the existing console UI remain intact.
-The acceptance review also refreshes every bound account after proxy mutations
-and keeps native provider account-test model catalogs separate from Claude's
-defaults. These fixes retain the existing identity and protocol contracts.
-The independently deployed model-visibility and Gemini-permission migrations
-both retain prefix 295 with their complete original filenames and checksums;
-future migrations start at 296. This is a branch integration, not publication
-of a new release.
+Team wallets retain their own balance namespace, actor and payer identities.
+Reseller credits and platform cost retain separate reservations and settlement;
+selected-account repricing updates both reservations. Reseller retail rates
+remain explicit and frozen, and team key quotes use the team's authorized
+pricing owner. Automatic routing retains its group/key/funding owner and
+per-turn validation. GoToCC credit pricing uses original-currency numeric
+values and DeepSeek all-day peak prices. DeepSeek Pro now retains its own
+price family as specified by the fixed upstream; historical accepted task
+prices and ledger rows are not recalculated.
 
-
-## GoToCC source integration (2026-10-26)
-
-This source integrates the complete `LuckyKuang/sub2api-plus`
-`v0.2.18+custom.003` release: annotated tag
-`8bd877aba84e104ce197e0234a4d1f09ee9797ee`, peeled commit
-`84e21908d1651f0f1482587844ce76ef82c935ef`. The underlying official baseline
-remains `Wei-Shaw/sub2api@v0.2.18` at the commit recorded above.
-
-The owned source starts from GoToCC `ca29fac69f7cdec20d107d0bcc510e695a42f0ec`
-and retains its active customization contracts and retired features. The owned
-GoToCC integration was published as `0.2.18+custom.003` after acceptance on
-2026-10-26. GoToCC `0.2.18+custom.004` added the classic admin usage layout and
-preserved zero-valued token details and Azure `content_filters` during
-Responses-to-Chat conversion. Owned `.005` retains separate forwarding and
-upstream response timing; `.006` adds actual gateway route metadata and the
-version-panel positioning fix. The owned release identity is now
-`0.2.18+custom.007`: Sourcesdata JSON image edits are encoded as multipart by
-upstream host, Grok 4.7 omits unsupported `none` reasoning effort, and padded
-image Base64 is normalized using its unpadded length. The owner authorized
-review, conditional acceptance and publication on 2026-10-28. Publication
-status is recorded by the owned GitHub Release; this source version does not
-imply production deployment.
-
-Content audit now uses seven merged categories, sends string instructions to
-System One and removes the four explicitly retired risks. Parent thresholds
-are retained, detailed provider scores merge by maximum, and historical audit
-records remain unchanged. The generated release-channel baseline is
-`v0.2.18+custom.003`; update indication compares it with the actual upstream
-release instead of the owned application version.
-
-Incoming migrations are numbered **313–323** because existing GoToCC migrations
-through 312 are immutable. They add canonical session routes, identity IDs,
-provider files and Zhipu off-peak state, and apply the upstream identity cleanup.
-GoToCC retains temporary same-priority overflow without changing canonical
-session ownership, fixed auto-key ownership, demand-only WebSocket connections,
-team/customer funding, local image storage, owned pricing and build/release
-workflows. Ent and Wire outputs are regenerated from this combined source.
+Only incoming SQL files are numbered **324–328**; existing migrations through
+323 and prior duplicate historical prefixes remain immutable. Ent and Wire
+outputs are regenerated from the merged inputs. The release-channel generator
+compiles the actual Plus baseline `v0.2.19+custom.001`, independently of the
+owned repository/tag identity. Publication and production activation remain
+separate operations; this source document does not assert deployment.
 
 ## Removed Upstream Paths
 
@@ -108,9 +57,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.18+custom.003
-Application: 0.2.18+custom.003
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.18-custom.003
+Git/GitHub: v0.2.19+custom.001
+Application: 0.2.19+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.001
 ```
 
 ## Release Mapping
@@ -195,6 +144,9 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.18-custom.003
 | `skyqingname/gotocc-router@v0.2.18+custom.004` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; response metadata and admin usage layout |
 | `skyqingname/gotocc-router@v0.2.18+custom.005` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; separate gateway and upstream-reported response timing |
 | `skyqingname/gotocc-router@v0.2.18+custom.006` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned GoToCC release; retains Plus `.003`; actual gateway route metadata and version-panel positioning |
+| `skyqingname/gotocc-router@v0.2.18+custom.007` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned release; image edits and Grok compatibility |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
+| `skyqingname/gotocc-router@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | owned integration; publication status is authoritative in the owned GitHub Release |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
@@ -218,6 +170,13 @@ are preserved. Docker's separate resource-copy path is outside this archive defe
 installer correction on the same official baseline. It was published on
 2026-10-26; GoToCC imports its fixed tag above. The upstream
 withdrawal does not apply to the separate owned GoToCC `.002` release.
+
+`v0.2.19+custom.001` records official tag `v0.2.19` / peeled
+`dece26153621959ccd7635814f4b2d08304e681a`. Official tag VERSION is `0.2.18`;
+Plus writes `0.2.19+custom.001`. Official migrations 247/248 already entered
+Plus as immutable 302/303 during the preceding snapshot import; this tag adds
+no duplicate migrations. Seven-provider agent identities, audit boundaries,
+strict proxy ownership, frozen billing and the Plus UI remain authoritative.
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 

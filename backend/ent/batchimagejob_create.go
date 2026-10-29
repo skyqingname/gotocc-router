@@ -339,6 +339,12 @@ func (_c *BatchImageJobCreate) SetNillableAllowanceReserved(v *bool) *BatchImage
 	return _c
 }
 
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (_c *BatchImageJobCreate) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobCreate {
+	_c.mutation.SetBillingRateSnapshot(v)
+	return _c
+}
+
 // SetCurrency sets the "currency" field.
 func (_c *BatchImageJobCreate) SetCurrency(v string) *BatchImageJobCreate {
 	_c.mutation.SetCurrency(v)
@@ -686,6 +692,10 @@ func (_c *BatchImageJobCreate) defaults() {
 		v := batchimagejob.DefaultAllowanceReserved
 		_c.mutation.SetAllowanceReserved(v)
 	}
+	if _, ok := _c.mutation.BillingRateSnapshot(); !ok {
+		v := batchimagejob.DefaultBillingRateSnapshot
+		_c.mutation.SetBillingRateSnapshot(v)
+	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		v := batchimagejob.DefaultCurrency
 		_c.mutation.SetCurrency(v)
@@ -798,6 +808,9 @@ func (_c *BatchImageJobCreate) check() error {
 	}
 	if _, ok := _c.mutation.AllowanceReserved(); !ok {
 		return &ValidationError{Name: "allowance_reserved", err: errors.New(`ent: missing required field "BatchImageJob.allowance_reserved"`)}
+	}
+	if _, ok := _c.mutation.BillingRateSnapshot(); !ok {
+		return &ValidationError{Name: "billing_rate_snapshot", err: errors.New(`ent: missing required field "BatchImageJob.billing_rate_snapshot"`)}
 	}
 	if _, ok := _c.mutation.Currency(); !ok {
 		return &ValidationError{Name: "currency", err: errors.New(`ent: missing required field "BatchImageJob.currency"`)}
@@ -974,6 +987,10 @@ func (_c *BatchImageJobCreate) createSpec() (*BatchImageJob, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.AllowanceReserved(); ok {
 		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
 		_node.AllowanceReserved = value
+	}
+	if value, ok := _c.mutation.BillingRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldBillingRateSnapshot, field.TypeJSON, value)
+		_node.BillingRateSnapshot = value
 	}
 	if value, ok := _c.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)
@@ -1536,6 +1553,18 @@ func (u *BatchImageJobUpsert) SetAllowanceReserved(v bool) *BatchImageJobUpsert 
 // UpdateAllowanceReserved sets the "allowance_reserved" field to the value that was provided on create.
 func (u *BatchImageJobUpsert) UpdateAllowanceReserved() *BatchImageJobUpsert {
 	u.SetExcluded(batchimagejob.FieldAllowanceReserved)
+	return u
+}
+
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (u *BatchImageJobUpsert) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobUpsert {
+	u.Set(batchimagejob.FieldBillingRateSnapshot, v)
+	return u
+}
+
+// UpdateBillingRateSnapshot sets the "billing_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsert) UpdateBillingRateSnapshot() *BatchImageJobUpsert {
+	u.SetExcluded(batchimagejob.FieldBillingRateSnapshot)
 	return u
 }
 
@@ -2421,6 +2450,20 @@ func (u *BatchImageJobUpsertOne) SetAllowanceReserved(v bool) *BatchImageJobUpse
 func (u *BatchImageJobUpsertOne) UpdateAllowanceReserved() *BatchImageJobUpsertOne {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.UpdateAllowanceReserved()
+	})
+}
+
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (u *BatchImageJobUpsertOne) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetBillingRateSnapshot(v)
+	})
+}
+
+// UpdateBillingRateSnapshot sets the "billing_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertOne) UpdateBillingRateSnapshot() *BatchImageJobUpsertOne {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateBillingRateSnapshot()
 	})
 }
 
@@ -3527,6 +3570,20 @@ func (u *BatchImageJobUpsertBulk) SetAllowanceReserved(v bool) *BatchImageJobUps
 func (u *BatchImageJobUpsertBulk) UpdateAllowanceReserved() *BatchImageJobUpsertBulk {
 	return u.Update(func(s *BatchImageJobUpsert) {
 		s.UpdateAllowanceReserved()
+	})
+}
+
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (u *BatchImageJobUpsertBulk) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.SetBillingRateSnapshot(v)
+	})
+}
+
+// UpdateBillingRateSnapshot sets the "billing_rate_snapshot" field to the value that was provided on create.
+func (u *BatchImageJobUpsertBulk) UpdateBillingRateSnapshot() *BatchImageJobUpsertBulk {
+	return u.Update(func(s *BatchImageJobUpsert) {
+		s.UpdateBillingRateSnapshot()
 	})
 }
 

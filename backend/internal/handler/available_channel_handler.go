@@ -23,6 +23,8 @@ import (
 type availableChannelAccess interface {
 	GetAvailableGroups(context.Context, int64) ([]service.Group, error)
 	GetUserGroupRates(context.Context, int64) (map[int64]float64, error)
+	GetAvailableGroupsForScope(context.Context, int64, string) ([]service.Group, error)
+	GetUserGroupRatesForScope(context.Context, int64, string) (map[int64]float64, error)
 }
 
 type availableCatalogReader interface {
@@ -144,6 +146,13 @@ func (h *AvailableChannelHandler) List(c *gin.Context) {
 	subject, ok := middleware.GetReadSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	// Key group selection must disclose authorized selling rates even when
+	// the optional available-channels page is disabled.
+	if keyQuotesView(c) {
+		h.listCatalog(c, subject.UserID)
 		return
 	}
 

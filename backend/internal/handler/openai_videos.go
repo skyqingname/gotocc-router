@@ -194,7 +194,7 @@ func (h *OpenAIGatewayHandler) handleOpenAIVideoProxy(c *gin.Context, chargeRequ
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
 	streamStarted := false
-	userRelease, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, false, &streamStarted, reqLog)
+	userRelease, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}

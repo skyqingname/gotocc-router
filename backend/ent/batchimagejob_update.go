@@ -513,6 +513,12 @@ func (_u *BatchImageJobUpdate) SetNillableAllowanceReserved(v *bool) *BatchImage
 	return _u
 }
 
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (_u *BatchImageJobUpdate) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobUpdate {
+	_u.mutation.SetBillingRateSnapshot(v)
+	return _u
+}
+
 // SetCurrency sets the "currency" field.
 func (_u *BatchImageJobUpdate) SetCurrency(v string) *BatchImageJobUpdate {
 	_u.mutation.SetCurrency(v)
@@ -1155,6 +1161,9 @@ func (_u *BatchImageJobUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.AllowanceReserved(); ok {
 		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.BillingRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldBillingRateSnapshot, field.TypeJSON, value)
+	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)
 	}
@@ -1764,6 +1773,12 @@ func (_u *BatchImageJobUpdateOne) SetNillableAllowanceReserved(v *bool) *BatchIm
 	if v != nil {
 		_u.SetAllowanceReserved(*v)
 	}
+	return _u
+}
+
+// SetBillingRateSnapshot sets the "billing_rate_snapshot" field.
+func (_u *BatchImageJobUpdateOne) SetBillingRateSnapshot(v map[string]interface{}) *BatchImageJobUpdateOne {
+	_u.mutation.SetBillingRateSnapshot(v)
 	return _u
 }
 
@@ -2438,6 +2453,9 @@ func (_u *BatchImageJobUpdateOne) sqlSave(ctx context.Context) (_node *BatchImag
 	}
 	if value, ok := _u.mutation.AllowanceReserved(); ok {
 		_spec.SetField(batchimagejob.FieldAllowanceReserved, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingRateSnapshot(); ok {
+		_spec.SetField(batchimagejob.FieldBillingRateSnapshot, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.Currency(); ok {
 		_spec.SetField(batchimagejob.FieldCurrency, field.TypeString, value)

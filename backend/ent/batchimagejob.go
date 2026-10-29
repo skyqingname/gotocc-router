@@ -71,6 +71,8 @@ type BatchImageJob struct {
 	ActualCost *float64 `json:"actual_cost,omitempty"`
 	// AllowanceReserved holds the value of the "allowance_reserved" field.
 	AllowanceReserved bool `json:"allowance_reserved,omitempty"`
+	// BillingRateSnapshot holds the value of the "billing_rate_snapshot" field.
+	BillingRateSnapshot map[string]interface{} `json:"billing_rate_snapshot,omitempty"`
 	// Currency holds the value of the "currency" field.
 	Currency string `json:"currency,omitempty"`
 	// HoldID holds the value of the "hold_id" field.
@@ -119,7 +121,7 @@ func (*BatchImageJob) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case batchimagejob.FieldResellerSnapshot:
+		case batchimagejob.FieldResellerSnapshot, batchimagejob.FieldBillingRateSnapshot:
 			values[i] = new([]byte)
 		case batchimagejob.FieldTeamWallet, batchimagejob.FieldAllowanceReserved:
 			values[i] = new(sql.NullBool)
@@ -320,6 +322,14 @@ func (_m *BatchImageJob) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field allowance_reserved", values[i])
 			} else if value.Valid {
 				_m.AllowanceReserved = value.Bool
+			}
+		case batchimagejob.FieldBillingRateSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_rate_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.BillingRateSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field billing_rate_snapshot: %w", err)
+				}
 			}
 		case batchimagejob.FieldCurrency:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -591,6 +601,9 @@ func (_m *BatchImageJob) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("allowance_reserved=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowanceReserved))
+	builder.WriteString(", ")
+	builder.WriteString("billing_rate_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BillingRateSnapshot))
 	builder.WriteString(", ")
 	builder.WriteString("currency=")
 	builder.WriteString(_m.Currency)

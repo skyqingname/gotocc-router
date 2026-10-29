@@ -8,7 +8,7 @@
   "deepseek": {
     "source_currency": "CNY",
     "source": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
-    "routing_source": "https://api-docs.deepseek.com/zh-cn/news/news260910/",
+    "routing_source": "https://api-docs.deepseek.com/",
     "verified_on": "2026-10-23",
     "period": "peak_all_day",
     "flash_per_million": {
@@ -20,7 +20,9 @@
       "input": 9,
       "output": 27,
       "cache_read": 0.3
-    }
+    },
+    "routing_policy": "Pro retains its own family price; only retired Flash aliases route to current Flash",
+    "routing_verified_on": "2026-10-29"
   },
   "models": {
     "kimi-k2": {
