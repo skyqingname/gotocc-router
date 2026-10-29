@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 30 // v30: team wallets, composite pricing policy and image-count billing
+const apiKeyAuthSnapshotVersion = 31 // v31: load billing policy fields into authenticated group snapshots
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int

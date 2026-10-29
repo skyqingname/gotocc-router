@@ -40,8 +40,9 @@ price family as specified by the fixed upstream; historical accepted task
 prices and ledger rows are not recalculated.
 
 Only incoming SQL files are numbered **324–328**; existing migrations through
-323 and prior duplicate historical prefixes remain immutable. Ent and Wire
-outputs are regenerated from the merged inputs. The release-channel generator
+323 and prior duplicate historical prefixes remain immutable. The authenticated group projection also loads both billing-policy fields;
+authentication snapshot version 31 invalidates incomplete prior projections.
+Ent and Wire outputs are regenerated from the merged inputs. The release-channel generator
 compiles the actual Plus baseline `v0.2.19+custom.001`, independently of the
 owned repository/tag identity. Publication and production activation remain
 separate operations; this source document does not assert deployment.
