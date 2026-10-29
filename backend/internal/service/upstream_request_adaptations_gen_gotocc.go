@@ -4,3 +4,8 @@ package service
 var upstreamImageEditsMultipartHosts = map[string]bool{
 	"api.sourcesdata.com": true,
 }
+
+var claudeOpus55LegacyThinking = map[string]claudeLegacyThinkingAdaptation{
+	"enabled":  {Type: "adaptive", Effort: ""},
+	"disabled": {Type: "adaptive", Effort: "low"},
+}

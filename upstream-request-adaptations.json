@@ -1,5 +1,15 @@
 {
   "image_edits_multipart_hosts": [
     "api.sourcesdata.com"
-  ]
+  ],
+  "claude_opus55_legacy_thinking": {
+    "enabled": {
+      "type": "adaptive",
+      "effort": ""
+    },
+    "disabled": {
+      "type": "adaptive",
+      "effort": "low"
+    }
+  }
 }

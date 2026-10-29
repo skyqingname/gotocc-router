@@ -22,7 +22,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusBadRequest, "invalid_request_error", "Request body is empty")
 		return fmt.Errorf("parse request: empty request")
 	}
-	// Plus 出站身份作用域必须先行建立；Claude 5.5 校验只读 body 与解析后的模型，
+	// Plus 出站身份作用域必须先行建立；Claude 5.5 参数适配使用解析后的模型，
 	// 不改写身份 triple，也不替代后续的身份快照。
 	ctx = WithOutboundIdentityScope(ctx, c)
 	ctx = WithAccountOutboundIdentity(ctx, account)
@@ -45,7 +45,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		}
 	}
 	if account != nil && account.Platform == PlatformAnthropic {
-		if err := validateClaude55Request(parsed.Body.Bytes(), validationModel); err != nil {
+		if err := prepareClaude55MessagesRequest(parsed, validationModel); err != nil {
 			s.countTokensError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 			return err
 		}

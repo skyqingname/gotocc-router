@@ -22,6 +22,11 @@ def main():
     for host in config['image_edits_multipart_hosts']:
         lines.append('\t' + json.dumps(host) + ': true,')
     lines.append('}')
+    lines += ['', 'var claudeOpus55LegacyThinking = map[string]claudeLegacyThinkingAdaptation{']
+    for mode, rule in config['claude_opus55_legacy_thinking'].items():
+        lines.append('\t' + json.dumps(mode) + ': {Type: ' + json.dumps(rule['type']) +
+                     ', Effort: ' + json.dumps(rule['effort']) + '},')
+    lines.append('}')
     output = subprocess.check_output(['gofmt'], input='\n'.join(lines) + '\n', text=True)
     destination = ROOT / 'backend/internal/service/upstream_request_adaptations_gen_gotocc.go'
     if args.check:
