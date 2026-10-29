@@ -20,6 +20,17 @@ and pass through the existing per-turn validation and audit. A temporary
 same-priority account overflow retains its original session binding through
 the handler's final admission step.
 
+HTTP Responses, Chat Completions and Messages classify a canceled downstream
+request before reporting a session-route failure. Cancellation can close the
+route attempt while its upstream response is still arriving. Before response
+headers are committed, the existing client-closed path records status 499;
+an already committed stream keeps its status and receives no extra routing
+error. `openai.session_route_client_disconnected` records the route and
+cancellation errors. A connected client's genuine route-store, lease or
+acceptance failure retains `session_route_unavailable` and is logged as
+`openai.session_route_failed`. Ownership, migration and usage settlement rules
+are unchanged.
+
 The **Use Key** dialog enables `api_key_model_discovery = true` under `[features]`
 when generating a remote Codex model catalog configuration. This applies to
 OpenAI HTTP/WebSocket, Grok, and all routed Codex groups, including StepFun and
