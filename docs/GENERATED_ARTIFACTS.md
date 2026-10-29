@@ -16,7 +16,7 @@
 | `release-channel.json` | `tools/generate_release_channel.py` | `backend/internal/releasechannel/channel_gen.go`、安装脚本、通道相关文本与镜像引用 |
 | `billing-credits.json` | `tools/generate_billing_credits.py` | `backend/internal/service/billing_credits_defaults_gotocc.go`、随包价格目录 |
 | `content-audit-jev.json` | `tools/generate_content_audit_jev.py` | 后端嵌入的 `content_audit_jev_gen.json`、统一审核类别/阈值/评分映射；前端直接读取根 JSON |
-| `upstream-request-adaptations.json` | `tools/generate_upstream_request_adaptations.py`，支持 `--check` | `backend/internal/service/upstream_request_adaptations_gen_gotocc.go`；已证实的出站改写，图片编辑只按上游 host 选择 multipart |
+| `upstream-request-adaptations.json` | `tools/generate_upstream_request_adaptations.py`，支持 `--check` | `backend/internal/service/upstream_request_adaptations_gen_gotocc.go`；图片编辑按上游 host 选择 multipart，原生 Messages 按最终 Opus 5.5 模型转换旧思考参数 |
 | `model-fingerprint.json` | `tools/generate_model_fingerprint.py` | 后端指纹参数及前端 `parameters.gen.json` |
 | `model-plaza-catalog.json` | `tools/generate_model_catalog.py` | `backend/internal/pkg/modelcatalog/catalog_gen.json`；该生成器会联网下载数据 |
 | 其他路由、返佣、卡密、站长、审计根参数 | 对应 `tools/generate_*.py` | 依据本次改动逐项追踪，不能假设所有脚本都有检查模式 |

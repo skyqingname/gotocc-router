@@ -15,8 +15,9 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// applyUpstreamRequestAdaptations is the single entry for the proven rewrites
-// in upstream-request-adaptations.json. Run before identity/signing/compression.
+// applyUpstreamRequestAdaptations applies the image transport rules from
+// upstream-request-adaptations.json before identity/signing/compression.
+// Native Claude parameter rules run in prepareClaude55MessagesRequest instead.
 func (s *OpenAIGatewayService) applyUpstreamRequestAdaptations(request *http.Request, owner *Account) error {
 	if request.Method != http.MethodPost ||
 		!strings.HasSuffix(strings.TrimRight(request.URL.Path, "/"), "/images/edits") ||
