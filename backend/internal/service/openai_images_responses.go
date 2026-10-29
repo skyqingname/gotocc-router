@@ -1823,13 +1823,18 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 	direct := usesCodexDirectImages(upstreamModel) && !isOpenAIImagesForceResponses(ctx)
 	beginUpstreamResponseModelObservation(c)
 	SetOpsUpstreamModel(c, upstreamModel)
+	uploadParts := make([]int, 0, len(parsed.Uploads))
+	for _, upload := range parsed.Uploads {
+		uploadParts = append(uploadParts, len(upload.Data))
+	}
 	logger.LegacyPrintf(
 		"service.openai_gateway",
-		"[OpenAI] Images request routing request_model=%s endpoint=%s account_type=%s uploads=%d",
+		"[OpenAI] Images request routing request_model=%s endpoint=%s account_type=%s uploads=%d upload_part_bytes=%v",
 		requestModel,
 		parsed.Endpoint,
 		account.Type,
 		len(parsed.Uploads),
+		uploadParts,
 	)
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
 	defer releaseUpstreamCtx()
@@ -1981,6 +1986,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 					ResponseHeaders:               resp.Header.Clone(),
 					Duration:                      time.Since(startTime),
 					FirstOutputMs:                 firstOutputMs,
+					ImageEndpoint:                 true,
 					ImageCount:                    imageCount,
 					ImageSize:                     parsed.SizeTier,
 					ImageInputSize:                parsed.Size,
@@ -2025,9 +2031,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 			firstOutputMs = &elapsed
 		}
 	}
-	if imageCount <= 0 {
-		imageCount = parsed.N
-	}
+	imageCount = resolveBillableImageCount(imageCount, parsed.N, imageCountBillingEnabled(getAPIKeyFromContext(c)))
 	result := &OpenAIForwardResult{
 		codexUsageOwner:               capturedCodexUsageOwner(ctx, account),
 		RequestID:                     resp.Header.Get("x-request-id"),
@@ -2042,6 +2046,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesOAuth(
 		ResponseHeaders:               resp.Header.Clone(),
 		Duration:                      time.Since(startTime),
 		FirstOutputMs:                 firstOutputMs,
+		ImageEndpoint:                 true,
 		ImageCount:                    imageCount,
 		ImageSize:                     parsed.SizeTier,
 		ImageInputSize:                parsed.Size,

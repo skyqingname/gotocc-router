@@ -33,7 +33,7 @@ func newSessionIDUsageLog(sessionID *string) *service.UsageLog {
 // precedes completion_status, usage_source, native_compaction_v2, timing_version,
 // created_at, codex_rollout_budget_units, and first_byte_ms.
 func TestPrepareUsageLogInsert_SessionIDArgWiring(t *testing.T) {
-	require.Len(t, usageLogInsertArgTypes, 76, "arg-type table must include upstream request ID, completion metadata, native compaction, requested reasoning effort, rollout budget units, service-tier snapshots and first-byte timing")
+	require.Len(t, usageLogInsertArgTypes, 79, "arg-type table must include upstream request ID, completion metadata, native compaction, requested reasoning effort, rollout budget units, service-tier snapshots, first-byte timing and billing-policy evidence")
 
 	sessionID := "sess-persisted-123"
 	prepared := prepareUsageLogInsert(newSessionIDUsageLog(&sessionID))

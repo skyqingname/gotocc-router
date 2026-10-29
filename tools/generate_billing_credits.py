@@ -36,8 +36,8 @@ for model, card in config["models"].items():
 lines.extend(["}", ""])
 (root / "backend/internal/service/billing_credits_defaults_gotocc.go").write_text("\n".join(lines))
 
-# The distributed catalog carries the same current face-value cards. Historical
-# DeepSeek Pro timing remains in BillingService; current Pro calls use Flash.
+# The distributed catalog carries the same current face-value cards. Pro keeps
+# its own model-family price; accepted historical billing evidence is unchanged.
 target = root / "backend/resources/model-pricing/model_prices_and_context_window.json"
 source = target.read_text()
 catalog = json.loads(source)
@@ -50,7 +50,8 @@ catalog_fields = {
 cards = {name: card["per_million"] for name, card in config["models"].items()}
 for name in catalog:
     if name.startswith("deepseek-"):
-        cards[name] = config["deepseek"]["flash_per_million"]
+        tier = "pro" if name.startswith("deepseek-v4-pro") else "flash"
+        cards[name] = config["deepseek"][f"{tier}_per_million"]
 for name, rates in cards.items():
     entry = dict(catalog.get(name, {}))
     if name in config["models"]:

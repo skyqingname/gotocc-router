@@ -1563,6 +1563,9 @@ func (a *Account) GetOpenAIBaseURL() string {
 	if a.Platform == PlatformVideo {
 		return "" // Video accounts require an explicit provider origin.
 	}
+	if a.IsOpenAIAPIKeyFedRAMP() {
+		return openAIFedRAMPAPIBaseURL
+	}
 	// 平台默认 base_url：多协议供应商按 account_mode 查 provider profile。
 	if baseURL := a.defaultProviderBaseURL(APIProtocolChatCompletions); baseURL != "" {
 		return baseURL

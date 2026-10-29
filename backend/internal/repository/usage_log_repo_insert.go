@@ -101,6 +101,8 @@ var usageLogInsertArgTypes = [...]string{
 	"bigint",      // billing_user_id
 	"bigint",      // team_id
 	"text",        // service_host
+	"bigint",      // billing_policy_version
+	"jsonb",       // billing_rate_snapshot
 }
 
 const (
@@ -316,14 +318,16 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -791,7 +795,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		) AS (VALUES `)
 
 	// Each batch row prepends the synthetic input_index before the persisted
@@ -901,7 +907,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				first_byte_ms,
 				billing_user_id,
 				team_id,
-				service_host
+				service_host,
+				billing_policy_version,
+				billing_rate_snapshot
 			)
 			SELECT
 				user_id,
@@ -980,7 +988,9 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				first_byte_ms,
 				billing_user_id,
 				team_id,
-				service_host
+				service_host,
+				billing_policy_version,
+				billing_rate_snapshot
 			FROM input
 			ON CONFLICT (request_id, api_key_id) DO NOTHING
 			RETURNING request_id, api_key_id, id, created_at
@@ -1099,7 +1109,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		) AS (VALUES `)
 
 	args := make([]any, 0, len(preparedList)*len(usageLogInsertArgTypes))
@@ -1204,7 +1216,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		)
 		SELECT
 			user_id,
@@ -1283,7 +1297,9 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		FROM input
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`)
@@ -1370,14 +1386,16 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			first_byte_ms,
 			billing_user_id,
 			team_id,
-			service_host
+			service_host,
+			billing_policy_version,
+			billing_rate_snapshot
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71, $72, $73, $74, $75, $76, $77, $78, $79
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1532,6 +1550,8 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			billingUserID,
 			nullInt64(log.TeamID),
 			log.ServiceHost,
+			log.BillingPolicyVersion,
+			billingRateSnapshotJSON(log.BillingRateSnapshot),
 		},
 	}
 }
@@ -1556,4 +1576,18 @@ func (r *usageLogRepository) bestEffortRecentKey(requestID string, apiKeyID int6
 		return "", false
 	}
 	return usageLogBatchKey(requestID, apiKeyID), true
+}
+
+// Only sanitized public selling-rate evidence is accepted here. Historical rows
+// retain NULL rather than a fabricated policy.
+func billingRateSnapshotJSON(snapshot map[string]any) any {
+	if len(snapshot) == 0 {
+		return nil
+	}
+	value, err := json.Marshal(snapshot)
+	if err != nil {
+		logger.LegacyPrintf("repository.usage", "billing rate snapshot encoding failed: %T", err)
+		return nil
+	}
+	return string(value)
 }

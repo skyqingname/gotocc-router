@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
+	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 )
 
@@ -26,7 +26,7 @@ func (s *adminServiceImpl) updateUser(ctx context.Context, id int64, input *Upda
 
 	// Protect admin users: cannot disable admin accounts
 	if user.Role == "admin" && input.Status == "disabled" {
-		return nil, errors.New("cannot disable admin user")
+		return nil, infraerrors.BadRequest("ADMIN_DISABLE_FORBIDDEN", "cannot disable admin user; change the role to user first")
 	}
 
 	oldConcurrency := user.Concurrency

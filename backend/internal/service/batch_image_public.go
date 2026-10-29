@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
+	"github.com/LuckyKuang/sub2api-plus/internal/domain"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"go.uber.org/zap"
@@ -91,6 +93,7 @@ func (o BatchImageOwner) EffectiveBillingUserID() int64 {
 }
 
 type BatchImagePublicService struct {
+	UnfinishedTasks   *GatewayUnfinishedTaskService
 	Repo              BatchImageRepository
 	AccountRepo       BatchImageAccountSelectionRepository
 	GroupRepo         BatchImageGroupPricingRepository
@@ -113,6 +116,7 @@ type BatchImagePricingSnapshot struct {
 	HoldUnitPrice           float64
 	EstimatedCost           float64
 	HoldAmount              float64
+	BillingRateSnapshot     map[string]any
 }
 
 type BatchImagePublicBatch struct {
@@ -240,6 +244,20 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		}
 	}
 
+	reservation, err := s.UnfinishedTasks.Reserve(ctx, GatewayTaskOwner{UserID: owner.UserID, APIKeyID: owner.APIKeyID}, GatewayTaskKindBatchImage)
+	if err != nil {
+		return nil, err
+	}
+	upstreamStarted := false
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if !upstreamStarted {
+			if err := s.UnfinishedTasks.Release(cleanupCtx, reservation, "submission_not_started"); err != nil {
+				logger.L().Warn("batch_image.unfinished_release_failed", zap.String("reservation_id", reservation.ID), zap.Error(err))
+			}
+		}
+	}()
 	provider, account, err := s.selectProviderAndAccount(ctx, owner, normalized.Provider, normalized.Model)
 	if err != nil {
 		return nil, err
@@ -292,6 +310,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		BillableUnitPrice:       pricingSnapshot.BillableUnitPrice,
 		HoldUnitPrice:           pricingSnapshot.HoldUnitPrice,
 		PricingSnapshotVersion:  1,
+		BillingRateSnapshot:     pricingSnapshot.BillingRateSnapshot,
 		Currency:                "USD",
 		HoldID:                  &holdID,
 		IdempotencyKey:          batchImageOptionalStringPtr(idempotencyKey),
@@ -299,6 +318,9 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		SessionID:               normalized.SessionID,
 	})
 	if err != nil {
+		return nil, err
+	}
+	if err := s.UnfinishedTasks.Bind(ctx, reservation, job.BatchID); err != nil {
 		return nil, err
 	}
 	if err := reserveBatchImageBalanceHold(ctx, s.BillingRepo, job, requestHash); err != nil {
@@ -364,10 +386,42 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 	hbCtx, hbCancel := context.WithCancel(ctx)
 	hbDone := make(chan struct{})
 	go s.runSubmitHeartbeat(hbCtx, job.BatchID, hbDone)
+	if err := s.UnfinishedTasks.MarkUncertain(ctx, reservation, "provider_create_inflight"); err != nil {
+		hbCancel()
+		<-hbDone
+		// The provider has not been called. Restore the accepted hold even
+		// when persisting create intent failed because the request was cancelled.
+		cleanupCtx, cancelCleanup := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelCleanup()
+		releaseErr := releaseBatchImageBalanceHold(cleanupCtx, s.BillingRepo, job, requestHash)
+		code, failure := "TASK_RESERVATION_FAILED", err
+		if releaseErr != nil {
+			code, failure = "BILLING_RELEASE_FAILED", releaseErr
+		}
+		// Cancel may already have committed a terminal state while the intent
+		// write was in flight. The repository's locked transition preserves it;
+		// the unconditional submit-failure recorder must not overwrite it.
+		if transitionErr := s.Repo.TransitionBatchImageJobStatus(cleanupCtx, job.BatchID, BatchImageJobStatusFailed, BatchImageTransitionOptions{
+			EventType:    "submit_failed",
+			EventPayload: map[string]any{"error_code": code},
+			ErrorCode:    batchImageStringPtr(code),
+			ErrorMessage: batchImageStringPtr(sanitizeBatchImagePublicMessage(failure.Error())),
+		}); transitionErr == nil && releaseErr == nil {
+			s.hidePreUpstreamSubmitFailure(cleanupCtx, owner, job)
+		}
+		if releaseErr != nil {
+			s.enqueueBillingRetry(cleanupCtx, job.BatchID)
+			return nil, ErrBatchImageBillingHoldFailed
+		}
+		s.invalidateAuthCache(cleanupCtx, job.UserID)
+		return nil, err
+	}
+	upstreamStarted = true
 	providerJob, err := provider.Submit(ctx, job, account, input)
 	hbCancel()
 	<-hbDone
 	if err != nil {
+		markBatchImageCreateUncertain(s.UnfinishedTasks, reservation)
 		if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {
 			return nil, releaseErr
 		}
@@ -378,6 +432,7 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		return nil, publicErr
 	}
 	if providerJob == nil || strings.TrimSpace(providerJob.ProviderJobName) == "" {
+		markBatchImageCreateUncertain(s.UnfinishedTasks, reservation)
 		if releaseErr := s.releaseFailedSubmitHold(ctx, job, requestHash); releaseErr != nil {
 			return nil, releaseErr
 		}
@@ -400,6 +455,9 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		s.abortOrphanProviderJob(ctx, provider, job, account, providerJob)
 		return nil, err
 	}
+	if err := s.UnfinishedTasks.Bind(ctx, reservation, job.BatchID); err != nil {
+		return nil, err
+	}
 
 	if s.Queue != nil {
 		if err := s.Queue.Enqueue(ctx, job.BatchID); err != nil && !errors.Is(err, ErrBatchImageAlreadyQueued) {
@@ -413,6 +471,21 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	return BatchImageJobToPublic(created), nil
+}
+
+func markBatchImageCreateUncertain(tasks *GatewayUnfinishedTaskService, reservation *GatewayTaskReservation) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := tasks.MarkUncertain(ctx, reservation, "provider_create_unknown"); err != nil {
+		logger.L().Warn("batch_image.unfinished_uncertain_mark_failed", zap.String("reservation_id", reservation.ID), zap.Error(err))
+	}
+}
+
+func releaseBatchImageUnfinished(ctx context.Context, tasks *GatewayUnfinishedTaskService, job *BatchImageJob, reason string) error {
+	if tasks == nil || job == nil || job.APIKeyID == nil {
+		return nil
+	} // historical test/settlement without new admission
+	return tasks.ReleaseTask(ctx, GatewayTaskOwner{UserID: job.UserID, APIKeyID: *job.APIKeyID}, GatewayTaskKindBatchImage, job.BatchID, reason)
 }
 
 func (s *BatchImagePublicService) releaseFailedSubmitHold(ctx context.Context, job *BatchImageJob, requestHash string) error {
@@ -724,6 +797,11 @@ func (s *BatchImagePublicService) Cancel(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	if isBatchImageProcessorDoneStatus(job.Status) {
+		if IsTerminalBatchImageJobStatus(job.Status) {
+			if err := releaseBatchImageUnfinished(ctx, s.UnfinishedTasks, job, "local_terminal"); err != nil {
+				return nil, err
+			}
+		}
 		if job.Status == BatchImageJobStatusFailed || job.Status == BatchImageJobStatusCancelled ||
 			(job.Status == BatchImageJobStatusOutputDeleted && job.SettledAt == nil) {
 			if err := releaseBatchImageBalanceHold(ctx, s.BillingRepo, job, batchImageDerefString(job.RequestHash)); err != nil {
@@ -773,6 +851,9 @@ func (s *BatchImagePublicService) Cancel(ctx context.Context, owner BatchImageOw
 		EventType:    "job_cancelled",
 		EventPayload: map[string]any{"batch_id": job.BatchID},
 	}); err != nil {
+		return nil, err
+	}
+	if err := releaseBatchImageUnfinished(ctx, s.UnfinishedTasks, job, "local_terminal"); err != nil {
 		return nil, err
 	}
 	if err := releaseBatchImageBalanceHold(ctx, s.BillingRepo, job, batchImageDerefString(job.RequestHash)); err != nil {
@@ -1011,10 +1092,7 @@ func (s *BatchImagePublicService) ensureGroupAllowsBatchImage(ctx context.Contex
 	if groupID == nil || *groupID <= 0 {
 		return nil
 	}
-	if s.GroupRepo == nil {
-		return ErrBatchImageSettlementPricingMissing
-	}
-	group, err := s.GroupRepo.GetByIDLite(ctx, *groupID)
+	group, err := s.batchImagePricingGroup(ctx, *groupID)
 	if err != nil || group == nil {
 		return ErrBatchImageSettlementPricingMissing
 	}
@@ -1027,45 +1105,56 @@ func (s *BatchImagePublicService) ensureGroupAllowsBatchImage(ctx context.Contex
 	return nil
 }
 
+func (s *BatchImagePublicService) batchImagePricingGroup(ctx context.Context, groupID int64) (*Group, error) {
+	if snapshot := BillingPricingSnapshotFromContext(ctx); snapshot != nil {
+		if snapshot.captureErr != nil || snapshot.group == nil || snapshot.group.ID != groupID {
+			return nil, ErrBatchImageSettlementPricingMissing
+		}
+		return snapshot.group, nil
+	}
+	if s.GroupRepo == nil {
+		return nil, ErrBatchImageSettlementPricingMissing
+	}
+	return s.GroupRepo.GetByIDLite(ctx, groupID)
+}
+
 func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, owner BatchImageOwner, req BatchImageSubmitRequest, provider string, account *Account) (*BatchImagePricingSnapshot, error) {
 	unit := -1.0
 	groupMultiplier := 1.0
 	discountMultiplier := defaultBatchImageDiscountMultiplier
 	holdMultiplier := defaultBatchImageHoldMultiplier
+	var quote BillingRateQuote
 	if owner.GroupID != nil && *owner.GroupID > 0 {
-		if s.GroupRepo == nil {
-			return nil, ErrBatchImageSettlementPricingMissing
-		}
-		group, err := s.GroupRepo.GetByIDLite(ctx, *owner.GroupID)
+		group, err := s.batchImagePricingGroup(ctx, *owner.GroupID)
 		if err != nil || group == nil {
 			return nil, ErrBatchImageSettlementPricingMissing
 		}
 		if group.IsSubscriptionType() || !group.AllowBatchImageGeneration {
 			return nil, ErrBatchImageGroupDisabled
 		}
-		groupDefaultMultiplier := group.RateMultiplier
-		if groupDefaultMultiplier < 0 {
-			groupDefaultMultiplier = 0
-		}
-		effectiveGroupMultiplier := groupDefaultMultiplier
-		if s.UserGroupRateRepo != nil {
+		var personalRate *float64
+		pricingAt := time.Now()
+		if snapshot := BillingPricingSnapshotFromContext(ctx); snapshot != nil {
+			personalRate, pricingAt = snapshot.personalRate, snapshot.pricingAt
+		} else if s.UserGroupRateRepo != nil {
 			userRate, rateErr := s.UserGroupRateRepo.GetByUserAndGroup(ctx, owner.EffectiveBillingUserID(), group.ID)
 			if rateErr != nil {
 				return nil, ErrBatchImageSettlementPricingMissing
 			}
-			if userRate != nil {
-				effectiveGroupMultiplier = *userRate
-			}
+			personalRate = userRate
 		}
-		groupMultiplier = effectiveGroupMultiplier
-		if group.ImageRateIndependent {
-			groupMultiplier = group.ImageRateMultiplier
+		platform := PlatformGemini
+		if account != nil {
+			platform = account.Platform
 		}
-		if quote := ResellerPriceFromContext(ctx, owner.EffectiveBillingUserID(), group.ID); quote != nil {
-			groupMultiplier = quote.ImageRate
+		quote = ResolveBillingRateQuote(group, platform, req.Model, "image", personalRate, pricingAt)
+		groupMultiplier = quote.EffectiveMultiplier
+		if resellerQuote := ResellerPriceFromContext(ctx, owner.EffectiveBillingUserID(), group.ID); resellerQuote != nil {
+			groupMultiplier = resellerQuote.ImageRate
+			quote.EffectiveMultiplier = groupMultiplier
 		}
-		if groupMultiplier < 0 {
-			groupMultiplier = 0
+		if math.IsNaN(groupMultiplier) || math.IsInf(groupMultiplier, 0) || groupMultiplier < 0 || groupMultiplier > domain.MaxBillingRateMultiplier {
+			return nil, ErrBatchImageSettlementPricingMissing
 		}
 		discountMultiplier = group.BatchImageDiscountMultiplier
 		if discountMultiplier < 0 {
@@ -1108,6 +1197,12 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 	standardUnitPrice := unit * groupMultiplier * accountMultiplier
 	billableUnitPrice := standardUnitPrice * discountMultiplier
 	holdUnitPrice := standardUnitPrice * holdMultiplier
+	var rateSnapshot map[string]any
+	if quote.PolicyVersion > 0 {
+		rateSnapshot = billingRateSnapshotMap(quote)
+		rateSnapshot["batch_discount_multiplier"] = discountMultiplier
+		rateSnapshot["settlement_multiplier"] = groupMultiplier * discountMultiplier
+	}
 	return &BatchImagePricingSnapshot{
 		BaseUnitPrice:           unit,
 		GroupRateMultiplier:     groupMultiplier,
@@ -1118,6 +1213,7 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		HoldUnitPrice:           holdUnitPrice,
 		EstimatedCost:           billableUnitPrice * float64(len(req.Items)),
 		HoldAmount:              holdUnitPrice * float64(len(req.Items)),
+		BillingRateSnapshot:     rateSnapshot,
 	}, nil
 }
 

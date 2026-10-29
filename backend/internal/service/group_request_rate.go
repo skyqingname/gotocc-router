@@ -37,6 +37,9 @@ func freezeRequestGroupRate(ctx context.Context, at time.Time, resolve func(cont
 	if group.requestRates == nil {
 		group.requestRates = &sync.Map{}
 	}
+	if snapshot := BillingPricingSnapshotFromContext(ctx); snapshot != nil && snapshot.group != nil && snapshot.group.ID == group.ID {
+		snapshot.group.requestRates = group.requestRates
+	}
 	if _, exists := group.requestRateAt(at); exists {
 		return
 	}

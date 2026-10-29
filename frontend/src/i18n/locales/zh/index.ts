@@ -4,6 +4,8 @@ import featureExtensions from './featureExtensions'
 import canvasCard from './canvasCard'
 import creativeGotocc from './creativeGotocc'
 import balanceCashback from './balanceCashback'
+import adminAccessKeys from './adminAccessKeys'
+
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -17,15 +19,19 @@ import team from './team'
 import gotocc from './gotocc'
 import fingerprint from './fingerprint'
 import inspection from './inspection'
+import billingRates from './billingRates'
 
 export default {
   ...workspace,
   ...requestList,
   ...inspection,
+  ...billingRates,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,
   ...creativeGotocc,
+  adminAccessKeys,
+
   ...landing,
   ...common,
   ...dashboard,

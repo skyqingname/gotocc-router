@@ -34,6 +34,14 @@ func (s *catalogAccessStub) GetUserGroupRates(_ context.Context, id int64) (map[
 	return s.rates, s.rateErr
 }
 
+func (s *catalogAccessStub) GetAvailableGroupsForScope(ctx context.Context, id int64, _ string) ([]service.Group, error) {
+	return s.GetAvailableGroups(ctx, id)
+}
+
+func (s *catalogAccessStub) GetUserGroupRatesForScope(ctx context.Context, id int64, _ string) (map[int64]float64, error) {
+	return s.GetUserGroupRates(ctx, id)
+}
+
 type catalogReaderStub struct {
 	received []service.Group
 	err      error

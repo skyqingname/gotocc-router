@@ -29,6 +29,19 @@ submits JSON image URLs. Synchronous and asynchronous edits share this conversio
 see [image-edit upstream protocols](protocols/OPENAI_IMAGES.md) for the parameter
 source, preserved fields and download behavior.
 
+OpenAI multipart files and text fields retain the local 20 MiB per-part limit.
+An oversized part is rejected with the typed size-limit error; it is never
+silently truncated. This gateway resource policy does not claim the provider's
+maximum upload size. Routing diagnostics record part byte counts without raw
+content types, filenames or image contents.
+
+Dedicated asynchronous image execution retains the admitted pricing snapshot.
+When `image_count_billing` overrides a token card, its conservative reservation
+requires identified prices for every potential 1K/2K/4K output size and uses the
+highest price. A missing size cannot borrow another size's price; explicit zero
+remains a valid free price. See [image-count billing](CHANNEL_PRICING.md#image-count-billing)
+for the shared synchronous/asynchronous pricing rules.
+
 ## Enabling the feature (object storage)
 
 Asynchronous image tasks are **disabled by default** and gated on object storage. When the switch is off — or the S3 credentials are incomplete — the submission endpoints return `404` and never create a task or write to Redis. This is deliberate: without offloading, large `b64_json` results (several MB each, e.g. `gpt-image-1`) would accumulate in Redis and exhaust its memory. List, detail, download, and failed-task deletion remain available for existing tasks after the switch is turned off; ZIP downloads still require the previously configured object-storage credentials to remain complete.
@@ -78,6 +91,13 @@ environment proxies cannot replace the account route. Every redirect still
 passes the existing public-destination checks. Provider authorization tokens and
 cookies are never copied to the CDN. Object-storage uploads and ZIP reads keep
 their independently configured storage transport.
+
+The background worker occupies one global user concurrency slot through image
+generation, result download, object upload, and terminal task persistence. Its
+internal synchronous gateway call shares that same trusted lease. A separately
+submitted request or another worker acquires its own slot. Losing capacity
+ownership cancels the actual provider/storage operation and records a local
+failure; returning from image generation alone does not release user capacity.
 
 ### Local writes with existing S3 images
 
@@ -371,6 +391,18 @@ jobs. Both switches default to false. Workers reserve specific jobs from Redis;
 they do not scan PostgreSQL as a polling queue. Turning workers off is separate
 from turning admission off.
 
+This provider batch API remains restricted to Gemini balance groups; Composite
+and subscription groups cannot enable it. The new platform/model selling
+policy does not broaden that eligibility. For an eligible submission, the
+customer unit price preserves the historical formula: base image price ×
+resolved image selling multiplier × selected account multiplier × batch
+discount. The balance hold uses the same product with the hold multiplier in
+place of the discount, clamped to at least the discount. These amounts and the
+resolved selling-policy evidence are stored at submission and reused on
+recovery and settlement; later configuration edits do not reprice the job.
+This account-adjusted batch formula is distinct from the ordinary inference,
+media and cache paths, where account multipliers do not change customer charges.
+
 The `batch_image` configuration also owns these defaults:
 
 | Settings | Defaults |
@@ -415,3 +447,21 @@ Official setup references: [Gemini API keys](https://ai.google.dev/gemini-api/do
 [Gemini Batch API](https://ai.google.dev/gemini-api/docs/batch-api),
 [Gemini image generation](https://ai.google.dev/gemini-api/docs/image-generation)
 and [Vertex batch inference](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/capabilities/batch-inference).
+
+
+Async image submissions also reserve a PostgreSQL unfinished-task record shared
+with batch images and asynchronous videos for the same user. A 202 response
+releases only the HTTP execution slot. The detached worker acquires its own
+execution slot and marks its unfinished reservation uncertain before execution.
+Only a successful response containing an actual image URL or base64 output
+confirms provider completion. A timeout, transport failure, panic or empty output
+can mark the local task failed while the upstream outcome remains unknown;
+viewing or deleting that failed history does not release the unfinished-task
+record. Image output followed by an object-storage failure still proves that
+provider execution ended and releases capacity. Uncertain records have no TTL
+and need confirmed evidence for reconciliation; see [GATEWAY_TASK_LIMITS.md](GATEWAY_TASK_LIMITS.md).
+
+A process restart does not automatically replay in-process image workers.
+Existing processing history is conservatively included in migration 300. Do not
+interpret a local failure, result expiry or a task-history deletion as proof of
+upstream completion.

@@ -25,5 +25,6 @@ func (s *BillingCacheService) reserveResellerInflight(ctx context.Context, user 
 		return costReservation, nil
 	}
 	creditReservation.resellerCost = costReservation
+	creditReservation.resellerMultiplier = quote.Multiplier
 	return creditReservation, nil
 }

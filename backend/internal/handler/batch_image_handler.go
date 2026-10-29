@@ -85,6 +85,12 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		}
 		owner, _ = batchImageOwnerFromContext(c)
 	}
+
+	userRelease, admitted := acquireGatewayUserRequest(c, h.openAI.concurrencyHelper, imageTaskJSONError)
+	if !admitted {
+		return
+	}
+	defer userRelease()
 	if sessionID := service.ExtractClientSessionID(c); sessionID != "" {
 		req.SessionID = &sessionID
 	}
@@ -98,7 +104,8 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 
 func (h *BatchImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, req *service.BatchImageSubmitRequest) bool {
 	if h == nil || h.openAI == nil || req == nil {
-		return true
+		imageTaskJSONError(c, http.StatusServiceUnavailable, "api_error", "Gateway admission is unavailable")
+		return false
 	}
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
@@ -115,9 +122,6 @@ func (h *BatchImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, req *
 		if prompt := strings.TrimSpace(item.Prompt); prompt != "" {
 			items = append(items, map[string]string{"prompt": prompt})
 		}
-	}
-	if len(items) == 0 {
-		return true
 	}
 	body, err := json.Marshal(map[string]any{"request": map[string]any{"items": items}})
 	if err != nil {
@@ -140,6 +144,12 @@ func (h *BatchImageHandler) Get(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	got, err := h.service.Get(c.Request.Context(), owner, c.Param("id"))
 	if err != nil {
 		batchImageError(c, err)
@@ -154,6 +164,12 @@ func (h *BatchImageHandler) List(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	got, err := h.service.List(c.Request.Context(), owner, service.BatchImageJobsQuery{
 		Status:     c.Query("status"),
@@ -177,6 +193,12 @@ func (h *BatchImageHandler) Models(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	got, err := h.service.ListModels(c.Request.Context(), owner)
 	if err != nil {
 		batchImageError(c, err)
@@ -210,6 +232,12 @@ func (h *BatchImageHandler) Items(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	got, err := h.service.ListItems(c.Request.Context(), owner, c.Param("id"), service.BatchImageItemsQuery{
 		Status: c.Query("status"),
@@ -229,6 +257,12 @@ func (h *BatchImageHandler) Cancel(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	got, err := h.service.Cancel(c.Request.Context(), owner, c.Param("id"))
 	if err != nil {
 		batchImageError(c, err)
@@ -243,6 +277,12 @@ func (h *BatchImageHandler) ItemContent(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	imageIndex := 0
 	if raw := c.Query("image_index"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
@@ -297,6 +337,12 @@ func (h *BatchImageHandler) Download(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	maxItems, _ := strconv.Atoi(c.Query("max_items"))
 
 	c.Header("Content-Type", "application/zip")
@@ -323,6 +369,12 @@ func (h *BatchImageHandler) DeleteRecord(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	if err := h.service.DeleteRecord(c.Request.Context(), owner, c.Param("id")); err != nil {
 		batchImageError(c, err)
 		return
@@ -336,6 +388,12 @@ func (h *BatchImageHandler) DeleteOutputs(c *gin.Context) {
 		batchImageError(c, infraerrors.New(http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required"))
 		return
 	}
+	userRelease, admitted := h.openAI.admitControl(c)
+	if !admitted {
+		return
+	}
+	defer userRelease()
+
 	got, err := h.cleanup.DeleteOutputsForOwner(c.Request.Context(), owner, c.Param("id"))
 	if err != nil {
 		batchImageError(c, err)

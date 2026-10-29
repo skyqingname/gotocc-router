@@ -182,6 +182,8 @@ docs/*
 !docs/USER_SUPPORT_VIEW.md
 !docs/USER_ROUTING_PRIORITIES.md
 !docs/COMPOSITE_GROUPS.md
+!docs/GATEWAY_ADMISSION.md
+!docs/GATEWAY_TASK_LIMITS.md
 !docs/CN_PROVIDER_MODELS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/providers/
