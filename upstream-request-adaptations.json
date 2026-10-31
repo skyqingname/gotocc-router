@@ -1,7 +1,11 @@
 {
-  "image_edits_multipart_hosts": [
-    "api.sourcesdata.com"
-  ],
+  "image_edits_multipart": {
+    "default": false,
+    "migration_329_hosts": [
+      "api.sourcesdata.com",
+      "us-direct-api.sourcesdata.com"
+    ]
+  },
   "claude_opus55_legacy_thinking": {
     "enabled": {
       "type": "adaptive",

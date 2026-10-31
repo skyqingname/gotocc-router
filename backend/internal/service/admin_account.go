@@ -419,6 +419,11 @@ func normalizeOpenAILongContextBillingUpdateExtra(account *Account, input *Updat
 // Grok media eligibility helpers live in account_grok_media_eligibility.go.
 
 func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]any) (*Account, error) {
+	var err error
+	accountExtra, err = normalizeImageEditsMultipartExtra(input.Platform, input.Type, accountExtra, nil)
+	if err != nil {
+		return nil, err
+	}
 	if input.Platform == PlatformVideo {
 		if input.Type != AccountTypeAPIKey {
 			return nil, infraerrors.BadRequest("VIDEO_API_KEY_REQUIRED", "Video 账号使用 API Key")
@@ -632,6 +637,10 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		effectiveType := account.Type
 		if input.Type != "" {
 			effectiveType = input.Type
+		}
+		normalizedExtra, err = normalizeImageEditsMultipartExtra(account.Platform, effectiveType, normalizedExtra, account.Extra)
+		if err != nil {
+			return nil, err
 		}
 		normalizedExtra, err = normalizeOpenAIAutoResetCreditExtra(account.Platform, effectiveType, account.IsShadow(), normalizedExtra)
 		if err != nil {
@@ -966,6 +975,9 @@ func (s *adminServiceImpl) normalizeOpenAIAccountUserAgent(ctx context.Context, 
 // UpdateAccountExtra 仅对 Extra JSONB 做 key 级合并，避免覆盖其它运行态键
 // （如 model_rate_limits / passive_usage_* 等）。
 func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, updates map[string]any) error {
+	if err := validateImageEditsMultipartExtra(updates); err != nil {
+		return err
+	}
 	if _, policyUpdateRequested := updates[OpenAIOAuthSessionPolicyExtraKey]; policyUpdateRequested {
 		return errors.New("openai_oauth_session_policy must be updated through the account editor")
 	}
@@ -1002,6 +1014,9 @@ func (s *adminServiceImpl) UpdateAccountExtra(ctx context.Context, id int64, upd
 // BulkUpdateAccounts updates multiple accounts in one request.
 // It merges credentials/extra keys instead of overwriting the whole object.
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {
+	if err := validateImageEditsMultipartExtra(input.Extra); err != nil {
+		return nil, err
+	}
 	if _, policyUpdateRequested := input.Extra[OpenAIOAuthSessionPolicyExtraKey]; policyUpdateRequested {
 		return nil, errors.New("openai_oauth_session_policy cannot be changed by bulk update")
 	}

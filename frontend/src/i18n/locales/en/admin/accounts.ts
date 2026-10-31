@@ -650,6 +650,9 @@ export default {
         responsesModeForceChatCompletions: 'Force Chat Completions',
         responsesModeTextDisabledHint:
           'Not applicable when the Responses / Chat Completions endpoint is not enabled.',
+        imageEditsMultipart: 'Send image edits as multipart',
+        imageEditsMultipartDesc:
+          'Enable when the upstream only supports multipart image edits. JSON reference images and masks are uploaded as files for all image edit models on this account, even after its API address changes. Disabled preserves the request format. Image generation is unaffected.',
         imagesUrlToB64Json: 'Image result URL to base64',
         imagesUrlToB64JsonDesc:
           'Only applies to non-streaming Images responses of OpenAI API Key accounts. When an upstream image item has a url but no b64_json, the gateway downloads the url and fills b64_json with its base64 content (url is kept) for clients built on the official API; the response is returned unchanged if the download fails.',

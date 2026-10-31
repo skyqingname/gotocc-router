@@ -731,6 +731,9 @@ export default {
         responsesModeForceResponses: '强制 Responses',
         responsesModeForceChatCompletions: '强制 Chat Completions',
         responsesModeTextDisabledHint: '未启用 Responses / Chat Completions 端点时，此设置不适用。',
+        imageEditsMultipart: '图片编辑转为文件表单',
+        imageEditsMultipartDesc:
+          '上游仅支持 multipart 图片编辑时启用，将 JSON 中的参考图和遮罩转为文件上传。对该账号所有图片编辑模型生效，更换 API 地址后保持；关闭时保留原请求格式。文生图不受影响。',
         imagesUrlToB64Json: '生图结果 URL 转 base64',
         imagesUrlToB64JsonDesc:
           '仅对 OpenAI API Key 的 Images 非流式响应生效。上游返回的图片缺少 b64_json 但带 url 时，网关下载该 url 并以 base64 回填 b64_json（url 保留），兼容按官方接口实现的客户端；下载失败则原样返回。',

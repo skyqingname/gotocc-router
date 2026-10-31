@@ -3369,6 +3369,13 @@
           />
         </div>
         <div>
+          <div class="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <label class="input-label mb-0">{{ t('admin.accounts.openai.imageEditsMultipart') }}</label>
+              <p class="mt-1 text-xs surface-muted">{{ t('admin.accounts.openai.imageEditsMultipartDesc') }}</p>
+            </div>
+            <Toggle v-model="openAIImageEditsMultipartEnabled" data-testid="openai-image-edits-multipart-toggle" />
+          </div>
           <label class="input-label mb-2 block">{{ t('admin.accounts.openai.endpointCapabilities') }}</label>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label
@@ -3804,6 +3811,7 @@
 </template>
 
 <script setup lang="ts">
+import upstreamRequestAdaptations from '../../../../upstream-request-adaptations.json'
 import { creditUnit } from '@/utils/credits'
 import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import OutboundIdentityEditor from './OutboundIdentityEditor.vue'
@@ -4430,6 +4438,7 @@ const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 const upstreamRequestIdHeader = ref('')
 const openAIImagesUrlToB64JsonEnabled = ref(false)
+const openAIImageEditsMultipartEnabled = ref(upstreamRequestAdaptations.image_edits_multipart.default)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -5464,6 +5473,7 @@ const resetForm = () => {
   openAICompactMode.value = 'auto'
   openAIResponsesMode.value = 'auto'
   openAIImagesUrlToB64JsonEnabled.value = false
+  openAIImageEditsMultipartEnabled.value = upstreamRequestAdaptations.image_edits_multipart.default
   openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
   openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
   openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -5622,6 +5632,10 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     extra.images_url_to_b64_json = true
   } else {
     delete extra.images_url_to_b64_json
+  }
+
+  if (accountCategory.value === 'apikey') {
+    extra.image_edits_multipart = openAIImageEditsMultipartEnabled.value
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined
