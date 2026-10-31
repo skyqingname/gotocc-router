@@ -15,13 +15,13 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-// applyUpstreamRequestAdaptations applies the image transport rules from
-// upstream-request-adaptations.json before identity/signing/compression.
+// applyUpstreamRequestAdaptations applies the credential owner's image protocol
+// before identity/signing/compression, independently of its current API address.
 // Native Claude parameter rules run in prepareClaude55MessagesRequest instead.
 func (s *OpenAIGatewayService) applyUpstreamRequestAdaptations(request *http.Request, owner *Account) error {
 	if request.Method != http.MethodPost ||
 		!strings.HasSuffix(strings.TrimRight(request.URL.Path, "/"), "/images/edits") ||
-		!upstreamImageEditsMultipartHosts[strings.ToLower(request.URL.Hostname())] {
+		!owner.OpenAIImageEditsMultipartEnabled() {
 		return nil
 	}
 	mediaType, _, _ := mime.ParseMediaType(request.Header.Get("Content-Type"))

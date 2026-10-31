@@ -4,35 +4,53 @@ API Key 图片接口保留调用者的模型名。JSON 图片编辑接受
 `images[].image_url`，其中每项可为公网图片 URL 或 data URL；可选遮罩为
 `mask.image_url`。multipart 编辑继续接受 `image` / `image[]` 与 `mask` 文件。
 
-## Sourcesdata 的 multipart 适配
+## 按上游账号声明图片编辑格式
 
-产品根参数 [`upstream-request-adaptations.json`](../../upstream-request-adaptations.json)
-统一保存本轮有错误证据的请求改写。`image_edits_multipart_hosts` 目前只有
-`api.sourcesdata.com`：这是图片编辑接口的内容类型约束，不按型号筛选。
-唯一生成入口为 `tools/generate_upstream_request_adaptations.py`，输出
-`upstream_request_adaptations_gen_gotocc.go`；修改参数后重新生成并执行 `--check`。
-没有新增环境变量或生产数据库字段。
+OpenAI 官方图片编辑接口同时支持 JSON 和 multipart。第三方兼容接口可能只接受
+multipart，因此格式能力属于持有 API 地址和凭据的账号，不由域名或模型名推断。
+[官方接口说明](https://developers.openai.com/api/reference/resources/images/methods/edit)。
 
-匹配的 JSON `/v1/images/edits` 请求在审计、账号选择和凭据解析之后，由共用出站
-入口 `applyUpstreamRequestAdaptations` 在最终身份准备/压缩/发送之前完成转换：
+OpenAI API Key 账号的 `extra.image_edits_multipart` 是布尔值。管理员创建、编辑
+账号时可设置「图片编辑转为文件表单」：
+
+- `true`：该账号所有模型的 JSON 图片编辑转为 multipart；换 API 地址仍然生效。
+- `false`或未配置：保留客户端请求格式。默认值来自根
+  [`upstream-request-adaptations.json`](../../upstream-request-adaptations.json)的
+  `image_edits_multipart.default`，当前为false。
+
+新账号持久化显式默认值；旧编辑客户端更新extra但遗漏该字段时保留已有值。
+创建、更新、额外字段合并和批量更新入口拒绝该字段的非布尔值。
+复制账号和导入导出沿用既有extra合同，不按新的地址重新判断格式。
+
+迁移329只为已知Sourcesdata旧入口及美区直连入口、未显式配置该能力的OpenAI
+API Key账号写入true，保留其他字段与管理员已有选择。域名清单只存在于这份冻结的
+升级迁移输入，运行时不再匹配域名。`tools/generate_upstream_request_adaptations.py`
+同时生成Go默认值与迁移SQL；已有`--check`核对两者。迁移发布后不修改其输入或SQL。
+没有新增数据库列或环境变量。更新只发生在安装本发行并执行迁移时，发布本身不修改生产。
+
+## 请求转换边界
+
+启用账号的 JSON `/v1/images/edits` 请求在审计、账号选择和凭据解析之后，由共用
+出站入口 `applyUpstreamRequestAdaptations` 在最终身份准备/压缩/发送之前转换。
+读取的是实际凭据归属账号的能力，适用于该账号的所有图片编辑模型及同步/异步请求。
 下载或解码参考图，以原顺序写入图片文件字段；遮罩同样转换为文件。
 原始 `prompt` 字符串及 `model`、`n`、`size`、`quality`、`output_format`、
 `response_format` 等字段保留。扩展对象/数组作为原 JSON 文本表单值传递。
-multipart writer 同时生成正文和带 boundary 的 Content-Type。
+multipart writer 同时生成正文和带boundary的Content-Type。
 
-图片 URL 获取复用现有图片下载路径的账号代理、可信客户端身份、公开目标策略和
-单图限制。获取素材不携带供应商认证头。任何获取/编码错误均在生成请求前返回；
-不在失败后换一种协议再次生成。原始请求结构继续用于审计和计费，模型名、付款
-主体和费用语义不因编码转换而变化。
+图片URL获取复用现有图片下载路径的账号代理、可信客户端身份、公开目标策略和
+单图限制。获取素材不携带供应商认证头。获取/编码失败在生成请求前返回，不在失败后
+切换协议重试。原始请求继续用于审计和计费，付款主体和异步归属保持不变。
 
-data URL 与内联图片结果共用 Base64 规范化：先移除已有末尾填充，再按剩余长度
-补齐 `=`。已带一个或两个填充字符的合法图片不会因按旧长度补位而解码失败；
-省略填充的输入继续按原规则补齐。
+data URL与内联图片结果沿用Base64规范化：先移除已有末尾填充，再按剩余长度
+补齐`=`，支持已填充与未填充的合法图片。
 
-原生 multipart、文生图及其他上游沿用原协议。
-HTTP 自动透传开关不承担此图片编码转换；当前 API Key Images 分支统一按图片
-协议处理，开启 `openai_passthrough` 仍会应用已配置的编辑适配。
-同步与异步编辑复用同一 `ForwardImages` 路径。
+原生multipart、文生图、未启用账号及OAuth图片协议保持原行为。
+HTTP自动透传开关不承担图片编码转换；开启`openai_passthrough`仍应用账号能力。
 
-该适配处理 JSON 编辑被上游按 `missing_prompt` 或 `content_type` 拒绝的问题。
-供应商 524、生成耗时和任务完成状态属于独立故障，转换成功不代表生成一定完成。
+## 验证与恢复边界
+
+本地出站捕获可以验证Content-Type/boundary、原始提示词、图片/遮罩字节、地址更换
+及账号开关效果，不能替代供应商真实生成。供应商524、任务完成与实际扣费是独立事项。
+旧二进制不读取此账号能力，回退二进制会丢失新域名的适配；应保留最新数据和配置，
+按供应商实际协议前向修复，不用旧数据库覆盖新业务。

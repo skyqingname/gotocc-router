@@ -62,6 +62,18 @@ historical records keep version zero and NULL evidence rather than fabricating
 past prices. Batch-image jobs retain their submitted rate evidence for deferred
 settlement. See [Composite groups](../../docs/COMPOSITE_GROUPS.md).
 
+Migration `329_openai_image_edits_account_format.sql` moves the known Sourcesdata
+JSON-edit compatibility into `accounts.extra.image_edits_multipart` for active
+OpenAI API Key accounts. Explicit boolean choices, other extra keys, credentials,
+groups and billing data are preserved. This is a data-only migration; there are
+no new columns or Ent schema changes. The frozen host snapshot lives in
+`upstream-request-adaptations.json` under `image_edits_multipart.migration_329_hosts`
+and is rendered by its existing generator. Keep that migration input immutable
+after publication; later migrations use a new number. Future address changes
+retain the account capability. Older binaries ignore this setting and can lose
+compatibility after an address change, so replacing the binary alone is not a
+protocol rollback. See [image edits](../../docs/protocols/OPENAI_IMAGES.md).
+
 ## Mandatory Rules
 
 - Existing migration files are immutable: never modify, delete, or rename them.

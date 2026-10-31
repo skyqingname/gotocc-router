@@ -11,8 +11,22 @@ The current GoToCC tree integrates the complete fixed Plus release
 `e1e1862294281e333c32370ade896e1fa0e26f8f`, peeled commit
 `6599d4b29e125277232dba75ad5b84d5b14799c4`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned release is `skyqingname/gotocc-router@v0.2.19+custom.001`; identical
+The owned release is `skyqingname/gotocc-router@v0.2.19+custom.002`; identical
 tag text in these repositories does not identify the same source or package.
+
+## GoToCC image edit account protocol (2026-10-31)
+
+Owned `0.2.19+custom.002` keeps the same fixed Plus baseline. JSON-to-multipart
+image editing is now an explicit OpenAI API Key account capability, shared by
+all image models on that account and independent of its API address. The account
+editor controls `extra.image_edits_multipart`; omitted values preserve the input
+format. Migration 329 transfers known Sourcesdata compatibility to stored account
+settings without overwriting an explicit operator choice. Hostnames appear only
+in that frozen upgrade migration, not in request dispatch.
+
+The change retains ingress auditing, credential-owner identity, image bytes,
+async ownership and billing. It does not add a provider retry or claim to resolve
+upstream 524 errors. See [image protocol](docs/protocols/OPENAI_IMAGES.md).
 
 ## GoToCC source integration (2026-10-29)
 
@@ -148,6 +162,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.001
 | `skyqingname/gotocc-router@v0.2.18+custom.007` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | owned release; image edits and Grok compatibility |
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
 | `skyqingname/gotocc-router@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | owned integration; publication status is authoritative in the owned GitHub Release |
+| `skyqingname/gotocc-router@v0.2.19+custom.002` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | account image-edit protocol; publication status is authoritative in the owned GitHub Release |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains

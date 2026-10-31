@@ -2092,6 +2092,13 @@
           />
         </div>
         <div>
+          <div class="mb-4 flex items-center justify-between gap-4">
+            <div>
+              <label class="input-label mb-0">{{ t('admin.accounts.openai.imageEditsMultipart') }}</label>
+              <p class="mt-1 text-xs surface-muted">{{ t('admin.accounts.openai.imageEditsMultipartDesc') }}</p>
+            </div>
+            <Toggle v-model="openAIImageEditsMultipartEnabled" data-testid="openai-image-edits-multipart-toggle" />
+          </div>
           <label class="input-label mb-2 block">{{ t('admin.accounts.openai.endpointCapabilities') }}</label>
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label
@@ -2959,6 +2966,7 @@
 </template>
 
 <script setup lang="ts">
+import upstreamRequestAdaptations from '../../../../upstream-request-adaptations.json'
 import { creditUnit } from '@/utils/credits'
 import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import CNOAuthPanel from './CNOAuthPanel.vue'
@@ -3663,6 +3671,7 @@ const openAICompactMode = ref<OpenAICompactMode>('auto')
 const openAIResponsesMode = ref<OpenAIResponsesMode>('auto')
 const upstreamRequestIdHeader = ref('')
 const openAIImagesUrlToB64JsonEnabled = ref(false)
+const openAIImageEditsMultipartEnabled = ref(upstreamRequestAdaptations.image_edits_multipart.default)
 const openAIEndpointCapabilities = ref<OpenAIEndpointCapability[]>(['chat_completions', 'embeddings'])
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
@@ -4148,6 +4157,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   upstreamRequestIdHeader.value =
     typeof extra?.upstream_request_id_header === 'string' ? extra.upstream_request_id_header : ''
   openAIImagesUrlToB64JsonEnabled.value = extra?.images_url_to_b64_json === true
+  openAIImageEditsMultipartEnabled.value = typeof extra?.image_edits_multipart === 'boolean'
+    ? extra.image_edits_multipart
+    : upstreamRequestAdaptations.image_edits_multipart.default
 	autoPause5hThreshold.value = typeof extra?.auto_pause_5h_threshold === 'number' ? extra.auto_pause_5h_threshold * 100 : null
 	autoPause7dThreshold.value = typeof extra?.auto_pause_7d_threshold === 'number' ? extra.auto_pause_7d_threshold * 100 : null
 	autoPause5hDisabled.value = extra?.auto_pause_5h_disabled === true
@@ -5763,6 +5775,7 @@ const handleSubmit = async () => {
         newExtra.openai_compact_mode = openAICompactMode.value
       }
 		if (props.account.type === 'apikey') {
+        newExtra.image_edits_multipart = openAIImageEditsMultipartEnabled.value
         if (!openAITextGenerationCapabilityEnabled.value || openAIResponsesMode.value === 'auto') {
           delete newExtra.openai_responses_mode
         } else {
