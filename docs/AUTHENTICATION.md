@@ -98,6 +98,22 @@ unchanged.
 
 ## Password Reset Tokens
 
+Password reset requires email verification, the password-reset switch, SMTP and
+an effective front-end URL. The saved `frontend_url` takes priority over the
+existing `server.frontend_url` configuration. Administrative full and partial
+settings updates validate the final values: enabling reset or clearing its URL
+without a configured alternative returns `400 PASSWORD_RESET_FRONTEND_URL_REQUIRED`
+before settings are written. Disabling reset and updates to unrelated fields
+remain possible. The editor reports an invalid URL without clearing the input.
+
+For an existing incomplete configuration, `POST /api/v1/auth/forgot-password`
+returns `503 PASSWORD_RESET_NOT_CONFIGURED` after the usual captcha validation
+and before mail is queued. The browser shows a localized instruction to contact
+the administrator. Configure the front-end address under Registration Settings;
+saved changes are read on the next request without restarting the service.
+SMTP delivery and the user's successful password change require separate
+verification from a successful settings save or request acknowledgement.
+
 Password reset cache entries store only the hex-encoded SHA-256 hash of the token and
 are consumed through an atomic compare-and-delete, so a reset link is single-use even
 under concurrent submissions. Cache contents and exception logs never contain the raw

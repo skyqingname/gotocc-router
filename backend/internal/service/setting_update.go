@@ -80,6 +80,9 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaultsOmitting(ctx contex
 }
 
 func (s *SettingService) persistSystemSettingsUpdates(ctx context.Context, settings *SystemSettings, updates map[string]string) error {
+	if err := s.validatePasswordResetSettingsUpdate(ctx, updates); err != nil {
+		return err
+	}
 	if _, writesEnabled := updates[SettingKeyClientDisconnectConsecutiveBanEnabled]; writesEnabled {
 		if writer, ok := s.settingRepo.(interface {
 			SetMultipleWithClientDisconnectRiskGeneration(context.Context, map[string]string) (int64, error)
@@ -489,6 +492,19 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyFallbackModelOpenAI] = settings.FallbackModelOpenAI
 	updates[SettingKeyFallbackModelGemini] = settings.FallbackModelGemini
 	updates[SettingKeyFallbackModelAntigravity] = settings.FallbackModelAntigravity
+	// nil means omitted or JSON null: preserve the stored map. An empty object
+	// intentionally restores the per-platform defaults.
+	if settings.PricingFallbackModels != nil {
+		models, err := normalizePricingFallbackModels(settings.PricingFallbackModels)
+		if err != nil {
+			return nil, err
+		}
+		blob, err := json.Marshal(models)
+		if err != nil {
+			return nil, fmt.Errorf("marshal pricing fallback models: %w", err)
+		}
+		updates[SettingKeyPricingFallbackModels] = string(blob)
+	}
 
 	// Identity patch configuration (Claude -> Gemini)
 	updates[SettingKeyEnableIdentityPatch] = strconv.FormatBool(settings.EnableIdentityPatch)

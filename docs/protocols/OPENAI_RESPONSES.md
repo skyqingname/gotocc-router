@@ -31,6 +31,15 @@ acceptance failure retains `session_route_unavailable` and is logged as
 `openai.session_route_failed`. Ownership, migration and usage settlement rules
 are unchanged.
 
+The separate [managed Codex CLI task endpoint](../CODEX_CLI.md),
+`POST /v1/codex-cli/responses`, accepts only single-turn text tasks and maps
+the CLI's final result to a limited Responses-shaped response. Enabling it on
+an account leaves the ordinary Responses HTTP/WebSocket routes unchanged. The
+CLI executes an agent task and may run tools under its saved sandbox/approval
+policy; it does not transparently relay arbitrary Responses payloads.
+It supports Standard service tier only; a group/global policy that ultimately
+requires Fast returns HTTP 403 before credential lookup or CLI startup.
+
 The **Use Key** dialog enables `api_key_model_discovery = true` under `[features]`
 when generating a remote Codex model catalog configuration. This applies to
 OpenAI HTTP/WebSocket, Grok, and all routed Codex groups, including StepFun and
@@ -173,6 +182,13 @@ use the same conditional write, with no unconditional fallback when persistence
 is unavailable. Codex models discovery also uses the acquired credential
 owner's frozen proxy, including shadow accounts, and fails before sending when
 that proxy cannot be proven.
+
+Automatic API-key Responses capability probes also use the current global and
+credential-owner Codex CLI bridge permissions. Both enabled selects the official
+bridge; either disabled preserves the native TLS sender. The prepared request
+and owner snapshot remain unchanged. An unavailable required permission or
+runtime, or a bridge failure before/after sending, never authorizes a native
+fallback and cannot be persisted as evidence of Responses support.
 
 ## GPT-6 Astra
 
@@ -618,15 +634,18 @@ to schedule:
   still win, and a disagreement raises the conflict flag). In-band events
   follow the official `response_model()` order: nested `response.headers`,
   then top-level `headers` on WebSocket metadata events; `response.model` is
-  a Plus fallback when neither header is present. For Codex-protocol
-  accounts a server-declared model that differs from the baseline billing
-  model and has identified pricing corrects the recorded billing model when
-  no accepted public model price owns that request. Explicit public token,
-  per-request and free cards retain their selling price and factors; upstream
-  model observations remain recorded. Explicit upstream/response-model billing
-  sources, actual channel mappings and accepted legacy price selection retain
-  their existing correction behavior. The downstream response body is never
-  rewritten. The `x-openai-model` spelling is accepted as well.
+  a Plus fallback when neither header is present. These observations remain
+  diagnostic evidence and do not implicitly replace the requested,
+  channel-mapped or upstream-selected billing model, including for OAuth and
+  setup-token accounts without a public price card and restored legacy tasks.
+  Thus channel mapping `gpt-6-luna` to `gpt-6-sol` bills Sol, and a request for
+  `gpt-6.1-sol` retains its price even if the provider reports `gpt-6-luna`.
+  Only an explicit `response_model` billing source may adopt the observation,
+  with identified pricing, no conflict or media charges, and the existing
+  non-increasing-price and retail-price protections. Public paid/free cards
+  retain their prices and selling factors. The downstream response body is
+  never rewritten by billing. The `x-openai-model` spelling is accepted as well.
+
 - `x-models-etag` marks the upstream model-catalog revision and is recorded
   as a structured log signal for the future pinned-models integration.
 - The `codex_rollout_budget_units` declaration in `response.completed` usage
@@ -1037,9 +1056,15 @@ before an upstream write. Usage records capture the final converted tier and
 settlement uses the accepted retail Free Fast setting. Native Anthropic
 forwarding and other target platforms retain their own protocol behavior.
 
-Usage tier fields are administrator-only API data. User usage responses omit
-`service_tier`, `requested_service_tier` and `response_service_tier`; user usage
-tables, column settings, cost tooltips and exports do not show service tiers.
+Raw usage tier fields are administrator-only API data. User usage responses omit
+`service_tier`, `requested_service_tier` and `response_service_tier`. The public
+nullable boolean `request_fast_enabled` describes the recorded final request:
+trimmed, case-insensitive `priority`/`fast` mean true, `default`/`auto`/`flex` mean
+false, and missing, empty or unrecognized values mean null. It is derived only
+from `requested_service_tier`, never the upstream response, billable tier, model,
+cost or current configuration. The user table places this state and reasoning
+effort below the requested model; raw tiers remain absent from user column
+settings, cost tooltips and exports. This display does not change pricing.
 
 
 ## Codex transport and active probe timing
@@ -1127,3 +1152,13 @@ candidate cannot expose it to another key through the shared index.
 
 
 Quota read-side provenance is mandatory as well as write-side CAS. Automatic quota pause, credit-reset decisions, and quota-based scheduling scores may use only observations whose `codex_usage_owner_generation` matches the current credential owner and proxy. Unmarked legacy or mismatched observations may be displayed and trigger a new probe, but cannot pause an account, consume a credit, inherit probe-failure backoff, or reset subscription usage. Operator thresholds, explicit disable flags and manual session windows remain intact. Spark shadows validate their own quota against the current parent grant using the existing parent-health lookup; the parent's global quota does not block Spark.
+
+The administrator table also displays the billing tier and flags
+`priority`/`default` request/response differences. New `outbound_metadata`
+records the dispatched tier when the final JSON body is observed; this takes
+precedence over an earlier transform's tier at usage settlement. An omitted
+wire tier is recorded as observed but unspecified, not silently reused from a
+previous turn. `outbound_transport` distinguishes native sends, verified CLI
+bridge callbacks and managed-task execution; historical evidence is unknown.
+These fields are administrator-only and do not prove upstream Fast execution.
+See [CLI usage and evidence](../CODEX_CLI.md#usage-accuracy-and-outbound-evidence).

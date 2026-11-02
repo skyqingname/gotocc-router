@@ -5,6 +5,8 @@ import canvasCard from './canvasCard'
 import creativeGotocc from './creativeGotocc'
 import balanceCashback from './balanceCashback'
 import adminAccessKeys from './adminAccessKeys'
+import codexCli from './codexCli'
+import codexCliRuntime from './codexCliRuntime'
 
 import landing from './landing'
 import common from './common'
@@ -30,6 +32,8 @@ export default {
   ...canvasCard,
   ...balanceCashback,
   ...creativeGotocc,
+  ...codexCli,
+  ...codexCliRuntime,
   adminAccessKeys,
 
   ...landing,

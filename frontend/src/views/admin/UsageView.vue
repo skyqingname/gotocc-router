@@ -5,15 +5,16 @@
       <section class="space-y-4" data-testid="usage-charts-panel">
         <div class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
-            <div class="flex items-center gap-2">
+            <div class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
               <DateRangePicker
+                class="min-w-0 max-w-full"
                 v-model:start-date="startDate"
                 v-model:end-date="endDate"
                 @change="onDateRangeChange"
               />
             </div>
-            <div class="ml-auto flex items-center gap-2">
+            <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
               <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.granularity') }}:</span>
               <div class="w-28">
                 <Select v-model="granularity" :options="granularityOptions" @change="loadChartData" />
@@ -679,8 +680,8 @@ const allColumns = computed(() => [
   { key: 'account', label: t('admin.usage.account'), sortable: false, sticky: 'left' as const },
   { key: 'model', label: t('usage.model'), sortable: true },
   { key: 'service_host', label: t('admin.usage.serviceHost'), sortable: false },
+  { key: 'outbound', label: t('admin.usage.outbound'), sortable: false },
   { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
-  { key: 'service_tier', label: t('admin.usage.serviceTier'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'group', label: t('admin.usage.group'), sortable: false },
   { key: 'stream', label: t('usage.type'), sortable: false },
@@ -690,7 +691,7 @@ const allColumns = computed(() => [
   { key: 'latency', label: t('usage.latency'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'request_id', label: t('admin.usage.requestId'), sortable: false },
-  { key: 'user_agent', label: t('usage.userAgent'), sortable: false },
+  { key: 'user_agent', label: t('admin.usage.inboundUserAgent'), sortable: false },
   { key: 'session_id', label: t('usage.sessionId'), sortable: false },
   { key: 'ip_address', label: t('admin.usage.ipAddress'), sortable: false }
 ])
@@ -741,7 +742,7 @@ const errAllColumns = computed(() => [
   { key: 'status', label: t('admin.ops.errorLog.status') },
   { key: 'message', label: t('admin.ops.errorLog.message') },
   { key: 'created_at', label: t('admin.ops.errorLog.time') },
-  { key: 'user_agent', label: t('usage.userAgent') },
+  { key: 'user_agent', label: t('admin.usage.inboundUserAgent') },
   { key: 'client_ip', label: t('admin.ops.errorLog.ip') },
   { key: 'actions', label: t('admin.ops.errorLog.action') },
 ])

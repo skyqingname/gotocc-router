@@ -1,5 +1,5 @@
 <template>
-  <AppLayout>
+  <AppLayout appearance="user">
     <div class="custom-page-layout">
       <div class="card workspace-shell flex-1 min-h-0 overflow-hidden">
         <div v-if="loading" class="flex h-full items-center justify-center py-12">
@@ -28,7 +28,7 @@
         </div>
 
         <!-- Markdown mode with TOC -->
-        <div v-else-if="isMarkdownMode" class="flex h-full overflow-hidden">
+        <div v-else-if="isMarkdownMode" class="relative flex h-full overflow-hidden">
           <!-- TOC Sidebar -->
           <aside
             v-show="tocVisible"

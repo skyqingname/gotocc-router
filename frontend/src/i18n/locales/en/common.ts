@@ -435,6 +435,7 @@ export default {
     sendResetLink: 'Send Reset Link',
     sendingResetLink: 'Sending...',
     sendResetLinkFailed: 'Failed to send reset link. Please try again.',
+    passwordResetUnavailable: 'Password reset is unavailable. Please contact the administrator.',
     resetEmailSent: 'Reset Link Sent',
     resetEmailSentHint: 'If an account exists with this email, you will receive a password reset link shortly. Please check your inbox and spam folder.',
     backToLogin: 'Back to Login',

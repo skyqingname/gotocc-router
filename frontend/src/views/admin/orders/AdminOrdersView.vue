@@ -4,13 +4,13 @@
       <!-- Filters -->
       <div class="card workspace-fixed p-4" data-test="admin-orders-filters">
         <div class="flex flex-wrap items-center gap-3">
-          <div class="flex-1 sm:max-w-64">
+          <div class="min-w-0 w-full sm:flex-1 sm:max-w-64">
             <input v-model="orderSearch" type="text" :placeholder="t('payment.admin.searchOrders')" class="input" @input="debounceLoadOrders" />
           </div>
-          <Select v-model="orderFilters.order_source" :options="sourceFilters" class="w-36" @change="handleOrderPageChange(1)" />
-          <Select v-model="orderFilters.status" :options="statusFilterOptions" class="w-36" @change="loadOrders" />
-          <Select v-model="orderFilters.payment_type" :options="paymentTypeFilterOptions" class="w-40" @change="loadOrders" />
-          <Select v-model="orderFilters.order_type" :options="orderTypeFilterOptions" class="w-36" @change="loadOrders" />
+          <Select v-model="orderFilters.order_source" :options="sourceFilters" class="w-full min-w-0 sm:w-36" @change="handleOrderPageChange(1)" />
+          <Select v-model="orderFilters.status" :options="statusFilterOptions" class="w-full min-w-0 sm:w-36" @change="loadOrders" />
+          <Select v-model="orderFilters.payment_type" :options="paymentTypeFilterOptions" class="w-full min-w-0 sm:w-40" @change="loadOrders" />
+          <Select v-model="orderFilters.order_type" :options="orderTypeFilterOptions" class="w-full min-w-0 sm:w-36" @change="loadOrders" />
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
             <button @click="loadOrders" :disabled="ordersLoading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="ordersLoading ? 'animate-spin' : ''" />
@@ -23,35 +23,35 @@
       <div class="card workspace-table-card workspace-shell" data-test="admin-orders-table">
         <OrderTable class="workspace-table-viewport" :orders="orders" :loading="ordersLoading" show-user>
           <template #actions="{ row }">
-            <div class="flex items-center gap-1">
-              <button @click="showOrderDetail(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium hover:surface-hover surface-control surface-muted">
+            <div class="table-actions">
+              <button @click="showOrderDetail(row)" class="table-action table-action-neutral">
                 <Icon name="eye" size="sm" />
                 {{ t('common.view') }}
               </button>
-              <button v-if="row.status === 'PENDING'" @click="handleCancelOrder(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50/25 dark:text-yellow-400 dark:hover:bg-yellow-900/20 surface-control">
+              <button v-if="row.status === 'PENDING'" @click="handleCancelOrder(row)" class="table-action table-action-warning">
                 <Icon name="x" size="sm" />
                 {{ t('payment.orders.cancel') }}
               </button>
-              <button v-if="row.status === 'FAILED'" @click="handleRetryOrder(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50/25 dark:text-blue-400 dark:hover:bg-blue-900/20 surface-control">
+              <button v-if="row.status === 'FAILED'" @click="handleRetryOrder(row)" class="table-action">
                 <Icon name="refresh" size="sm" />
                 {{ t('payment.admin.retry') }}
               </button>
               <template v-if="row.order_source !== 'redeem' && row.status === 'REFUND_REQUESTED'">
                 <span v-if="row.refund_amount" class="rounded-full bg-purple-100/[0.15] px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">{{ formatOrderAmount(row.refund_amount, row) }}</span>
-                <button @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50/25 dark:text-purple-400 dark:hover:bg-purple-900/20 surface-control">
+                <button @click="openRefundDialog(row)" class="table-action">
                   <Icon name="check" size="sm" />
                   {{ t('payment.admin.approveRefund') }}
                 </button>
               </template>
-              <button v-else-if="row.order_source !== 'redeem' && row.status === 'REFUND_FAILED'" @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50/25 dark:text-purple-400 dark:hover:bg-purple-900/20 surface-control">
+              <button v-else-if="row.order_source !== 'redeem' && row.status === 'REFUND_FAILED'" @click="openRefundDialog(row)" class="table-action">
                 <Icon name="refresh" size="sm" />
                 {{ t('payment.admin.retryRefund') }}
               </button>
-              <button v-else-if="row.order_source !== 'redeem' && row.status === 'REFUND_PENDING'" :disabled="refundQueryingIds.has(row.id)" @click="handleQueryRefund(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-orange-600 hover:bg-orange-50/25 disabled:opacity-60 dark:text-orange-400 dark:hover:bg-orange-900/20 surface-control">
+              <button v-else-if="row.order_source !== 'redeem' && row.status === 'REFUND_PENDING'" :disabled="refundQueryingIds.has(row.id)" @click="handleQueryRefund(row)" class="table-action table-action-warning">
                 <Icon name="refresh" size="sm" :class="refundQueryingIds.has(row.id) ? 'animate-spin' : ''" />
                 {{ t('payment.admin.queryRefundStatus') }}
               </button>
-              <button v-else-if="row.order_source !== 'redeem' && (row.status === 'COMPLETED' || row.status === 'PARTIALLY_REFUNDED')" @click="openRefundDialog(row)" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50/25 dark:text-red-400 dark:hover:bg-red-900/20 surface-control">
+              <button v-else-if="row.order_source !== 'redeem' && (row.status === 'COMPLETED' || row.status === 'PARTIALLY_REFUNDED')" @click="openRefundDialog(row)" class="table-action table-action-danger">
                 <Icon name="dollar" size="sm" />
                 {{ t('payment.admin.refund') }}
               </button>
@@ -65,25 +65,25 @@
     <!-- Order Detail Dialog -->
     <BaseDialog :show="showDetailDialog" :title="t('payment.admin.orderDetail')" width="wide" @close="showDetailDialog = false">
       <div v-if="selectedOrder" class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div><p class="text-xs text-gray-500">{{ t('featureExtensions.orderSource') }}</p><p>{{ t(selectedOrder.order_source === 'redeem' ? 'featureExtensions.redeemOrder' : 'featureExtensions.paymentOrder') }}</p></div>
-          <div v-if="selectedOrder.plan_name"><p class="text-xs text-gray-500">{{ t('featureExtensions.orderPlan') }}</p><p>{{ selectedOrder.plan_name }}</p></div>
+        <div class="grid grid-cols-1 gap-4 break-words sm:grid-cols-2">
+          <div><p class="text-xs surface-muted">{{ t('featureExtensions.orderSource') }}</p><p>{{ t(selectedOrder.order_source === 'redeem' ? 'featureExtensions.redeemOrder' : 'featureExtensions.paymentOrder') }}</p></div>
+          <div v-if="selectedOrder.plan_name"><p class="text-xs surface-muted">{{ t('featureExtensions.orderPlan') }}</p><p>{{ selectedOrder.plan_name }}</p></div>
           <div><p class="text-xs surface-muted">{{ t('payment.orders.orderId') }}</p><p class="font-mono text-sm font-medium text-gray-900 dark:text-white">#{{ selectedOrder.id }}</p></div>
-          <div><p class="text-xs surface-muted">{{ t('payment.orders.orderNo') }}</p><p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedOrder.out_trade_no }}</p></div>
+          <div class="min-w-0"><p class="text-xs surface-muted">{{ t('payment.orders.orderNo') }}</p><p class="break-all text-sm font-medium text-gray-900 dark:text-white">{{ selectedOrder.out_trade_no }}</p></div>
           <div><p class="text-xs surface-muted">{{ t('payment.orders.status') }}</p><OrderStatusBadge :status="selectedOrder.status" /></div>
           <div><p class="text-xs surface-muted">{{ t('payment.orders.amount') }}</p><p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedOrder.order_type === 'subscription' ? paymentAmountSymbol(selectedOrder) + selectedOrder.amount.toFixed(2) : withCreditUnit(selectedOrder.amount.toFixed(2)) }}</p></div>
           <div><p class="text-xs surface-muted">{{ t('payment.orders.payAmount') }}</p><p class="text-sm font-medium text-gray-900 dark:text-white">{{ paymentAmountSymbol(selectedOrder) }}{{ selectedOrder.pay_amount.toFixed(2) }}</p></div>
-          <div><p class="text-xs surface-muted">{{ t('payment.orders.paymentMethod') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ t('payment.methods.' + selectedOrder.payment_type, selectedOrder.payment_type) }}</p></div>
-          <div><p class="text-xs surface-muted">{{ t('payment.admin.feeRate') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ selectedOrder.fee_rate }}%</p></div>
-          <div><p class="text-xs surface-muted">{{ t('payment.orders.createdAt') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ formatDateTime(selectedOrder.created_at) }}</p></div>
-          <div><p class="text-xs surface-muted">{{ t('payment.admin.expiresAt') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ formatDateTime(selectedOrder.expires_at) }}</p></div>
-          <div v-if="selectedOrder.paid_at"><p class="text-xs surface-muted">{{ t('payment.admin.paidAt') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ formatDateTime(selectedOrder.paid_at) }}</p></div>
+          <div><p class="text-xs surface-muted">{{ t('payment.orders.paymentMethod') }}</p><p class="text-sm surface-muted">{{ t('payment.methods.' + selectedOrder.payment_type, selectedOrder.payment_type) }}</p></div>
+          <div><p class="text-xs surface-muted">{{ t('payment.admin.feeRate') }}</p><p class="text-sm surface-muted">{{ selectedOrder.fee_rate }}%</p></div>
+          <div><p class="text-xs surface-muted">{{ t('payment.orders.createdAt') }}</p><p class="text-sm surface-muted">{{ formatDateTime(selectedOrder.created_at) }}</p></div>
+          <div><p class="text-xs surface-muted">{{ t('payment.admin.expiresAt') }}</p><p class="text-sm surface-muted">{{ formatDateTime(selectedOrder.expires_at) }}</p></div>
+          <div v-if="selectedOrder.paid_at"><p class="text-xs surface-muted">{{ t('payment.admin.paidAt') }}</p><p class="text-sm surface-muted">{{ formatDateTime(selectedOrder.paid_at) }}</p></div>
           <div v-if="selectedOrder.refund_amount"><p class="text-xs surface-muted">{{ t('payment.admin.refundAmount') }}</p><p class="text-sm font-medium text-red-600 dark:text-red-400">{{ formatOrderAmount(selectedOrder.refund_amount, selectedOrder) }}</p></div>
-          <div v-if="selectedOrder.refund_reason" class="col-span-2"><p class="text-xs surface-muted">{{ t('payment.admin.refundReason') }}</p><p class="text-sm text-gray-700 dark:text-gray-300">{{ selectedOrder.refund_reason }}</p></div>
+          <div v-if="selectedOrder.refund_reason" class="sm:col-span-2"><p class="text-xs surface-muted">{{ t('payment.admin.refundReason') }}</p><p class="text-sm surface-muted">{{ selectedOrder.refund_reason }}</p></div>
           <!-- Refund request info -->
-          <div v-if="selectedOrder.refund_requested_at" class="col-span-2 border-t border-gray-200 pt-3 dark:border-dark-600">
+          <div v-if="selectedOrder.refund_requested_at" class="border-t border-gray-200 pt-3 sm:col-span-2 dark:border-dark-600">
             <p class="mb-2 text-xs font-medium text-purple-600 dark:text-purple-400">{{ t('payment.admin.refundRequestInfo') }}</p>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p class="text-xs surface-muted">{{ t('payment.admin.refundRequestedAt') }}</p>
                 <p class="text-sm surface-muted">{{ formatDateTime(selectedOrder.refund_requested_at) }}</p>
@@ -92,7 +92,7 @@
                 <p class="text-xs surface-muted">{{ t('payment.admin.refundRequestedBy') }}</p>
                 <p class="text-sm surface-muted">#{{ selectedOrder.refund_requested_by }}</p>
               </div>
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-xs surface-muted">{{ t('payment.admin.refundRequestReason') }}</p>
                 <p class="text-sm surface-muted">{{ selectedOrder.refund_request_reason }}</p>
               </div>

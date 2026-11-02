@@ -28,6 +28,7 @@ type availableChannelAccess interface {
 }
 
 type availableCatalogReader interface {
+	ListAvailableChannelCatalog(context.Context, []service.Group) ([]service.CatalogGroup, error)
 	ListAvailableCatalog(context.Context, []service.Group) ([]service.CatalogGroup, error)
 }
 

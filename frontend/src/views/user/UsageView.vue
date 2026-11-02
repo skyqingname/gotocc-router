@@ -205,6 +205,7 @@
           :server-side-sort="true"
           :show-account-billing="false"
           :show-upstream-endpoint="false"
+          model-metadata
           :user-clickable="false"
           :compact-user-column="isTeamOwner"
           default-sort-key="created_at"

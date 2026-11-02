@@ -186,14 +186,14 @@
           <div class="flex flex-wrap items-center gap-3">
             <label class="flex items-center gap-2">
               {{ t('pagination.perPage') }}
-              <select
+              <Select
                 v-model="historyPageSize"
-                class="input w-20"
+                class="w-24"
                 :disabled="loadingHistory || submitting"
                 @change="fetchHistory(1)"
-              >
-                <option v-for="size in [20, 50, 100]" :key="size" :value="size">{{ size }}</option>
-              </select>
+                :searchable="false"
+                :options="[20, 50, 100].map(size => ({ value: size, label: String(size) }))"
+              />
             </label>
             <button
               class="btn btn-secondary"
@@ -214,6 +214,7 @@
 </template>
 
 <script setup lang="ts">
+import Select from '@/components/common/Select.vue'
 import { withCreditUnit } from '@/utils/credits'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'

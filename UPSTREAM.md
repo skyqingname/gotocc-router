@@ -7,12 +7,36 @@ publication status. Release naming and procedures live in
 ## Integrated Baseline
 
 The current GoToCC tree integrates the complete fixed Plus release
-`LuckyKuang/sub2api-plus@v0.2.19+custom.001`: tag object
-`e1e1862294281e333c32370ade896e1fa0e26f8f`, peeled commit
-`6599d4b29e125277232dba75ad5b84d5b14799c4`. Its official baseline is
+`LuckyKuang/sub2api-plus@v0.2.19+custom.004`: tag object
+`dbf8b4a9bfb3cc48cefa9b541c590f484eb045bb`, peeled commit
+`612b60da017db2d071311f2a65add6a759b66be5`. Its official baseline remains
 `Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned release is `skyqingname/gotocc-router@v0.2.19+custom.002`; identical
-tag text in these repositories does not identify the same source or package.
+The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.003`;
+publication status is authoritative in the owned GitHub Release. Repository,
+tag and commit identify each release independently.
+
+## GoToCC password reset and Plus integration (2026-11-02)
+
+This integration includes Plus releases `.002` through `.004`: the optional
+pinned Codex CLI runtime and bridges, channel-bound model catalogs, explicit
+OpenAI billing-model selection, pricing fallbacks, administrator outbound
+metadata, responsive layout corrections and frontend dependency updates.
+CLI execution remains opt-in and requires a separately installed and verified
+runtime; publication does not enable it on existing accounts.
+
+The existing GoToCC team/reseller funding, original-currency credit pricing,
+DeepSeek all-day peak pricing, image-edit account capability, owned release
+channel, content audit and retired bridge behavior remain intact. Administrator
+usage retains the GoToCC layout and service-endpoint column while exposing the
+new outbound details. New upstream migration 304 is imported as **330**;
+existing SQL files through 329 stay byte-for-byte unchanged. The new nullable
+outbound metadata column does not backfill historical records.
+
+Password-reset settings reject enabled configurations with no effective front-end
+URL, and the editor preserves invalid input for correction instead of clearing
+it silently. Database settings keep priority over the existing configuration-file
+URL. Reset mail, token expiry, single-use semantics and password changes are
+verified in the isolated local preview, independently of production mail delivery.
 
 ## GoToCC image edit account protocol (2026-10-31)
 
@@ -72,9 +96,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.19+custom.001
-Application: 0.2.19+custom.001
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.001
+Git/GitHub: v0.2.19+custom.004
+Application: 0.2.19+custom.004
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.004
 ```
 
 ## Release Mapping
@@ -194,6 +218,25 @@ Plus as immutable 302/303 during the preceding snapshot import; this tag adds
 no duplicate migrations. Seven-provider agent identities, audit boundaries,
 strict proxy ownership, frozen billing and the Plus UI remain authoritative.
 
+`v0.2.19+custom.002` retains the same official baseline and prepares the
+Codex CLI bridge, pricing and console updates accumulated since `.001`,
+including consistent administrator usage-record table surfaces. Its mapping
+was published after immutable artifact verification.
+
+`v0.2.19+custom.003` retains the same official baseline and prepares the desktop
+and mobile console layout corrections accumulated since `.002`, including
+readable verification dialogs, responsive record cards, themed key instructions
+and administrator live-request pagination. It also aligns available-channel
+catalog membership with current channel pricing, invalidates catalog caches after
+channel edits, preserves explicitly selected OpenAI billing models, refreshes
+default fallback pricing models and updates frontend dependency security floors.
+Its mapping was published after immutable artifact verification.
+
+`v0.2.19+custom.004` retains the same official baseline and adds available-channel
+binding corrections, Codex usage-record source tracking and persisted outbound
+metadata accumulated since `.003`. Its mapping remains planned until publication
+and immutable artifact verification.
+
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 
 `v0.1.166+custom.007` is marked invalid because its tag contains embedded and
@@ -211,3 +254,7 @@ still require a maintainer audit. Do not reuse or retag `.007`.
 Update this mapping in the same change as an upstream integration. Keep tag,
 embedded version and OCI naming synchronized through the release workflow;
 published tags and artifacts are immutable.
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.002` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
+| `skyqingname/gotocc-router@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | password-reset settings and Plus `.004` integration; see owned GitHub Release |

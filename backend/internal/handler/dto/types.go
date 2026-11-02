@@ -665,6 +665,9 @@ type UsageLog struct {
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	// Historical rows without requested_reasoning_effort fall back to the stored effective value.
 	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// RequestFastEnabled describes only the recorded final outbound request tier.
+	// Nil means absent, unspecified, or unrecognized; it is not a billing verdict.
+	RequestFastEnabled *bool `json:"request_fast_enabled"`
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.
 	InboundEndpoint *string `json:"inbound_endpoint,omitempty"`
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
@@ -748,6 +751,8 @@ type UsageLog struct {
 
 // AdminUsageLog 是管理员接口使用的 usage log DTO（包含管理员字段）。
 type AdminUsageLog struct {
+	OutboundTransport string            `json:"outbound_transport"`
+	OutboundMetadata  *OutboundMetadata `json:"outbound_metadata,omitempty"`
 	UsageLog
 	ServiceTier          *string `json:"service_tier,omitempty"`
 	RequestedServiceTier *string `json:"requested_service_tier"`
@@ -900,4 +905,16 @@ type PromoCodeUsage struct {
 	UsedAt      time.Time `json:"used_at"`
 
 	User *User `json:"user,omitempty"`
+}
+
+// OutboundMetadata contains dispatch evidence only, available to administrators.
+type OutboundMetadata struct {
+	Transport     string `json:"transport"`
+	Evidence      string `json:"evidence"`
+	CLIVersion    string `json:"cli_version,omitempty"`
+	UserAgent     string `json:"user_agent,omitempty"`
+	Originator    string `json:"originator,omitempty"`
+	ClientVersion string `json:"client_version,omitempty"`
+	TierKnown     bool   `json:"tier_known"`
+	ServiceTier   string `json:"service_tier,omitempty"`
 }

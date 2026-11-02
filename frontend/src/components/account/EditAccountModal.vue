@@ -1925,6 +1925,14 @@
         <p class="input-hint">{{ t('admin.accounts.openai.accountUserAgentDesc') }}</p>
       </div>
 
+      <CodexCLIEditor
+        v-if="account"
+        ref="codexCLIEditor"
+        :account="account"
+        :active="show"
+        :disabled="submitting"
+      />
+
       <div
         v-if="account?.platform === 'openai' && account?.type === 'oauth' && !isSparkShadow"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2972,6 +2980,7 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import CNOAuthPanel from './CNOAuthPanel.vue'
 import { isCNOAuthPlatform } from '@/api/admin/cnOAuth'
 import OutboundIdentityEditor from './OutboundIdentityEditor.vue'
+import CodexCLIEditor from './CodexCLIEditor.vue'
 import type { IdentitySelection } from '@/api/admin/outboundIdentity'
 import { ref, reactive, computed, watch, nextTick, onScopeDispose, onBeforeUnmount } from 'vue'
 import { accountOAuthOwnerSnapshot } from '@/utils/accountOAuthOwnerSnapshot'
@@ -3096,6 +3105,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const codexCLIEditor = ref<InstanceType<typeof CodexCLIEditor> | null>(null)
 const cnOAuthGeneration = ref(0)
 watch(
   [() => props.show, () => accountOAuthOwnerSnapshot(props.account)],
@@ -3165,6 +3175,11 @@ interface TempUnschedRuleForm {
 
 // State
 const submitting = ref(false)
+let accountSaveSequence = 0
+watch([() => props.show, () => props.account?.id], () => {
+  accountSaveSequence += 1
+  submitting.value = false
+})
 const editBaseUrl = ref('https://api.anthropic.com')
 const editVideoSecretKey = ref('')
 const editApiKey = ref('')
@@ -5143,14 +5158,55 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
     credentials.outbound_identity = outboundIdentitySelection.value || null
     updatePayload.credentials = credentials
   }
+  const editor = codexCLIEditor.value
+  const saveSequence = ++accountSaveSequence
+  const currentGeneration = cnOAuthGeneration.value
+  const isCurrent = () => props.show && props.account?.id === accountID && currentGeneration === cnOAuthGeneration.value
+  let accountSaved = false
   submitting.value = true
   try {
+    // Capture the original owner and all edits before saving either resource.
+    const cliUpdate = editor?.prepareSave()
+    if (cliUpdate && (updatePayload.proxy_id ?? 0) !== (props.account?.proxy_id ?? 0)) {
+      // The CLI form is bound to the saved route. Changing that route first
+      // would inevitably reject the second write with an obsolete owner.
+      throw new Error(t('codexCli.account.saveProxyFirst'))
+    }
+    if (cliUpdate && props.account?.platform === 'openai' && props.account.type === 'apikey') {
+      const currentCredentials = props.account.credentials || {}
+      const nextCredentials = updatePayload.credentials as Record<string, unknown> | undefined
+      // CLI CAS owns the saved credential and destination. Reject a combined
+      // owner change before either write instead of creating partial success.
+      if (nextCredentials && ['api_key', 'base_url'].some(key =>
+        Object.prototype.hasOwnProperty.call(nextCredentials, key)
+        && nextCredentials[key] !== currentCredentials[key])) {
+        throw new Error(t('codexCli.account.saveCredentialsFirst'))
+      }
+    }
     let updatedAccount = await adminAPI.accounts.update(accountID, withAntigravityConfirmFlag(updatePayload))
+    accountSaved = true
+    if (!isCurrent()) return
+    // Save the redacted general form first so it cannot overwrite a new CLI grant.
+    if (cliUpdate) {
+      const cliView = await editor!.save(cliUpdate)
+      updatedAccount = {
+        ...updatedAccount,
+        oauth_credential_owner: cliView.oauth_credential_owner,
+        credentials_status: { ...updatedAccount.credentials_status, ...cliView.auth_status },
+      }
+    }
+    if (!isCurrent()) return
     updatedAccount = await persistGrokMediaEligibility(accountID, updatedAccount)
+    if (!isCurrent()) return
     appStore.showSuccess(t('admin.accounts.accountUpdated'))
     emit('updated', updatedAccount)
     handleClose()
   } catch (error: any) {
+    if (!isCurrent()) return
+    if (accountSaved) {
+      appStore.showError(t('codexCli.account.partialSave'))
+      return
+    }
     if (error.status === 409 && error.error === 'mixed_channel_warning' && needsMixedChannelCheck()) {
       openMixedChannelDialog({
         message: error.message,
@@ -5163,7 +5219,7 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
     }
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
   } finally {
-    submitting.value = false
+    if (saveSequence === accountSaveSequence) submitting.value = false
   }
 }
 
@@ -5212,6 +5268,16 @@ const handleSubmit = async () => {
       const newCredentials: Record<string, unknown> = {
         ...currentCredentials,
         base_url: newBaseUrl
+      }
+      if (props.account.platform === 'openai'
+        && newBaseUrl === (String(currentCredentials.base_url || '').trim() || defaultBaseUrl.value)) {
+        // An unchanged effective default must not mutate the saved owner by
+        // converting an absent/empty destination into an explicit URL.
+        if (Object.prototype.hasOwnProperty.call(currentCredentials, 'base_url')) {
+          newCredentials.base_url = currentCredentials.base_url
+        } else {
+          delete newCredentials.base_url
+        }
       }
 
       // 国产供应商：模式与协议写入凭据（决定额度/余额探测与转发端点/格式）。

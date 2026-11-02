@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-canvas p-[var(--shell-gutter)] dark:surface-inset">
+  <div class="flex min-h-screen items-center justify-center bg-canvas p-4 md:p-6 lg:p-8 dark:surface-inset">
     <div class="card w-full min-w-0 max-w-md space-y-6 p-5 sm:p-8">
       <!-- Loading -->
       <div v-if="loading" class="flex items-center justify-center py-20">
@@ -39,9 +39,9 @@
               <span class="surface-muted">{{ t('payment.orders.orderId') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">#{{ order.id }}</span>
             </div>
-            <div v-if="order.out_trade_no" class="flex justify-between">
-              <span class="surface-muted">{{ t('payment.orders.orderNo') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ order.out_trade_no }}</span>
+            <div v-if="order.out_trade_no" class="flex justify-between gap-3">
+              <span class="shrink-0 surface-muted">{{ t('payment.orders.orderNo') }}</span>
+              <span class="min-w-0 break-all text-right font-medium text-gray-900 dark:text-white">{{ order.out_trade_no }}</span>
             </div>
             <div v-if="hasAmountFields(order)" class="flex justify-between">
               <span class="surface-muted">{{ t('payment.orders.baseAmount') }}</span>
@@ -76,9 +76,9 @@
         <!-- EasyPay return info (when no order loaded) -->
         <div v-else-if="returnInfo" class="rounded-[var(--surface-radius-inset)] surface-inset p-4">
           <div class="space-y-3 text-sm">
-            <div v-if="returnInfo.outTradeNo" class="flex justify-between">
-              <span class="surface-muted">{{ t('payment.orders.orderId') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ returnInfo.outTradeNo }}</span>
+            <div v-if="returnInfo.outTradeNo" class="flex justify-between gap-3">
+              <span class="shrink-0 surface-muted">{{ t('payment.orders.orderId') }}</span>
+              <span class="min-w-0 break-all text-right font-medium text-gray-900 dark:text-white">{{ returnInfo.outTradeNo }}</span>
             </div>
             <div v-if="returnInfo.money" class="flex justify-between">
               <span class="surface-muted">{{ t('payment.orders.payAmount') }}</span>
@@ -91,7 +91,7 @@
           </div>
         </div>
         <!-- Actions -->
-        <div class="flex gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row">
           <button class="btn btn-secondary flex-1" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
           <button class="btn btn-primary flex-1" @click="router.push('/orders')">{{ t('payment.result.viewOrders') }}</button>
         </div>
@@ -102,6 +102,9 @@
 
 <script setup lang="ts">
 import { withCreditUnit } from '@/utils/credits'
+import { useProductAppearance } from '@/composables/useProductAppearance'
+
+useProductAppearance()
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'

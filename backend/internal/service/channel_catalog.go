@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
 )
 
 // CatalogGroup contains only groups already authorized by GetAvailableGroups.
@@ -50,10 +52,23 @@ func (o CatalogOffer) ResolveBillingRateQuote(group *Group, personalRate *float6
 	return snapshot.quoteWithBase(billingRateIdentity{platform: o.Platform, model: o.Name, baseUnit: o.billingBaseUnit}, o.BillingUnit)
 }
 
-// ListAvailableCatalog never discovers models, selects accounts or writes usage.
+// ListAvailableChannelCatalog limits the Available Channels page to groups
+// bound to active channels. Unbound group configuration remains available to
+// API-key quotes and sale catalogs through ListAvailableCatalog.
+func (s *ModelPlazaService) ListAvailableChannelCatalog(ctx context.Context, groups []Group) ([]CatalogGroup, error) {
+	return s.listAvailableCatalog(ctx, groups, true)
+}
+
+// ListAvailableCatalog assembles configured group offers for API-key quotes and
+// sale catalogs, including unbound groups. It never discovers models, selects
+// accounts or writes usage.
 // Resolve against a request-local channel snapshot, so enumeration, mapping and
 // pricing cannot join different channel-cache generations during a refresh.
 func (s *ModelPlazaService) ListAvailableCatalog(ctx context.Context, groups []Group) ([]CatalogGroup, error) {
+	return s.listAvailableCatalog(ctx, groups, false)
+}
+
+func (s *ModelPlazaService) listAvailableCatalog(ctx context.Context, groups []Group, requireChannel bool) ([]CatalogGroup, error) {
 	out := make([]CatalogGroup, 0, len(groups))
 	if len(groups) == 0 {
 		return out, nil
@@ -62,6 +77,14 @@ func (s *ModelPlazaService) ListAvailableCatalog(ctx context.Context, groups []G
 	// reloads publish immutable maps; one response must not join generations.
 	local := *s
 	local.billingService = snapshotBillingService(s.billingService)
+	if local.billingService != nil {
+		models, err := local.billingService.pricingFallbackModelsForRequest(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("snapshot catalog platform pricing fallbacks: %w", err)
+		}
+		local.billingService.frozenPricingFallbackModels = models
+		local.billingService.pricingFallbackModels = nil
+	}
 	if s.pricingService != nil {
 		if s.billingService != nil && s.billingService.pricingService == s.pricingService {
 			local.pricingService = local.billingService.pricingService
@@ -107,15 +130,39 @@ func (s *ModelPlazaService) ListAvailableCatalog(ctx context.Context, groups []G
 			bound[id] = &active[i]
 		}
 	}
-	localChannels := &ChannelService{}
-	localChannels.cache.Store(populateChannelCache(active, platforms))
+	if requireChannel {
+		boundGroups := make([]Group, 0, len(bound))
+		for _, group := range groups {
+			if bound[group.ID] != nil {
+				boundGroups = append(boundGroups, group)
+			}
+		}
+		groups = boundGroups
+		if len(groups) == 0 {
+			return out, nil
+		}
+	}
+	localChannels := &ChannelService{billingService: s.billingService}
+	channelSnapshot := populateChannelCache(active, platforms)
+	localChannels.cache.Store(channelSnapshot)
 	resolver := NewModelPricingResolver(localChannels, s.billingService)
 	references := NewChannelPricingReferenceService(s.pricingService, s.billingService)
+	var accountMappings map[int64][]CommercialModelMapping
+	if s.commercialAccounts != nil {
+		groupIDs := make([]int64, 0, len(groups))
+		for _, group := range groups {
+			groupIDs = append(groupIDs, group.ID)
+		}
+		accountMappings, err = s.commercialAccounts.ListCommercialModelMappings(ctx, groupIDs)
+		if err != nil {
+			return nil, fmt.Errorf("commercial account models: %w", err)
+		}
+	}
 	asOf := time.Now().UTC()
 	for _, g := range groups {
 		cg := CatalogGroup{Group: g, Models: []CatalogOffer{}, AsOf: asOf}
 		channel := bound[g.ID]
-		candidates, err := s.commercialModelCandidates(ctx, &g, channel)
+		candidates, err := s.commercialModelCandidates(ctx, &g, channel, accountMappings[g.ID])
 		if err != nil {
 			return nil, err
 		}
@@ -124,10 +171,17 @@ func (s *ModelPlazaService) ListAvailableCatalog(ctx context.Context, groups []G
 		}
 		for _, candidate := range candidates {
 			model := candidate.SupportedModel
+			// A bound channel's current pricing cards own catalog membership.
+			// Other sources cannot restore deleted public model/supplier pairs.
+			// Reuse billing's exact and wildcard matching on the same snapshot.
+			if bound[g.ID] != nil && lookupPricingAcrossPlatforms(channelSnapshot, g.ID, model.Platform, candidate.Name) == nil {
+				continue
+			}
 			if candidate.UpstreamModel != "" {
 				model.Name = candidate.UpstreamModel
 			}
-			if channel.RestrictModels && localChannels.IsModelRestricted(WithResolvedTargetPlatform(ctx, model.Platform), g.ID, model.Name) {
+			pricingCtx := context.WithValue(WithResolvedTargetPlatform(ctx, model.Platform), ctxkey.Group, &g)
+			if channel.RestrictModels && localChannels.IsModelRestricted(pricingCtx, g.ID, model.Name) {
 				continue
 			}
 			offer := s.catalogOffer(ctx, &g, channel, model, candidate.Name, resolver, references, asOf)
@@ -304,7 +358,7 @@ func catalogPriceTimeMultiplier(resolved *ResolvedPricing, model string, at time
 	if resolved == nil || (resolved.Mode != "" && resolved.Mode != BillingModeToken) {
 		return 1
 	}
-	if resolved.Source == PricingSourceLiteLLM && isDeepSeekModel(model) {
+	if isDeepSeekPricingModel(resolvedDefaultPricingModel(resolved, model)) {
 		return deepseekPeakMultiplierAt(at)
 	}
 	return resolvedChannelTimeMultiplier(resolved, at)

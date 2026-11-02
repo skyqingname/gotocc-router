@@ -1,6 +1,6 @@
 <template>
   <!-- 后台内嵌形态:?embedded=1 且已登录,套完整后台布局 -->
-  <AppLayout v-if="isEmbedded">
+  <AppLayout v-if="isEmbedded" appearance="user">
     <GotoCCModelPlazaContent :response="data" :loading="loading" :error="loadFailed" embedded />
   </AppLayout>
 
@@ -14,6 +14,7 @@
 </template>
 
 <script setup lang="ts">
+import { useProductAppearance } from '@/composables/useProductAppearance'
 import { computed, onMounted, ref } from 'vue'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { useRoute } from 'vue-router'
@@ -24,6 +25,8 @@ import GotoCCModelPlazaContent from '@/components/gotocc/plaza/GotoCCModelPlazaC
 import { getModelPlaza, type ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+
+useProductAppearance()
 
 const route = useRoute()
 const appStore = useAppStore()

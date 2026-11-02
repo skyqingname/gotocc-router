@@ -7,6 +7,48 @@ Moderation and Prompt Audit. The shared implementation is
 `backend/internal/auditcontent`; protocol handlers and account paths must not
 maintain alternate text extractors.
 
+The opt-in [official Codex CLI transparent bridge](CODEX_CLI.md) retains the
+existing Responses, Chat, Messages and Responses WebSocket ingress endpoints.
+It changes the prepared outbound HTTP transport only after their existing
+authentication, basic validation, canonical audit, scheduling and admission.
+Both audit engines receive the original protocol envelope before a CLI process,
+local relay or provider send can start. Each WebSocket turn retains the same
+audit and owner-generation fence; the existing HTTP bridge adapts SSE events
+back to frames without invoking the CLI agent loop. Unknown valid items and
+siblings retain this document's extraction pass-through contract. Account and
+global bridge switches cannot change content classification or bypass audit.
+`TestCodexCLIBridgeOrdinaryResponsesBothRealAuditsPrecedeSideEffects` and
+`TestCodexCLIBridgeOrdinaryResponsesBothEnginesReceiveOriginalEnvelope` retain
+the real-engine recognized-sibling and unchanged-envelope ordering evidence.
+`TestCodexCLIBridgeUnknownResponsesPassBothAuditsBeforeTransportAdmission`
+checks OAuth and API Key accounts with their bridge permission enabled: unknown
+valid input passes each real engine before user/account admission, without
+calling an audit supplier. A later unavailable bridge remains a transport error
+and cannot authorize native fallback.
+
+The optional [managed Codex CLI task route](CODEX_CLI.md),
+`POST /v1/codex-cli/responses`, accepts a deliberately limited single-turn text
+Responses envelope. Its basic-validation contract permits only `model`,
+string `input`, string `instructions`, boolean `stream` and the supported
+`reasoning.effort`. Unsupported/multiturn/tool/media/continuation structures
+receive the endpoint's ordinary HTTP 400 basic-validation response, rather
+than an audit extraction or policy failure. After authentication and basic
+validation, the unchanged canonical Responses extractor feeds both audit
+engines before model/account admission, concurrency, reservations, credential
+refresh, private task-file creation or CLI process startup. An audit rejection
+cannot start a task or write its `auth.json`.
+
+The string input is current direct-user content; instructions remain context.
+The shared extraction contract retains its existing pass-through treatment for
+unknown/unextractable content on endpoints that accept it. This new endpoint's
+narrow syntax does not redefine extraction failures as violations or 503s.
+All extraction/evaluation/dependency exceptions retain the existing structured
+request-ID/endpoint/protocol/stage/reason/byte-count logging without raw prompt
+or credentials. CLI-internal model turns and tool results occur inside the
+admitted agent execution and are not separate client ingress turns. Full
+Access may execute tools as the service user; its process and filesystem
+effects are independent of whether a final text response is produced.
+
 Codex's October 28 source review includes named unpaired `function_call_output`
 context from official commit `6d8f311b00e823052622eac2b463919ad86a666d`.
 The item has a nonempty `name`, optional `namespace`, a text/content-array
@@ -67,9 +109,11 @@ add an ingress extraction rule, policy decision, or audit bypass. Encrypted
 compact output is not treated as a text-token delta; see [usage timing](USAGE_TIMING.md).
 
 The authenticated [available-channel catalog](AVAILABLE_CHANNELS.md) is a
-configuration read. Its local price calculations do not accept inference
-content, select accounts, acquire inference concurrency, reserve balances or
-contact providers. Catalog search and price details stay in the browser. This
+configuration read. Restricting the page to authorized groups bound to active
+channels only narrows this read projection; API-key and sale group quotes retain their
+separate configured-model scope. These reads do not accept inference content,
+select accounts, acquire inference concurrency, reserve balances or contact
+providers. Catalog search and price details stay in the browser. This
 view adds no inference endpoint, extraction input or alternative audit path;
 actual model requests still enter both audit engines through the existing
 HTTP/WS handlers before their side effects.
@@ -335,6 +379,7 @@ classifications.
 | Anthropic Messages | `system`; `tools`; message text and thinking text; client/server tool-use input; tool-result content, including structured content. `POST /v1/messages/count_tokens` uses the same original document for native forwarding, the OpenAI bridge, and Grok local estimation. | Last message is current; system and tool definitions remain current audit context | Recognized image blocks and encrypted `redacted_thinking` blocks; unknown valid blocks do not hide recognized sibling content |
 | OpenAI Responses HTTP and WebSocket | Top-level, `response`-nested, or session-update `instructions`, `tools`, native `input`, legacy Chat-shaped `messages`, legacy string `prompt`, and reusable `prompt.variables`; message/reasoning/refusal text; visible `compaction`, `compaction_summary`, and `compaction_trigger` fields; function/custom/tool-search outputs; local/hosted shell, apply-patch, computer, MCP, code-interpreter, program/program-output, additional-tools, and accepted search call payloads. `POST /v1/responses/input_tokens` uses the same Responses document before any token-count account selection. Fast `service_tier` is a routing/billing field and does not bypass the audit hook. | A present non-null native `input` takes precedence over legacy `messages` and string `prompt`; otherwise `messages` precedes `prompt`. Last input item is current; every consecutive trailing recognized output is current; `tool_search_output.tools` and other dynamic definitions are current context; a claimed system/developer role remains context and all other current roles remain client-controlled. | Encrypted compaction content, IDs, status, fingerprints, recognized media/opaque items, and control envelopes produce no text; unknown frames, item types, sibling fields, and valid-JSON unrecognized structures pass through without an audit-derived block |
 | OpenAI Live | Initial session instructions, tools, input, legacy `input_audio_transcription.prompt`/`keywords`, current `audio.input.transcription.prompt`/`keywords`; `session.update`; `transcription_session.update`; `conversation.item.create`; Live-shaped `response.create` | Every initial HTTP session, content-free Sideband connection admission, and accepted Sideband client frame enters the audit hook before its downstream side effect or upstream write | Known control events and unknown frames, session/config fields, item types, or valid-JSON structures may produce no audit input and pass through without an audit-derived close |
+| Managed Codex CLI tasks | String `input` and optional `instructions` through the existing canonical Responses extractor | Input is current direct-user content and instructions remain context; audit precedes every admission effect, private file write and CLI process start | Only the endpoint's documented single-turn text envelope is accepted by basic validation; CLI-internal turns and tools are not client ingress turns |
 | Alpha Search | Deterministically serialized, media-sanitized `commands`, `settings`, and top-level `input`, including `commands.search_query[].q` and Responses-shaped input items | Every extracted value is current; Responses-shaped input retains its item attribution. Successfully extracted siblings remain auditable when another field is incomplete. | Empty collections and media-only values; URLs, base64 payloads, and opaque media fields are omitted from structured text |
 | OpenAI Embeddings | String or string-array `input` | Every string input is current | Empty input and unsupported token-ID arrays produce no audit text and pass through |
 | Gemini | `systemInstruction`/`system_instruction`; tools; `contents`/`content`; batched `requests`; `instances[].prompt`; part text; `functionCall` arguments; `functionResponse.response`. `POST/GET/PATCH/DELETE /v1beta/cachedContents` uses the same Gemini extraction on the inbound body (empty for list/get/delete) after auth and before account, billing, concurrency, or upstream writes, including Composite requests resolved to the Gemini supplier. Public model aliases do not alter content extraction or resource ownership. | Last content item is current; system and tools remain current audit context | `inlineData`/`fileData` media-only parts |
@@ -919,3 +964,30 @@ without account selection or an audit-derived violation.
 Regressions include `user_request_admission_test.go`,
 `gateway_metadata_admission_test.go` and the existing media/cache/file ordering
 suites. Unknown valid fields retain the established pass-through behavior.
+
+
+### OpenAI API Key CLI bridge audit coverage
+
+The transparent CLI hop also accepts credential-owning OpenAI API Key accounts,
+including compatible custom base URLs, without changing canonical extraction or
+audit ordering. Both real audit engines run before account selection, billing,
+slots and CLI/provider writes; unknown structures retain the documented
+pass-through policy. Native WS requires 1012 reconnect before a newly bridged
+turn; submitted turns are never replayed. Regression coverage is in
+`openai_codex_cli_bridge_audit_test.go`, `codex_cli_apikey_bridge_test.go` and
+`codex_cli_bridge_ws_switch_test.go`. Independent agent tasks remain OAuth only.
+
+The CLI hop also wraps existing administrator probes and model/quota control
+requests. Model discovery and WHAM metadata do not become new content ingress.
+The existing fixed internal usage inference probe remains system-owned; the hop
+introduces no additional prompt or audit exemption for accepted user traffic.
+OAuth issuer login, refresh and revocation remain outside this hop.
+
+Codex CLI usage accuracy and administrator outbound evidence do not change
+canonical ingress extraction, accepted payloads or audit ordering. Observation
+occurs at the existing post-audit prepared transport/generation boundary; it
+extracts only the tier and trusted identity declarations, retains no raw body,
+and performs no routing, credential acquisition or extra provider request.
+Managed tasks retain the Standard-only admission checks and existing audit
+before task side effects. Existing real-payload, pass-through and HTTP/WS
+side-effect-order regressions remain required.

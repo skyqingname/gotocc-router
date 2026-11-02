@@ -4,6 +4,119 @@ Manage client declarations in **System Settings → Outbound identity**, next to
 Gateway. Gateway retains routing, timeouts, concurrency and protocol behavior.
 Identity settings do not change account authentication, model access or routing.
 
+## Managed Codex CLI bridge and tasks
+
+The optional [managed CLI mode](CODEX_CLI.md) uses the fixed official
+`responses-api-proxy` for existing gateway traffic only when both the global
+bridge environment and credential-owning account switches are enabled. It also
+retains the distinct `POST /v1/codex-cli/responses` agent task route. Both modes
+require global permission. Its pinned executable version is `0.165.0`; installing
+it never automatically enables a transport or updates Codex identity declarations.
+Runtime installation and wire identity are
+separate checks. A system CLI can execute only after both its exact version and
+native executable SHA-256 match the embedded official baseline; a version
+string alone cannot authorize execution.
+
+Bridge and task execution resolve the same credential-owning account identity as native
+gateway forwarding: valid `credentials.user_agent` → valid global
+`openai_codex_user_agent` → compiled default. Invalid/empty candidates fall
+through only to the next source. The exact default remains
+`codex_cli_rs/0.165.0 (Ubuntu 24.04; x86_64) xterm-256color`, with
+`Originator: codex_cli_rs` and `Version: 0.165.0`. Running an official binary
+does not authorize its ambient OS, architecture, terminal or default headers
+to replace the selected identity.
+
+Transparent bridging receives the already prepared provider request and keeps
+its trusted User-Agent/Originator/Version triple, owner/workspace, target URL,
+body and proxy. The official proxy receives only a random one-use loopback
+nonce through stdin, never an OAuth JWT. Its authenticated private relay can
+invoke only the one original credential-owner callback and checks the relay
+payload before any provider write. Local proxy URLs or CLI-generated header
+defaults cannot become provider routing or identity inputs. The callback uses
+the gateway's existing native TLS or plugin sender and retains signing and
+trusted declarations. Credential-owner acquisition and same-owner snapshots
+remain authoritative across preparation, retries and failover; a new account
+resolves a new snapshot. No service-wide CLI auth file or thread state is
+switched between accounts, and bridge toggles never reset conversation affinity.
+Direct upstream WebSocket is disabled for selected bridge accounts; the
+existing HTTP bridge adapter owns WebSocket ingress/history without selecting
+a new outbound identity source.
+
+The bridge switches choose a transport, not an identity preset. Each new
+request, probe or accepted WebSocket turn evaluates the current global flag
+AND the current acquired credential owner's account flag. Either flag off
+uses the existing unified native sender with the same account → global →
+compiled-default identity precedence above; both flags on use the official
+CLI hop with that same resolved identity. The live account read supplies only
+the transport flag and cannot replace credentials, proxy or identity snapshots.
+A known disabled switch selects native transport even if the other switch is
+unavailable. When neither switch is known disabled, unavailable required
+permission storage fails closed rather than selecting an alternate hop.
+An already submitted request finishes on its chosen transport without replay.
+
+Existing HTTP bridge connections reevaluate the hop for each next turn in
+both directions. An already open native upstream WebSocket may finish its
+submitted turn, but enabling both switches requires a client reconnect before
+another upstream write; continuation follows the existing full-history rules.
+Switches never clear account identity overrides, session affinity, owner,
+generation or migration leases. Disabling CLI bridging does not force the
+compiled fingerprint over a valid account or global declaration.
+
+The gateway renders a controlled provider overlay into the private task
+`config.toml`. Its provider headers receive the already resolved User-Agent,
+Originator, Version and applicable trusted region/residency declarations;
+`Chatgpt-Account-Id` comes from the same owner snapshot. The access bearer is
+passed through the controlled provider's environment key with native
+`requires_openai_auth=false`, leaving refresh locking and database CAS owned by
+the project. The execution `auth.json` uses the official static `apikey` file
+mode with this same opaque access token. It never contains refresh/ID tokens
+or enables native ChatGPT cloud bootstrap/auth recovery; the stored account
+remains OAuth. Account-editable TOML cannot supply authentication, providers,
+environment credentials, headers or identity declarations. Inbound headers,
+request classification and the CLI's own ambient defaults never select a new
+identity source.
+
+The task overlay also turns off CLI update checks, analytics, feedback, web
+search, OpenTelemetry export, automatic plugin catalogs/remote apps and cloud
+skills in the account's root configuration. Each account supplies one
+`config.toml`; top-level `profile` and `profiles` are rejected, and external
+profile files or legacy profile mappings are unsupported. Saved root sandbox
+settings remain effective; noninteractive tasks require `approval_policy = "never"`
+and reject other policies on save. These auxiliary paths must not
+introduce independent provider traffic, identity selection or credential
+refresh outside the controlled task transport.
+
+The fixed official-binary contract harness is
+`tools/test_codex_cli_wire.py`. It captures real outbound headers rather than
+assuming provider header overrides win over native defaults. Runtime/version
+proof, same-owner credentials, source priority, exact default fingerprint and
+account/global overrides must remain covered before this route is enabled in a
+release. The same harness covers the real official proxy and Go nonce relay,
+unchanged opaque Responses request/response bytes and terminal provider errors.
+CLI tasks do not retry or fail over after process startup; a transparent bridge
+must not replay a locally failed attempt after its provider callback has begun.
+Existing HTTP/WS/probe/discovery and OAuth paths retain their source and snapshot
+regressions, including when they use the selected transport callback.
+HTTP error responses must complete within the existing diagnostic byte/time
+budget before provider-status retries or failover become eligible. A bridge
+read failure, timeout or oversized diagnostic is terminal; complete rejection
+headers and bytes keep their ordinary policy. The automatic API Key Responses
+capability probe uses the same live bridge permissions and prepared owner
+identity; a bridge failure cannot trigger a native bypass or capability update.
+
+Tasks explicitly use Standard service tier. The shared Fast policy is checked
+before credentials or task files; a final Fast requirement or block rejects
+execution. The fixed CLI can drop a configured paid tier according to model
+metadata and its JSONL does not report the actual tier, so task billing must not
+infer a paid tier from TOML. The effective request/account reasoning effort
+still participates in existing pricing multipliers.
+
+Task startup forces `project_root_markers=[]` at the command-line tier, bounding
+project configuration discovery to the fresh private workspace. Runtime checks
+reject system configuration files and macOS forced Codex preferences, whose
+managed layer could otherwise override account routing or identity. Inconclusive
+host checks disable execution; installing another copy does not bypass them.
+
 The gateway resolves a trusted triple: User-Agent, client identifier and client
 version. A preset renders only its defined wire declarations. Gemini and
 Antigravity encode the identifier/version in User-Agent; they do not acquire
@@ -1262,6 +1375,9 @@ are insufficient for the final outbound privacy boundary.
 | --- | --- |
 | Native providers, both account types, official default UA/SDK/environment, probes | `service/domestic_identity_review_test.go` literal fixtures; `repository/outbound_identity_test.go` HTTP captures |
 | Account/global/environment precedence, invalid candidates, version updates, retry/failover snapshots | `service/outbound_identity_test.go`, `outbound_environment_test.go`, `domestic_outbound_identity_test.go`, complete Codex identity suites |
+| OpenAI bridge enabled/global disabled/account disabled: account/global/default fallback through Responses and automatic capability probes | `service/codex_cli_bridge_identity_fallback_test.go` captures the final provider-send request after production preparation |
+| OpenAI OAuth/API-key model discovery and Codex manifests: bridge permission, identity source, matching query version and credential owner | `service/openai_auxiliary_bridge_identity_test.go` captures HTTP requests at a local provider fixture |
+| OpenAI embeddings, Responses input-token count, Messages token count and legacy compaction: identity survives live bridge disable/re-enable; setup-token remains native | `service/openai_bridge_identity_contract_test.go` captures HTTP requests across successive switch changes |
 | No branded names/values; multi-value headers, redirects, cookies, rejected auth, signed requests | `pkg/brandidentity/brandidentity_test.go`, `service/bedrock_signer_test.go`, `openai_ws_client_test.go`, `plugin_security_regression_test.go` |
 | OAuth/account-service versus inference declarations; locale, timezone, DST and kernel build/release | `pkg/cnoauth/client_test.go`, `pkg/deepseek/identity_test.go`, `pkg/zcode/identity_test.go`, settings UI tests |
 | ZCode personal/team PAT quota and model discovery, fixed estate endpoints, source/companion coherence, login relinking and manual-key isolation | `service/zhipu_project_quota_test.go`, `service/zhipu_project_models_test.go` |
@@ -1348,3 +1464,33 @@ managed identity. The monitor stream and identity regressions cover this path.
 versions, relationship preservation, request/conversation/device lifetimes,
 credential ownership, persisted random mappings and failure behavior. These
 fields supplement the trusted identity triple; they never select its source.
+
+
+### OpenAI API Key CLI bridge identity
+
+Credential-owning OpenAI API Key accounts, including existing compatible custom
+base URLs, can select the official CLI HTTP hop with the current global and
+account switches. The prepared endpoint, API Key bearer, proxy and trusted
+User-Agent/Originator/Version remain unchanged. No ChatGPT workspace or OAuth
+authentication is synthesized. Live account reads change only bridge permission,
+never acquired identity or credential ownership. Independent agent tasks remain
+OAuth only. See [Codex CLI configuration and switching](CODEX_CLI.md).
+
+The trusted prepared-request CLI hop also covers model discovery, account
+chat/image/connection probes, the existing internal usage inference probe, and
+supported WHAM usage/credit reads and consumption. WHAM preserves its existing
+User-Agent-only identity contract without adding Originator or Version. Live
+switch reads select the hop without replacing acquired credentials, identity or
+route. OAuth issuer login, refresh and revocation remain separate operations.
+
+## Administrator dispatch evidence
+
+Usage `user_agent` remains the incoming client declaration. New OpenAI gateway
+usage observations store the allowlisted identity at prepared HTTP dispatch or
+WS generation dispatch in `outbound_metadata`; the CLI bridge transport
+is observed only inside its real provider callback. Executable and identity
+versions remain distinct. This diagnostic snapshot never selects identity,
+changes precedence, overrides headers, or substitutes for wire regression tests.
+Managed tasks record verified process execution without claiming to observe the
+CLI's provider request. Unknown history is not inferred from incoming UA or
+current account settings. See [evidence semantics](CODEX_CLI.md#usage-accuracy-and-outbound-evidence).

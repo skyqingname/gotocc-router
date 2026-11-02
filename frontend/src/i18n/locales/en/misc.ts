@@ -129,6 +129,8 @@ export default {
 
   // User Subscriptions Page
   userSubscriptions: {
+    count: '{count} subscriptions',
+    pageSize: '{count} per page',
     title: 'My Subscriptions',
     description: 'View your subscription plans and usage',
     noActiveSubscriptions: 'No Active Subscriptions',

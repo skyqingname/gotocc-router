@@ -560,6 +560,8 @@ func TestAPIContracts(t *testing.T) {
 		},
 		{
 			name: "GET /api/v1/usage (paginated)",
+			// The public Fast state is explicit null for historical requests
+			// without a recorded tier (docs/protocols/OPENAI_RESPONSES.md).
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
 				deps.usageRepo.SetUserLogs(1, []service.UsageLog{
@@ -604,6 +606,7 @@ func TestAPIContracts(t *testing.T) {
 							"account_id": 200,
 								"request_id": "req_123",
 								"model": "claude-3",
+								"request_fast_enabled": null,
 								"request_type": "stream",
 								"native_compaction_v2": false,
 								"openai_ws_mode": false,
@@ -903,6 +906,22 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_admin_recharge_enabled": false,
 					"default_user_rpm_limit": 0,
 					"default_subscriptions": [],
+					"pricing_fallback_models": {
+						"anthropic": "claude-opus-5-5",
+						"openai": "gpt-6.1-sol",
+						"gemini": "gemini-3.8-flash",
+						"antigravity": "gemini-3.8-flash",
+						"grok": "grok-4.6",
+						"kimi": "kimi-k3",
+						"zhipu": "glm-5.3",
+						"deepseek": "deepseek-v4.1-flash",
+						"minimax": "minimax-m3",
+						"stepfun": "step-5-preview",
+						"opencode_go": "glm-5.3",
+						"typesafe": "jev-latest",
+						"command_code": "deepseek-v4.1-flash",
+						"cline": "deepseek-v4.1-flash"
+					},
 					"enable_model_fallback": false,
 					"fallback_model_anthropic": "claude-3-5-sonnet-20241022",
 					"fallback_model_antigravity": "gemini-2.5-pro",
@@ -1248,6 +1267,22 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_admin_recharge_enabled": false,
 					"default_user_rpm_limit": 0,
 					"default_subscriptions": [],
+					"pricing_fallback_models": {
+						"anthropic": "claude-opus-5-5",
+						"openai": "gpt-6.1-sol",
+						"gemini": "gemini-3.8-flash",
+						"antigravity": "gemini-3.8-flash",
+						"grok": "grok-4.6",
+						"kimi": "kimi-k3",
+						"zhipu": "glm-5.3",
+						"deepseek": "deepseek-v4.1-flash",
+						"minimax": "minimax-m3",
+						"stepfun": "step-5-preview",
+						"opencode_go": "glm-5.3",
+						"typesafe": "jev-latest",
+						"command_code": "deepseek-v4.1-flash",
+						"cline": "deepseek-v4.1-flash"
+					},
 					"enable_model_fallback": false,
 					"fallback_model_anthropic": "claude-3-5-sonnet-20241022",
 					"fallback_model_openai": "gpt-4o",
@@ -2094,6 +2129,9 @@ func (s *stubAccountRepo) ListSchedulableUngroupedByPlatforms(ctx context.Contex
 	return nil, errors.New("not implemented")
 }
 
+func (s *stubAccountRepo) ListCommercialModelMappings(context.Context, []int64) (map[int64][]service.CommercialModelMapping, error) {
+	panic("unexpected ListCommercialModelMappings call")
+}
 func (s *stubAccountRepo) ListModelAvailabilityCandidates(ctx context.Context, groupID *int64, platforms []string, includeGrouped bool) ([]service.Account, error) {
 	return nil, errors.New("not implemented")
 }

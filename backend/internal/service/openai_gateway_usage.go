@@ -202,6 +202,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if !isGrokVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
 	}
+	// Prefer the generation body observed at dispatch over an earlier transform.
+	if result.Outbound != nil && result.Outbound.TierKnown {
+		tier := result.Outbound.ServiceTier
+		result.ServiceTier = &tier
+	}
 	requestedServiceTier := optionalStringValue(result.ServiceTier)
 	responseServiceTier := result.ResponseServiceTier
 	logServiceTierBillingDowngrade("service.openai_gateway", account, result.RequestID, ApplyOpenAIServiceTierBillingResolution(billingAccount, result))
@@ -280,31 +285,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if protectedMismatch {
 		billingModels = []string{codexAutoReviewModel}
 	}
-	// Codex 协议账号：服务端经 openai-model 响应头 / terminal 事件自报实际服务
-	// 模型（服务端模型覆盖信号）。没有已接受的公开价卡时，与基线计费模型
-	// 不一致的自报模型可校正计费记录（不改写下游事件）。公开价卡、不可识别
-	// 定价、观测冲突或媒体计费保留基线候选链；原始模型观测仍独立记录。
-	if account.UsesOpenAICodexProtocol() && publicPriceModel == "" && !protectedMismatch &&
-		!result.UpstreamResponseModelConflict &&
-		result.ImageCount == 0 && result.VideoCount == 0 && result.WebSearchCalls == 0 &&
-		result.AudioUsage == nil && result.SearchCount == 0 {
-		if serverModel := strings.TrimSpace(result.UpstreamResponseModel); serverModel != "" &&
-			!strings.EqualFold(serverModel, firstUsageBillingModel(billingModels)) {
-			if identified, _ := s.hasIdentifiedOpenAIResponsePricing(ctx, serverModel, apiKey); identified {
-				logger.L().Info("codex_server_model_billing_correction",
-					zap.String("component", "service.openai_gateway"),
-					zap.String("event", "billing.codex_server_model_correction"),
-					zap.String("request_id", result.RequestID),
-					zap.String("baseline_billing_model", firstUsageBillingModel(billingModels)),
-					zap.String("server_model", serverModel),
-					zap.Int64("account_id", account.ID),
-				)
-				serverModels := s.filterCNProviderBillingModelCandidates(
-					ctx, account, apiKey, usageBillingModelCandidates(serverModel))
-				billingModels = append(serverModels, billingModels...)
-			}
-		}
-	}
+	// Upstream model observations are diagnostic evidence. Only the explicit
+	// response_model path below may replace the selected billing candidate.
 	serviceTier := ""
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
@@ -520,6 +502,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		CodexRolloutBudgetUnits:  result.Usage.CodexRolloutBudgetUnits,
 		IsComplete:               usageCompletionPtr(input.IsComplete, result.UsageComplete()),
 		UsageSource:              result.UsageSource,
+		Outbound:                 result.Outbound.Clone(),
 		ImageCount:               result.ImageCount,
 		ImageSize:                optionalTrimmedStringPtr(result.ImageSize),
 		ImageInputSize:           optionalTrimmedStringPtr(result.ImageInputSize),
@@ -916,24 +899,21 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageTokenCost(
 	longContextBillingGate *bool,
 	modelLongContextExempt bool,
 ) (*CostBreakdown, error) {
-	if pricingResolverForContext(ctx, s.resolver) != nil && apiKey.Group != nil {
-		gid := apiKey.Group.ID
-		return billingServiceForContext(ctx, s.billingService).CalculateCostUnified(CostInput{
-			Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
-			Tokens: tokens, RequestCount: 1, RateMultiplier: multiplier, PricingAt: pricingAt,
-			ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Resolver: pricingResolverForContext(ctx, s.resolver),
-			LongContextBillingEnabled:      longContextBillingGate,
-			DisableModelLongContextPricing: modelLongContextExempt,
-		})
+	var group *Group
+	var groupID *int64
+	if apiKey != nil {
+		group = apiKey.Group
+		if group != nil {
+			groupID = &group.ID
+		}
 	}
-	breakdown, err := billingServiceForContext(ctx, s.billingService).calculateCostWithServiceTierPolicy(
-		billingModel,
-		tokens,
-		multiplier,
-		serviceTier,
-		(longContextBillingGate == nil || *longContextBillingGate) && !modelLongContextExempt,
-	)
-	return breakdown, err
+	return billingServiceForContext(ctx, s.billingService).CalculateCostUnified(CostInput{
+		Ctx: withOpenAIDefaultBillingPlatform(ctx, apiKey), Model: billingModel, GroupID: groupID, Group: group,
+		Tokens: tokens, RequestCount: 1, RateMultiplier: multiplier, PricingAt: pricingAt,
+		ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Resolver: pricingResolverForContext(ctx, s.resolver),
+		LongContextBillingEnabled:      longContextBillingGate,
+		DisableModelLongContextPricing: modelLongContextExempt,
+	})
 }
 
 func isUnmappedCodexAutoReviewLunaMismatch(
