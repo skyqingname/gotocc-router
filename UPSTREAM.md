@@ -11,9 +11,20 @@ The current GoToCC tree integrates the complete fixed Plus release
 `dbf8b4a9bfb3cc48cefa9b541c590f484eb045bb`, peeled commit
 `612b60da017db2d071311f2a65add6a759b66be5`. Its official baseline remains
 `Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.003`;
+The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.004`;
 publication status is authoritative in the owned GitHub Release. Repository,
 tag and commit identify each release independently.
+
+## GoToCC CI fixture compatibility (2026-11-02)
+
+Owned `.004` keeps the same production code and frontend as the verified `.003`
+package. It adapts existing upstream test fixtures to the GoToCC model-plaza
+constructor and reseller payment router, exercises the supported on-demand WS
+acquisition after a bridge switch instead of the retired idle-prewarm helper,
+and removes an unused test import. Existing assertions and the no-prewarm
+contract remain intact. Both unit- and integration-tagged `go vet` checks
+compile the fixtures without running test suites. Published `.003` artifacts
+and tags are retained unchanged.
 
 ## GoToCC password reset and Plus integration (2026-11-02)
 
@@ -258,3 +269,4 @@ published tags and artifacts are immutable.
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
 | `skyqingname/gotocc-router@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | password-reset settings and Plus `.004` integration; see owned GitHub Release |
+| `skyqingname/gotocc-router@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | same runtime behavior as owned `.003`; fixture compilation corrected; see owned GitHub Release |
