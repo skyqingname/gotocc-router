@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/geminicli"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 

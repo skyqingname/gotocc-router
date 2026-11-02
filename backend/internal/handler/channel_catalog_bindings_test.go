@@ -79,7 +79,7 @@ func TestAvailableChannelCatalogExcludesUnboundModels(t *testing.T) {
 			{Platform: service.PlatformAnthropic, ModelMapping: map[string]any{"unbound-anthropic": "private"}}},
 		5: {{Platform: service.PlatformAnthropic, ModelMapping: map[string]any{"disabled-channel-model": "private"}}},
 	}}
-	plaza := service.NewModelPlazaService(channels, nil, nil, nil, nil)
+	plaza := service.NewModelPlazaService(channels, nil, nil, nil, nil, nil)
 	plaza.SetCommercialCatalogSources(&catalogRouteRepository{}, mappings)
 	access := &catalogAccessStub{groups: groups}
 	settings := service.NewSettingService(&settingHandlerPublicRepoStub{values: map[string]string{

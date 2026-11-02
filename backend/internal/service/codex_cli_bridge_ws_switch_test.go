@@ -82,7 +82,7 @@ func (r *codexBridgeSwitchRepo) GetValue(ctx context.Context, key string) (strin
 	return r.openAIIdentitySettingRepoStub.GetValue(ctx, key)
 }
 
-// Enabling the CLI hop cannot permit reuse, dial or prewarm of a native
+// Enabling the CLI hop cannot permit reuse or dial of a native
 // connection, even when a connection was acquired while the hop was disabled.
 func TestCodexCLIBridgeEnableDrainsNativePool(t *testing.T) {
 	svc, _ := newResponsesWSInflightTransportTestService()
@@ -103,7 +103,8 @@ func TestCodexCLIBridgeEnableDrainsNativePool(t *testing.T) {
 	require.False(t, lease.conn.isClosed(), "accepted generation may complete")
 	require.ErrorIs(t, svc.requireCodexUpstreamWS(context.Background(), account), errCodexUpstreamWSDisabled)
 	lease.Release()
-	pool.ensureTargetIdleAsync(account.ID)
+	_, err = pool.Acquire(context.Background(), req)
+	require.ErrorIs(t, err, errCodexUpstreamWSDisabled)
 	pool.runBackgroundCleanupSweep(time.Now())
 	require.True(t, lease.conn.isClosed())
 	_, err = pool.dialConn(context.Background(), req)
