@@ -682,7 +682,6 @@ const allColumns = computed(() => [
   { key: 'service_host', label: t('admin.usage.serviceHost'), sortable: false },
   { key: 'outbound', label: t('admin.usage.outbound'), sortable: false },
   { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
-  { key: 'service_tier', label: t('admin.usage.serviceTier'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'group', label: t('admin.usage.group'), sortable: false },
   { key: 'stream', label: t('usage.type'), sortable: false },
