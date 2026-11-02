@@ -1,5 +1,45 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
+test('centered distribution tables keep wide columns inside their own horizontal scrollport', async ({ page }) => {
+  // A narrow distribution card must contain the viewport, while preserving
+  // wide table columns and native horizontal scrolling rather than clipping them.
+  await page.evaluate(() => {
+    const host = document.createElement('section')
+    host.dataset.testid = 'centered-distribution'
+    host.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:280px;max-width:100%;margin:0 auto'
+    const viewport = document.createElement('div')
+    viewport.className = 'record-table-scroll w-full min-w-0 overflow-auto'
+    viewport.style.maxHeight = '160px'
+    const table = document.createElement('table')
+    table.className = 'record-table record-table-compact'
+    table.style.cssText = 'min-width:700px;white-space:nowrap'
+    table.innerHTML = '<thead><tr><th>Distribution model and subscription group</th><th>Requests</th><th>Actual cost</th></tr></thead><tbody>' + Array.from({ length: 12 }, (_, index) => `<tr><td>Long independently supplied model and subscription group ${index + 1}</td><td>128</td><td>0.25</td></tr>`).join('') + '</tbody>'
+    viewport.append(table)
+    host.append(viewport)
+    document.querySelector('main')!.prepend(host)
+  })
+  const host = page.getByTestId('centered-distribution')
+  const frame = host.locator('.static-table-frame')
+  await expect(frame).toBeVisible()
+  await expect.poll(() => host.evaluate(element => {
+    const outer = element.getBoundingClientRect()
+    const wrapper = element.querySelector('.static-table-frame')!.getBoundingClientRect()
+    const viewport = element.querySelector<HTMLElement>('[data-static-table-body-viewport]')!
+    const body = viewport.getBoundingClientRect()
+    return {
+      frameInside: wrapper.left >= outer.left - 1 && wrapper.right <= outer.right + 1,
+      viewportInside: body.left >= outer.left - 1 && body.right <= outer.right + 1,
+      wideColumnsPreserved: viewport.scrollWidth > viewport.clientWidth + 100,
+    }
+  })).toEqual({ frameInside: true, viewportInside: true, wideColumnsPreserved: true })
+  await host.locator('[data-static-table-body-viewport]').evaluate(element => { element.scrollLeft = element.scrollWidth })
+  await expect.poll(() => host.evaluate(element => {
+    const viewport = element.querySelector<HTMLElement>('[data-static-table-body-viewport]')!
+    const rail = element.querySelector<HTMLElement>('.static-table-header-rail')!
+    return viewport.scrollLeft > 100 && Math.abs(rail.scrollLeft - viewport.scrollLeft) <= 1
+  })).toBe(true)
+})
+
 // Requirements: docs/UI_INTERACTION.md and the user's full-interface acceptance
 // condition: controls must remain visible, unclipped and reachable after styling.
 // Browser geometry and hit testing establish this independently of CSS values.
@@ -132,7 +172,7 @@ async function chooseDate(page: Page, field: Locator, afterOpen?: () => Promise<
 test.beforeEach(async ({ page }, info) => {
   const locale = String(info.project.use.locale).startsWith('zh') ? 'zh' : 'en'
   const theme = info.project.use.colorScheme === 'dark' ? 'dark' : 'light'
-  await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}`)
+  await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}&product=${info.project.name.startsWith('product-') ? '1' : '0'}`)
   await expect(page.getByTestId('layout-ready')).toBeVisible()
 })
 
@@ -276,7 +316,7 @@ test('an exceptionally long title remains readable without displacing actions in
 test('shared navigation, segmented choices and horizontal row actions keep translated controls readable and reachable', async ({ page }, info) => {
   const locale = String(info.project.use.locale).startsWith('zh') ? 'zh' : 'en'
   const theme = info.project.use.colorScheme === 'dark' ? 'dark' : 'light'
-  await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}&view=controls&accent=%23ec4899`)
+  await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}&view=controls&accent=%23ec4899&product=${info.project.name.startsWith('product-') ? '1' : '0'}`)
   const gallery = page.getByTestId('style-gallery')
   await expect(gallery).toBeVisible()
   for (const alpha of ['1', '.8', '0']) {
@@ -324,7 +364,7 @@ test('primary labels stay opaque and legible at opaque, half-transparent and tra
   const theme = info.project.use.colorScheme === 'dark' ? 'dark' : 'light'
   for (const alpha of [1, .5, 0]) {
     for (const accent of ['ffffff', 'ffff00', '000000', '000080', '14b8a6']) {
-      await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}&view=controls&accent=%23${accent}&alpha=${alpha}`)
+      await page.goto(`/layout-tests/index.html?locale=${locale}&theme=${theme}&view=controls&accent=%23${accent}&alpha=${alpha}&product=${info.project.name.startsWith('product-') ? '1' : '0'}`)
       const button = page.getByTestId('style-gallery').locator('.btn-primary')
       await button.scrollIntoViewIfNeeded()
       await expectReachable(button)

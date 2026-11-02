@@ -312,9 +312,11 @@ async function handleSubmit(): Promise<void> {
     isSubmitted.value = true
     appStore.showSuccess(t('auth.resetEmailSent'))
   } catch (error: unknown) {
-    const err = error as { message?: string; response?: { data?: { detail?: string } } }
+    const err = error as { reason?: string; message?: string; response?: { data?: { detail?: string } } }
 
-    if (err.response?.data?.detail) {
+    if (err.reason === 'PASSWORD_RESET_NOT_CONFIGURED') {
+      errorMessage.value = t('auth.passwordResetUnavailable')
+    } else if (err.response?.data?.detail) {
       errorMessage.value = err.response.data.detail
     } else if (err.message) {
       errorMessage.value = err.message

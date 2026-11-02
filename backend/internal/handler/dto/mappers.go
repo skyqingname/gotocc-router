@@ -760,6 +760,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		RequestID:                 l.RequestID,
 		Model:                     requestedModel,
 		ReasoningEffort:           userFacingReasoningEffort(l),
+		RequestFastEnabled:        requestFastEnabled(l.RequestedServiceTier),
 		InboundEndpoint:           l.InboundEndpoint,
 		GroupID:                   l.GroupID,
 		SubscriptionID:            l.SubscriptionID,
@@ -817,6 +818,24 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		Group:                     GroupFromServiceShallow(l.Group),
 		Subscription:              UserSubscriptionFromService(l.Subscription),
 	}
+}
+
+// requestFastEnabled deliberately ignores response and billable tiers. An empty
+// captured tier means unspecified, so it cannot prove that Fast was disabled.
+func requestFastEnabled(requestedTier *string) *bool {
+	if requestedTier == nil {
+		return nil
+	}
+	var enabled bool
+	switch strings.ToLower(strings.TrimSpace(*requestedTier)) {
+	case "priority", "fast":
+		enabled = true
+	case "default", "auto", "flex":
+		enabled = false
+	default:
+		return nil
+	}
+	return &enabled
 }
 
 // Stored evidence is internal data. Only the documented scalar selling-rate
@@ -889,7 +908,13 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 	}
 	usageLog := usageLogFromServiceUser(l)
 	usageLog.UpstreamEndpoint = l.UpstreamEndpoint
+	var outbound *OutboundMetadata
+	if m := l.Outbound; m != nil {
+		outbound = &OutboundMetadata{Transport: m.TransportName(), Evidence: m.Evidence, CLIVersion: m.CLIVersion, UserAgent: m.UserAgent, Originator: m.Originator, ClientVersion: m.ClientVersion, TierKnown: m.TierKnown, ServiceTier: m.ServiceTier}
+	}
 	return &AdminUsageLog{
+		OutboundTransport:       l.Outbound.TransportName(),
+		OutboundMetadata:        outbound,
 		UsageLog:                usageLog,
 		ServiceTier:             l.ServiceTier,
 		RequestedServiceTier:    l.RequestedServiceTier,

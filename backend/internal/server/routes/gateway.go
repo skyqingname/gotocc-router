@@ -253,6 +253,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/v1/usage", h.Gateway.Usage)
 		gateway.POST("/live", h.OpenAIGateway.Live)
 		gateway.GET("/live/:call_id", h.OpenAIGateway.LiveSideband)
+		gateway.POST("/codex-cli/responses", h.OpenAIGateway.CodexCLIResponses)
 		// OpenAI Responses API: auto-route based on group platform
 		gateway.POST("/responses", func(c *gin.Context) {
 			if isOpenAIResponsesCompatibleGatewayPlatform(c) {

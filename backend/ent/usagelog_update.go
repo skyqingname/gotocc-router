@@ -1071,6 +1071,18 @@ func (_u *UsageLogUpdate) SetNillableUsageSource(v *string) *UsageLogUpdate {
 	return _u
 }
 
+// SetOutboundMetadata sets the "outbound_metadata" field.
+func (_u *UsageLogUpdate) SetOutboundMetadata(v map[string]interface{}) *UsageLogUpdate {
+	_u.mutation.SetOutboundMetadata(v)
+	return _u
+}
+
+// ClearOutboundMetadata clears the value of the "outbound_metadata" field.
+func (_u *UsageLogUpdate) ClearOutboundMetadata() *UsageLogUpdate {
+	_u.mutation.ClearOutboundMetadata()
+	return _u
+}
+
 // SetUserAgent sets the "user_agent" field.
 func (_u *UsageLogUpdate) SetUserAgent(v string) *UsageLogUpdate {
 	_u.mutation.SetUserAgent(v)
@@ -1818,6 +1830,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UsageSource(); ok {
 		_spec.SetField(usagelog.FieldUsageSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OutboundMetadata(); ok {
+		_spec.SetField(usagelog.FieldOutboundMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.OutboundMetadataCleared() {
+		_spec.ClearField(usagelog.FieldOutboundMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)
@@ -3123,6 +3141,18 @@ func (_u *UsageLogUpdateOne) SetNillableUsageSource(v *string) *UsageLogUpdateOn
 	return _u
 }
 
+// SetOutboundMetadata sets the "outbound_metadata" field.
+func (_u *UsageLogUpdateOne) SetOutboundMetadata(v map[string]interface{}) *UsageLogUpdateOne {
+	_u.mutation.SetOutboundMetadata(v)
+	return _u
+}
+
+// ClearOutboundMetadata clears the value of the "outbound_metadata" field.
+func (_u *UsageLogUpdateOne) ClearOutboundMetadata() *UsageLogUpdateOne {
+	_u.mutation.ClearOutboundMetadata()
+	return _u
+}
+
 // SetUserAgent sets the "user_agent" field.
 func (_u *UsageLogUpdateOne) SetUserAgent(v string) *UsageLogUpdateOne {
 	_u.mutation.SetUserAgent(v)
@@ -3900,6 +3930,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.UsageSource(); ok {
 		_spec.SetField(usagelog.FieldUsageSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OutboundMetadata(); ok {
+		_spec.SetField(usagelog.FieldOutboundMetadata, field.TypeJSON, value)
+	}
+	if _u.mutation.OutboundMetadataCleared() {
+		_spec.ClearField(usagelog.FieldOutboundMetadata, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UserAgent(); ok {
 		_spec.SetField(usagelog.FieldUserAgent, field.TypeString, value)

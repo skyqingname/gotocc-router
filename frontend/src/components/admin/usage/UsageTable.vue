@@ -88,6 +88,16 @@
               </div>
             </div>
             <span v-else class="font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
+            <div v-if="modelMetadata" data-testid="usage-model-metadata" class="usage-model-metadata pt-1 text-[11px] surface-muted">
+              <span :title="t('usage.reasoningEffort')">{{ formatReasoningEffort(row.reasoning_effort) }}<template v-if="hasReasoningEffortMapping(row)"> ↳ {{ formatReasoningEffort(row.upstream_reasoning_effort) }}</template></span>
+              <span
+                class="inline-flex items-center rounded border px-1.5 py-px text-[10px] leading-tight"
+                :class="row.request_fast_enabled === true ? 'border-primary-200 bg-primary-50/40 text-primary-600 dark:border-primary-700 dark:bg-primary-900/30 dark:text-primary-400' : 'border-gray-200 dark:border-dark-600 surface-muted'"
+                :title="t('usage.fastStateHint')"
+              >
+                {{ t('usage.fastStateLabel') }}: {{ t(row.request_fast_enabled === true ? 'usage.fastEnabled' : row.request_fast_enabled === false ? 'usage.fastDisabled' : 'usage.fastUnrecorded') }}
+              </span>
+            </div>
 			<span
 			  v-if="row.completion_status === 'client_disconnected' || row.is_complete === false"
 			  data-testid="usage-incomplete-badge"
@@ -119,6 +129,22 @@
           <div v-if="showServiceTier" data-testid="service-tier-cell" class="space-y-0.5 whitespace-nowrap text-xs">
             <div class="text-gray-900 dark:text-white">{{ t('admin.usage.serviceTierRequest') }} {{ formatRequestedServiceTier(row.requested_service_tier, t) }}</div>
             <div class="surface-muted">{{ t('admin.usage.serviceTierResponse') }} {{ formatResponseServiceTier(row.response_service_tier, t) }}</div>
+            <div class="surface-muted">{{ t('admin.usage.serviceTierBilling') }} {{ formatRequestedServiceTier(row.service_tier, t) }}</div>
+            <div v-if="row.requested_service_tier === 'priority' && row.response_service_tier === 'default'" data-testid="service-tier-difference" class="text-amber-700 dark:text-amber-300">{{ t('admin.usage.serviceTierDifference') }}</div>
+          </div>
+        </template>
+
+        <template #cell-outbound="{ row }">
+          <div data-testid="outbound-cell" class="max-w-[320px] space-y-0.5 text-xs">
+            <div class="font-medium text-gray-900 dark:text-white">{{ t(`admin.usage.outboundTransport.${row.outbound_transport || 'unknown'}`) }}</div>
+            <template v-if="row.outbound_metadata">
+              <div class="surface-muted">{{ t(row.outbound_metadata.evidence === 'cli_process' ? 'admin.usage.outboundProcess' : 'admin.usage.outboundDispatch') }}</div>
+              <div v-if="row.outbound_metadata.cli_version">CLI {{ row.outbound_metadata.cli_version }}</div>
+              <div v-if="row.outbound_metadata.user_agent" class="truncate surface-muted" :title="row.outbound_metadata.user_agent">UA: {{ row.outbound_metadata.user_agent }}</div>
+              <div v-if="row.outbound_metadata.originator" class="surface-muted">Originator: {{ row.outbound_metadata.originator }}</div>
+              <div v-if="row.outbound_metadata.client_version" class="surface-muted">Version: {{ row.outbound_metadata.client_version }}</div>
+              <div v-if="row.outbound_metadata.tier_known" class="surface-muted">{{ t('admin.usage.outboundTier') }} {{ formatRequestedServiceTier(row.outbound_metadata.service_tier || '', t) }}</div>
+            </template>
           </div>
         </template>
 
@@ -737,6 +763,8 @@ interface Props {
   compactUserColumn?: boolean
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
+  /** User workspace: keep request metadata beneath the requested model. */
+  modelMetadata?: boolean
   workspace?: boolean
 }
 
@@ -751,6 +779,7 @@ const props = withDefaults(defineProps<Props>(), {
   userClickable: true,
   compactUserColumn: false,
   flat: false,
+  modelMetadata: false,
   workspace: false
 })
 const emit = defineEmits<{
@@ -1059,3 +1088,7 @@ const hideLatencyTooltip = () => {
   latencyTooltipData.value = null
 }
 </script>
+
+<style scoped>
+.usage-model-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+</style>

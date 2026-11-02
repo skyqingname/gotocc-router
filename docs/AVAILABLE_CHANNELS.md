@@ -1,8 +1,8 @@
 # Available-channel model catalog
 
 The authenticated `/available-channels` page lists configured models and their
-prices in the groups the current user can bind to an API key. It uses the
-`available_channels_enabled` setting independently of `model_plaza_enabled`.
+prices in active channels bound to groups the current user can bind to an API
+key. It uses `available_channels_enabled` independently of `model_plaza_enabled`.
 The public model plaza and administrator support table retain their existing
 contracts. A catalog entry is not a guarantee of live account health, available
 quota or successful routing.
@@ -20,19 +20,36 @@ channel or user-rate dependencies; the legacy view returns `data: []`.
 `GetAvailableGroups` authorizes groups before catalog assembly: standard groups
 respect exclusivity and public-group restrictions; subscription groups require
 an active subscription, including exclusive subscription groups. Only active
-channels contribute models. An authorized group without an active bound channel
-or configured models is retained with `models: []`. Each group can belong to at
-most one channel; that database constraint is unchanged.
+channels contribute groups and models. An authorized group bound to an active
+channel without configured public models is retained with `models: []`.
+Unbound groups and groups bound only to a disabled or deleted channel are
+omitted, including Composite groups, even if group prices, account mappings
+or routes still declare models. Each group can belong to at most one channel;
+that database constraint is unchanged.
 
-Model enumeration combines the finite channel mapping/pricing union, group
-prices, exact account model mappings and enabled exact Composite routes. Prefix
-routes apply to finite configured IDs; wildcards never become literal request
-IDs. The group public-model allowlist filters every source. Normal groups remain
-on their own platform; composite offers retain the resolved concrete supplier.
-Global price catalogs supply prices, not additional models. A group without a
-channel can still publish its configured routes, group prices or account model
-IDs. The request-local channel snapshot is shared by mappings and billing
-resolution. There is no shared user-directory cache or provider discovery,
+For a group bound to an active channel, its catalog models must be explicitly
+covered by that channel's current model pricing, matched by concrete platform
+and public model ID using billing's existing case-insensitive exact and trailing
+wildcard rules. Removing some or all models removes those
+offers on the next catalog request, even if channel/account mappings, group
+prices, Composite routes or global reference prices still contain them. A price
+card with missing prices or an explicit zero still declares a model; existing
+billing rules determine its displayed price or unknown-price status.
+
+Within an active bound group, prefix routes apply to finite configured IDs;
+wildcards never become literal request IDs. Mappings
+and routes resolve configured offers but cannot add a model/supplier pair outside
+a bound channel's pricing rules. The group public-model allowlist filters every
+source. Normal groups remain on their own platform; composite offers retain the
+resolved concrete supplier. Global price catalogs supply prices, not additional
+models. The request-local channel snapshot is shared by mappings and billing
+resolution. Account-derived candidates come from one request-local projection
+of authorized group IDs, concrete platform and model mappings, without loading
+account credentials beyond those mappings, proxy records or group associations.
+Only active, schedulable, undeleted accounts contribute; transient scheduling
+and expiry windows remain irrelevant to configured model availability. Repository
+errors abort the catalog instead of producing partial results. There is no
+server-side shared user-directory cache or provider discovery,
 credential refresh, account selection or usage write during this read.
 
 ## Catalog DTO
@@ -111,8 +128,9 @@ groups and model time schedules display an amber Dynamic billing badge; tiered
 prices display a separate blue badge only when the group enables long-context
 pricing and the offer contains context or media tiers. Dynamic billing indicates a configured
 condition, not that the current request falls inside the peak window. A merged
-card says “Some quotes” when only part of its quote set has that condition. Service-tier
-and official-reference tables are always expanded in details.
+card says “Some quotes” when only part of its quote set has that condition. Service
+tiers start collapsed; official-reference tables remain expanded within an opened
+quote, as described below.
 
 Base-context image-token prices also use billing probes for Standard, priority
 and flex. A configured zero image-input price follows billing's text-input
@@ -175,8 +193,9 @@ base prices are excluded from ranges, with an incomplete-price
 notice; explicit zero remains zero. Failed personal-rate lookup labels ranges as
 default-rate references. Minimum displayed price does not select a routing group.
 
-The catalog adapts from one to at most four columns, with 20px gaps and 20px card
-corners, including loading placeholders.
+The catalog adapts from one to at most three columns, with 20px gaps and larger
+cards with 16px corners. Wrapped platform buttons retain their natural width.
+Desktop controls remain fixed above the independently scrolling results.
 
 Details immediately show every authorized quote in the group comparison table.
 Each group's complete pricing and billing conditions are available through its
@@ -223,6 +242,22 @@ against stale completion; logout/user changes clear all previous data. Details
 support keyboard focus containment, Escape and focus restoration. Copy uses the
 application clipboard helper, including failure feedback and a selectable ID.
 
+Successful catalogs with loaded user rates are reused for 180 seconds in
+document memory, isolated by login session, actor, assistance target and locale.
+The cache holds at most four scopes and clears on login/logout; reads do not
+extend freshness. It never stores tokens or responses in persistent browser
+storage. Entry and locale changes may reuse a fresh response; manual Refresh
+and Retry always invalidate it and perform a real request. Failed, aborted,
+unavailable-rate and superseded responses never populate the cache. Filters
+operate locally, with no timer, focus or visibility refresh. Cached quote
+timestamps remain visible evidence of their original snapshot.
+
+Successful channel creation, editing (including pricing and status changes),
+and deletion clear all catalog scopes in the same document and invalidate
+in-flight reads. Failed channel saves preserve the existing cache. Other browser
+sessions obtain the current configuration on Refresh or their next uncached
+read; configuration edits do not broadcast across sessions.
+
 ## Validation
 
 Run focused backend handler/service tests, frontend lint/typecheck, channel and
@@ -235,9 +270,15 @@ identity path; see [security audit coverage](SECURITY_AUDIT_CONTENT_COVERAGE.md)
 
 ### API Key group rate disclosure
 
-`GET /api/v1/channels/available?view=key_quotes` returns the same authorized
-commercial catalog projection used by Key group selection. It remains available
-when the optional Available Channels page is disabled. The `view=catalog` and
+`GET /api/v1/channels/available?view=key_quotes` returns the authorized commercial
+group catalog used by Key group selection. Unlike `view=catalog`, this projection
+also includes groups without an active bound channel; their configured group
+prices, exact account mappings and enabled exact Composite routes may declare
+models. Subscription sale catalogs retain the same unbound-group behavior.
+These reads share the price assembler with the channel page, while the page
+requires an active channel binding from that same request-local snapshot.
+Key quotes remain available when the optional Available Channels page is
+disabled. The `view=catalog` and
 legacy list keep their existing page enablement gate. Authentication and
 bindable-group permissions apply before model or personal-rate lookup; duplicate
 `view` parameters do not select this mode. No account, supplier cost, credential

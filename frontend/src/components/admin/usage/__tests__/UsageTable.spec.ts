@@ -34,6 +34,12 @@ const localizedMessages: Record<'en' | 'zh', Record<string, string>> = {
 
 const messages: Record<string, string> = {
   'usage.outputTps': 'Output TPS',
+  'usage.reasoningEffort': 'Reasoning effort',
+  'usage.fastStateLabel': 'Fast',
+  'usage.fastEnabled': 'Enabled',
+  'usage.fastDisabled': 'Disabled',
+  'usage.fastUnrecorded': 'Not recorded',
+  'usage.fastStateHint': 'Final request Fast state; not response tier or billing.',
   'admin.usage.userDeletedBadge': 'Deleted',
   'usage.costDetails': 'Cost Breakdown',
   'admin.usage.inputCost': 'Input Cost',
@@ -43,6 +49,15 @@ const messages: Record<string, string> = {
   'usage.inputTokenPrice': 'Input price',
   'usage.outputTokenPrice': 'Output price',
   'usage.perMillionTokens': '/ 1M tokens',
+  'admin.usage.serviceTierBilling': '计费',
+  'admin.usage.serviceTierDifference': '请求与响应档位不同；需结合出站证据核查',
+  'admin.usage.outboundTransport.unknown': '未记录',
+  'admin.usage.outboundTransport.native': '原生出站',
+  'admin.usage.outboundTransport.codex_cli_bridge': '官方 CLI 桥接',
+  'admin.usage.outboundTransport.codex_cli_task': '官方 CLI 任务',
+  'admin.usage.outboundDispatch': '已在网关发送；不代表上游执行保证',
+  'admin.usage.outboundProcess': '已启动 CLI 进程；未观测最终网络请求',
+  'admin.usage.outboundTier': '发送档位',
   'admin.usage.serviceTierRequest': '请求',
   'admin.usage.serviceTierResponse': '响应',
   'admin.usage.serviceTierUnrecorded': '未记录',
@@ -179,6 +194,57 @@ const baseImageRow = {
   image_size_source: null,
   image_size_breakdown: null,
 }
+
+describe('user UsageTable model metadata', () => {
+  // Audited user table: request effort and safe Fast state belong below the
+  // requested model. Unknown history cannot be inferred from admin tier hints.
+  it.each([
+    { value: true, label: 'Fast: Enabled' },
+    { value: false, label: 'Fast: Disabled' },
+    { value: null, label: 'Fast: Not recorded' },
+    { value: undefined, label: 'Fast: Not recorded' },
+  ])('shows the final request Fast state $value beneath the model', ({ value, label }) => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        modelMetadata: true,
+        showAccountBilling: false,
+        data: [{ ...baseImageRow, model: 'requested-model', reasoning_effort: 'high', request_fast_enabled: value, response_service_tier: 'priority', service_tier: 'priority' }],
+        columns: [{ key: 'model', label: 'Model' }, { key: 'cost', label: 'Cost' }],
+      },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    const metadata = wrapper.get('[data-testid="usage-model-metadata"]')
+    expect(metadata.text()).toContain('High')
+    expect(metadata.text()).toContain(label)
+    expect(metadata.element.previousElementSibling?.textContent).toBe('requested-model')
+    const fastBadge = metadata.get('span.border')
+    expect(fastBadge.attributes('title')).toContain('not response tier or billing')
+    expect(fastBadge.classes().includes('text-primary-600')).toBe(value === true)
+    expect(wrapper.find('[data-testid="service-tier-cell"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('$0.4')
+  })
+  it('keeps existing model mappings and incomplete diagnostics with user metadata enabled', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        modelMetadata: true,
+        data: [{ ...baseImageRow, model: 'requested-model', model_mapping_chain: 'requested-model→mapped-model', reasoning_effort: 'max', upstream_reasoning_effort: 'xhigh', is_complete: false }],
+        columns: [{ key: 'model', label: 'Model' }],
+      },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.text()).toContain('requested-model')
+    expect(wrapper.text()).toContain('mapped-model')
+    expect(wrapper.get('[data-testid="usage-model-metadata"]').text()).toContain('Max ↳ XHigh')
+    expect(wrapper.get('[data-testid="usage-incomplete-badge"]').text()).toBe('Incomplete')
+  })
+  it('leaves the shared admin table without user metadata by default', () => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, request_fast_enabled: true }], columns: [{ key: 'model', label: 'Model' }] },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.find('[data-testid="usage-model-metadata"]').exists()).toBe(false)
+  })
+})
 
 describe('admin UsageTable tooltip', () => {
   it('shows output TPS in the latency cell using total duration', () => {
@@ -1557,7 +1623,11 @@ describe('service tier column', () => {
       },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
-    expect(wrapper.get('[data-testid="service-tier-cell"]').findAll('div').map(line => line.text())).toEqual([requestText, responseText])
+    const lines = wrapper.get('[data-testid="service-tier-cell"]').findAll('div').map(line => line.text())
+    expect(lines).toEqual([
+      requestText, responseText, '计费 未记录',
+      ...(requested === 'priority' && response === 'default' ? ['请求与响应档位不同；需结合出站证据核查'] : []),
+    ])
     wrapper.unmount()
   })
 
@@ -1573,5 +1643,31 @@ describe('service tier column', () => {
     expect(wrapper.find('[data-testid="service-tier-cell"]').exists()).toBe(false)
     expect(wrapper.text()).not.toMatch(/Fast|priority|provider-tier|serviceTier/)
     wrapper.unmount()
+  })
+})
+
+
+describe('outbound dispatch evidence', () => {
+  const table = { props: ['data'], template: `<div><template v-for="row in data" :key="row.id"><slot name="cell-outbound" :row="row" /></template></div>` }
+  it('does not infer CLI dispatch from a historical inbound Codex UA', () => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, user_agent: 'codex-tui/0.166.0' }], columns: [], loading: false },
+      global: { stubs: { DataTable: table, EmptyState: true, Icon: true } },
+    })
+    expect(wrapper.get('[data-testid="outbound-cell"]').text()).toBe('未记录')
+  })
+  it.each(['native', 'codex_cli_bridge', 'codex_cli_task'] as const)('distinguishes %s and its evidence level', (transport) => {
+    const process = transport === 'codex_cli_task'
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, outbound_transport: transport, outbound_metadata: {
+        transport, evidence: process ? 'cli_process' : 'gateway_send', cli_version: transport === 'native' ? undefined : '0.165.0',
+        user_agent: process ? undefined : 'codex_cli_rs/0.165.0', tier_known: !process, service_tier: process ? undefined : 'priority',
+      } }], columns: [], loading: false },
+      global: { stubs: { DataTable: table, EmptyState: true, Icon: true } },
+    })
+    const text = wrapper.get('[data-testid="outbound-cell"]').text()
+    expect(text).toContain(process ? '未观测最终网络请求' : '已在网关发送')
+    expect(text.includes('发送档位 Fast')).toBe(!process)
+    expect(text.includes('CLI 0.165.0')).toBe(transport !== 'native')
   })
 })

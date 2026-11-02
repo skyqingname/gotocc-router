@@ -1778,6 +1778,8 @@ export interface UsageLog {
   request_id: string
   model: string
   reasoning_effort?: string | null
+  /** Final recorded request Fast state; absent/unknown is not disabled. */
+  request_fast_enabled?: boolean | null
   inbound_endpoint?: string | null
   upstream_endpoint?: string | null
 
@@ -1856,7 +1858,20 @@ export interface UsageLogAccountSummary {
   name: string
 }
 
+export interface UsageOutboundMetadata {
+  transport: 'native' | 'codex_cli_bridge' | 'codex_cli_task'
+  evidence: 'gateway_send' | 'cli_process'
+  cli_version?: string
+  user_agent?: string
+  originator?: string
+  client_version?: string
+  tier_known: boolean
+  service_tier?: string
+}
+
 export interface AdminUsageLog extends UsageLog {
+  outbound_transport?: 'unknown' | UsageOutboundMetadata['transport']
+  outbound_metadata?: UsageOutboundMetadata | null
   service_tier?: string | null
   requested_service_tier?: string | null
   response_service_tier?: string | null

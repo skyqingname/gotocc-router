@@ -1,5 +1,5 @@
 <template>
-  <AppLayout workspace>
+  <AppLayout appearance="user" workspace record-workspace>
     <TablePageLayout>
       <template #filters>
         <div class="flex flex-col gap-3">
@@ -116,6 +116,7 @@
 
       <template #table>
         <DataTable
+          class="workspace-table-viewport"
           :columns="columns"
           :data="apiKeys"
           :loading="loading"
@@ -177,7 +178,7 @@
               <button
                 :ref="(el) => setGroupButtonRef(row.id, el)"
                 @click="openGroupSelector(row)"
-                class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:surface-hover surface-control"
+                class="-mx-2 -my-1 flex cursor-pointer flex-wrap items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:surface-hover surface-control sm:flex-nowrap"
                 :title="isAutoRouting(row) ? t('keys.clickToChangeRouting') : t('keys.clickToChangeGroup')"
                 :disabled="changingGroupIds.has(row.id)"
               >
@@ -204,9 +205,9 @@
                 <span v-else-if="!isAutoRouting(row)" class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
-                <span v-if="!isAutoRouting(row)" class="text-xs surface-muted">{{ t('keys.selectGroup') }}</span>
+                <span v-if="!isAutoRouting(row)" class="shrink-0 text-xs surface-muted">{{ t('keys.selectGroup') }}</span>
                 <svg
-                  class="h-3.5 w-3.5 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
+                  class="h-3.5 w-3.5 shrink-0 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -484,7 +485,6 @@
 
       <template #pagination>
         <Pagination
-          v-if="pagination.total > 0"
           :page="pagination.page"
           :total="pagination.total"
           :page-size="pagination.page_size"

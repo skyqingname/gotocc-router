@@ -166,6 +166,10 @@
 
         <!-- Tab: Gateway -->
         <div v-show="activeTab === 'gateway'" class="space-y-6">
+          <PlatformPricingFallbackSettings
+            v-model="form.pricing_fallback_models"
+            :disabled="saving || loadFailed || !pricingFallbackLoaded"
+          />
           <!-- Overload Cooldown (529) Settings -->
           <div class="card workspace-shell">
             <div
@@ -4563,11 +4567,11 @@
                   <div
                     v-for="(row, i) in codexFingerprintRows"
                     :key="`codex-fp-${i}`"
-                    class="mb-2 flex items-center gap-2"
+                    class="mb-2 grid min-w-0 grid-cols-1 items-center gap-2 sm:flex"
                   >
                     <Select
                       v-model="row.type"
-                      class="w-40 shrink-0"
+                      class="w-full min-w-0 sm:w-40 sm:shrink-0"
                       trigger-class="text-sm"
                       :searchable="false"
                       :options="[{ value: 'header_exact', label: t('admin.settings.gatewayForwarding.codexFpTypeHeaderExact') }, { value: 'header_prefix', label: t('admin.settings.gatewayForwarding.codexFpTypeHeaderPrefix') }, { value: 'body_path', label: t('admin.settings.gatewayForwarding.codexFpTypeBodyPath') }]"
@@ -4575,7 +4579,7 @@
                     <input
                       v-model="row.match"
                       type="text"
-                      class="input flex-1 font-mono text-sm"
+                      class="input min-w-0 flex-1 font-mono text-sm"
                       :placeholder="t('admin.settings.gatewayForwarding.codexFpMatchPlaceholder')"
                     />
                     <label class="flex shrink-0 items-center gap-1 text-xs surface-muted">
@@ -4625,12 +4629,12 @@
                   <div
                     v-for="(row, i) in codexBlacklistRows"
                     :key="`codex-bl-${i}`"
-                    class="mb-2 flex gap-2"
+                    class="mb-2 grid min-w-0 grid-cols-1 gap-2 sm:flex"
                   >
                     <input
                       v-model="row.originator"
                       type="text"
-                      class="input w-1/3 font-mono text-sm"
+                      class="input min-w-0 font-mono text-sm sm:w-1/3"
                       :placeholder="
                         t(
                           'admin.settings.gatewayForwarding.codexOriginatorPlaceholder',
@@ -4640,7 +4644,7 @@
                     <input
                       v-model="row.uaContains"
                       type="text"
-                      class="input flex-1 font-mono text-sm"
+                      class="input min-w-0 flex-1 font-mono text-sm"
                       :placeholder="
                         t(
                           'admin.settings.gatewayForwarding.codexUaContainsPlaceholder',
@@ -4676,12 +4680,12 @@
                   <div
                     v-for="(row, i) in codexWhitelistRows"
                     :key="`codex-wl-${i}`"
-                    class="mb-2 flex gap-2"
+                    class="mb-2 grid min-w-0 grid-cols-1 gap-2 sm:flex"
                   >
                     <input
                       v-model="row.originator"
                       type="text"
-                      class="input w-1/3 font-mono text-sm"
+                      class="input min-w-0 font-mono text-sm sm:w-1/3"
                       :placeholder="
                         t(
                           'admin.settings.gatewayForwarding.codexOriginatorPlaceholder',
@@ -4691,7 +4695,7 @@
                     <input
                       v-model="row.uaContains"
                       type="text"
-                      class="input flex-1 font-mono text-sm"
+                      class="input min-w-0 flex-1 font-mono text-sm"
                       :placeholder="
                         t(
                           'admin.settings.gatewayForwarding.codexUaContainsPlaceholder',
@@ -7668,11 +7672,11 @@
                       class="w-40"
                     />
                   </div>
-                  <div>
+                  <div class="min-w-0 max-w-full">
                     <label class="input-label">{{
                       t("admin.settings.payment.cancelRateLimit")
                     }}</label>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2">
                       <Toggle
                         v-model="form.payment_cancel_rate_limit_enabled"
                       />
@@ -8081,8 +8085,8 @@
               </p>
             </div>
             <div class="p-6">
-              <div class="flex items-end gap-4">
-                <div class="flex-1">
+              <div class="flex min-w-0 flex-wrap items-end gap-4">
+                <div class="min-w-0 basis-full sm:flex-1">
                   <label
                     class="mb-2 block text-sm font-medium surface-muted"
                   >
@@ -8296,6 +8300,7 @@
         <div v-show="activeTab === 'identity'">
           <OutboundIdentitySettings v-if="identityTabVisited" ref="outboundIdentitySettings">
             <template #codex>
+              <CodexCLIRuntimeSettings />
               <div class="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-dark-600">
                 <div class="flex items-start justify-between gap-4">
                   <div>
@@ -8556,6 +8561,7 @@ import type {
   AuthSourceDefaultsState,
   AuthSourceType,
   SystemSettings,
+  PricingFallbackModels,
   UpdateSettingsRequest,
   DefaultSubscriptionSetting,
   DefaultPlatformQuotasMap,
@@ -8596,6 +8602,7 @@ import AppearanceSettingsCard from "@/components/admin/settings/AppearanceSettin
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OutboundIdentitySettings from "@/views/admin/settings/OutboundIdentitySettings.vue";
+import CodexCLIRuntimeSettings from "@/views/admin/settings/CodexCLIRuntimeSettings.vue";
 import RechargeBonusTierEditor from "@/components/admin/settings/RechargeBonusTierEditor.vue";
 import {
   normalizeRechargeBonusMode,
@@ -8605,6 +8612,7 @@ import {
   type RechargeBonusTierDraft,
 } from "@/utils/rechargeBonus";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
+import PlatformPricingFallbackSettings from "@/views/admin/settings/PlatformPricingFallbackSettings.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
   useStepUp,
@@ -8683,6 +8691,7 @@ type SettingsTab =
   | "backup";
 const activeTab = ref<SettingsTab>("general");
 const settingsBody = ref<HTMLElement | null>(null);
+const pricingFallbackLoaded = ref(false);
 watch(activeTab, () => {
   if (settingsBody.value) settingsBody.value.scrollTop = 0;
 });
@@ -9559,6 +9568,7 @@ const form = reactive<SettingsForm>({
   google_oauth_redirect_url: "",
   google_oauth_frontend_redirect_url: "/auth/oauth/callback",
   // Model fallback
+  pricing_fallback_models: {} as PricingFallbackModels,
   enable_model_fallback: false,
   fallback_model_anthropic: "claude-3-5-sonnet-20241022",
   fallback_model_openai: "gpt-4o",
@@ -10643,6 +10653,12 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    pricingFallbackLoaded.value = !!settings.pricing_fallback_models
+      && typeof settings.pricing_fallback_models === "object"
+      && !Array.isArray(settings.pricing_fallback_models);
+    if (pricingFallbackLoaded.value) {
+      form.pricing_fallback_models = { ...settings.pricing_fallback_models };
+    }
     syncCaptchaProviderSelection();
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
@@ -11046,8 +11062,12 @@ async function saveSettings() {
         return false;
       }
     };
-    // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
-    if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
+    const frontendURL = form.frontend_url.trim();
+    if (!isValidHttpUrl(frontendURL)) {
+      appStore.showError(t("admin.settings.registration.frontendUrlInvalid"));
+      return;
+    }
+    form.frontend_url = frontendURL;
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
     syncWeChatConnectMode();
     const wechatStoredMode = deriveWeChatConnectStoredMode(
@@ -11235,6 +11255,9 @@ async function saveSettings() {
       google_oauth_redirect_url: form.google_oauth_redirect_url,
       google_oauth_frontend_redirect_url:
         form.google_oauth_frontend_redirect_url,
+      pricing_fallback_models: pricingFallbackLoaded.value
+        ? { ...form.pricing_fallback_models }
+        : undefined,
       enable_model_fallback: form.enable_model_fallback,
       fallback_model_anthropic: form.fallback_model_anthropic,
       fallback_model_openai: form.fallback_model_openai,
@@ -11457,6 +11480,9 @@ async function saveSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    if (updated.pricing_fallback_models) {
+      form.pricing_fallback_models = { ...updated.pricing_fallback_models };
+    }
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     await outboundIdentitySettings.value?.refresh();
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
@@ -11536,6 +11562,10 @@ async function saveSettings() {
   } catch (error: unknown) {
     // 用户取消 step-up 验证：静默返回，不弹错误
     if (isStepUpCancelled(error)) {
+      return;
+    }
+    if ((error as { reason?: string })?.reason === "PASSWORD_RESET_FRONTEND_URL_REQUIRED") {
+      appStore.showError(t("admin.settings.registration.frontendUrlRequired"));
       return;
     }
     if (isStepUpBlocked(error)) {
@@ -12771,9 +12801,7 @@ watch(
   border-radius: var(--surface-radius);
   background: var(--surface-fill);
   border-color: var(--surface-edge);
-  box-shadow:
-    0 12px 28px rgb(0 0 0 / 0.07),
-    0 1px 0 rgb(255 255 255 / 0.9) inset;
+  box-shadow: var(--surface-shadow);
 }
 
 .settings-tabs-scroll {
@@ -12793,7 +12821,8 @@ watch(
 }
 
 .settings-tab {
-  @apply relative isolate flex h-11 min-h-11 min-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-sm font-medium text-gray-600 outline-none transition-colors duration-200 ease-out dark:text-gray-300;
+  @apply relative isolate flex h-11 min-h-11 min-w-[6.75rem] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-transparent px-3 text-sm font-medium outline-none transition-colors duration-200 ease-out;
+  color: var(--surface-muted);
 }
 
 @media (min-width: 1024px) and (max-height: 799px) {
@@ -12826,15 +12855,15 @@ watch(
 }
 
 .settings-tab:focus-visible {
-  @apply ring-2 ring-primary-500/40 ring-offset-2 ring-offset-white dark:ring-offset-dark-900;
+  outline: 2px solid var(--console-control-hover-edge);
+  outline-offset: -2px;
 }
 
 .settings-tab-active {
-  @apply border-primary-200/80 text-primary-700 shadow-sm dark:border-primary-400/30 dark:text-primary-200;
+  border-color: var(--console-control-edge);
+  color: var(--console-accent-readable);
   background-color: var(--surface-selected);
-  box-shadow:
-    0 8px 18px rgb(0 0 0 / 0.08),
-    0 1px 0 rgb(255 255 255 / 0.92) inset;
+  box-shadow: var(--surface-shadow);
 }
 
 .settings-tab-active::before {
@@ -12846,7 +12875,8 @@ watch(
 }
 
 .settings-tab-icon {
-  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 dark:text-gray-400;
+  @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors duration-200;
+  color: var(--surface-muted);
 }
 
 .settings-tab:hover .settings-tab-icon,
@@ -12855,33 +12885,11 @@ watch(
 }
 
 .settings-tab-active .settings-tab-icon {
-  @apply bg-primary-50/[0.15] text-primary-600 dark:bg-primary-400/10 dark:text-primary-300;
+  background: var(--surface-hover);
+  color: var(--console-accent-readable);
 }
 
 .settings-tab-label {
   @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
-}
-</style>
-
-<style>
-/* Dark-mode overrides for the settings tabs shell. Kept in an UNSCOPED block
-   because Vue's scoped-CSS compiler was dropping the `:global(.dark) ...`
-   rules in the production build, leaving inactive tabs unreadable on dark. */
-.dark .settings-tabs-shell {
-  border-color: theme('colors.dark.700');
-  background: var(--surface-fill);
-  box-shadow:
-    0 16px 36px rgb(0 0 0 / 0.28),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
-}
-
-.dark .settings-tab::before {
-  background: var(--surface-hover);
-}
-
-.dark .settings-tab-active {
-  box-shadow:
-    0 12px 26px rgb(0 0 0 / 0.22),
-    0 1px 0 rgb(255 255 255 / 0.08) inset;
 }
 </style>
