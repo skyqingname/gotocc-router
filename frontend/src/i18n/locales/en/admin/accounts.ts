@@ -1132,8 +1132,8 @@ export default {
       expiresAtHint: 'Leave empty for no expiration',
       expiresAtTimezoneHint: 'Input is interpreted in your browser time zone ({timezone}).',
       higherPriorityFirst: 'Lower value means higher priority',
-      mixedScheduling: 'Use in /v1/messages',
-      mixedSchedulingHint: 'Enable to participate in Anthropic/Gemini group scheduling',
+      mixedScheduling: 'Allow Gemini / Anthropic groups',
+      mixedSchedulingHint: 'Enable, select a Gemini or Anthropic group below, and save. Disabling stops this account from serving those groups.',
       mixedSchedulingTooltip:
         '!! WARNING !! Antigravity Claude and Anthropic Claude cannot be used in the same context. If you have both Anthropic and Antigravity accounts, enabling this option will cause frequent 400 errors. When enabled, please use the group feature to isolate Antigravity accounts from Anthropic accounts. Make sure you understand this before enabling!!',
       aiCreditsBalance: 'AI Credits',

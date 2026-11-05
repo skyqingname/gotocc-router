@@ -22,12 +22,14 @@ import gotocc from './gotocc'
 import fingerprint from './fingerprint'
 import inspection from './inspection'
 import billingRates from './billingRates'
+import nativeAccess from './nativeAccess'
 
 export default {
   ...workspace,
   ...requestList,
   ...inspection,
   ...billingRates,
+  ...nativeAccess,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

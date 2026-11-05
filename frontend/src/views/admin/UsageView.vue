@@ -139,6 +139,7 @@
           </div>
           <UsageTable
             flat
+            model-metadata
             :data="usageLogs"
             :loading="loading"
             :columns="visibleColumns"
@@ -671,8 +672,9 @@ const exportToExcel = async () => {
 
 // Column visibility
 const ALWAYS_VISIBLE = ['user', 'created_at']
-const DEFAULT_HIDDEN_COLUMNS = ['api_key', 'billing_mode', 'request_id', 'session_id', 'ip_address']
-const HIDDEN_COLUMNS_KEY = useColumnPreferenceKey('admin-usage-restored-v2-hidden-columns')
+const DEFAULT_HIDDEN_COLUMNS = ['api_key', 'billing_mode', 'request_id', 'session_id', 'ip_address', 'service_tier']
+const LEGACY_HIDDEN_COLUMNS_KEY = useColumnPreferenceKey('admin-usage-restored-v2-hidden-columns')
+const HIDDEN_COLUMNS_KEY = useColumnPreferenceKey('admin-usage-native-v3-hidden-columns')
 
 const allColumns = computed(() => [
   { key: 'user', label: t('admin.usage.user'), sortable: false, sticky: 'left' as const },
@@ -681,7 +683,6 @@ const allColumns = computed(() => [
   { key: 'model', label: t('usage.model'), sortable: true },
   { key: 'service_host', label: t('admin.usage.serviceHost'), sortable: false },
   { key: 'outbound', label: t('admin.usage.outbound'), sortable: false },
-  { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'group', label: t('admin.usage.group'), sortable: false },
   { key: 'stream', label: t('usage.type'), sortable: false },
@@ -691,7 +692,6 @@ const allColumns = computed(() => [
   { key: 'latency', label: t('usage.latency'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'request_id', label: t('admin.usage.requestId'), sortable: false },
-  { key: 'user_agent', label: t('admin.usage.inboundUserAgent'), sortable: false },
   { key: 'session_id', label: t('usage.sessionId'), sortable: false },
   { key: 'ip_address', label: t('admin.usage.ipAddress'), sortable: false }
 ])
@@ -800,7 +800,17 @@ const toggleCurrentColumn = (key: string) =>
 
 const loadSavedColumns = () => {
   try {
-    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
+    let saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
+    if (!saved) {
+      const legacy = localStorage.getItem(LEGACY_HIDDEN_COLUMNS_KEY)
+      if (legacy) {
+        const values: unknown = JSON.parse(legacy)
+        if (Array.isArray(values)) {
+          saved = JSON.stringify([...new Set([...values.filter(key => typeof key === 'string' && key !== 'reasoning_effort' && key !== 'user_agent'), 'service_tier'])])
+          localStorage.setItem(HIDDEN_COLUMNS_KEY, saved)
+        }
+      }
+    }
     if (saved) {
       (JSON.parse(saved) as string[]).forEach((key) => {
         hiddenColumns.add(key)

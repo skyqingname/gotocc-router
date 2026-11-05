@@ -789,6 +789,9 @@ export interface CompositeRouteDecision {
 }
 
 export interface ApiKey {
+  conversion_enabled?: boolean
+  default_client?: string
+  default_endpoint?: string
   id: number
   user_id: number
   team_id?: number | null
@@ -827,6 +830,9 @@ export interface ApiKey {
 }
 
 export interface CreateApiKeyRequest {
+  conversion_enabled?: boolean
+  default_client?: string
+  default_endpoint?: string
   name: string
   scope?: 'personal' | 'team'
   group_id?: number | null
@@ -842,6 +848,9 @@ export interface CreateApiKeyRequest {
 }
 
 export interface UpdateApiKeyRequest {
+  conversion_enabled?: boolean
+  default_client?: string
+  default_endpoint?: string
   name?: string
   group_id?: number | null
   routing_mode?: ApiKeyRoutingMode

@@ -125,6 +125,7 @@ func RegisterUserRoutes(
 		{
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
 			groups.GET("/routing-priorities", panelRateLimiter.Heavy(), h.Gateway.UserRoutingPriorities)
+			groups.GET("/:id/native-access", h.APIKey.GetNativeAccess)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
 

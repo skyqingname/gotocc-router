@@ -667,7 +667,7 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 For a downloaded `install.sh`, invoke one operation at a time. For example:
 
 ```bash
-sudo ./install.sh install --version 'v0.2.19+custom.004'
+sudo ./install.sh install --version 'v0.2.19+custom.006'
 ```
 
 Roll back a downloaded-script installation one operation at a time:

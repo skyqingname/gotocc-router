@@ -2881,14 +2881,13 @@
           <Select v-model="form.status" :options="statusOptions" />
         </div>
 
-        <!-- Mixed Scheduling (only for antigravity accounts, read-only in edit mode) -->
+        <!-- Mixed Scheduling (only for antigravity accounts) -->
         <div v-if="account?.platform === 'antigravity'" class="flex items-center gap-2">
-          <label class="flex cursor-not-allowed items-center gap-2 opacity-60">
+          <label class="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
               v-model="mixedScheduling"
-              disabled
-              class="h-4 w-4 cursor-not-allowed rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-dark-500"
+              class="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-dark-500"
             />
             <span class="text-sm font-medium surface-muted">
               {{ t('admin.accounts.mixedScheduling') }}
@@ -2896,6 +2895,9 @@
           </label>
           <HelpTooltip :content="t('admin.accounts.mixedSchedulingTooltip')" width-class="w-72" />
         </div>
+        <p v-if="account?.platform === 'antigravity'" class="mt-1 text-xs surface-muted">
+          {{ t('admin.accounts.mixedSchedulingHint') }}
+        </p>
         <div v-if="account?.platform === 'antigravity'" class="mt-3 flex items-center gap-2">
           <label class="flex cursor-pointer items-center gap-2">
             <input

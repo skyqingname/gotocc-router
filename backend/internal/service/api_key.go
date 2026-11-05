@@ -43,6 +43,9 @@ type APIKey struct {
 	Name              string
 	GroupID           *int64
 	RoutingMode       string
+	ConversionEnabled bool
+	DefaultClient     string
+	DefaultEndpoint   string
 	Status            string
 	IPWhitelist       []string
 	IPBlacklist       []string

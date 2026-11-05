@@ -27,6 +27,12 @@ const (
 	FieldTeamID = "team_id"
 	// FieldTeamOwnerDisabled holds the string denoting the team_owner_disabled field in the database.
 	FieldTeamOwnerDisabled = "team_owner_disabled"
+	// FieldConversionEnabled holds the string denoting the conversion_enabled field in the database.
+	FieldConversionEnabled = "conversion_enabled"
+	// FieldDefaultClient holds the string denoting the default_client field in the database.
+	FieldDefaultClient = "default_client"
+	// FieldDefaultEndpoint holds the string denoting the default_endpoint field in the database.
+	FieldDefaultEndpoint = "default_endpoint"
 	// FieldKey holds the string denoting the key field in the database.
 	FieldKey = "key"
 	// FieldName holds the string denoting the name field in the database.
@@ -116,6 +122,9 @@ var Columns = []string{
 	FieldUserID,
 	FieldTeamID,
 	FieldTeamOwnerDisabled,
+	FieldConversionEnabled,
+	FieldDefaultClient,
+	FieldDefaultEndpoint,
 	FieldKey,
 	FieldName,
 	FieldGroupID,
@@ -164,6 +173,16 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultTeamOwnerDisabled holds the default value on creation for the "team_owner_disabled" field.
 	DefaultTeamOwnerDisabled bool
+	// DefaultConversionEnabled holds the default value on creation for the "conversion_enabled" field.
+	DefaultConversionEnabled bool
+	// DefaultDefaultClient holds the default value on creation for the "default_client" field.
+	DefaultDefaultClient string
+	// DefaultClientValidator is a validator for the "default_client" field. It is called by the builders before save.
+	DefaultClientValidator func(string) error
+	// DefaultDefaultEndpoint holds the default value on creation for the "default_endpoint" field.
+	DefaultDefaultEndpoint string
+	// DefaultEndpointValidator is a validator for the "default_endpoint" field. It is called by the builders before save.
+	DefaultEndpointValidator func(string) error
 	// KeyValidator is a validator for the "key" field. It is called by the builders before save.
 	KeyValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
@@ -230,6 +249,21 @@ func ByTeamID(opts ...sql.OrderTermOption) OrderOption {
 // ByTeamOwnerDisabled orders the results by the team_owner_disabled field.
 func ByTeamOwnerDisabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTeamOwnerDisabled, opts...).ToFunc()
+}
+
+// ByConversionEnabled orders the results by the conversion_enabled field.
+func ByConversionEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConversionEnabled, opts...).ToFunc()
+}
+
+// ByDefaultClient orders the results by the default_client field.
+func ByDefaultClient(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultClient, opts...).ToFunc()
+}
+
+// ByDefaultEndpoint orders the results by the default_endpoint field.
+func ByDefaultEndpoint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultEndpoint, opts...).ToFunc()
 }
 
 // ByKey orders the results by the key field.

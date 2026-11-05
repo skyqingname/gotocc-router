@@ -232,6 +232,9 @@ func TestAPIContracts(t *testing.T) {
 					"team_owner_disabled": false,
 					"key": "sk_custom_1234567890",
 					"name": "Key One",
+					"default_client": "",
+					"default_endpoint": "",
+                    "conversion_enabled": false,
 					"group_id": null,
 					"routing_mode": "fixed",
 					"status": "active",
@@ -286,6 +289,9 @@ func TestAPIContracts(t *testing.T) {
 							"team_owner_disabled": false,
 							"key": "sk_custom_1234567890",
 							"name": "Key One",
+							"default_client": "",
+							"default_endpoint": "",
+                    "conversion_enabled": false,
 							"group_id": null,
 							"routing_mode": "fixed",
 							"status": "active",
@@ -1000,6 +1006,8 @@ func TestAPIContracts(t *testing.T) {
 					"openai_codex_local_group_quota_enabled": false,
 					"openai_codex_ws_enabled":                  true,
 					"openai_codex_http_ws_enabled":             false,
+					"openai_codex_safety_buffering_suppressed":             false,
+					"openai_error_messages_normalized":                     false,
 					"openai_codex_ws_deployment_allowed":       false,
 					"openai_codex_client_version":             "",
 					"openai_codex_client_version_effective": "0.165.0",
@@ -1355,6 +1363,8 @@ func TestAPIContracts(t *testing.T) {
 					"openai_codex_local_group_quota_enabled": false,
 					"openai_codex_ws_enabled":                  true,
 					"openai_codex_http_ws_enabled":             false,
+					"openai_codex_safety_buffering_suppressed":             false,
+					"openai_error_messages_normalized":                     false,
 					"openai_codex_ws_deployment_allowed":       false,
 					"openai_codex_client_version":             "",
 					"openai_codex_client_version_effective": "0.165.0",
@@ -1623,7 +1633,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 
 	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
-	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
+	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, nil, nil, nil, nil)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
 	adminUsageHandler := adminhandler.NewUsageHandler(usageService, apiKeyService, adminService, nil)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil, nil, nil)

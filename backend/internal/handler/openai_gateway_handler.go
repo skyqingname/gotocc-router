@@ -326,6 +326,9 @@ func allowOpenAICompatibleMessagesDispatch(c *gin.Context, apiKey *service.APIKe
 	if apiKey == nil || apiKey.Group == nil {
 		return true
 	}
+	if c != nil && c.Request != nil && apiKey.Group.Platform == service.PlatformComposite && apiKey.DefaultEndpoint == "/v1/messages" && service.CompositeUnifiedEndpoint(c.Request.Context()) == apiKey.DefaultEndpoint {
+		return true
+	}
 	if apiKey.Group.Platform == service.PlatformGrok {
 		return true
 	}
@@ -2460,7 +2463,19 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, decision.AmbiguousMessage())
 			return
 		}
-		if decision.Matched {
+		// An unresolved route has no target platform, so the capability probe
+		// below would misreport it as a missing native Responses capability.
+		// Report the routing cause instead of the protocol symptom.
+		if !decision.Matched {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, fmt.Sprintf("Composite model %q has no resolvable route: %s", reqModel, decision.Reason))
+			return
+		}
+		allowed, capabilityErr := h.compositeResolver.NativeAccessAllowed(c.Request.Context(), decision, service.APIProtocolResponses)
+		if capabilityErr != nil || !allowed {
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "Model does not support native Responses access")
+			return
+		}
+		{
 			c.Request = c.Request.WithContext(service.WithCompositeRouteDecision(c.Request.Context(), decision))
 			wsRouteModel = decision.UpstreamModel
 		}
@@ -3997,6 +4012,7 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 		return
 	}
 
+	failoverErr.SetOpenAIErrorMessageSource(c)
 	// 先检查透传规则
 	if h.errorPassthroughService != nil && len(responseBody) > 0 {
 		if rule := h.errorPassthroughService.MatchRule("openai", statusCode, responseBody); rule != nil {
@@ -4131,6 +4147,9 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(
 		// 通用 `event: error` 帧不被识别为终止事件，会导致
 		// "stream closed before response.completed"。
 		if inboundIsResponses(c) {
+			if code == "" {
+				service.SetOpenAIErrorMessageGeneratedCode(c, mapResponsesErrorCode(errType, code))
+			}
 			if writeResponsesFailedSSE(c, errType, code, message) {
 				return
 			}
@@ -4156,6 +4175,9 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(
 	}
 
 	// Normal case: return JSON response with proper status code
+	// An abandoned upstream SSE attempt may have prepared, but never committed,
+	// stream headers. Gin's JSON renderer only sets a missing Content-Type.
+	c.Header("Content-Type", "application/json; charset=utf-8")
 	if code == "" {
 		h.errorResponse(c, status, errType, message)
 		return

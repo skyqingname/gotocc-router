@@ -6,14 +6,14 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current GoToCC tree integrates the complete fixed Plus release
-`LuckyKuang/sub2api-plus@v0.2.19+custom.004`: tag object
-`dbf8b4a9bfb3cc48cefa9b541c590f484eb045bb`, peeled commit
-`612b60da017db2d071311f2a65add6a759b66be5`. Its official baseline remains
+The current GoToCC development tree integrates the complete fixed Plus release
+`LuckyKuang/sub2api-plus@v0.2.19+custom.006`: tag object
+`8fcc5a4869066c7b251fcbc47646c24843e9bfaf`, peeled commit
+`12d5d72bf695fe756ffcbe282c4dcc1f42b697b7`. Its official baseline remains
 `Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.004`;
-publication status is authoritative in the owned GitHub Release. Repository,
-tag and commit identify each release independently.
+The owned release version is not yet assigned. VERSION retains the last owned
+release identity during local development; this candidate is not published.
+Repository, tag and commit identify upstream and owned releases independently.
 
 ## GoToCC CI fixture compatibility (2026-11-02)
 
@@ -107,9 +107,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.19+custom.004
-Application: 0.2.19+custom.004
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.004
+Git/GitHub: v0.2.19+custom.006
+Application: 0.2.19+custom.006
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.006
 ```
 
 ## Release Mapping
@@ -245,8 +245,17 @@ Its mapping was published after immutable artifact verification.
 
 `v0.2.19+custom.004` retains the same official baseline and adds available-channel
 binding corrections, Codex usage-record source tracking and persisted outbound
-metadata accumulated since `.003`. Its mapping remains planned until publication
-and immutable artifact verification.
+metadata accumulated since `.003`. Its mapping was published after immutable
+artifact verification.
+
+`v0.2.19+custom.005` retains the same official baseline for the Composite access,
+tier-pricing and console update. Its mapping was published after immutable
+artifact verification.
+
+`v0.2.19+custom.006` retains the same official baseline for the live Codex
+safety buffering notice suppression and normalized OpenAI session error wording.
+Its mapping remains planned until publication and immutable artifact
+verification.
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 
@@ -270,3 +279,6 @@ published tags and artifacts are immutable.
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
 | `skyqingname/gotocc-router@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | password-reset settings and Plus `.004` integration; see owned GitHub Release |
 | `skyqingname/gotocc-router@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | same runtime behavior as owned `.003`; fixture compilation corrected; see owned GitHub Release |
+
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.005` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published; owned local adaptation pending acceptance |

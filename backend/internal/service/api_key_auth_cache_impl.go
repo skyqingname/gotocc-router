@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 31 // v31: load billing policy fields into authenticated group snapshots
+const apiKeyAuthSnapshotVersion = 32 // v32: preserve team/routing fields and Composite native access preferences
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -350,6 +350,9 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		CreatedAt:         apiKey.CreatedAt,
 		GroupID:           apiKey.GroupID,
 		RoutingMode:       apiKey.EffectiveRoutingMode(),
+		ConversionEnabled: apiKey.ConversionEnabled,
+		DefaultClient:     apiKey.DefaultClient,
+		DefaultEndpoint:   apiKey.DefaultEndpoint,
 		Name:              apiKey.Name,
 		Status:            apiKey.Status,
 		IPWhitelist:       apiKey.IPWhitelist,
@@ -474,6 +477,9 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		CreatedAt:         snapshot.CreatedAt,
 		GroupID:           snapshot.GroupID,
 		RoutingMode:       snapshot.RoutingMode,
+		ConversionEnabled: snapshot.ConversionEnabled,
+		DefaultClient:     snapshot.DefaultClient,
+		DefaultEndpoint:   snapshot.DefaultEndpoint,
 		Key:               key,
 		Name:              snapshot.Name,
 		Status:            snapshot.Status,
