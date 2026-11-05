@@ -72,7 +72,7 @@ func (s *ModelPlazaService) listGroupsFromChannelPricing(ctx context.Context) ([
 			ImageRateMultiplier:       g.ImageRateMultiplier,
 			VideoRateIndependent:      g.VideoRateIndependent,
 			VideoRateMultiplier:       g.VideoRateMultiplier,
-			LongContextPricingEnabled: g.LongContextPricingEnabled,
+			LongContextPricingEnabled: g.LongContextPricingEnabled || g.Platform == PlatformComposite || len(g.BillingRatePolicy.LongContextPlatforms) > 0 || len(g.BillingRatePolicy.LongContextModels) > 0,
 		}
 		groupEnt[g.ID] = g
 		order = append(order, g.ID)

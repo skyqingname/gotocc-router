@@ -9,8 +9,8 @@ derives the OCI image tag by preserving the leading `v` and replacing only
 `+` with `-`.
 
 ```text
-Git/GitHub: v0.2.19+custom.004
-GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.19-custom.004
+Git/GitHub: v0.2.19+custom.005
+GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.19-custom.005
 ```
 
 Pin the GHCR version tag for reproducible deployments. See
@@ -637,13 +637,13 @@ Replace the immutable tag with another value reported by `list-versions` when
 needed:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.19+custom.004'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- install --version 'v0.2.19+custom.005'
 ```
 
 Roll back an existing binary installation to an earlier published version:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.19+custom.003'
+curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deploy/install.sh | sudo bash -s -- rollback 'v0.2.19+custom.004'
 ```
 
 Upgrade to the latest release:
@@ -667,7 +667,7 @@ curl -sSL https://raw.githubusercontent.com/skyqingname/gotocc-router/main/deplo
 For a downloaded `install.sh`, invoke one operation at a time. For example:
 
 ```bash
-sudo ./install.sh install --version 'v0.2.19+custom.004'
+sudo ./install.sh install --version 'v0.2.19+custom.006'
 ```
 
 Roll back a downloaded-script installation one operation at a time:

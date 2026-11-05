@@ -48,6 +48,9 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetNillableTeamID(key.TeamID).
 		SetKey(key.Key).
 		SetName(key.Name).
+		SetConversionEnabled(key.ConversionEnabled).
+		SetDefaultClient(key.DefaultClient).
+		SetDefaultEndpoint(key.DefaultEndpoint).
 		SetStatus(key.Status).
 		SetNillableGroupID(key.GroupID).
 		SetRoutingMode(key.EffectiveRoutingMode()).
@@ -134,6 +137,9 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		Where(apikey.KeyEQ(key)).
 		Select(
 			apikey.FieldID,
+			apikey.FieldConversionEnabled,
+			apikey.FieldDefaultClient,
+			apikey.FieldDefaultEndpoint,
 			apikey.FieldUserID,
 			apikey.FieldTeamID,
 			apikey.FieldTeamOwnerDisabled,
@@ -271,6 +277,10 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fiel
 		SetUpdatedAt(now)
 	if fields.Name {
 		builder.SetName(key.Name)
+	}
+	if fields.Preferences {
+		builder.SetConversionEnabled(key.ConversionEnabled).
+			SetDefaultClient(key.DefaultClient).SetDefaultEndpoint(key.DefaultEndpoint)
 	}
 	if fields.Status {
 		builder.SetStatus(key.Status)
@@ -913,6 +923,9 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		TeamOwnerDisabled: m.TeamOwnerDisabled,
 		Key:               m.Key,
 		Name:              m.Name,
+		ConversionEnabled: m.ConversionEnabled,
+		DefaultClient:     m.DefaultClient,
+		DefaultEndpoint:   m.DefaultEndpoint,
 		Status:            m.Status,
 		IPWhitelist:       m.IPWhitelist,
 		IPBlacklist:       m.IPBlacklist,

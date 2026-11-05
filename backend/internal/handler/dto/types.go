@@ -65,6 +65,9 @@ type APIKey struct {
 	Name              string     `json:"name"`
 	GroupID           *int64     `json:"group_id"`
 	RoutingMode       string     `json:"routing_mode"`
+	ConversionEnabled bool       `json:"conversion_enabled"`
+	DefaultClient     string     `json:"default_client"`
+	DefaultEndpoint   string     `json:"default_endpoint"`
 	Status            string     `json:"status"`
 	IPWhitelist       []string   `json:"ip_whitelist"`
 	IPBlacklist       []string   `json:"ip_blacklist"`

@@ -205,6 +205,8 @@ func (h *SettingHandler) loadSystemSettingsResponse(ctx context.Context, setting
 		EnableClientDatelineNormalization:                      settings.EnableClientDatelineNormalization,
 		AntigravityUserAgentVersion:                            settings.AntigravityUserAgentVersion,
 		OpenAICodexWSEnabled:                                   settings.OpenAICodexWSEnabled,
+		OpenAICodexSafetyBufferingSuppressed:                   settings.OpenAICodexSafetyBufferingSuppressed,
+		OpenAIErrorMessagesNormalized:                          settings.OpenAIErrorMessagesNormalized,
 		OpenAICodexHTTPWSEnabled:                               settings.OpenAICodexHTTPWSEnabled,
 		OpenAICodexWSDeploymentAllowed:                         settings.OpenAICodexWSDeploymentAllowed,
 		OpenAICodexUserAgent:                                   settings.OpenAICodexUserAgent,

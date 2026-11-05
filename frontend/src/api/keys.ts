@@ -86,9 +86,10 @@ export async function create(
   expiresInDays?: number,
   rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
   scope?: 'personal' | 'team',
-  routingMode: ApiKeyRoutingMode = 'fixed'
+  routingMode: ApiKeyRoutingMode = 'fixed',
+  nativeAccess?: { conversion_enabled: boolean; default_client: string; default_endpoint: string }
 ): Promise<ApiKey> {
-  const payload: CreateApiKeyRequest = { name, routing_mode: routingMode }
+  const payload: CreateApiKeyRequest = { name, routing_mode: routingMode, ...nativeAccess }
   if (scope !== undefined) {
     payload.scope = scope
   }

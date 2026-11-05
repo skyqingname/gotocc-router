@@ -725,7 +725,8 @@ type GatewayFailureReason string
 // trigger account failover. Additive metadata keeps existing composite literals
 // source-compatible and preserves their legacy retry-next-account behavior.
 type UpstreamFailoverError struct {
-	AsyncCreateDefinitelyRejected bool // only a confirmed pre-send failure or trusted provider rejection proves no async job was accepted
+	openAIErrorMessageCode        string // display-only original code; never changes retry classification or ResponseBody
+	AsyncCreateDefinitelyRejected bool   // only a confirmed pre-send failure or trusted provider rejection proves no async job was accepted
 	StatusCode                    int
 	ResponseBody                  []byte        // 上游响应体，用于错误透传规则匹配
 	ResponseHeaders               http.Header   // 上游响应头，用于透传 cf-ray/cf-mitigated/content-type 等诊断信息
@@ -926,6 +927,33 @@ func NewGatewayService(
 	}
 	if compositeResolver != nil {
 		compositeResolver.SetModelOwnershipResolver(svc.resolveCompositeModelOwnership)
+		compositeResolver.channelService = channelService
+		compositeResolver.nativeAccessResolver = func(ctx context.Context, decision CompositeRouteDecision, protocol string) (bool, error) {
+			if svc.accountRepo == nil {
+				return false, nil
+			}
+			accounts, err := svc.accountRepo.ListModelAvailabilityCandidates(ctx, &decision.GroupID, []string{decision.TargetPlatform}, false)
+			if err != nil {
+				return false, err
+			}
+			for i := range accounts {
+				account := &accounts[i]
+				model := decision.UpstreamModel
+				if svc.channelService != nil {
+					model = svc.channelService.ResolveChannelMapping(WithResolvedTargetPlatform(ctx, decision.TargetPlatform), decision.GroupID, model).MappedModel
+				}
+				if account.Platform != decision.TargetPlatform || !account.IsModelSupported(model) {
+					continue
+				}
+				if decision.Source == CompositeRouteSourceAccount && !explicitModelMappingClaims(*account, decision.PublicModel) {
+					continue
+				}
+				if compositeNativeAccountAllowed(WithCompositeNativeProtocol(ctx, protocol), account, model) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}
 	}
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		userGroupRateRepo,

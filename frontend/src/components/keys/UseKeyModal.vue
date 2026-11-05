@@ -71,6 +71,8 @@
         </div>
       </div>
 
+      <NativeAccessFields :editable="false" :conversion-enabled="conversionEnabled || false" v-else-if="platform === 'composite'" v-model:client="nativeClient" v-model:endpoint="nativeEndpoint" :group-id="groupId || null" :base-url="baseUrl" :api-key="apiKey" />
+
       <!-- Platform-specific content -->
       <template v-else>
         <!-- Description -->
@@ -319,6 +321,7 @@ import Select from '@/components/common/Select.vue'
 import { ref, computed, h, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { saveAs } from 'file-saver'
+import NativeAccessFields from '@/components/keys/NativeAccessFields.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
@@ -334,6 +337,10 @@ import {
 } from '@/utils/codexCatalogConfig'
 
 interface Props {
+  groupId?: number | null
+  conversionEnabled?: boolean
+  defaultClient?: string
+  defaultEndpoint?: string
   show: boolean
   apiKey: string
   apiKeyId?: number
@@ -363,6 +370,9 @@ interface FileConfig {
 }
 
 const props = defineProps<Props>()
+const nativeClient = ref('')
+const nativeEndpoint = ref('')
+watch(() => [props.show, props.defaultClient, props.defaultEndpoint], () => { nativeClient.value = props.defaultClient || ''; nativeEndpoint.value = props.defaultEndpoint || '' }, { immediate: true })
 const emit = defineEmits<Emits>()
 
 const { t } = useI18n()
@@ -628,7 +638,6 @@ const clientTabs = computed((): TabConfig[] => {
       ]
     case 'deepseek':
     case 'minimax':
-    case 'composite':
       return [
         { id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon },
         { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
@@ -706,10 +715,6 @@ const platformDescription = computed(() => {
       return activeClientTab.value === 'codex'
         ? t('keys.useKeyModal.minimax.codexDescription')
         : t('keys.useKeyModal.minimax.description')
-    case 'composite':
-      return activeClientTab.value === 'codex'
-        ? t('keys.useKeyModal.composite.codexDescription')
-        : t('keys.useKeyModal.composite.description')
     case 'typesafe':
       return t('keys.useKeyModal.typesafe.description')
     default:
@@ -764,10 +769,6 @@ const platformNote = computed(() => {
     case 'minimax':
       return activeClientTab.value === 'codex'
         ? t('keys.useKeyModal.minimax.codexNote')
-        : t('keys.useKeyModal.note')
-    case 'composite':
-      return activeClientTab.value === 'codex'
-        ? t('keys.useKeyModal.composite.codexNote')
         : t('keys.useKeyModal.note')
     case 'typesafe':
       return t('keys.useKeyModal.typesafe.note')
@@ -938,11 +939,6 @@ const currentFiles = computed((): FileConfig[] => {
     case 'minimax':
       if (activeClientTab.value === 'codex') {
         return generateRoutedCodexFiles(apiBase, apiKey, 'minimax')
-      }
-      return generateAnthropicFiles(baseRoot, apiKey)
-    case 'composite':
-      if (activeClientTab.value === 'codex') {
-        return generateRoutedCodexFiles(apiBase, apiKey, 'composite')
       }
       return generateAnthropicFiles(baseRoot, apiKey)
     default:
@@ -1443,7 +1439,8 @@ function generateRoutedCodexFiles(
     minimax: 'MiniMax-M3',
     stepfun: '<model-id>',
     opencode_go: 'glm-5.3',
-    composite: OPENAI_CC_SWITCH_CODEX_MODEL
+    composite: OPENAI_CC_SWITCH_CODEX_MODEL,
+    custom: 'MODEL'
   }
   const preferredModel = preferredModels[platform] || ''
   const model = selectCodexCatalogModel(preferredModel)
@@ -1463,7 +1460,8 @@ function generateRoutedCodexFiles(
     typesafe: 'TypeSafe / Jev',
     command_code: 'Command Code',
     cline: 'Cline',
-    composite: 'Composite'
+    composite: 'Composite',
+    custom: 'Custom'
   }
   const label = labels[platform]
   const envContent = isWindows

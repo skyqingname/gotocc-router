@@ -1,5 +1,5 @@
 <template>
-  <AppLayout appearance="user" workspace record-workspace>
+  <AppLayout appearance="user" workspace>
     <TablePageLayout>
       <template #filters>
         <div class="flex flex-col gap-3">
@@ -665,6 +665,8 @@
           <GroupRateSummary v-if="formData.group_id" class="mt-3 rounded-lg surface-inset p-3" :group="quoteFor(formData.group_id)" :loading="quotesLoading" :failed="quotesFailed" @retry="refreshQuotes" />
         </div>
 
+        <NativeAccessFields v-if="groups.find(group => group.id === formData.group_id)?.platform === 'composite'" ref="nativeAccessFields" v-model:conversion-enabled="formData.conversion_enabled" v-model:client="formData.default_client" v-model:endpoint="formData.default_endpoint" :group-id="formData.group_id" :base-url="publicSettings?.api_base_url" />
+
         <!-- Custom Key Section (only for create) -->
         <div v-if="!showEditModal" class="space-y-3">
           <div class="flex items-center justify-between">
@@ -1149,6 +1151,10 @@
       :api-key-id="selectedKey?.id"
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
+      :group-id="selectedKey?.group_id || null"
+      :conversion-enabled="selectedKey?.conversion_enabled || false"
+      :default-client="selectedKey?.default_client || ''"
+      :default-endpoint="selectedKey?.default_endpoint || ''"
       :claude-code-only="selectedKey?.group?.claude_code_only || false"
       :routing-mode="selectedKey?.routing_mode || 'fixed'"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
@@ -1331,6 +1337,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import Icon from '@/components/icons/Icon.vue'
+import NativeAccessFields from '@/components/keys/NativeAccessFields.vue'
 import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
@@ -1562,8 +1569,12 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
   }
 }
 
+const nativeAccessFields = ref<InstanceType<typeof NativeAccessFields> | null>(null)
 const formData = ref({
   name: '',
+  conversion_enabled: false,
+  default_client: '',
+  default_endpoint: '',
   group_id: null as number | null,
   routing_mode: 'fixed' as ApiKeyRoutingMode,
   status: 'active' as 'active' | 'inactive',
@@ -1883,6 +1894,9 @@ const editKey = (key: ApiKey) => {
   const hasExpiration = !!key.expires_at
   formData.value = {
     name: key.name,
+    conversion_enabled: key.conversion_enabled || false,
+    default_client: key.default_client || '',
+    default_endpoint: key.default_endpoint || '',
     group_id: key.group_id,
     routing_mode: isAutoRouting(key) ? 'auto' : 'fixed',
     status: key.status === 'active' ? 'active' : 'inactive',
@@ -1992,6 +2006,7 @@ const confirmDelete = (key: ApiKey) => {
 }
 
 const handleSubmit = async () => {
+  if (nativeAccessFields.value && !nativeAccessFields.value.validate()) return
   if (submitting.value) return
   if (formData.value.routing_mode === 'auto' && routingPriorityPanel.value?.validate?.() === false) return
   // Fixed routing keeps the existing group requirement. Auto routing uses the
@@ -2058,6 +2073,9 @@ const handleSubmit = async () => {
         name: formData.value.name,
         group_id: groupID,
         routing_mode: formData.value.routing_mode,
+        conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled,
+        default_client: formData.value.default_client,
+        default_endpoint: formData.value.default_endpoint,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -2087,6 +2105,7 @@ const handleSubmit = async () => {
         rateLimitData,
         scope.value,
         formData.value.routing_mode,
+        { conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled, default_client: formData.value.default_client, default_endpoint: formData.value.default_endpoint }
       )
       clearAutoRoutingCapabilities()
       keyFieldsSaved = true
@@ -2148,6 +2167,9 @@ const closeModals = () => {
   selectedKey.value = null
   formData.value = {
     name: '',
+    conversion_enabled: false,
+  default_client: '',
+    default_endpoint: '',
     group_id: null,
     routing_mode: 'fixed',
     status: 'active',

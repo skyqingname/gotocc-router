@@ -17,6 +17,9 @@ type APIKeyAuthSnapshot struct {
 	CreatedAt         time.Time                `json:"created_at"`
 	GroupID           *int64                   `json:"group_id,omitempty"`
 	RoutingMode       string                   `json:"routing_mode"`
+	ConversionEnabled bool                     `json:"conversion_enabled"`
+	DefaultClient     string                   `json:"default_client,omitempty"`
+	DefaultEndpoint   string                   `json:"default_endpoint,omitempty"`
 	Name              string                   `json:"name"`
 	Status            string                   `json:"status"`
 	IPWhitelist       []string                 `json:"ip_whitelist,omitempty"`

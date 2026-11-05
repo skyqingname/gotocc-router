@@ -3440,6 +3440,9 @@
           </label>
           <HelpTooltip :content="t('admin.accounts.mixedSchedulingTooltip')" width-class="w-72" />
         </div>
+        <p v-if="form.platform === 'antigravity'" class="mt-1 text-xs surface-muted">
+          {{ t('admin.accounts.mixedSchedulingHint') }}
+        </p>
         <div v-if="form.platform === 'antigravity'" class="mt-3 flex items-center gap-2">
           <label class="flex cursor-pointer items-center gap-2">
             <input

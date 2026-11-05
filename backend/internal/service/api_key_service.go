@@ -67,6 +67,7 @@ const (
 // 因此调用方必须显式声明要改的列。
 type APIKeyUpdateFields struct {
 	RoutingMode bool
+	Preferences bool
 	Name        bool
 	Status      bool
 	Quota       bool
@@ -217,13 +218,16 @@ type APIKeyAuthCacheInvalidator interface {
 
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
-	RoutingMode string   `json:"routing_mode"`
-	Name        string   `json:"name"`
-	Scope       string   `json:"scope"`
-	GroupID     *int64   `json:"group_id"`
-	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单
+	RoutingMode       string   `json:"routing_mode"`
+	Name              string   `json:"name"`
+	Scope             string   `json:"scope"`
+	GroupID           *int64   `json:"group_id"`
+	CustomKey         *string  `json:"custom_key"`   // 可选的自定义key
+	IPWhitelist       []string `json:"ip_whitelist"` // IP 白名单
+	IPBlacklist       []string `json:"ip_blacklist"` // IP 黑名单
+	ConversionEnabled bool     `json:"conversion_enabled"`
+	DefaultClient     string   `json:"default_client"`
+	DefaultEndpoint   string   `json:"default_endpoint"`
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -237,13 +241,16 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest 更新API Key请求
 type UpdateAPIKeyRequest struct {
-	RoutingMode *string   `json:"routing_mode"`
-	GroupIDSet  bool      `json:"-"`
-	Name        *string   `json:"name"`
-	GroupID     *int64    `json:"group_id"`
-	Status      *string   `json:"status"`
-	IPWhitelist *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
-	IPBlacklist *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
+	RoutingMode       *string   `json:"routing_mode"`
+	GroupIDSet        bool      `json:"-"`
+	Name              *string   `json:"name"`
+	GroupID           *int64    `json:"group_id"`
+	Status            *string   `json:"status"`
+	IPWhitelist       *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
+	IPBlacklist       *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
+	ConversionEnabled *bool     `json:"conversion_enabled"`
+	DefaultClient     *string   `json:"default_client"`
+	DefaultEndpoint   *string   `json:"default_endpoint"`
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -271,6 +278,9 @@ func validateCreateAPIKeyRequest(req CreateAPIKeyRequest) error {
 		mode = &req.RoutingMode
 	}
 	if err := ValidateAPIKeyRoutingInput(mode, mode != nil, req.GroupID); err != nil {
+		return err
+	}
+	if err := ValidateCompositeAccessConfiguration(req.ConversionEnabled, req.DefaultClient, req.DefaultEndpoint); err != nil {
 		return err
 	}
 	for _, v := range []float64{req.Quota, req.RateLimit5h, req.RateLimit1d, req.RateLimit7d} {
@@ -585,11 +595,19 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
+	if req.ConversionEnabled && req.GroupID == nil {
+		return nil, infraerrors.BadRequest("API_KEY_CONVERSION_GROUP_INVALID", "Unified conversion requires a Composite group")
+	}
+
 	// 验证分组权限（如果指定了分组）
 	if req.GroupID != nil {
 		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
 		if err != nil {
 			return nil, fmt.Errorf("get group: %w", err)
+		}
+
+		if req.ConversionEnabled && group.Platform != PlatformComposite {
+			return nil, infraerrors.BadRequest("API_KEY_CONVERSION_GROUP_INVALID", "Unified conversion requires a Composite group")
 		}
 
 		// 检查用户是否可以绑定该分组
@@ -639,20 +657,23 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
-		UserID:      userID,
-		TeamID:      teamID,
-		Key:         key,
-		Name:        html.EscapeString(req.Name),
-		GroupID:     req.GroupID,
-		RoutingMode: req.RoutingMode,
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		UserID:            userID,
+		TeamID:            teamID,
+		Key:               key,
+		Name:              html.EscapeString(req.Name),
+		GroupID:           req.GroupID,
+		RoutingMode:       req.RoutingMode,
+		Status:            StatusActive,
+		IPWhitelist:       req.IPWhitelist,
+		IPBlacklist:       req.IPBlacklist,
+		Quota:             req.Quota,
+		QuotaUsed:         0,
+		RateLimit5h:       req.RateLimit5h,
+		RateLimit1d:       req.RateLimit1d,
+		RateLimit7d:       req.RateLimit7d,
+		ConversionEnabled: req.ConversionEnabled,
+		DefaultClient:     req.DefaultClient,
+		DefaultEndpoint:   req.DefaultEndpoint,
 	}
 	apiKey.RoutingMode = apiKey.EffectiveRoutingMode()
 	apiKey.ActorUser = actor
@@ -917,6 +938,25 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	// fields 只登记本次请求真正要改的列。quota_used 与 usage_5h/1d/7d 由计费热路径
 	// 原子递增，除非用户显式点了"重置"，否则这里不用快照把它们写回去。
 	var fields APIKeyUpdateFields
+	enabled := apiKey.ConversionEnabled
+	if req.ConversionEnabled != nil {
+		enabled = *req.ConversionEnabled
+	}
+	client, endpoint := apiKey.DefaultClient, apiKey.DefaultEndpoint
+	if req.DefaultClient != nil {
+		client = *req.DefaultClient
+	}
+	if req.DefaultEndpoint != nil {
+		endpoint = *req.DefaultEndpoint
+	}
+	if err := ValidateCompositeAccessConfiguration(enabled, client, endpoint); err != nil {
+		return nil, err
+	}
+	if req.ConversionEnabled != nil || req.DefaultClient != nil || req.DefaultEndpoint != nil {
+		apiKey.ConversionEnabled = enabled
+		apiKey.DefaultClient, apiKey.DefaultEndpoint = client, endpoint
+		fields.Preferences = true
+	}
 	// 下面若干分支会顺带把 Status 改回 active（配额扩容、清除过期等），
 	// 所以用原始值比对来决定是否写 status，而不是只看 req.Status。
 	originalStatus := apiKey.Status
@@ -959,8 +999,22 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			return nil, ErrGroupNotAllowed
 		}
 
+		apiKey.Group = group
 		apiKey.GroupID = req.GroupID
 		fields.GroupID = true
+	}
+
+	if apiKey.ConversionEnabled && (req.ConversionEnabled != nil || req.GroupID != nil || req.GroupIDSet || req.RoutingMode != nil) {
+		group := apiKey.Group
+		if group == nil && apiKey.GroupID != nil {
+			group, err = s.groupRepo.GetByID(ctx, *apiKey.GroupID)
+			if err != nil {
+				return nil, fmt.Errorf("get group: %w", err)
+			}
+		}
+		if group == nil || group.Platform != PlatformComposite {
+			return nil, infraerrors.BadRequest("API_KEY_CONVERSION_GROUP_INVALID", "Unified conversion requires a Composite group")
+		}
 	}
 
 	if req.Status != nil {

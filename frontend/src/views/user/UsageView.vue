@@ -1,5 +1,5 @@
 <template>
-  <AppLayout workspace>
+  <AppLayout appearance="user" workspace>
     <div class="workspace-page usage-workspace">
       <WorkspaceTabs v-model="workspaceTab" class="workspace-fixed" :tabs="workspaceTabs" :label="t('usage.tabs.usage')" />
         <div v-show="activeTab !== 'live'" class="card workspace-fixed usage-date p-4">
