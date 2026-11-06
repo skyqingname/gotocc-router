@@ -1025,6 +1025,10 @@ export default {
           official: '官方 API'
         }
       },
+      grokImagesB64JsonOnly: {
+        title: '生图只取 base64（零数据保留）',
+        hint: 'xAI 团队开启零数据保留（ZDR）后不提供图片链接。开启此项后网关向 xAI 固定请求 b64_json；客户端要求 url 时返回 data: 形式的图片链接，同时保留 b64_json。',
+      },
       grokMediaEligibility: {
         title: '媒体生成资格',
         hint: '控制该 Grok OAuth 账号是否可被图片和视频生成请求选中。',

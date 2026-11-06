@@ -11,9 +11,9 @@ The current GoToCC development tree integrates the complete fixed Plus release
 `8fcc5a4869066c7b251fcbc47646c24843e9bfaf`, peeled commit
 `12d5d72bf695fe756ffcbe282c4dcc1f42b697b7`. Its official baseline remains
 `Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.006`,
-which keeps the `.005` content and corrects video protocol switching so a
-custom request template no longer survives a protocol change. Publication status is authoritative in the owned
+The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.007`,
+which keeps the `.006` content and adds Grok image support for xAI Zero Data
+Retention teams. Publication status is authoritative in the owned
 GitHub Release. Repository, tag and commit identify upstream and owned
 releases independently.
 
@@ -288,3 +288,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.19+custom.005` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | integrates Plus `.006`, Antigravity scheduling control and creative studio header correction; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | `.005` plus the video protocol switch template correction; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.19+custom.007` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | `.006` plus Grok image support for xAI Zero Data Retention teams; see owned GitHub Release |

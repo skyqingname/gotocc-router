@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -68,6 +69,7 @@ type GrokMediaRequestInfo struct {
 	DurationSeconds int
 	InputImageURLs  []string
 	MaskImageURL    string
+	ResponseFormat  string
 	Uploads         []OpenAIImagesUpload
 	MaskUpload      *OpenAIImagesUpload
 }
@@ -150,6 +152,7 @@ func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
 	info.Prompt = strings.TrimSpace(gjson.GetBytes(body, "prompt").String())
 	info.Size = strings.TrimSpace(gjson.GetBytes(body, "size").String())
 	info.AspectRatio = strings.TrimSpace(gjson.GetBytes(body, "aspect_ratio").String())
+	info.ResponseFormat = strings.TrimSpace(gjson.GetBytes(body, "response_format").String())
 	assignGrokMediaResolution(strings.TrimSpace(gjson.GetBytes(body, "resolution").String()), info)
 	if duration := gjson.GetBytes(body, "duration"); duration.Exists() && duration.Type == gjson.Number {
 		info.DurationSeconds = int(duration.Int())
@@ -266,6 +269,8 @@ func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokM
 			info.Size = value
 		case "aspect_ratio":
 			info.AspectRatio = value
+		case "response_format":
+			info.ResponseFormat = value
 		case "resolution":
 			assignGrokMediaResolution(value, info)
 		case "duration":
@@ -774,6 +779,14 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	if err != nil {
 		return nil, err
 	}
+	imagesB64JSONOnly := (endpoint == GrokMediaEndpointImagesGenerations || endpoint == GrokMediaEndpointImagesEdits) &&
+		account.getExtraBool(AccountExtraImagesB64JSONOnly)
+	if imagesB64JSONOnly {
+		body, err = sjson.SetBytes(body, "response_format", "b64_json")
+		if err != nil {
+			return nil, fmt.Errorf("set grok image response format: %w", err)
+		}
+	}
 
 	var bodyReader io.Reader
 	if endpoint.RequiresRequestBody() {
@@ -834,6 +847,12 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 				ResponseBody:    respBody,
 				ResponseHeaders: resp.Header.Clone(),
 			}
+		}
+	}
+	if imagesB64JSONOnly && requestInfo.ResponseFormat != "b64_json" {
+		respBody, err = addGrokImageDataURLs(respBody)
+		if err != nil {
+			return nil, err
 		}
 	}
 	if endpoint == GrokMediaEndpointVideoStatus {
@@ -1046,6 +1065,24 @@ func isGrokCLIProxyTarget(rawURL string) bool {
 	return err == nil && strings.EqualFold(parsed.Hostname(), "cli-chat-proxy.grok.com")
 }
 
+// AccountExtraImagesB64JSONOnly 是 Grok 账号 extra 中的开关键。xAI 零数据保留（ZDR）团队不提供图片链接，
+// 开启后网关向上游固定请求 b64_json；客户端没有要求 b64_json 时，再按 url 格式补上 data: 链接。
+const AccountExtraImagesB64JSONOnly = "images_b64_json_only"
+
+// addGrokImageDataURLs 为每张图片补上 data: 形式的 url，b64_json 原样保留，与 Responses 生图的 url 约定一致。
+func addGrokImageDataURLs(body []byte) ([]byte, error) {
+	var err error
+	for index, item := range gjson.GetBytes(body, "data").Array() {
+		b64 := item.Get("b64_json").String()
+		head, _ := base64.StdEncoding.DecodeString(b64[:min(len(b64), 64)])
+		body, err = sjson.SetBytes(body, fmt.Sprintf("data.%d.url", index), "data:"+http.DetectContentType(head)+";base64,"+b64)
+		if err != nil {
+			return nil, fmt.Errorf("add grok image data url: %w", err)
+		}
+	}
+	return body, nil
+}
+
 func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, contentType string) ([]byte, string, error) {
 	if endpoint != GrokMediaEndpointImagesEdits {
 		return body, contentType, nil
@@ -1078,6 +1115,9 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 	}
 	if info.AspectRatio != "" {
 		payload["aspect_ratio"] = info.AspectRatio
+	}
+	if info.ResponseFormat != "" {
+		payload["response_format"] = info.ResponseFormat
 	}
 
 	images := make([]map[string]string, 0, len(info.InputImageURLs)+len(info.Uploads))

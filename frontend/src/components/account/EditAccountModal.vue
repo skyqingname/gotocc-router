@@ -715,6 +715,25 @@
 
       </div>
 
+      <!-- Grok 零数据保留账号：生图只取 base64 -->
+      <div
+        v-if="account.platform === 'grok'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <label class="input-label mb-0">{{ t('admin.accounts.grokImagesB64JsonOnly.title') }}</label>
+            <p class="mt-1 text-xs surface-muted">
+              {{ t('admin.accounts.grokImagesB64JsonOnly.hint') }}
+            </p>
+          </div>
+          <Toggle
+            v-model="grokImagesB64JsonOnly"
+            data-testid="grok-images-b64-json-only-toggle"
+          />
+        </div>
+      </div>
+
       <!-- Grok OAuth media generation eligibility override -->
       <div
         v-if="isGrokOAuthAccount"
@@ -3421,6 +3440,7 @@ const headerOverrideCapable = computed(
 
 // Grok OAuth 自定义上游地址（仅转发端点；OAuth 授权/令牌刷新不受影响）
 const grokOAuthCustomBaseUrlEnabled = ref(false)
+const grokImagesB64JsonOnly = ref(false)
 const grokOAuthBaseUrl = ref('')
 const grokDiagnostics = ref<GrokModelDiagnostics | null>(null)
 const diagnosticsLoading = ref(false)
@@ -4375,6 +4395,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Load Grok OAuth custom upstream URL state（存储的官方地址视同未定制）
   grokOAuthCustomBaseUrlEnabled.value = false
   grokOAuthBaseUrl.value = ''
+  grokImagesB64JsonOnly.value = extra?.images_b64_json_only === true
   grokMediaEligibilityMode.value = modeFromGrokMediaExtra(extra)
   grokMediaEligibilityInitialMode.value = grokMediaEligibilityMode.value
   grokMediaEligibilityState.value = null
@@ -6007,6 +6028,13 @@ const handleSubmit = async () => {
       normalizedExtra.upstream_request_id_header = upstreamHeader
     } else {
       delete normalizedExtra.upstream_request_id_header
+    }
+    if (props.account.platform === 'grok') {
+      if (grokImagesB64JsonOnly.value) {
+        normalizedExtra.images_b64_json_only = true
+      } else {
+        delete normalizedExtra.images_b64_json_only
+      }
     }
     updatePayload.extra = normalizedExtra
 
