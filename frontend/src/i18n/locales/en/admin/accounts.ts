@@ -953,6 +953,10 @@ export default {
           official: 'Official API'
         }
       },
+      grokImagesB64JsonOnly: {
+        title: 'Images as base64 only (Zero Data Retention)',
+        hint: 'xAI teams with Zero Data Retention (ZDR) cannot return image URLs. When enabled, the gateway always requests b64_json from xAI; clients asking for url receive a data: URL alongside b64_json.',
+      },
       grokMediaEligibility: {
         title: 'Media Generation Eligibility',
         hint: 'Controls whether this Grok OAuth account may be selected for image and video generation.',
