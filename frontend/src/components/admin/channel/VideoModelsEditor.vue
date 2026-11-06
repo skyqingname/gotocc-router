@@ -218,6 +218,8 @@ function selectProtocol(name: string, id: string) {
   delete jsonErrors.value[name]
   patch(name, {
     ...protocolConfig(id, current.upstream_model),
+    // 自定义请求模板只属于原协议，切换后随之移除，改用新协议的内置模板。
+    provider_definition: undefined,
     enabled: current.enabled, description: current.description, family: current.family, capabilities: current.capabilities,
   })
 }

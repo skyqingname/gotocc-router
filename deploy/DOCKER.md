@@ -102,8 +102,8 @@ preserves the leading `v` and replaces only `+` with `-` to produce the
 OCI-compatible image tag. For example:
 
 ```text
-Git/GitHub: v0.2.19+custom.005
-GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.19-custom.005
+Git/GitHub: v0.2.19+custom.006
+GHCR:       ghcr.io/skyqingname/sub2api-plus:v0.2.19-custom.006
 ```
 
 Pin the immutable release tag in production. Use `latest` only when automatic

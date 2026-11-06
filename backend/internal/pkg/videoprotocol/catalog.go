@@ -69,9 +69,10 @@ func (c *Config) FreezeCatalog() error {
 	}
 	m.Metadata.Documentation = ""
 	if c.ProviderDefinition != nil {
-		definition := *c.ProviderDefinition
-		definition.ID = c.ProviderID
-		m.Contributes.Providers = []yp.ManifestProvider{definition}
+		if c.ProviderDefinition.ID != c.ProviderID {
+			return fmt.Errorf("自定义请求模板属于协议 %s，与所选协议 %s 不一致；请重新选择协议或改写请求模板", c.ProviderDefinition.ID, c.ProviderID)
+		}
+		m.Contributes.Providers = []yp.ManifestProvider{*c.ProviderDefinition}
 	}
 	m.Contributes = yp.ManifestContributions{Providers: m.Contributes.Providers}
 	c.ProviderManifest, err = json.Marshal(m)
