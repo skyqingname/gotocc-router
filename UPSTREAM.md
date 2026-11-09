@@ -11,14 +11,14 @@ The current GoToCC development tree integrates the complete fixed Plus release
 `0b4e6d4228e2528b4c168b06ad3d21030fda5ed8`, peeled commit
 `c54cae37813b21077afeefcf9b252a54d052380c`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.20`, commit `dab829a4e9b7d1cc307189aea8b0319eb29e29d0`.
-This is an unpublished development integration. The embedded owned version
-remains `0.2.19+custom.007` until the owner assigns a release; it is not the
-identity of a new published artifact. Repository, tag and commit distinguish
-upstream and owned releases.
+The owned release identity is `skyqingname/gotocc-router@v0.2.20+custom.001`.
+Publication was requested on 2026-11-09 after the local candidate checks. The
+owned and upstream tags share a name but point to different fixed commits;
+repository, tag and peeled commit must always be considered together.
 
 The integration retains GoToCC team/reseller funding, unified invitation and
 commission rules, original-currency pricing, content audit, owned update channel,
-retired automatic canvas transfers, and the pending affiliate/dashboard scroll
+retired automatic canvas transfers, and the affiliate/dashboard scroll
 and native-dialog menu fixes. Upstream bounded gateway resources, MCP OAuth,
 registration-email blacklist, image capability controls and catalog layout
 settings are imported. MCP stays opt-in and disabled without its configured URL.
@@ -303,4 +303,6 @@ published tags and artifacts are immutable.
 
 | `skyqingname/gotocc-router@v0.2.19+custom.007` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | `.006` plus Grok image support for xAI Zero Data Retention teams; see owned GitHub Release |
 
-| `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | upstream published; owned integration pending acceptance and release assignment |
+| `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed upstream integrated into the owned v0.2.20+custom.001 release |
+
+| `skyqingname/gotocc-router@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378` with retained GoToCC contracts and UI scrolling/dialog fixes; see owned GitHub Release |
