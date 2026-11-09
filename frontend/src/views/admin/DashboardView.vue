@@ -1,7 +1,7 @@
 <template>
-  <AppLayout workspace>
-    <div class="workspace-page admin-dashboard">
-      <div class="card workspace-fixed dashboard-toolbar p-4">
+  <AppLayout>
+    <div class="admin-dashboard">
+      <div class="card dashboard-toolbar p-4">
             <div class="flex flex-wrap items-center gap-4">
               <div class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
                 <span class="text-sm font-medium surface-muted"
@@ -37,7 +37,7 @@
           </div>
 
       <!-- Loading State: KPI skeletons (match the loaded layout to avoid a jump) -->
-      <div v-if="loading && !stats" class="dashboard-kpis workspace-fixed flex flex-col gap-4">
+      <div v-if="loading && !stats" class="dashboard-kpis flex flex-col gap-4">
         <div class="card p-5">
           <div class="skeleton h-3 w-24"></div>
           <div class="skeleton mt-3 h-9 w-44"></div>
@@ -54,7 +54,7 @@
 
       <template v-else-if="stats">
         <!-- Hero: today's operational + financial pulse (the one primary focus) -->
-        <div class="dashboard-kpis workspace-fixed flex flex-col gap-4">
+        <div class="dashboard-kpis flex flex-col gap-4">
           <div class="dashboard-hero card p-5">
             <div class="flex flex-wrap items-start justify-between gap-6">
               <div class="min-w-0">
@@ -248,12 +248,12 @@
         </div>
 
         <!-- Charts Section -->
-        <WorkspaceTabs v-if="compactCharts" v-model="chartTab" class="workspace-fixed" :tabs="dashboardTabs" :label="t('workspace.charts')" />
-        <div class="workspace-body dashboard-charts" :class="{ 'dashboard-charts-compact': compactCharts }">
+        <WorkspaceTabs v-if="compactCharts" v-model="chartTab" :tabs="dashboardTabs" :label="t('workspace.charts')" />
+        <div class="dashboard-charts">
           <!-- Charts Grid -->
           <div v-show="!compactCharts || chartTab === 'models'" class="dashboard-chart-grid grid grid-cols-1 gap-6 lg:grid-cols-2">
             <ModelDistributionChart
-              workspace
+              class="dashboard-models"
               :model-stats="modelStats"
               :enable-ranking-view="true"
               :ranking-items="rankingItems"
@@ -267,7 +267,7 @@
               :end-date="endDate"
               @ranking-click="goToUserUsage"
             />
-            <TokenUsageTrend workspace :trend-data="trendData" :loading="chartsLoading" />
+            <TokenUsageTrend class="dashboard-token-trend" :trend-data="trendData" :loading="chartsLoading" />
           </div>
 
           <!-- User Usage Trend (Full Width) -->
@@ -282,7 +282,7 @@
                 </button>
               </div>
             </div>
-            <div class="dashboard-line-canvas h-64">
+            <div class="dashboard-line-canvas h-80">
               <div v-if="userTrendLoading && !userTrendChartData" class="flex h-full items-center justify-center">
                 <LoadingSpinner size="md" />
               </div>
@@ -776,7 +776,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.admin-dashboard, .dashboard-charts { display: flex; flex-direction: column; gap: var(--shell-zone-gap); min-width: 0; }
+.dashboard-chart-grid { align-items: start; }
+.dashboard-models :deep(.record-table-scroll) { --record-table-max-height: none; }
+.dashboard-models :deep(.static-table-frame), .dashboard-models :deep(.record-table-scroll) { min-width: min(100%, 30rem); }
+.dashboard-token-trend :deep(> div) { height: 20rem; }
 .dashboard-refresh { margin-left: auto; }
+@media (min-width: 640px) {
+  .dashboard-models :deep(> .flex:not(:first-child)) { flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+}
 @media (min-width: 1024px) {
   .dashboard-toolbar { padding: 12px 16px; }
   .dashboard-toolbar > div { gap: 12px; }
@@ -785,12 +793,9 @@ onMounted(() => {
   .dashboard-kpi-grid { gap: 10px; }
   .dashboard-kpi-grid > .card { min-width: 0; padding: 12px; }
   .dashboard-kpi-grid > .card > div { gap: 10px; }
-  .dashboard-charts { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1.02fr); gap: 12px; }
-  .dashboard-charts-compact { grid-template-rows: minmax(0, 1fr); }
-  .dashboard-chart-grid { min-height: 0; gap: 12px; }
-  .dashboard-user-trend { display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 14px; }
+  .dashboard-chart-grid { gap: 12px; }
+  .dashboard-user-trend { padding: 14px; }
   .dashboard-user-trend > div:first-child { flex: none; margin-bottom: 10px; }
-  .dashboard-line-canvas { position: relative; height: auto; min-height: 0; flex: 1; }
 }
 @media (min-width: 1800px) and (min-height: 960px) {
   .dashboard-kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }

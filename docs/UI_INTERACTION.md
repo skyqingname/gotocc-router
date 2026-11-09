@@ -51,9 +51,17 @@ uses the same available space for its table. Below 1024px, pages return to norma
 document scrolling. Public/auth layouts retain their own geometry, and operations
 fullscreen remains a dedicated full-screen view.
 
-Dashboard quick actions are removed. Administrator desktop dashboards fit their available
-height; shorter administrator windows switch between the model/trend charts and
-user trend instead of hiding charts below the viewport. The user dashboard shows
+Dashboard quick actions are removed. The administrator dashboard uses natural page
+scrolling: its date controls, KPI cards, chart navigation and chart cards move
+together instead of squeezing charts into the remaining viewport height. Model
+distribution and spending-ranking tables expand to fit their rows. When a chart
+card cannot fit its doughnut and table side by side, they wrap into separate rows;
+horizontal table scrolling remains available when needed. Token and user trend
+plots keep a 20rem height.
+Shorter administrator windows retain the model/trend and user-trend tabs; larger
+windows show both chart sections. These layout rules are local to the administrator
+dashboard and do not change other consumers of the shared chart components.
+The user dashboard shows
 charts, platform/quota information and recent usage together in one independently
 scrolling region below its fixed refresh toolbar, without section tabs. The rounded
 outer frame is transparent. Its cards share the toolbar's overall left and right
@@ -62,9 +70,8 @@ with four bordered inner cards and the single Performance heading. The platform
 breakdown remains a separate card with a 16px gap. Date controls and
 refresh remain available; chart dates do not change the semantics of today's KPI
 cards.
-On administrator desktop windows shorter than 800px, KPI cards share a horizontally scrolling
-row so the charts retain usable height. All KPI cards remain available; phone
-layouts keep their natural vertical flow.
+All administrator KPI cards remain in the page flow, including on shorter windows;
+phone layouts keep their natural vertical flow.
 
 Operations separates monitoring, alert events and system logs; risk control
 separates configuration and audit records; IP access control separates automatic
@@ -134,9 +141,11 @@ between aligned fixed header and bottom cards. Redeem pairs the balance and
 redemption form in aligned cards, followed by four guide cards. Affiliate keeps
 its four statistics, pairs invitation details and the existing balance transfer,
 and shows four guide cards. Its invited-user list paginates ten real entries
-locally. Both pages allocate the remaining desktop height to records alone;
-aligned bottom pagination stays fixed. Changing page resets the record viewport,
-and reduced results clamp the page. Redemption, copying and balance-transfer
+locally. Affiliate statistics, invitation details, guide cards, the complete
+ten-entry page and its pagination scroll together. Its list has no internal
+vertical scroll or mobile height cap; changing page scrolls to the invited-user
+section. My Subscriptions retains its bounded record viewport and fixed bottom
+pagination. Reduced results clamp the page. Redemption, copying and balance-transfer
 business rules stay unchanged. Mobile layouts keep natural page scrolling.
 
 Scroll clipping belongs to the actual viewport: large content viewports use the
