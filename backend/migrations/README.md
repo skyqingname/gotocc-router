@@ -6,7 +6,7 @@ startup. The runner records each filename and SHA256 checksum in
 
 Migration `331_api_key_native_access_preferences.sql` adds empty-default client
 and endpoint presentation preferences. They grant no endpoint access and change
-no routing; omitted updates preserve values. See [native Composite access](../../docs/COMPOSITE_GROUPS.md#native-endpoint-access-and-key-preferences).
+no routing; omitted updates preserve values. See [native Composite access](../../docs/COMPOSITE_GROUPS.md#optional-unified-endpoint-and-native-access).
 
 Migration `330_usage_outbound_metadata.sql` adds nullable administrator dispatch
 evidence. Historical rows stay NULL; the existing usage accuracy CHECK and
@@ -81,6 +81,11 @@ after publication; later migrations use a new number. Future address changes
 retain the account capability. Older binaries ignore this setting and can lose
 compatibility after an address change, so replacing the binary alone is not a
 protocol rollback. See [image edits](../../docs/protocols/OPENAI_IMAGES.md).
+
+Migration `333_mcp_oauth.sql` imports official migration 249 as GoToCC migration 333 after the existing immutable history.
+It stores OAuth grants, one-use authorization-code digests and rotating credential
+digests for the opt-in management MCP. Existing users receive no grant during
+upgrade; schema installation alone does not enable MCP. See [management MCP](../../docs/mcp.md).
 
 ## Mandatory Rules
 

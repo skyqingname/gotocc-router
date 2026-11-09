@@ -319,7 +319,7 @@ describe('validateHeaderOverrideRows', () => {
     'X-Stainless-Runtime', 'X-Stainless-Runtime-Version',
     'X-Device-Mid', 'X-Client-Bundle-Id', 'X-Client-Platform',
     'X-Client-Version', 'X-Client-Locale', 'X-Client-Timezone-Offset',
-    'X-ZCode-App-Version', 'X-ZCode-Agent', 'HTTP-Referer', 'X-Title',
+    'X-ZCode-Session-Features', 'X-ZCode-App-Version', 'X-ZCode-Agent', 'HTTP-Referer', 'X-Title',
     'X-Release-Channel', 'X-Client-Language', 'X-Client-Timezone',
     'X-Platform', 'X-Os-Category', 'X-Os-Version'
   ])('rejects managed identity %s, including legacy JSON imports', (name) => {
@@ -359,6 +359,34 @@ describe('validateHeaderOverrideRows', () => {
     expect(validateHeaderOverrideRows([{ name: 'Content-Type', value: '' }])).toBe('blockedName')
     expect(validateHeaderOverrideRows([{ name: 'Cookie', value: '' }])).toBe('blockedName')
     expect(validateHeaderOverrideRows([{ name: 'x-goog-api-key', value: '' }])).toBe('blockedName')
+  })
+
+  it('reserves OpenAI actor authorization for credential-owned authentication', () => {
+    // Codex model-provider-info/src/lib.rs treats this as authentication.
+    // Imported/static overrides must not pair another actor with the owner key.
+    for (const name of ['X-OpenAI-Actor-Authorization', 'x-openai-actor-authorization', 'X-OPENAI-ACTOR-AUTHORIZATION']) {
+      for (const value of ['', 'Bearer foreign-actor']) {
+        const rows = parseHeaderOverridesJson(JSON.stringify({ [name]: value }))!
+        expect(validateHeaderOverrideRows(rows)).toBe('blockedName')
+      }
+    }
+  })
+
+  it.each([
+    'Content-Encoding', 'X-OpenAI-Internal-Codex-Residency', 'X-OpenAI-Memgen-Request',
+    'X-OpenAI-Subagent', 'X-ResponsesAPI-Include-Timing-Metrics',
+    'X-Grok-Client-Surface', 'X-Grok-Req-Id', 'X-Grok-Session-Id', 'X-Grok-Agent-Id',
+    'X-Grok-Conv-Group-Id', 'X-Grok-Model-Override', 'X-Grok-User-Id',
+    'X-Grok-Deployment-Id', 'X-Grok-Turn-Idx', 'X-Grok-Transient-Retry',
+    'X-UserID', 'X-Email', 'X-XAI-Token-Auth', 'X-AuthenticateResponse'
+  ])('rejects adapter-owned override %s before save', (name) => {
+    // The header-override contract reserves auth, encoding, residency and
+    // per-request state; an editor must not accept rows the server rejects.
+    for (const variant of [name, name.toLowerCase(), name.toUpperCase()]) {
+      for (const value of ['', 'static-value']) {
+        expect(validateHeaderOverrideRows([{ name: variant, value }])).toBe('blockedName')
+      }
+    }
   })
 
   it('rejects duplicate names case-insensitively', () => {

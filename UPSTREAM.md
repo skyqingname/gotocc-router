@@ -7,15 +7,28 @@ publication status. Release naming and procedures live in
 ## Integrated Baseline
 
 The current GoToCC development tree integrates the complete fixed Plus release
-`LuckyKuang/sub2api-plus@v0.2.19+custom.006`: tag object
-`8fcc5a4869066c7b251fcbc47646c24843e9bfaf`, peeled commit
-`12d5d72bf695fe756ffcbe282c4dcc1f42b697b7`. Its official baseline remains
-`Wei-Shaw/sub2api@v0.2.19`, commit `dece26153621959ccd7635814f4b2d08304e681a`.
-The owned candidate is `skyqingname/gotocc-router@v0.2.19+custom.007`,
-which keeps the `.006` content and adds Grok image support for xAI Zero Data
-Retention teams. Publication status is authoritative in the owned
-GitHub Release. Repository, tag and commit identify upstream and owned
-releases independently.
+`LuckyKuang/sub2api-plus@v0.2.20+custom.001`: tag object
+`0b4e6d4228e2528b4c168b06ad3d21030fda5ed8`, peeled commit
+`c54cae37813b21077afeefcf9b252a54d052380c`. Its official baseline is
+`Wei-Shaw/sub2api@v0.2.20`, commit `dab829a4e9b7d1cc307189aea8b0319eb29e29d0`.
+This is an unpublished development integration. The embedded owned version
+remains `0.2.19+custom.007` until the owner assigns a release; it is not the
+identity of a new published artifact. Repository, tag and commit distinguish
+upstream and owned releases.
+
+The integration retains GoToCC team/reseller funding, unified invitation and
+commission rules, original-currency pricing, content audit, owned update channel,
+retired automatic canvas transfers, and the pending affiliate/dashboard scroll
+and native-dialog menu fixes. Upstream bounded gateway resources, MCP OAuth,
+registration-email blacklist, image capability controls and catalog layout
+settings are imported. MCP stays opt-in and disabled without its configured URL.
+
+Upstream `307_mcp_oauth.sql` is imported as **333_mcp_oauth.sql**; every existing
+GoToCC SQL migration remains unchanged. Authentication snapshot version 33
+retains team/routing fields and imports the upstream Composite/privacy fields.
+The compiled release-channel baseline is regenerated independently of an owned
+release assignment. Source integration, candidate acceptance, publication and
+production installation remain separate states.
 
 ## GoToCC CI fixture compatibility (2026-11-02)
 
@@ -109,9 +122,9 @@ upstream CI, release and validation tooling listed in
 ## Plus Baseline Version
 
 ```text
-Git/GitHub: v0.2.19+custom.006
-Application: 0.2.19+custom.006
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.19-custom.006
+Git/GitHub: v0.2.20+custom.001
+Application: 0.2.20+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.20-custom.001
 ```
 
 ## Release Mapping
@@ -256,8 +269,7 @@ artifact verification.
 
 `v0.2.19+custom.006` retains the same official baseline for the live Codex
 safety buffering notice suppression and normalized OpenAI session error wording.
-Its mapping remains planned until publication and immutable artifact
-verification.
+Its mapping was published after immutable artifact verification.
 
 `v0.2.4+custom.006` is marked withdrawn because official `v0.2.5` was imported before that snapshot overlay was published. Do not reuse or retag `.006`.
 
@@ -290,3 +302,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | `.005` plus the video protocol switch template correction; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.19+custom.007` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | `.006` plus Grok image support for xAI Zero Data Retention teams; see owned GitHub Release |
+
+| `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | upstream published; owned integration pending acceptance and release assignment |

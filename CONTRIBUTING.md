@@ -260,3 +260,47 @@ create or move release tags.
 
 Never push `main` directly. Publication merges the accepted candidate branch
 into `main` through a pull request, as described in `docs/RELEASING.md`.
+
+## Documentation and Skill Maintenance
+
+This contract applies to documentation, repository rules and skills used or
+affected by the current task, including their supporting references, scripts
+and tests. Check the relevant scope as you work; it does not require a complete
+repository audit on every task.
+
+For descriptive documentation and implementation conventions only:
+
+> When a repository’s documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.
+
+Explicit current requirements, security boundaries and authoritative protocol
+and test contracts take precedence over existing implementation. Existing code
+is evidence of an implementation convention, not proof of business correctness.
+When code violates a governing requirement, fix the code and its regressions;
+do not rewrite requirements or weaken tests to legitimize the defect.
+
+During implementation or skill use:
+
+1. Compare the affected instructions and examples with the relevant code,
+   maintained entrypoints and governing requirements. Follow the established
+   code convention when descriptive guidance is stale, and verify commands in
+   the prescribed environment before documenting or using them.
+2. Correct discovered errors and synchronize every source affected by a behavior
+   change in the same change. Include owning documentation, repository rules,
+   skills, their references, executable helpers and applicable tests. Remove
+   superseded instructions instead of leaving conflicting guidance in place.
+3. Maintain each source in its owning location. Update authorized writable
+   external skills there; do not create a competing repository copy. If an
+   external or read-only source cannot be updated, record its location, the
+   remaining change and the reason in the final reply.
+4. Treat "current" as the verified implementation, approved requirements and
+   applicable authoritative sources. Keep version references tied to the
+   repository's maintained declarations rather than duplicating version pins.
+5. In the final reply, list each discovered documentation/code inconsistency
+   with both locations, the difference, its resolution and any outstanding
+   update with its reason. Apply the same reporting to rule and skill issues.
+   If none were found, state that for the inspected scope; do not imply an
+   unperformed repository-wide audit.
+
+Changes to the AGENTS.md maintenance contract also update the `compress-cli`
+skill, its reference, validator and requirement-based regression tests. Under the Owner Execution Policy, run the existing read-only validator; preserve
+upstream regression sources without adding or executing test suites.

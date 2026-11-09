@@ -38,8 +38,8 @@ surface.
 
 Kimi and Moonshot OAuth/API-key accounts retain the Kimi Code client family.
 Account parameters may override its global profile; cross-family selections and
-the retired `kimi:apikey` mapping are rejected. The compiled identity is: `User-Agent: kimi-code-cli/2.3.1` plus the official companion
-declarations `X-Msh-Platform: kimi_code_cli`, `X-Msh-Version: 2.3.1` and the four
+the retired `kimi:apikey` mapping are rejected. The compiled identity is: `User-Agent: kimi-code-cli/2.5.2` plus the official companion
+declarations `X-Msh-Platform: kimi_code_cli`, `X-Msh-Version: 2.5.2` and the four
 device headers `X-Msh-Device-Name`, `X-Msh-Device-Model`, `X-Msh-Os-Version` and
 `X-Msh-Device-Id`. The official client declares no `Originator` and no standalone
 `Version` header, so neither is sent. `SUB2API_KIMI_CODE_VERSION` may select a
@@ -86,7 +86,7 @@ and API-key identity resolution. Both use the first-party host declarations from
 `packages/oauth/src/identity.ts`; runtime values remain stable across retries
 and version updates. An invalid account header candidate falls through as a
 whole, and generic overrides cannot replace device or version companions. See
-[source evidence and priority](../OUTBOUND_IDENTITY.md#domestic-provider-source-evidence-and-source-priority).
+[source evidence and priority](../OUTBOUND_IDENTITY.md#official-agent-source-evidence-and-source-priority).
 
 Kimi's inference SDK adds a protocol-specific `X-Stainless-*` block: Anthropic
 SDK `0.95.2`, OpenAI SDK `6.34.0`, with a pinned supported Linux/arm64 Node
@@ -133,3 +133,16 @@ pause/recovery writes are conditional on that owner. All three also compare the
 cooldown deadline and reason seen before the probe, including a previously absent
 cooldown, preserving newer reactive balance markers and failures. `success` describes the
 provider response; `persisted` is true only after its conditional local write.
+
+The November 7 review selects stable `2.5.2` with unchanged SDK/runtime facts.
+Native Messages requests with enabled or disabled thinking declare
+`anthropic-beta: context-management-2025-06-27`, following the official
+provider-specific transform rather than the generic Anthropic default.
+
+## Concurrency-limit responses
+
+The exact Kimi concurrent-request 403 uses the short 429 fallback cooldown;
+it does not permanently disable the account. Credential-generation CAS still
+authorizes persistent/runtime changes. A failed or stale update cannot block a
+new credential generation. This does not enable broad keyword-based quota
+classification or replace known quota-reset windows.

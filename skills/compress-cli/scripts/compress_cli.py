@@ -28,6 +28,7 @@ REQUIRED_CATEGORIES = (
     "OpenSpec",
     "Secrets",
     "Documented Commands",
+    "Documentation Maintenance",
     "Implementation",
     "Design",
     "Test Design",
@@ -118,6 +119,14 @@ PROTECTED_FRAGMENTS = {
     "Documented Commands": (
         "repository scripts or Make targets",
         "verify syntax, supported version, and execution environment",
+    ),
+    "Documentation Maintenance": (
+        "For descriptive documentation and implementation conventions only:",
+        "When a repository’s documentation and its existing code disagree, follow the conventions used in the existing code, and in your final reply point out each inconsistency you found between the documentation and the code.",
+        "Explicit current requirements, security boundaries, and authoritative protocol/test contracts take precedence over existing implementation",
+        "When issues or changes are found during use, update all affected documentation, rules, skills, and their owning references/scripts/tests in the same change",
+        "Report each discovered inconsistency with documentation/code locations, resolution, and any remaining external/read-only update with its reason",
+        "Follow CONTRIBUTING.md#documentation-and-skill-maintenance",
     ),
     "Test Design": (
         "Derive test scenarios and expected results independently from business requirements, acceptance criteria, and authoritative contracts",

@@ -24,6 +24,7 @@ import (
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/brandidentity"
+	pkghttputil "github.com/LuckyKuang/sub2api-plus/internal/pkg/httputil"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/outboundidentity"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/proxyurl"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/proxyutil"
@@ -220,7 +221,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
-	resp, err := doUpstreamRequest(client, req)
+	resp, err := doUpstreamRequest(client, req, s.upstreamDrainTimeout())
 	if err != nil {
 		s.recordOpenAIHTTP2Failure(profile, entry.protocolMode, entry.proxyKey, err)
 		// 请求失败，立即减少计数
@@ -289,7 +290,7 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	}
 
 	client := s.httpClientForUpstreamRequest(entry.client, req)
-	resp, err := doUpstreamRequest(client, req)
+	resp, err := doUpstreamRequest(client, req, s.upstreamDrainTimeout())
 	if err != nil {
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
@@ -305,13 +306,24 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 	return resp, nil
 }
 
+func (s *httpUpstreamService) upstreamDrainTimeout() time.Duration {
+	if s.cfg != nil && s.cfg.Gateway.StreamDataIntervalTimeout > 0 {
+		return time.Duration(s.cfg.Gateway.StreamDataIntervalTimeout) * time.Second
+	}
+	return pkghttputil.DefaultUpstreamDrainTimeout
+}
+
 // doUpstreamRequest owns cancellation for one attempt, without cancelling the
 // caller's context (which may be detached for billing or reused for retries).
-func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+func doUpstreamRequest(client *http.Client, req *http.Request, drainTimeouts ...time.Duration) (*http.Response, error) {
 	if err := service.ApplyCodexRequestCompression(req); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithCancel(req.Context())
+	var drainTimeout time.Duration
+	if len(drainTimeouts) > 0 {
+		drainTimeout = drainTimeouts[0]
+	}
+	ctx, cancel := pkghttputil.NewUpstreamAttemptContext(req.Context(), drainTimeout)
 	resp, err := servertiming.Do(brandidentity.WrapClient(client), req.WithContext(ctx))
 	if err != nil {
 		cancel()
@@ -319,7 +331,7 @@ func doUpstreamRequest(client *http.Client, req *http.Request) (*http.Response, 
 	}
 	firstbyte.Track(req, resp)
 	errorReadTimer := prepareUpstreamResponseBody(resp, cancel)
-	resp.Body = &cancelOnCloseBody{ReadCloser: resp.Body, cancel: cancel, errorReadTimer: errorReadTimer}
+	resp.Body = &cancelOnCloseBody{ReadCloser: resp.Body, ctx: ctx, cancel: cancel, errorReadTimer: errorReadTimer}
 	return resp, nil
 }
 
@@ -339,6 +351,7 @@ func prepareUpstreamResponseBody(resp *http.Response, cancel context.CancelFunc)
 
 type cancelOnCloseBody struct {
 	io.ReadCloser
+	ctx            context.Context
 	cancel         context.CancelFunc
 	once           sync.Once
 	err            error
@@ -354,6 +367,11 @@ func (b *cancelOnCloseBody) Read(p []byte) (int, error) {
 		return 0, http.ErrBodyReadAfterClose
 	}
 	n, err := b.ReadCloser.Read(p)
+	// Transport cancellation or decoder initialization can consume the original
+	// read error and leave only EOF. An interrupted body is never complete.
+	if errors.Is(err, io.EOF) && b.ctx.Err() != nil {
+		err = b.ctx.Err()
+	}
 	if err != nil && b.errorReadTimer != nil {
 		b.errorReadTimer.Stop()
 	}

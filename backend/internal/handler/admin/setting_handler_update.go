@@ -363,7 +363,8 @@ type UpdateSettingsRequest struct {
 	GrokDefaultBaseURLMode         *string `json:"grok_default_base_url_mode"`
 
 	// Available Channels feature switch (user-facing)
-	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+	AvailableChannelsEnabled *bool   `json:"available_channels_enabled"`
+	AvailableChannelsLayout  *string `json:"available_channels_layout" binding:"omitempty,oneof=card list"`
 
 	// Subscription feature switch (user-facing subscription surface; see SettingKeySubscriptionEnabled)
 	SubscriptionEnabled *bool `json:"subscription_enabled"`
@@ -416,13 +417,13 @@ type UpdateSettingsRequest struct {
 // UpdateSettings 更新系统设置
 // PUT /api/v1/admin/settings
 // ensureActorTotpForStepUp 校验当前操作者具备开启 step-up 门控的条件：
-// 必须是真人管理员会话（admin API key 无法完成 TOTP step-up，拒绝）且本人已启用 TOTP。
+// 必须是真人管理员会话（admin API key、MCP OAuth 等机器凭证无法完成 TOTP step-up，拒绝）且本人已启用 TOTP。
 // 校验失败时写入错误响应并返回 false。
 func (h *SettingHandler) ensureActorTotpForStepUp(c *gin.Context) bool {
-	if c.GetString("auth_method") == service.AuditAuthMethodAdminAPIKey {
+	if reason, machine := middleware.MachineCredentialReason(c); machine {
 		response.ErrorWithDetails(c, http.StatusForbidden,
-			"Admin API key cannot enable step-up verification; use an admin session with TOTP enabled",
-			"STEP_UP_ADMIN_API_KEY_FORBIDDEN", nil)
+			"Machine credentials cannot enable step-up verification; use an admin session with TOTP enabled",
+			reason, nil)
 		return false
 	}
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
@@ -535,6 +536,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	auditReq := settingsAuditRequest(req)
 	omitted := omittedSettingKeys(sentFields)
+	// Older clients must not rewrite a layout changed by another administrator
+	// between this request's read and write. JSON null also means no change.
+	if req.AvailableChannelsLayout == nil {
+		omitted[service.SettingKeyAvailableChannelsLayout] = struct{}{}
+	}
 	// This live display setting must not be rewritten from an earlier read by
 	// an unrelated save while an administrator is toggling an active stream.
 	if req.OpenAICodexSafetyBufferingSuppressed == nil {
@@ -2152,6 +2158,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				return strings.TrimSpace(*req.GrokDefaultBaseURLMode)
 			}
 			return previousSettings.GrokDefaultBaseURLMode
+		}(),
+		AvailableChannelsLayout: func() string {
+			if req.AvailableChannelsLayout != nil {
+				return *req.AvailableChannelsLayout
+			}
+			return previousSettings.AvailableChannelsLayout
 		}(),
 		AvailableChannelsEnabled: func() bool {
 			if req.AvailableChannelsEnabled != nil {

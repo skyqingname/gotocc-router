@@ -7,14 +7,15 @@
           <div class="flex flex-wrap items-center gap-4">
             <div class="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
-              <DateRangePicker
-                class="min-w-0 max-w-full"
-                v-model:start-date="startDate"
-                v-model:end-date="endDate"
-                @change="onDateRangeChange"
-              />
+              <div class="filter-field">
+                <DateRangePicker
+                  v-model:start-date="startDate"
+                  v-model:end-date="endDate"
+                  @change="onDateRangeChange"
+                />
+              </div>
             </div>
-            <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+            <div class="filter-pair">
               <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.granularity') }}:</span>
               <div class="w-28">
                 <Select v-model="granularity" :options="granularityOptions" @change="loadChartData" />
@@ -219,10 +220,9 @@ import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; impo
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
 import ClientDisconnectEventsPanel from '@/components/admin/usage/ClientDisconnectEventsPanel.vue'
 import { useColumnPreferenceKey } from '@/composables/useColumnPreferenceKey'
-import { useAnchoredDropdown } from '@/composables/useAnchoredDropdown'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import { useAnchoredDropdown } from '@/composables/useAnchoredDropdown'
 import { useUsageSnapshot } from '@/composables/useUsageSnapshot'
-import RefreshControl from '@/components/common/RefreshControl.vue'
 import LiveRequestsPanel from '@/components/usage/LiveRequestsPanel.vue'
 import UserTokenRanking from '@/components/admin/usage/UserTokenRanking.vue'
 import UsageCleanupDialog from '@/components/admin/usage/UsageCleanupDialog.vue'
