@@ -194,7 +194,11 @@ states. Console surfaces use no backdrop filters or filter-only pseudo-elements.
 The shared background image or gradient remains visible on the page canvas
 between surfaces. Dropdowns must paint above subsequent cards, and fixed dialogs
 must retain viewport positioning. Explicit scroll containers still own clipping;
-searchable selects and shared dialogs retain their body portals.
+shared dialogs retain their body portals. Select menus normally portal to body,
+but a Select inside an open native `dialog` portals to that dialog so its menu
+stays in the modal top layer and remains interactive. Opening a menu resolves
+its current dialog host; positioning, viewport bounds and keyboard behavior are
+otherwise unchanged.
 Surface positioning is a low-specificity fallback and must preserve component
 and utility positioning, including the sticky toolbar and absolute dropdowns.
 Keep that fallback outside Tailwind's component layer so important card/dropdown
