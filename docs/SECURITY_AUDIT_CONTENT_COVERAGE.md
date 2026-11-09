@@ -7,6 +7,22 @@ Moderation and Prompt Audit. The shared implementation is
 `backend/internal/auditcontent`; protocol handlers and account paths must not
 maintain alternate text extractors.
 
+The November 8 [Codex source review](OFFICIAL_AGENT_BASELINES.md#november-8-protocol-alignment)
+includes chronological Responses Lite tool catalogs and developer Code Mode
+definition/removal messages. They remain context, not current direct-user text.
+Both engines consume the original envelope before outbound namespace migration;
+recognized current user siblings remain auditable, and an unknown-only current
+item passes without an audit supplier request. The shared real-shape fixture is
+`backend/internal/testdata/official_agents/codex_incremental_exec.json`.
+`handler/TestCodexIncrementalExecCanonicalAudits` covers HTTP and flat/nested
+WS envelopes; `TestCodexIncrementalExecRealAuditsBeforeSideEffects` exercises
+both real engines, HTTP/WS, and OAuth/API-key candidate types, with zero account
+selection, billing, concurrency or provider writes on recognized-content blocks.
+Its unknown-only controls reach user admission without an audit-derived block;
+the fixture then denies that slot before account/provider work. No extraction,
+audit policy or endpoint validation rule changes. Downstream answer display
+metadata is independent of these ingress decisions.
+
 The opt-in [official Codex CLI transparent bridge](CODEX_CLI.md) retains the
 existing Responses, Chat, Messages and Responses WebSocket ingress endpoints.
 It changes the prepared outbound HTTP transport only after their existing
@@ -1093,3 +1109,68 @@ These changes stay after request admission and do not alter either audit engine.
 rejections and compact failures after keepalive; the original terminal/error
 code stays intact. `TestOpenAIErrorMessagesSanitizedPendingToggle` exercises
 both live toggle directions before a fragmented sanitized error is released.
+
+## November 7 official-client compatibility
+
+Codex main's per-turn `prompt_cache_options.ttl` (`30m` or `12h`) is request
+control metadata. Preserving it on OAuth/setup-token HTTP/WS, compaction and
+bridge forwarding does not hide the recognized current user input from Content
+Moderation or Prompt Audit. Unknown sibling items still pass with extracted
+siblings auditable. Neither cache lifetime nor ZCode's stripped
+`x-zcode-session-features` attribution may select a client identity, bypass
+canonical extraction or move audit after selection, billing, concurrency or send.
+
+Regression evidence includes `TestCodexProtocolOptionsPreserveCanonicalAuditContent`
+(HTTP, direct/nested WS and unknown content),
+`TestCodexCLIBridgeOrdinaryResponsesBothRealAuditsPrecedeSideEffects` (OAuth/API
+Key with real engines), the HTTP/WS pass-through and side-effect-order suites,
+and `TestCodexOfficialPromptCacheTTLPreservedAcrossTransportsAndTurns`.
+
+Codex native Images GIF controls (`output_format`, `frame_count`,
+`frame_duration_ms`) are non-content options. Both canonical audit engines
+continue to consume the current prompt and recognized input images; unknown
+valid sibling options and empty prompts retain pass-through extraction.
+`TestOfficialCodexGIFControlsPreserveBothCanonicalAudits` covers recognized and
+empty input, and `TestOfficialCodexGIFBothRealAuditsPrecedeImageSideEffects`
+covers real moderation and Prompt Audit rejection on OAuth/API-key image
+requests before account reads, slots, billing, transport or task effects.
+
+The reviewed managed executable is now `0.167.0`, matching the compiled default
+outbound identity. Its unchanged `responses-api-proxy` source forwards the
+already-admitted body through the private nonce relay; installation/update
+cannot admit traffic, change credential owners, or bypass either audit engine.
+`tools/test_codex_cli_wire.py` exercises the actual official binary, including
+OAuth/API-key bridge transport, error output and interactive safety buffering.
+Native and bridged HTTP/WS ingress retain the existing original-content audit
+ordering and unknown-content pass-through contract.
+
+## Official v0.2.20 import
+
+Native Images requests may include `complexity`, SVG author options, markup
+media and GIF frame controls. Both audit engines extract the original prompt
+and recognized image references from the canonical Images contract. New options
+and unknown valid sibling fields do not become prompt text or extraction-based
+blocks. `TestUpstream020NativeImageOptionsPreserveCanonicalAudits` and
+`TestUpstream020NativeImageAuditsPrecedeSideEffects` cover the real field shapes
+for both engines and OAuth/API-key ingress. Existing HTTP/WS unknown-frame and
+side-effect-order matrices remain mandatory for all protocol conversion changes.
+
+Ingress buffering and per-operation timeouts are basic resource admission.
+Capacity rejection is a distinct `gateway.*` resource failure (503 with
+Retry-After), never an audit extraction/dependency failure. Read/decode/normalize
+exceptions preserve sanitized request ID, normalized endpoint, protocol, stage,
+stable reason and byte counts. No body, credential or raw decoder/socket error
+is logged. Async image execution owns a separate body reservation after submit
+returns; its prior audit and Plus task-capacity ownership remain in force.
+
+Management MCP is a control-plane OAuth endpoint, not an inference adapter.
+Its tools reuse Plus REST ownership/permission/step-up guards and operation audit;
+they do not create an alternate inference ingress. Disabled MCP, read-only grants,
+role changes, user deactivation, token replay and revoked grants must prevent
+unauthorized dispatch. See [MCP](mcp.md) and its HTTP/SDK and PostgreSQL tests.
+
+Native image edits recognize `markup.image_url`/uploaded markup as image inputs
+alongside image and mask. Raw JSON and normalized audit payloads share that
+canonical media projection. `TestUpstream020MarkupEntersCanonicalAudits` covers
+both engines; `TestUpstream020EmptyNativeImageContentPassesAudits` verifies that
+empty/unknown content proceeds past both engines before scheduling.

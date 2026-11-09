@@ -25,10 +25,10 @@ func TestOpenAIBridgeAuxiliaryInferenceIdentityTransitions(t *testing.T) {
 	identities := []struct {
 		name, accountUA, globalUA, wantUA, wantOriginator string
 	}{
-		{"account override", "codex_vscode/0.165.0 (Windows 11; aarch64) vscode", "codex-tui/0.165.0 (Ubuntu 24.04; x86_64) screen", "codex_vscode/0.165.0 (Windows 11; aarch64) vscode", "codex_vscode"},
-		{"empty account inherits global", "", "codex-tui/0.165.0 (Ubuntu 24.04; x86_64) screen", "codex-tui/0.165.0 (Ubuntu 24.04; x86_64) screen", "codex-tui"},
-		{"invalid account inherits global", "curl/8.0", "codex-tui/0.165.0 (Ubuntu 24.04; x86_64) screen", "codex-tui/0.165.0 (Ubuntu 24.04; x86_64) screen", "codex-tui"},
-		{"invalid candidates inherit compiled", "curl/8.0", "invalid", "codex_cli_rs/0.165.0 (Ubuntu 24.04; x86_64) xterm-256color", "codex_cli_rs"},
+		{"account override", "codex_vscode/0.167.0 (Windows 11; aarch64) vscode", "codex-tui/0.167.0 (Ubuntu 24.04; x86_64) screen", "codex_vscode/0.167.0 (Windows 11; aarch64) vscode", "codex_vscode"},
+		{"empty account inherits global", "", "codex-tui/0.167.0 (Ubuntu 24.04; x86_64) screen", "codex-tui/0.167.0 (Ubuntu 24.04; x86_64) screen", "codex-tui"},
+		{"invalid account inherits global", "curl/8.0", "codex-tui/0.167.0 (Ubuntu 24.04; x86_64) screen", "codex-tui/0.167.0 (Ubuntu 24.04; x86_64) screen", "codex-tui"},
+		{"invalid candidates inherit compiled", "curl/8.0", "invalid", "codex_cli_rs/0.167.0 (Ubuntu 24.04; x86_64) xterm-256color", "codex_cli_rs"},
 	}
 	for _, endpoint := range []string{"/v1/embeddings", "/v1/responses/input_tokens", "/v1/messages/count_tokens", "/v1/responses/compact"} {
 		for _, accountType := range []string{AccountTypeOAuth, AccountTypeAPIKey, AccountTypeSetupToken} {
@@ -48,7 +48,7 @@ func TestOpenAIBridgeAuxiliaryInferenceIdentityTransitions(t *testing.T) {
 					account.Credentials["user_agent"] = identity.accountUA
 					account.Credentials[CodexCLIConfigCredentialKey] = map[string]any{"enabled": true, "config_toml": DefaultCodexCLIConfigTOML}
 					account.Credentials[credKeyHeaderOverrideEnabled] = true
-					account.Credentials[credKeyHeaderOverrides] = map[string]any{"user-agent": "injected/999", "originator": "injected", "version": "999.0.0"}
+					account.Credentials[credKeyHeaderOverrides] = map[string]any{"user-agent": "injected/999", "originator": "injected", "version": "999.0.0", "x-openai-actor-authorization": "Bearer foreign-actor"}
 					global := &codexBridgeSwitchRepo{openAIIdentitySettingRepoStub: &openAIIdentitySettingRepoStub{values: map[string]string{SettingKeyOpenAICodexUserAgent: identity.globalUA}}}
 					flag := &atomic.Bool{}
 					rows := &codexBridgeHotAccountRepo{owners: map[int64]*Account{account.ID: account}, flags: map[int64]*atomic.Bool{account.ID: flag}}
@@ -128,7 +128,8 @@ func TestOpenAIBridgeAuxiliaryInferenceIdentityTransitions(t *testing.T) {
 						require.Equal(t, wantPath, observed.path)
 						require.Equal(t, []string{identity.wantUA}, observed.header.Values("User-Agent"))
 						require.Equal(t, []string{identity.wantOriginator}, observed.header.Values("Originator"))
-						require.Equal(t, []string{"0.165.0"}, observed.header.Values("Version"))
+						require.Equal(t, []string{"0.167.0"}, observed.header.Values("Version"))
+						require.Empty(t, observed.header.Values("X-OpenAI-Actor-Authorization"))
 						require.Equal(t, wantAuth, observed.header.Get("Authorization"))
 					}
 				})

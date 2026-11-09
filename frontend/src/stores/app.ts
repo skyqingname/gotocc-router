@@ -62,6 +62,7 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Computed ====================
 
   const hasActiveToasts = computed(() => toasts.value.length > 0)
+  const availableChannelsLayout = computed(() => cachedPublicSettings.value?.available_channels_layout === 'list' ? 'list' : 'card')
   const backendModeEnabled = computed(() => cachedPublicSettings.value?.backend_mode_enabled ?? false)
 
   const loadingCount = ref<number>(0)
@@ -449,6 +450,7 @@ export const useAppStore = defineStore('app', () => {
         channel_monitor_enabled: true,
         channel_monitor_default_interval_seconds: 60,
         available_channels_enabled: false,
+        available_channels_layout: 'card',
         subscription_enabled: true,
         payment_balance_disabled: false,
         model_plaza_enabled: false,
@@ -459,6 +461,7 @@ export const useAppStore = defineStore('app', () => {
         service_quota_enabled: false,
         affiliate_enabled: false,
         allow_user_view_error_requests: false,
+        mcp_enabled: false,
       })
     }
 
@@ -538,6 +541,7 @@ export const useAppStore = defineStore('app', () => {
     apiBaseUrl,
     docUrl,
     cachedPublicSettings,
+    availableChannelsLayout,
     consoleAppearancePreview,
     consoleAppearance,
     applyConsoleAppearance,

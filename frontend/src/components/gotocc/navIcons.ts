@@ -1,4 +1,5 @@
 import { h, type FunctionalComponent, type VNode } from 'vue'
+import Icon from '@/components/icons/Icon.vue'
 
 // 侧栏导航图标。图形来自 Lucide（ISC 许可，https://lucide.dev），悬停动效参照 Lucide Animated（MIT 许可，
 // https://github.com/pqoqubbw/icons）及 TokenRouter 的移植，改写为纯 CSS，样式在 styles/gotocc.css 的「侧栏图标动效」一节。
@@ -29,6 +30,9 @@ const icon = (name: string, shapes: Shape[]): FunctionalComponent => {
 
 // 描线部件：pathLength 归一为 1，便于用 stroke-dashoffset 从 1 画到 0。
 const drawn = (tag: string, attrs: Record<string, string>, order = 0): Shape => [tag, { ...attrs, pathLength: '1', class: `gc-d gc-d${order}` }]
+
+// MCP uses the shared protocol mark while keeping sidebar icons in this module.
+export const MCPIcon: FunctionalComponent = () => h(Icon, { name: 'mcp', class: 'gc-nav-icon' })
 
 export const DashboardIcon = icon('dashboard', [
   ['rect', { class: 'gc-a gc-a0', width: '7', height: '9', x: '3', y: '3', rx: '1' }],

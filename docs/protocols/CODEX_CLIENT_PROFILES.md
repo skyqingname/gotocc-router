@@ -179,6 +179,16 @@ response to the client instead of scanning other owners. Explicit quota,
 administrative, authorization and model restrictions retain their own gates.
 Request/provider failures do not scan the account pool.
 
+When an already permitted pre-output recovery exhausts the canonical owner's
+budget, that exhaustion remains bound to its authorization domain, session and
+generation throughout the request's existing candidate/switch budget. A failed
+candidate, including one retried on the same account, cannot discard that
+evidence or authorize recovery of an unrelated or newer route. Another candidate
+still requires the normal policy, continuation, concurrency and lease checks.
+An account ID alone is insufficient recovery evidence. Same-account retries also
+validate the selected attempt's domain, session, owner and generation, even when
+the recorded owner ID has not changed.
+
 Migration uses the generation observed at selection and a candidate lease.
 Admission and HTTP/WS handshakes leave the previous owner in place. Valid
 semantic output or a verified successful terminal commits the candidate before
@@ -186,6 +196,11 @@ that result is delivered. Chat Completions without text require a successful
 finish and positive usage; structural chunks stay buffered until acceptance.
 Responses output arrays containing only empty message containers are structural
 too; without semantic output, a successful terminal needs positive usage.
+HTTP Responses readers normalize an absent JSON event `type` from the SSE
+`event:` field before acceptance, output observation and terminal reconstruction,
+including passthrough readers. An explicit JSON `type` takes precedence. The
+normalization preserves the event's remaining fields and does not turn failed,
+unknown or empty structural events into acceptance.
 Failed candidates and lost leases retain the old
 owner. Once committed, recovery of the old account does not reclaim the session.
 During WS passthrough migration, classify upstream failures before testing
@@ -209,6 +224,16 @@ usage-draining requests too. Route errors return a retryable
 as account health failures. Measured upstream usage on a rejected commit stays
 attributed to that candidate as incomplete usage, without automatically
 replaying the request. This does not promise exactly-once upstream execution.
+
+A concurrent request that encounters an active migration lease retains the
+retryable routing error; it cannot send through the old owner or independently
+take over the candidate. Selection, admission, forwarding, retained-socket owner
+validation and failed lease abandonment emit indexed
+`openai_session_route_failed` warnings with a fixed stage/reason, request context,
+owner/candidate IDs, generation and remaining lease milliseconds. Reasons
+distinguish `migration_in_progress`, `lease_lost`, `route_store_unavailable` and
+`candidate_not_accepted`. Logs omit raw errors, credentials, content, session
+digests and lease IDs; the public error envelope remains unchanged.
 
 OAuth and API-key candidates retain their own endpoints, authentication and
 trusted identity snapshots. Logical cache identity is separate from upstream
@@ -358,7 +383,7 @@ its result cannot overwrite a newer account binding.
 This source matrix applies identically to OAuth and API-key HTTP/WS provider
 requests, including retries, discovery and probes. Transport preference and
 inbound client classification never change the selected source.
-The October 28 manual upgrade selects stable `0.165.0` after this matrix;
+The November 7 manual upgrade selects stable `0.167.0` after this matrix;
 it changes the version declaration only. Valid administrator version overrides
 retain priority and every selected family, OS, architecture and terminal stays intact.
 
@@ -379,9 +404,9 @@ string clears it through an explicit null in the JSONB update.
 The exact compiled identity is:
 
 ```text
-User-Agent: codex_cli_rs/0.165.0 (Ubuntu 24.04; x86_64) xterm-256color
+User-Agent: codex_cli_rs/0.167.0 (Ubuntu 24.04; x86_64) xterm-256color
 Originator: codex_cli_rs
-Version: 0.165.0
+Version: 0.167.0
 ```
 
 The version resolver runs after source selection: a valid administrator version
@@ -519,6 +544,16 @@ Generic override saves reject managed identity headers with
 Authentication, session, routing and protocol-capability fields keep their own
 ownership. The superseded ForceCodexCLI UA staging and disable-enforcement
 branch have been removed; classification does not select an outbound identity.
+
+`X-OpenAI-Actor-Authorization` is reserved authentication as defined by official
+Codex [`model-provider-info/src/lib.rs`](https://github.com/openai/codex/blob/c9b4267c370a755da12ec1c8648c2451163212b7/codex-rs/model-provider-info/src/lib.rs)
+(`uses_openai_actor_authorization`).
+Inbound caller headers and generic account overrides cannot add another actor
+to OAuth/API-key provider requests. Save-time validation rejects every case
+variant, including empty placeholders; final override filtering ignores legacy
+JSON/string-map entries. Ordinary custom headers still work. The client-side
+`local-image-extension` config marker does not authorize provider dispatch.
+
 The OpenAI HTTP passthrough switch, enabled or disabled, retains this same source
 matrix and header contract. Authentication and identity remain gateway-managed;
 protocol handling, safety filtering, audit, billing and concurrency remain in
@@ -559,6 +594,18 @@ commit links in this document record evidence for individual features rather
 than a different current baseline. Identity-shape alignment does not mean every
 client feature, body, OS fingerprint or transport is identical.
 
+- Responses Lite history is chronological. Initial and restored
+  `input[].additional_tools` declarations may redefine a namespace; incremental
+  Code Mode definitions and removal notices remain developer `input_text`
+  messages in their original positions. OAuth top-level namespace migration
+  preserves all historical declarations and compares migrated tools with the
+  latest declaration of the same identity. A conflicting migrated declaration
+  still fails before provider traffic. API-key requests retain their existing
+  carrier policy. These compatibility operations cannot rewrite developer
+  catalog text, remove unknown siblings or select an outbound identity.
+- `response.metadata` answer moderation display instructions remain opaque
+  producer metadata, including unknown display actions. The independent Plus
+  safety-buffering display setting cannot remove them or change ingress audit.
 - HTTP-to-WS converts the Responses Lite header into the per-generation
   `client_metadata.ws_request_header_x_openai_internal_codex_responses_lite`
   string `"true"`, preserving other metadata. A non-object metadata shape that
@@ -610,7 +657,7 @@ Neither capability is implied by matching UA/Originator/Version.
 ## User-Agent suffix
 
 An administrator User-Agent may end with the official ` ({suffix})` group, for
-example `codex_cli_rs/0.165.0 (Ubuntu 24.04; x86_64) xterm-256color (mcp: server-a)`.
+example `codex_cli_rs/0.167.0 (Ubuntu 24.04; x86_64) xterm-256color (mcp: server-a)`.
 Pairing, validation, and manual version updates accept that form and keep the
 suffix unchanged. The gateway does not generate a suffix.
 
@@ -797,3 +844,54 @@ They preserve their structured code after bounded cross-owner failover and do
 not count as authentication, account health or quota failures. A generation-
 scoped negative model cache prevents a late old-grant response from blocking
 a replacement grant. Other models on that account remain schedulable.
+
+## November 7 protocol compatibility
+
+The manually selected default identity is stable `rust-v0.167.0` at
+`086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a`; its existing source-priority matrix
+and environment fingerprint remain authoritative. The embedded managed CLI
+executable is upgraded to the same reviewed `0.167.0` release. Every compiled
+default identity upgrade must also update the runtime manifest, official archive
+and executable digests, browser catalog and real-binary wire regressions.
+Settings offers explicit installation/update to that reviewed target; it does
+not select an arbitrary release or change administrator identity pins.
+
+Main commit `41cbd5b9b2d5369ba35957328504093ed324333c` adds optional per-turn
+`prompt_cache_options: {"ttl":"30m"}` or `{"ttl":"12h"}` on HTTP and WS.
+OAuth and setup-token forwarding preserve the caller's options on ordinary,
+compact, passthrough and WS bridge paths. An absent option stays absent on a
+later request. Existing API-key GPT-5.6/GPT-6 gates stay in effect; cache-key
+ownership is independent of cache lifetime. No cache declaration bypasses the
+original-content audit gate or changes identity source selection.
+
+The exact provider codes `budget_reached`, `audio_too_large`, `audio_too_short`,
+`invalid_audio`, `invalid_audio_data`, `invalid_audio_format` and
+`missing_audio_sample_rate` follow the reviewed main error parser: HTTP 400 or
+statusless SSE/WS is terminal for this turn. Preserve the code and do not retry,
+fail over or penalize the credential owner. A real HTTP 401/403/429/5xx is not
+reclassified by those codes; authentication and transport policies still apply.
+Wrapped WebSocket `error` events also preserve their numeric `status` or
+`status_code` (including nested error declarations). Only a missing status or
+400 permits the budget/audio terminal classification. An explicit 429 retains
+API-key cooldown and the OAuth same-owner retry window; 5xx retains transport
+recovery, and 426 retains the HTTP protocol fallback. Status-only envelopes do
+not need a matching error type or message.
+This follows the official
+[`WrappedWebsocketErrorEvent`](https://github.com/openai/codex/blob/efdacaf46ff54660a239189a6d62434c5db33d2c/codex-rs/codex-api/src/endpoint/responses_websocket.rs)
+mapping before terminal-provider parsing. The actual HTTP response status takes
+priority over status hints in its body.
+WebSocket prewarm stops on the same codes before another send. All transport
+adapters carry the request rejection through scheduler and health observations
+without counting it as an account failure.
+Buffered SSE errors retain the existing response-header filtering and local
+quota visibility policy while preserving the terminal code.
+
+Codex source commit `f9e7b19df8aa75490fc1d90f98d3d95ad716d08e` adds native
+Images GIF controls: `output_format: "gif"`, optional integer `frame_count`
+(2–16), and optional integer `frame_duration_ms` (20–2000). JSON and multipart
+input preserve the controls as sibling fields on native OAuth/setup-token Images
+and API-key Images paths. Omitted fields remain omitted; generated GIF data URLs
+use `image/gif`. OAuth animation requires a supported native Codex Images model;
+an unavailable endpoint returns its error instead of falling back to a Responses
+image tool that has no reviewed animation contract. Existing still-image fallback
+behavior is unchanged. See `openai_images_official_gif_test.go`.

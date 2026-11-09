@@ -300,6 +300,7 @@ func (h *SettingHandler) loadSystemSettingsResponse(ctx context.Context, setting
 		GrokDefaultBaseURLMode:         settings.GrokDefaultBaseURLMode,
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
+		AvailableChannelsLayout:  settings.AvailableChannelsLayout,
 		SubscriptionEnabled:      settings.SubscriptionEnabled,
 
 		ModelPlazaEnabled:       settings.ModelPlazaEnabled,

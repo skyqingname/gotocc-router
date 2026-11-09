@@ -34,6 +34,48 @@ otherwise. A source-level mapping becomes release evidence only when its
 applicable unit/integration profile passes on the final tree. Unit mocks do not
 prove PostgreSQL locking, rollback, outbox atomicity, or multi-replica storage.
 
+## November 8 official agent review
+
+The subsequent OAuth/API-key account review found that generic API-key header
+overrides could append `X-OpenAI-Actor-Authorization` to the owner's bearer.
+`TestOpenAIActorAuthorizationOverrideRejected` now requires rejection of all
+case variants and empty placeholders. `TestOpenAIActorAuthorizationCannotReachProvider`
+captures real HTTP, passthrough and WS handshake traffic for both account types
+and legacy JSON/string-map overrides, asserting no extra actor credential,
+exact owner auth/default identity and retained ordinary headers. Its WS fixture
+captures the upgrade request and intentionally refuses the upgrade; it does not
+claim a full WS generation. Existing endpoint, auxiliary inference, discovery
+and automatic-probe identity matrices also inject the actor override and require
+its absence, including CLI switch transitions. The frontend gate requires the
+imported-row rejection case. These checks preserve the existing audit boundary
+and use synthetic upstreams without live credentials.
+The editor also rejected none of nineteen previously backend-reserved encoding,
+Codex context/residency and Grok auth/state fields. Independent frontend cases
+now require their rejection, and the identity policy gate detects omissions
+from the editor against the complete server reserved-name list. This synchronizes
+existing restrictions; it introduces no new provider wire declarations.
+Account-editor regressions also require removal of legacy authentication rows
+before any account/CLI save and preserve ordinary headers after correction.
+The untouched-save Grok fixture uses ordinary relay headers; its former
+`x-xai-token-auth` row contradicted the backend's existing authentication ban.
+
+The [reviewed official trees](OFFICIAL_AGENT_BASELINES.md#november-8-protocol-alignment)
+retain all seven existing identity versions and SDK fingerprints. Five heads
+are unchanged; the Step-Code increment changes client-local task/process
+management. Codex adds incremental Code Mode catalog and display behavior.
+
+| Business requirement | Regression and observable acceptance |
+| --- | --- |
+| Chronological Lite catalogs remain valid during a separate top-level namespace migration | `service/TestResponsesLiteOfficialIncrementalExecHistory` covers HTTP and `response.create` preparation for OAuth/API Key; `TestResponsesLiteOfficialIncrementalExecForward` captures native/passthrough HTTP forwarding for both types. Initial/restored same-name declarations, developer definitions/removal text, roles, order and unknown siblings survive; spoofed inbound identity cannot replace the literal trusted Codex triple. The top-level namespace is an explicit gateway extension to official history. |
+| A migrated tool cannot replace the effective historical declaration | `service/TestResponsesLiteMigratedToolsCompareLatestDeclaration`: equality with the latest definition deduplicates, while an obsolete definition fails without changing the request. Existing `TestNormalizeOpenAIResponsesLiteTools_RejectsConflictingAdditionalTool` retains simultaneous migration-conflict rejection. |
+| Independent answer display metadata reaches the producing client | `service/TestCodexOfficialAnswerDisplayMetadata`: native/passthrough SSE and OAuth/API Key retain exact display fields for known and unknown actions while the Plus-only safety notice is suppressed. Existing WS sibling-preservation suites retain transport coverage; this test does not claim desktop rendering. |
+| Both audits see current user content before catalog migration or side effects | `handler/TestCodexIncrementalExecCanonicalAudits` covers HTTP and flat/nested WS extraction. `TestCodexIncrementalExecRealAuditsBeforeSideEffects` exercises both real engines, HTTP/WS and both candidate credential types: recognized user text is blocked before selection/billing/concurrency/provider work, while unknown-only current content invokes no supplier and reaches user admission. Catalog/developer text and historical user turns never become current direct-user text. |
+
+These tests use a reduced official-shape fixture and synthetic upstream; they
+do not claim live credentials, provider entitlement, or execution of the new
+unreleased official client. The mandatory existing seven-provider source,
+owner, signing, failover, proxy and fingerprint suites remain applicable.
+
 ## Pinned Codex CLI bridge and independent task requirements
 
 The [CLI contract](CODEX_CLI.md) adds an opt-in official HTTP proxy transport
@@ -99,7 +141,7 @@ identity, audit, proxy, failover and billing scenarios still apply to shared cod
 
 | Business requirement | Regression and observable acceptance |
 | --- | --- |
-| Terra Messages compatibility preserves the selected model, explicit effort and trusted identity | `TestGPT61TerraMessagesForwardBoundary`: OAuth/API key, account/global identity, suffix/mapping/explicit override; actual outbound Responses body, URL, auth, UA/Originator/Version and downstream response. `TestGPT61TerraMessagesDisabledThinkingStopsBeforeUpstream` asserts the existing local rejection policy and no upstream request. |
+| Terra Messages compatibility preserves the selected model, explicit effort and trusted identity | `TestGPT61TerraMessagesForwardBoundary`: OAuth/API key, account/global identity, suffix/mapping/explicit override; actual outbound Responses body, URL, auth, UA/Originator/Version and downstream response. The November 8 API review accepts disabled thinking as `none`, overriding explicit `max`; those four account/identity cases are individually required. `TestGPT61TerraMessagesMinimalEffortStopsBeforeUpstream` requires all four account/model cases to reject `minimal` without sending. `TestGPT61TerraRejectsMinimalEffort` covers raw API effort fields; `TestGPT61TerraChatFallbackRejectsTools` rejects tool calls in Chat, Responses-to-Chat and Messages-to-Chat fallback paths. |
 | Terra has independently verified same-SKU pricing without changing operator overrides or accepted requests | `TestGPT61TerraReleaseCatalogRatesAndAPILimits`, `TestGPT61TerraPricingAliasesAndUnknownSKUIsolation`, `TestGPT61TerraExplicitCatalogCachePricesOverrideFallback`, and `TestGPT61TerraAcceptedPricingSurvivesCatalogReloadAndDurableSettlement`: official Standard/Fast/Flex/Batch catalog rates, strict long-context threshold, aliases versus unregistered SKUs, explicit zero, catalog reload and durable frozen settlement. |
 | Unknown Terra SKUs cannot borrow cross-family billing/reference/channel prices or inferred usage candidates | `TestGPT61TerraPricingAliasesAndUnknownSKUIsolation` rejects Codex/Claude-containing variants with and without a catalog; `TestGPT61TerraUnknownSKUDoesNotBorrowChannelModelPrice` exercises channel resolution and token billing. `TestGPT61TerraUnknownExactCatalogKeepsItsTierPrices` and `TestGPT61TerraUnknownSKURetainsItsExplicitChannelPrice` preserve explicit SKU tiers/channel prices and known Terra aliases. `TestGPT61TerraUsageBillingCandidatesDoNotInventAnotherSKU` rejects inferred cross-SKU candidates while retaining separately declared billing candidates. |
 | Gemini bound-cache pool retries preserve the admitted owner and route while rechecking current eligibility | `TestGeminiV1BetaModels_BoundCacheRetryRetainsAdmittedOwner` and `TestGeminiV1BetaModels_BoundCacheMissingProxySnapshotCannotSend`: actual outgoing key, URL, identity, proxy and cache reference after replacement or in-place mutation, no missing-proxy send, exactly one successful usage entry, and a later independent request adopts new settings. |

@@ -119,12 +119,37 @@ identities match the current pinned toolchain and dependency-lock inputs, and
 remove stale project validation generations without pruning unrelated projects
 or global runtime resources.
 
+## Documentation and Skill Maintenance
+
+`Documentation Maintenance` is a required protected category. Its owning source
+is [CONTRIBUTING.md](../../../CONTRIBUTING.md#documentation-and-skill-maintenance).
+Preserve the user's exact documentation/code conflict sentence, limited to
+descriptive documentation and implementation conventions. Explicit current
+requirements, security boundaries and authoritative protocol/test contracts
+take precedence over existing implementation; stale guidance cannot justify
+a business defect or weakened tests.
+
+When use reveals an issue or a behavior change, update all affected
+documentation, rules, skills and their owning references/scripts/tests in the
+same change. Maintain external sources at their owning location when authorized
+and writable. Report every discovered inconsistency with the documentation and
+code locations, the difference, resolution and any remaining external/read-only
+update with its reason. Scope that report to inspected sources.
+
+The validator protects the sentence, its scope and precedence, synchronized
+maintenance, per-inconsistency reporting and the owning-document link. Tests
+model removal and weakening of each requirement independently from validator
+constants. These structural checks do not prove that all affected sources have
+been updated or that implementation conventions satisfy business requirements.
+
 ## Validation
 
-Run from the repository root:
+Under the root Owner Execution Policy, run the read-only check from the repository root:
 
     python3 skills/compress-cli/scripts/compress_cli.py check AGENTS.md
-    python3 skills/compress-cli/tests/test_compress_cli.py
+
+Preserve the existing upstream regression sources without adding or executing
+test suites. The containing maintenance workspace owns verification scope.
 
 The CLI checks syntax, unique and required categories, repository source paths,
 obsolete global-skill references, and critical semantic anchors. It does not

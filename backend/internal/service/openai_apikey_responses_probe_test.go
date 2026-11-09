@@ -173,7 +173,7 @@ func TestProbeOpenAIAPIKeyResponsesSupportFreezesWireStateAcrossRelink(t *testin
 	proxyID := int64(8)
 	account.ProxyID = &proxyID
 	account.Proxy = &Proxy{ID: proxyID, Protocol: "http", Host: "old-proxy.example", Port: 8080}
-	account.Credentials["user_agent"] = "codex_vscode/0.165.0 (Ubuntu 24.04; aarch64) vscode"
+	account.Credentials["user_agent"] = "codex_vscode/0.167.0 (Ubuntu 24.04; aarch64) vscode"
 	account.Credentials["model_mapping"] = map[string]any{"client-model": "gpt-old"}
 	account.Credentials["header_override_enabled"] = true
 	account.Credentials["header_overrides"] = map[string]any{"X-Grant": "old"}
@@ -210,9 +210,9 @@ func TestProbeOpenAIAPIKeyResponsesSupportFreezesWireStateAcrossRelink(t *testin
 	require.Equal(t, "https://compat-upstream.example/v1/responses", sent.URL.String())
 	require.Equal(t, "Bearer sk-test", sent.Header.Get("Authorization"))
 	require.Equal(t, "old", getHeaderRaw(sent.Header, "x-grant"))
-	require.Equal(t, "codex_vscode/0.165.0 (Ubuntu 24.04; aarch64) vscode", sent.UserAgent())
+	require.Equal(t, "codex_vscode/0.167.0 (Ubuntu 24.04; aarch64) vscode", sent.UserAgent())
 	require.Equal(t, "codex_vscode", sent.Header.Get("Originator"))
-	require.Equal(t, "0.165.0", sent.Header.Get("Version"))
+	require.Equal(t, "0.167.0", sent.Header.Get("Version"))
 	require.Equal(t, "http://old-proxy.example:8080", sentProxy)
 	var payload map[string]any
 	require.NoError(t, json.NewDecoder(sent.Body).Decode(&payload))
@@ -266,6 +266,62 @@ func TestProbeOpenAIAPIKeyResponsesSupportPersistenceFailureHasNoFallback(t *tes
 			}
 			service.ProbeOpenAIAPIKeyResponsesSupport(context.Background(), account.ID)
 			require.Empty(t, base.updateExtraCalls)
+		})
+	}
+}
+
+func TestProbeOpenAIAPIKeyResponsesSupportSkipsForcedModes(t *testing.T) {
+	cases := []struct {
+		name      string
+		mode      any
+		wantProbe bool
+	}{
+		{name: "force_responses skips probe", mode: string(openai_compat.ResponsesSupportModeForceResponses), wantProbe: false},
+		{name: "force_chat_completions skips probe", mode: string(openai_compat.ResponsesSupportModeForceChatCompletions), wantProbe: false},
+		{name: "auto probes", mode: string(openai_compat.ResponsesSupportModeAuto), wantProbe: true},
+		{name: "invalid mode falls back to auto and probes", mode: "bogus", wantProbe: true},
+		{name: "non-string mode falls back to auto and probes", mode: nil, wantProbe: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			updateCalls := make(chan map[string]any, 1)
+			account := Account{
+				ID:          301,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Concurrency: 1,
+				Credentials: map[string]any{"api_key": "sk-test", "base_url": "https://compat-upstream.example/v1"},
+				Extra:       map[string]any{openai_compat.ExtraKeyResponsesMode: tc.mode},
+			}
+			repo := &responsesProbeAccountRepo{snapshotUpdateAccountRepo: snapshotUpdateAccountRepo{
+				stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+				updateExtraCalls:      updateCalls,
+			}}
+			upstream := &httpUpstreamRecorder{resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"output":[{"type":"function_call","name":"probe_ping"}]}`)),
+			}}
+			svc := &AccountTestService{
+				accountRepo:  repo,
+				httpUpstream: upstream,
+				cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+			}
+
+			svc.ProbeOpenAIAPIKeyResponsesSupport(context.Background(), account.ID)
+
+			if !tc.wantProbe {
+				require.Nil(t, upstream.lastReq)
+				require.Empty(t, updateCalls)
+				require.Zero(t, repo.casCalls)
+				require.Zero(t, repo.unconditionalWrites)
+				return
+			}
+			require.NotNil(t, upstream.lastReq)
+			require.Len(t, updateCalls, 1)
+			require.Equal(t, true, (<-updateCalls)[openai_compat.ExtraKeyResponsesSupported])
+			require.Equal(t, 1, repo.casCalls)
+			require.Zero(t, repo.unconditionalWrites)
 		})
 	}
 }

@@ -258,6 +258,7 @@ const (
 	SettingKeyLoginAgreementMode          = "login_agreement_mode"            // 条款确认展示模式：modal / checkbox
 	SettingKeyLoginAgreementUpdatedAt     = "login_agreement_updated_at"      // 条款更新日期（展示用）
 	SettingKeyLoginAgreementDocuments     = "login_agreement_documents"       // 条款文档列表（JSON，Markdown 内容）
+	SettingKeyRegistrationEmailBlacklist  = "registration_email_blacklist"
 
 	// 邮件服务设置
 	SettingKeySMTPHost     = "smtp_host"      // SMTP服务器地址
@@ -553,6 +554,11 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
+
+	// Available-channel presentation is site-wide and independent of its feature gate.
+	SettingKeyAvailableChannelsLayout = "available_channels_layout"
+	AvailableChannelsLayoutCard       = "card"
+	AvailableChannelsLayoutList       = "list"
 
 	// SettingKeySubscriptionEnabled is a DB-backed soft switch for the user-facing
 	// subscription surface: sidebar entries, purchase-page subscription tab, header

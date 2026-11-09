@@ -1,6 +1,6 @@
 <template>
-  <AppLayout appearance="user" workspace>
-    <div class="workspace-page affiliate-workspace">
+  <AppLayout appearance="user">
+    <div class="affiliate-workspace">
       <div v-if="loading" class="flex justify-center py-12">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
       </div>
@@ -37,7 +37,7 @@
         </div>
 
 
-        <div v-if="isAgent" class="affiliate-stats workspace-fixed grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div v-if="isAgent" class="affiliate-stats grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div class="card p-5">
             <p class="flex items-center gap-1.5 text-sm surface-muted">
               <Icon name="dollar" size="sm" class="text-primary-500" />
@@ -65,7 +65,7 @@
           </div>
         </div>
 
-        <div class="affiliate-top-row workspace-fixed">
+        <div class="affiliate-top-row">
           <section class="card affiliate-invitation">
             <h3 class="text-base font-semibold">{{ t('affiliate.title') }}</h3>
             <p class="mt-1 text-sm surface-muted">{{ t('affiliate.description') }}</p>
@@ -111,7 +111,7 @@
           </section>
         </div>
 
-        <section class="workspace-fixed affiliate-guide" :aria-label="t('affiliate.tips.title')">
+        <section class="affiliate-guide" :aria-label="t('affiliate.tips.title')">
           <h3 class="mb-3 text-sm font-semibold">{{ t('affiliate.tips.title') }}</h3>
           <ul class="affiliate-guide-grid">
             <li v-for="(tip, index) in visibleAffiliateTips" :key="tip.body" class="card affiliate-guide-card">
@@ -125,13 +125,13 @@
           </ul>
         </section>
 
-        <section v-if="isAgent" class="card workspace-table-card affiliate-invitees">
-          <header class="affiliate-invitees-heading workspace-fixed">
+        <section v-if="isAgent" ref="inviteeSection" class="card affiliate-invitees">
+          <header class="affiliate-invitees-heading">
             <h3 class="text-[15px] font-semibold">{{ t('affiliate.invitees.title') }}</h3>
             <span class="text-xs surface-muted">{{ t('common.total') }}: {{ detail.invitees.length }}</span>
           </header>
           <div v-if="detail.invitees.length === 0" class="p-6 text-center text-sm surface-muted">{{ t('affiliate.invitees.empty') }}</div>
-          <div v-else ref="inviteeViewport" class="record-table-scroll workspace-table-viewport affiliate-invitees-viewport">
+          <div v-else class="record-table-scroll affiliate-invitees-viewport">
             <table class="record-table w-full min-w-[560px] text-left text-sm">
               <thead>
                 <tr class="border-b border-gray-200 dark:border-dark-700 surface-muted">
@@ -155,7 +155,7 @@
           </div>
         </section>
 
-        <nav v-if="isAgent" class="card workspace-fixed affiliate-pagination" :aria-label="t('affiliate.invitees.title')">
+        <nav v-if="isAgent" class="card affiliate-pagination" :aria-label="t('affiliate.invitees.title')">
           <div class="affiliate-pagination-info">
             <span>{{ t('common.total') }}: {{ detail.invitees.length }} {{ t('pagination.results') }}</span>
             <span>{{ t('pagination.perPage') }}: {{ inviteePageSize }}</span>
@@ -228,7 +228,7 @@ function applyForAgent(): void {
 }
 const inviteePageSize = 10
 const inviteePage = ref(1)
-const inviteeViewport = ref<HTMLElement | null>(null)
+const inviteeSection = ref<HTMLElement | null>(null)
 const inviteePageCount = computed(() => Math.max(1, Math.ceil((detail.value?.invitees.length || 0) / inviteePageSize)))
 const pagedInvitees = computed(() => (detail.value?.invitees || []).slice((inviteePage.value - 1) * inviteePageSize, inviteePage.value * inviteePageSize))
 const visibleInviteePages = computed(() => {
@@ -259,7 +259,7 @@ const visibleAffiliateTips = computed(() => affiliateTips.filter(tip =>
 async function changeInviteePage(page: number): Promise<void> {
   inviteePage.value = Math.max(1, Math.min(inviteePageCount.value, page))
   await nextTick()
-  if (inviteeViewport.value) inviteeViewport.value.scrollTop = 0
+  inviteeSection.value?.scrollIntoView({ block: 'start' })
 }
 watch(inviteePageCount, count => {
   if (inviteePage.value > count) void changeInviteePage(count)
@@ -334,6 +334,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.affiliate-workspace { display: flex; flex-direction: column; gap: var(--shell-zone-gap); min-width: 0; }
 .affiliate-top-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 .affiliate-top-row > .card { min-width: 0; min-height: 190px; padding: 20px 24px; border-radius: 16px; }
 .affiliate-transfer { display: flex; flex-direction: column; justify-content: center; }
@@ -355,28 +356,9 @@ onMounted(() => {
 .affiliate-pagination-actions > .btn { min-width: 80px; white-space: nowrap; }
 .affiliate-page-number { min-width: 34px; height: 34px; padding: 0 9px; border: 1px solid transparent; border-radius: 9px; color: var(--surface-muted); background: transparent; font-size: 13px; }
 .affiliate-page-number[aria-current="page"] { border-color: var(--surface-edge); background: var(--surface-soft); color: var(--surface-text); font-weight: 600; }
-@media (min-width: 1024px) {
-  .affiliate-invitees :deep(.static-table-frame) { flex: 1 1 0; min-height: 0; height: 0; overflow: hidden; }
-  .affiliate-invitees :deep([data-static-table-body-viewport]) { flex: 1 1 0; min-height: 0; height: 0 !important; overflow: auto; }
-}
-/* Keep actual record rows visible when the fixed panels share a laptop screen. */
-@media (min-width: 1024px) and (max-height: 1000px) {
-  .affiliate-invitees :deep(.static-table-frame) { padding-top: 0 !important; }
-  .affiliate-stats > .card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; align-items: center; gap: 6px 12px; padding: 12px 16px; }
-  .affiliate-stats > .card > p:nth-child(2) { margin-top: 0; font-size: 22px; }
-  .affiliate-stats > .card > p:nth-child(n + 3) { grid-column: 1 / -1; margin-top: 0; }
-  .affiliate-top-row > .card { min-height: 170px; padding: 16px 20px; }
-  .affiliate-guide-card { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; padding: 12px 16px; }
-  .affiliate-guide-top { display: contents; }
-  .affiliate-guide-icon { grid-column: 1; grid-row: 1; width: 32px; height: 32px; border-radius: 10px; }
-  .affiliate-guide-step { grid-column: 3; grid-row: 1; align-self: center; }
-  .affiliate-guide-card > h4 { grid-column: 2; grid-row: 1; align-self: center; }
-  .affiliate-guide-card > p { grid-column: 1 / -1; grid-row: 2; }
-}
 @media (max-width: 1023px) {
   .affiliate-top-row { grid-template-columns: 1fr; }
   .affiliate-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .affiliate-invitees-viewport { max-height: 420px; overflow: auto; }
 }
 @media (max-width: 639px) {
   .affiliate-guide-grid { grid-template-columns: 1fr; }

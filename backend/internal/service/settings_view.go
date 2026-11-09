@@ -221,7 +221,8 @@ type SystemSettings struct {
 	GrokDefaultBaseURLMode         string `json:"grok_default_base_url_mode"`
 
 	// Available Channels feature (user-facing aggregate view)
-	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	AvailableChannelsEnabled bool   `json:"available_channels_enabled"`
+	AvailableChannelsLayout  string `json:"available_channels_layout"`
 
 	// Subscription feature switch: gates the whole user-facing subscription surface
 	// (sidebar entries, purchase-page subscription tab, header progress badge,
@@ -396,6 +397,7 @@ type PublicSettings struct {
 	WeChatOAuthMPEnabled     bool
 	WeChatOAuthMobileEnabled bool
 	BackendModeEnabled       bool
+	MCPEnabled               bool // 由部署配置 MCP_PUBLIC_URL 决定，不可在后台修改
 	PaymentEnabled           bool
 	PaymentBalanceDisabled   bool
 	TeamEnabled              bool
@@ -426,7 +428,8 @@ type PublicSettings struct {
 	GrokDefaultBaseURLMode         string `json:"grok_default_base_url_mode"`
 
 	// Available Channels feature (user-facing aggregate view)
-	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	AvailableChannelsEnabled bool   `json:"available_channels_enabled"`
+	AvailableChannelsLayout  string `json:"available_channels_layout"`
 
 	// Subscription feature switch (see SystemSettings.SubscriptionEnabled)
 	SubscriptionEnabled bool `json:"subscription_enabled"`

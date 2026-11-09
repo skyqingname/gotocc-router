@@ -50,8 +50,8 @@
       </span>
     </button>
 
-    <!-- Teleport dropdown to body to escape stacking context -->
-    <Teleport to="body">
+    <!-- Native modal dialogs own the top layer; keep their menus inside it. -->
+    <Teleport :to="dropdownTarget">
       <Transition name="select-dropdown">
         <div
           v-if="isOpen"
@@ -200,10 +200,17 @@ const triggerRef = ref<HTMLButtonElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const optionsListRef = ref<HTMLElement | null>(null)
+const dropdownTarget = ref<HTMLElement | string>('body')
 const dropdownPosition = ref<'bottom' | 'top'>('bottom')
 const triggerRect = ref<DOMRect | null>(null)
 const dropdownViewportPadding = 8
+// Mirrors --filter-control-width: an expanded menu never renders narrower than
+// the unified filter control it belongs to. styles/__tests__/filterWidths
+// keeps the two in sync.
 const dropdownMinimumWidth = 200
+// Content-sized menus stay readable; longer labels ellipsize instead of
+// stretching the panel across the viewport.
+const dropdownMaximumWidth = 480
 const viewport = ref({ left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight })
 
 const dropdownVerticalBounds = computed(() => {
@@ -244,7 +251,7 @@ const dropdownStyle = computed(() => {
   const bounds = dropdownVerticalBounds.value
   const viewportLeft = viewport.value.left + dropdownViewportPadding
   const viewportRight = Math.max(viewportLeft, viewport.value.right - dropdownViewportPadding)
-  const preferredMinWidth = Math.max(dropdownMinimumWidth, rect.width)
+  const preferredMinWidth = Math.min(dropdownMaximumWidth, Math.max(dropdownMinimumWidth, rect.width))
   const minWidth = Math.min(preferredMinWidth, Math.max(0, viewportRight - viewportLeft))
   const left = Math.min(
     Math.max(viewportLeft, rect.left),
@@ -255,7 +262,7 @@ const dropdownStyle = computed(() => {
     position: 'fixed',
     left: `${left}px`,
     minWidth: `${minWidth}px`,
-    maxWidth: `${availableWidth}px`,
+    maxWidth: `${Math.min(dropdownMaximumWidth, availableWidth)}px`,
     zIndex: '100000020'
   }
 
@@ -419,6 +426,7 @@ watch(() => props.disabled, (disabled) => {
 
 watch(isOpen, (open) => {
   if (open) {
+    dropdownTarget.value = triggerRef.value?.closest<HTMLDialogElement>('dialog[open]') ?? 'body'
     calculateDropdownPosition()
     // Reset focused index to current selection or first item
     if (filteredOptions.value.length === 0) {
@@ -602,6 +610,7 @@ onUnmounted(() => {
 
 <style>
 .select-dropdown-portal {
+  /* Floor mirrors dropdownMinimumWidth; the inline minWidth wins at send time. */
   @apply flex w-max min-w-[200px] flex-col;
   background-color: var(--surface-panel);
   border-radius: var(--surface-radius-panel);
