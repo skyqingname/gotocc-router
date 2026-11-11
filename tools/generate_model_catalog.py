@@ -48,7 +48,11 @@ def main():
     providers = []
     for provider_id in config["providers"]:
         provider = registry[provider_id]
-        models = [trim_model(provider["models"][key]) for key in sorted(provider["models"])]
+        models = []
+        for key in sorted(provider["models"]):
+            model = trim_model(provider["models"][key])
+            model.update(config.get("model_overrides", {}).get(f"{provider_id}/{key}", {}))
+            models.append(model)
         providers.append({"id": provider_id, "name": provider["name"], "models": models})
     snapshot = {
         "source": config["source"],

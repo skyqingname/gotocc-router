@@ -114,8 +114,8 @@ guessing a provider.
 
 ## Consumption rate policies and sale catalogs
 
-All concrete suppliers share the user's execution concurrency and persistent
-unfinished-task admission. Asynchronous upstream waiting does not hold an
+All concrete suppliers share the applicable personal or team execution pool.
+Persistent unfinished-task admission remains a separate per-user policy. Asynchronous upstream waiting does not hold an
 execution lease; its separately persisted unfinished reservation remains until
 confirmed termination. See [gateway task limits](GATEWAY_TASK_LIMITS.md).
 
@@ -297,10 +297,12 @@ user-global and `(user, group)` RPM ceilings, request/fallback/WS-turn counting,
 and their existing simple-mode and dependency-failure policies. API-key USD
 windows are monetary limits; they do not add an API-key RPM policy.
 
-A user's concurrency limit is global across all API keys, groups, suppliers and
-request origins. Main-agent and sub-agent requests share the same Redis user
+A user's personal concurrency limit is global across personal API keys, groups,
+suppliers and request origins. Team keys instead share the independently stored
+team limit and team pool across all members. Personal activity and owner changes
+do not consume or modify that pool; see [team request limits](TEAM_REQUEST_LIMITS.md). Main-agent and sub-agent requests share the same Redis user
 pool; client headers and session affinity cannot create extra capacity.
-Requests consult the current server-side user limit before admission, so stale
+Requests consult the current server-side user or team limit before admission, so stale
 API-key or WebSocket authentication snapshots cannot enlarge the cap. A failed
 limit read or Redis acquisition fails admission rather than granting capacity.
 Every authoritative user-limit lookup, including direct Live callers, has a

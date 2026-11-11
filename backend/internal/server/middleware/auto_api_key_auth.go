@@ -76,7 +76,7 @@ func BindAPIKeyContext(c *gin.Context, key *service.APIKey, subscription *servic
 		c.Request = c.Request.WithContext(service.WithAutoRouteSubscription(c.Request.Context(), id))
 	}
 	c.Set(string(ContextKeyAPIKey), key)
-	c.Set(string(ContextKeyUser), AuthSubject{UserID: key.User.ID, Concurrency: key.User.Concurrency})
+	c.Set(string(ContextKeyUser), AuthSubject{UserID: key.User.ID, Concurrency: key.User.Concurrency, TeamID: key.TeamID})
 	c.Set(string(ContextKeyUserRole), key.User.Role)
 	if subscription == nil {
 		c.Set(string(ContextKeySubscription), nil)

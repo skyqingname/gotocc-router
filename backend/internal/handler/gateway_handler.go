@@ -270,7 +270,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
 	// 1. 首先获取用户并发槽位
-	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlot(c, subject.UserID, subject.Concurrency)
+	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency)
 	if err != nil {
 		reqLog.Warn("gateway.user_slot_acquire_failed", zap.Error(err))
 		h.handleConcurrencyError(c, err, "user", streamStarted)

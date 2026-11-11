@@ -35,6 +35,10 @@ type Team struct {
 	Status string `json:"status,omitempty"`
 	// MemberLimit holds the value of the "member_limit" field.
 	MemberLimit int `json:"member_limit,omitempty"`
+	// Concurrency holds the value of the "concurrency" field.
+	Concurrency int `json:"concurrency,omitempty"`
+	// RpmLimit holds the value of the "rpm_limit" field.
+	RpmLimit int `json:"rpm_limit,omitempty"`
 	// DefaultDailyLimitUsd holds the value of the "default_daily_limit_usd" field.
 	DefaultDailyLimitUsd float64 `json:"default_daily_limit_usd,omitempty"`
 	// DefaultWeeklyLimitUsd holds the value of the "default_weekly_limit_usd" field.
@@ -116,7 +120,7 @@ func (*Team) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case team.FieldBalance, team.FieldFrozenBalance, team.FieldDefaultDailyLimitUsd, team.FieldDefaultWeeklyLimitUsd, team.FieldDefaultMonthlyLimitUsd:
 			values[i] = new(sql.NullFloat64)
-		case team.FieldID, team.FieldResellerOwnerID, team.FieldMemberLimit:
+		case team.FieldID, team.FieldResellerOwnerID, team.FieldMemberLimit, team.FieldConcurrency, team.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
 		case team.FieldName, team.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -198,6 +202,18 @@ func (_m *Team) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field member_limit", values[i])
 			} else if value.Valid {
 				_m.MemberLimit = int(value.Int64)
+			}
+		case team.FieldConcurrency:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field concurrency", values[i])
+			} else if value.Valid {
+				_m.Concurrency = int(value.Int64)
+			}
+		case team.FieldRpmLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field rpm_limit", values[i])
+			} else if value.Valid {
+				_m.RpmLimit = int(value.Int64)
 			}
 		case team.FieldDefaultDailyLimitUsd:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -308,6 +324,12 @@ func (_m *Team) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("member_limit=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MemberLimit))
+	builder.WriteString(", ")
+	builder.WriteString("concurrency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Concurrency))
+	builder.WriteString(", ")
+	builder.WriteString("rpm_limit=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RpmLimit))
 	builder.WriteString(", ")
 	builder.WriteString("default_daily_limit_usd=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DefaultDailyLimitUsd))

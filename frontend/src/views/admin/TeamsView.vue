@@ -22,6 +22,7 @@
           <template #cell-owner_email="{ value }"><span class="block max-w-72 truncate text-gray-700 dark:text-gray-300" :title="value">{{ value }}</span></template>
           <template #cell-member_count="{ row }"><span class="tabular-nums text-gray-700 dark:text-gray-300">{{ row.member_count }} / {{ row.member_limit }}</span></template>
           <template #cell-balance="{ value }"><span class="tabular-nums text-gray-900 dark:text-white">{{ formatMoney(value) }}</span></template>
+          <template #cell-limits="{ row }"><div class="whitespace-nowrap text-xs tabular-nums text-gray-700 dark:text-gray-300"><p>{{ t('team.concurrency') }}: {{ formatLimit(row.concurrency) }}</p><p class="mt-1">RPM: {{ formatLimit(row.rpm_limit) }}</p></div></template>
           <template #cell-status="{ value }"><span class="badge" :class="value === 'active' ? 'badge-success' : 'badge-danger'">{{ value === 'active' ? t('team.statusActive') : t('team.statusSuspended') }}</span></template>
           <template #cell-created_at="{ value }"><span class="whitespace-nowrap text-gray-500">{{ formatDateTime(value) }}</span></template>
           <template #cell-actions="{ row }">
@@ -47,7 +48,7 @@
     <BaseDialog :show="showCreate" :title="t('team.createTitle')" width="narrow" @close="showCreate = false">
       <form id="admin-team-create" class="space-y-4" @submit.prevent="createTeam">
         <div><label class="input-label">{{ t('team.name') }}</label><input v-model.trim="createForm.name" class="input" required maxlength="100" /></div>
-        <div><label class="input-label">{{ t('team.ownerUserID') }}</label><input v-model.number="createForm.owner_user_id" class="input" type="number" min="1" required /></div>
+        <div><label class="input-label">{{ t('team.ownerUserID') }}</label><input v-model.number="createForm.owner_user_id" class="input" type="number" min="1" required /><p class="mt-1.5 text-xs leading-5 text-gray-500">{{ t('team.initialLimitsHint') }}</p></div>
         <div><label class="input-label">{{ t('team.memberCapacity') }}</label><input v-model.number="createForm.member_limit" class="input" type="number" min="0" required /></div>
       </form>
       <template #footer><div class="flex justify-end gap-3"><button class="btn btn-secondary" @click="showCreate = false">{{ t('common.cancel') }}</button><button form="admin-team-create" class="btn btn-primary" :disabled="saving">{{ t('common.create') }}</button></div></template>
@@ -57,6 +58,11 @@
       <form id="admin-team-edit" class="space-y-4" @submit.prevent="saveEdit">
         <div><label class="input-label">{{ t('team.name') }}</label><input v-model.trim="editForm.name" class="input" required maxlength="100" /></div>
         <div><label class="input-label">{{ t('team.memberCapacity') }}</label><input v-model.number="editForm.member_limit" class="input" type="number" min="0" required /><p class="mt-1.5 text-xs text-gray-500">{{ t('team.memberCapacityDescription') }}</p></div>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label for="team-concurrency" class="input-label">{{ t('team.concurrency') }}</label><input id="team-concurrency" v-model.number="editForm.concurrency" class="input" type="number" min="0" step="1" required /></div>
+          <div><label for="team-rpm" class="input-label">{{ t('team.rpmLimit') }}</label><input id="team-rpm" v-model.number="editForm.rpm_limit" class="input" type="number" min="0" step="1" required /></div>
+        </div>
+        <p class="text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('team.requestLimitsHint') }}</p>
       </form>
       <template #footer><div class="flex justify-end gap-3"><button class="btn btn-secondary" @click="editingTeam = null">{{ t('common.cancel') }}</button><button form="admin-team-edit" class="btn btn-primary" :disabled="saving">{{ t('common.save') }}</button></div></template>
     </BaseDialog>
@@ -67,6 +73,8 @@
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="metric"><span>{{ t('team.owner') }}</span><strong :title="detailsTeam.owner_email">{{ detailsTeam.owner_email }}</strong></div>
           <div class="metric"><span>{{ t('team.wallet.shared') }}</span><strong>{{ formatMoney(detailsTeam.balance) }}</strong></div>
+          <div class="metric"><span>{{ t('team.concurrency') }}</span><strong>{{ formatLimit(detailsTeam.concurrency) }}</strong></div>
+          <div class="metric"><span>{{ t('team.rpmLimit') }}</span><strong>{{ formatLimit(detailsTeam.rpm_limit) }}</strong></div>
           <div class="metric"><span>{{ t('team.members') }}</span><strong>{{ detailsTeam.member_count }} / {{ detailsTeam.member_limit }}</strong></div>
           <div class="metric"><span>{{ t('common.status') }}</span><strong>{{ detailsTeam.status === 'active' ? t('team.statusActive') : t('team.statusSuspended') }}</strong></div>
           <div class="metric"><span>{{ t('team.createdAt') }}</span><strong>{{ formatDateTime(detailsTeam.created_at) }}</strong></div>
@@ -155,7 +163,8 @@ const statisticsSummary = ref<TeamUsageSummary | null>(null)
 const statisticsSeries = ref<Array<{ userID: number; label: string; summary: TeamUsageSummary }>>([])
 const dissolvingTeam = ref<AdminTeam | null>(null)
 const createForm = reactive({ owner_user_id: 0, name: '', member_limit: 10 })
-const editForm = reactive({ name: '', member_limit: 10 })
+const editForm = reactive({ name: '', member_limit: 10, concurrency: 0, rpm_limit: 0 })
+const formatLimit = (value: number) => value === 0 ? t('team.unlimitedRequests') : value.toLocaleString()
 let detailsSequence = 0
 let statisticsSequence = 0
 
@@ -164,6 +173,7 @@ const columns = computed<Column[]>(() => [
   { key: 'name', label: t('team.name'), sortable: true },
   { key: 'owner_email', label: t('team.owner'), sortable: true },
   { key: 'balance', label: t('team.wallet.shared'), sortable: true },
+  { key: 'limits', label: t('team.requestLimits') },
   { key: 'member_count', label: t('team.members'), sortable: true },
   { key: 'status', label: t('common.status'), sortable: true },
   { key: 'created_at', label: t('team.createdAt'), sortable: true },
@@ -184,8 +194,8 @@ watch(filteredTeams, (items) => { page.value = Math.min(page.value, Math.max(1, 
 const loadTeams = async () => { loading.value = true; try { teams.value = await adminAPI.teams.list() } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { loading.value = false } }
 const handlePageSizeChange = (value: number) => { pageSize.value = value; page.value = 1 }
 const createTeam = async () => { saving.value = true; try { await adminAPI.teams.create({ ...createForm }); showCreate.value = false; createForm.owner_user_id = 0; createForm.name = ''; await loadTeams(); appStore.showSuccess(t('team.created')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { saving.value = false } }
-const openEdit = (team: AdminTeam) => { editingTeam.value = team; editForm.name = team.name; editForm.member_limit = team.member_limit }
-const saveEdit = async () => { if (!editingTeam.value) return; saving.value = true; try { await adminAPI.teams.update(editingTeam.value.id, { name: editForm.name, member_limit: editForm.member_limit }); editingTeam.value = null; await loadTeams(); appStore.showSuccess(t('team.updated')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { saving.value = false } }
+const openEdit = (team: AdminTeam) => { editingTeam.value = team; editForm.name = team.name; editForm.member_limit = team.member_limit; editForm.concurrency = team.concurrency; editForm.rpm_limit = team.rpm_limit }
+const saveEdit = async () => { if (!editingTeam.value) return; saving.value = true; try { await adminAPI.teams.update(editingTeam.value.id, { ...editForm }); editingTeam.value = null; await loadTeams(); appStore.showSuccess(t('team.updated')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { saving.value = false } }
 const toggleStatus = async (team: AdminTeam) => { statusUpdatingID.value = team.id; try { await adminAPI.teams.update(team.id, { status: team.status === 'active' ? 'suspended' : 'active' }); await loadTeams(); appStore.showSuccess(t('team.operationSuccess')) } catch (error: any) { appStore.showError(error?.message || t('common.error')) } finally { statusUpdatingID.value = null } }
 const openDetails = async (team: AdminTeam) => { const sequence = ++detailsSequence; detailsTeam.value = team; detailsMembers.value = []; transferUserID.value = null; detailsLoading.value = true; try { const members = await adminAPI.teams.members(team.id); if (sequence === detailsSequence) detailsMembers.value = members } catch (error: any) { if (sequence === detailsSequence) appStore.showError(error?.message || t('common.error')) } finally { if (sequence === detailsSequence) detailsLoading.value = false } }
 const closeDetails = () => { detailsSequence++; detailsTeam.value = null; detailsMembers.value = []; transferUserID.value = null }

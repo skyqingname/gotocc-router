@@ -11,6 +11,11 @@
     </div>
     <p class="mt-2 text-xs tabular-nums text-gray-600 dark:text-dark-300">{{ t('team.wallet.frozen', { amount: formatTeamCost(context.team.frozen_balance) }) }}</p>
     <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('team.wallet.sharedHint') }}</p>
+    <dl class="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-primary-200 pt-3 text-sm dark:border-primary-500/20">
+      <div class="flex items-center gap-2"><dt class="text-gray-600 dark:text-dark-300">{{ t('team.concurrency') }}</dt><dd class="font-medium tabular-nums">{{ formatLimit(context.team.concurrency) }}</dd></div>
+      <div class="flex items-center gap-2"><dt class="text-gray-600 dark:text-dark-300">{{ t('team.rpmLimit') }}</dt><dd class="font-medium tabular-nums">{{ formatLimit(context.team.rpm_limit) }}</dd></div>
+    </dl>
+    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t('team.requestLimitsShared') }}</p>
   </section>
 
   <BaseDialog :show="showFunding" :title="t('team.wallet.fund')" width="narrow" @close="closeFunding">
@@ -46,6 +51,7 @@ import { formatTeamCost } from './teamFormat'
 defineProps<{ context: TeamContext }>()
 const emit = defineEmits<{ funded: [result: TeamFundingResult] }>()
 const { t } = useI18n()
+const formatLimit = (value: number) => value === 0 ? t('team.unlimitedRequests') : value.toLocaleString()
 const userView = useUserView()
 const appStore = useAppStore()
 const showFunding = ref(false)

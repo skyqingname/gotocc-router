@@ -103,6 +103,8 @@ func (h *TeamHandler) Update(c *gin.Context) {
 		Name        *string `json:"name"`
 		Status      *string `json:"status"`
 		MemberLimit *int    `json:"member_limit"`
+		Concurrency *int    `json:"concurrency"`
+		RPMLimit    *int    `json:"rpm_limit"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -110,6 +112,7 @@ func (h *TeamHandler) Update(c *gin.Context) {
 	}
 	teamCtx, err := h.service.AdminUpdate(c.Request.Context(), teamID, service.TeamAdminUpdate{
 		Name: req.Name, Status: req.Status, MemberLimit: req.MemberLimit,
+		Concurrency: req.Concurrency, RPMLimit: req.RPMLimit,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

@@ -82,6 +82,8 @@ type Team struct {
 	Name                   string     `json:"name"`
 	Status                 string     `json:"status"`
 	MemberLimit            int        `json:"member_limit"`
+	Concurrency            int        `json:"concurrency"`
+	RPMLimit               int        `json:"rpm_limit"`
 	DefaultDailyLimitUSD   float64    `json:"default_daily_limit_usd"`
 	DefaultWeeklyLimitUSD  float64    `json:"default_weekly_limit_usd"`
 	DefaultMonthlyLimitUSD float64    `json:"default_monthly_limit_usd"`
@@ -168,6 +170,8 @@ type TeamAdminUpdate struct {
 	Name        *string
 	Status      *string
 	MemberLimit *int
+	Concurrency *int
+	RPMLimit    *int
 }
 
 // TeamUsageQuery 描述团队用量的时间范围与可选成员、Key 筛选条件。
@@ -264,6 +268,8 @@ type TeamRepository interface {
 	Create(ctx context.Context, name string, ownerUserID int64, memberLimit int) (*TeamContext, error)
 	GetContextByUserID(ctx context.Context, userID int64) (*TeamContext, error)
 	GetContextByTeamID(ctx context.Context, teamID int64) (*TeamContext, error)
+	// GetConcurrency also reads dissolved teams so accepted work can finish.
+	GetConcurrency(ctx context.Context, teamID int64) (int, error)
 	UpdateName(ctx context.Context, teamID int64, name string) error
 	SetDefaultMemberLimits(ctx context.Context, teamID int64, daily, weekly, monthly float64) error
 	ListMembers(ctx context.Context, teamID int64) ([]TeamMembership, error)
@@ -888,13 +894,19 @@ func (s *TeamService) AdminUpdate(ctx context.Context, teamID int64, update Team
 	if update.MemberLimit != nil && *update.MemberLimit < 0 {
 		return nil, infraerrors.BadRequest("TEAM_MEMBER_LIMIT_INVALID", "团队成员上限不能为负数")
 	}
-	if update.Name == nil && update.Status == nil && update.MemberLimit == nil {
+	if update.Concurrency != nil && *update.Concurrency < 0 {
+		return nil, infraerrors.BadRequest("TEAM_CONCURRENCY_INVALID", "团队并发不能为负数")
+	}
+	if update.RPMLimit != nil && *update.RPMLimit < 0 {
+		return nil, infraerrors.BadRequest("TEAM_RPM_INVALID", "团队 RPM 不能为负数")
+	}
+	if update.Name == nil && update.Status == nil && update.MemberLimit == nil && update.Concurrency == nil && update.RPMLimit == nil {
 		return s.repo.GetContextByTeamID(ctx, teamID)
 	}
 	if err := s.repo.UpdateAdmin(ctx, teamID, update); err != nil {
 		return nil, err
 	}
-	if update.Status != nil {
+	if update.Status != nil || update.Concurrency != nil || update.RPMLimit != nil {
 		s.invalidateTeamKeys(ctx, teamID)
 	}
 	return s.repo.GetContextByTeamID(ctx, teamID)

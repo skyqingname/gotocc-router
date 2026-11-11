@@ -135,7 +135,7 @@ func (h *GatewayHandler) GeminiCachedContentsCreate(c *gin.Context) {
 
 	subscription, _ := middleware.GetSubscriptionFromContext(c)
 	geminiConcurrency := NewConcurrencyHelper(h.concurrencyHelper.concurrencyService, SSEPingFormatNone, 0).WithRPMAdmission(h.billingCacheService)
-	userReleaseFunc, err := geminiConcurrency.AcquireUserSlot(c, authSubject.UserID, authSubject.Concurrency)
+	userReleaseFunc, err := geminiConcurrency.AcquireUserSlot(c, authSubject.RequestLimitScopeID(), authSubject.Concurrency)
 	if err != nil {
 		reqLog.Warn("gemini.cached_content.user_slot_acquire_failed", zap.Error(err))
 		googleConcurrencyError(c, err, "user")

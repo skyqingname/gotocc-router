@@ -2453,20 +2453,32 @@ func init() {
 	team.DefaultMemberLimit = teamDescMemberLimit.Default.(int)
 	// team.MemberLimitValidator is a validator for the "member_limit" field. It is called by the builders before save.
 	team.MemberLimitValidator = teamDescMemberLimit.Validators[0].(func(int) error)
+	// teamDescConcurrency is the schema descriptor for concurrency field.
+	teamDescConcurrency := teamFields[6].Descriptor()
+	// team.DefaultConcurrency holds the default value on creation for the concurrency field.
+	team.DefaultConcurrency = teamDescConcurrency.Default.(int)
+	// team.ConcurrencyValidator is a validator for the "concurrency" field. It is called by the builders before save.
+	team.ConcurrencyValidator = teamDescConcurrency.Validators[0].(func(int) error)
+	// teamDescRpmLimit is the schema descriptor for rpm_limit field.
+	teamDescRpmLimit := teamFields[7].Descriptor()
+	// team.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
+	team.DefaultRpmLimit = teamDescRpmLimit.Default.(int)
+	// team.RpmLimitValidator is a validator for the "rpm_limit" field. It is called by the builders before save.
+	team.RpmLimitValidator = teamDescRpmLimit.Validators[0].(func(int) error)
 	// teamDescDefaultDailyLimitUsd is the schema descriptor for default_daily_limit_usd field.
-	teamDescDefaultDailyLimitUsd := teamFields[6].Descriptor()
+	teamDescDefaultDailyLimitUsd := teamFields[8].Descriptor()
 	// team.DefaultDefaultDailyLimitUsd holds the default value on creation for the default_daily_limit_usd field.
 	team.DefaultDefaultDailyLimitUsd = teamDescDefaultDailyLimitUsd.Default.(float64)
 	// team.DefaultDailyLimitUsdValidator is a validator for the "default_daily_limit_usd" field. It is called by the builders before save.
 	team.DefaultDailyLimitUsdValidator = teamDescDefaultDailyLimitUsd.Validators[0].(func(float64) error)
 	// teamDescDefaultWeeklyLimitUsd is the schema descriptor for default_weekly_limit_usd field.
-	teamDescDefaultWeeklyLimitUsd := teamFields[7].Descriptor()
+	teamDescDefaultWeeklyLimitUsd := teamFields[9].Descriptor()
 	// team.DefaultDefaultWeeklyLimitUsd holds the default value on creation for the default_weekly_limit_usd field.
 	team.DefaultDefaultWeeklyLimitUsd = teamDescDefaultWeeklyLimitUsd.Default.(float64)
 	// team.DefaultWeeklyLimitUsdValidator is a validator for the "default_weekly_limit_usd" field. It is called by the builders before save.
 	team.DefaultWeeklyLimitUsdValidator = teamDescDefaultWeeklyLimitUsd.Validators[0].(func(float64) error)
 	// teamDescDefaultMonthlyLimitUsd is the schema descriptor for default_monthly_limit_usd field.
-	teamDescDefaultMonthlyLimitUsd := teamFields[8].Descriptor()
+	teamDescDefaultMonthlyLimitUsd := teamFields[10].Descriptor()
 	// team.DefaultDefaultMonthlyLimitUsd holds the default value on creation for the default_monthly_limit_usd field.
 	team.DefaultDefaultMonthlyLimitUsd = teamDescDefaultMonthlyLimitUsd.Default.(float64)
 	// team.DefaultMonthlyLimitUsdValidator is a validator for the "default_monthly_limit_usd" field. It is called by the builders before save.

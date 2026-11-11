@@ -693,7 +693,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
 	}
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}
@@ -1456,7 +1456,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 	routingStart := time.Now()
 
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}
@@ -2086,12 +2086,18 @@ func refreshOpenAIWSTurnBillingAPIKey(ctx context.Context, lookup openAIWSTurnAP
 	if err != nil || latest == nil || latest.ID != conn.ID {
 		return conn
 	}
-	if conn.User == nil || latest.User == nil || latest.User.ID != conn.User.ID || latest.UserID != conn.UserID {
+	if conn.User == nil || latest.User == nil || latest.UserID != conn.UserID {
+		return conn
+	}
+	// Team ownership may change while this connection retains its original
+	// billing identity. Capacity follows the stable team, never the old owner.
+	if service.RequestLimitScopeID(conn.User.ID, conn.TeamID) != service.RequestLimitScopeID(latest.User.ID, latest.TeamID) {
 		return conn
 	}
 	turnKey := *conn
 	user := *conn.User
 	user.RPMLimit = latest.User.RPMLimit
+	user.Concurrency = latest.User.Concurrency
 	user.UserGroupRPMOverride = nil
 	group := latest.Group
 	if conn.GroupID != nil && conn.Group != nil && latest.GroupID != nil && group != nil &&
@@ -2636,7 +2642,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// 必须尽早注册，确保任何 early return 都能释放已获取的并发槽位。
 	defer releaseTurnSlots()
 
-	userReleaseFunc, err := h.concurrencyHelper.acquireUserSlotWithWaitForAPIKey(c, subject.UserID, subject.Concurrency, apiKey.ID)
+	userReleaseFunc, err := h.concurrencyHelper.acquireUserSlotWithWaitForAPIKey(c, subject.RequestLimitScopeID(), subject.Concurrency, apiKey.ID)
 	if err != nil {
 		reqLog.Warn("openai.websocket_user_slot_acquire_failed", zap.Error(err))
 		status, reason := openAIWSSlotWaitClose(err, "user")
@@ -2648,7 +2654,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		if currentUserRelease != nil {
 			return true
 		}
-		userReleaseFunc, err := h.concurrencyHelper.acquireUserSlotWithWaitForAPIKey(c, subject.UserID, subject.Concurrency, apiKey.ID)
+		userReleaseFunc, err := h.concurrencyHelper.acquireUserSlotWithWaitForAPIKey(c, subject.RequestLimitScopeID(), subject.Concurrency, apiKey.ID)
 		if err != nil {
 			reqLog.Warn("openai.websocket_user_slot_reacquire_failed", zap.Error(err))
 			status, reason := openAIWSSlotWaitClose(err, "user")
@@ -3155,7 +3161,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					apiKey = route.Key
 					autoRoute = route
 					routeContext = route.RequestContext(ctx)
-					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency}
+					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency, TeamID: apiKey.TeamID}
 				}
 
 				// 分组级模型白名单：后续 turn 同样校验客户端模型（省略 model 时
@@ -3195,7 +3201,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 						subID = subscription.ID
 					}
 					routeContext = service.WithAutoRouteSubscription(routeContext, subID)
-					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency}
+					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency, TeamID: apiKey.TeamID}
 
 				}
 				turnRequiredCapability := service.OpenAIEndpointCapabilityChatCompletions
@@ -3256,7 +3262,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					// a full user must not consume RPM or wait on either dependency.
 					// Clear any old turn owners before publishing the new owner.
 					releaseTurnSlots()
-					userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlotForAPIKey(ctx, subject.UserID, subject.Concurrency, apiKey.ID)
+					userReleaseFunc, userAcquired, err := h.concurrencyHelper.TryAcquireUserSlotForAPIKey(ctx, subject.RequestLimitScopeID(), subject.Concurrency, apiKey.ID)
 					if err != nil {
 						return service.NewOpenAIWSClientCloseError(coderws.StatusInternalError, "failed to acquire user concurrency slot", err)
 					}

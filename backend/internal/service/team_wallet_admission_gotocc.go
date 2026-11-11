@@ -30,6 +30,10 @@ func bindTeamWallet(key *APIKey) error {
 	}
 	user := *key.User
 	user.TeamWalletID = key.TeamID
+	user.Concurrency = key.Team.Concurrency
+	user.RPMLimit = key.Team.RPMLimit
+	user.UserGroupRPMOverride = nil
+	user.UserGroupRPMOverrideGroupID = 0
 	user.Balance = key.Team.Balance
 	user.FrozenBalance = key.Team.FrozenBalance
 	if user.ResellerCustomer != nil {

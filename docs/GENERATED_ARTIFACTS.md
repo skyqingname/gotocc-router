@@ -18,7 +18,8 @@
 | `content-audit-jev.json` | `tools/generate_content_audit_jev.py` | 后端嵌入的 `content_audit_jev_gen.json`、统一审核类别/阈值/评分映射；前端直接读取根 JSON |
 | `upstream-request-adaptations.json` | `tools/generate_upstream_request_adaptations.py`，支持 `--check` | `backend/internal/service/upstream_request_adaptations_gen_gotocc.go`及冻结的迁移329；图片编辑按账号能力选择multipart，前端直接读取根参数默认值；原生Messages按最终Opus 5.5模型转换旧思考参数 |
 | `model-fingerprint.json` | `tools/generate_model_fingerprint.py` | 后端指纹参数及前端 `parameters.gen.json` |
-| `model-plaza-catalog.json` | `tools/generate_model_catalog.py` | `backend/internal/pkg/modelcatalog/catalog_gen.json`；该生成器会联网下载数据 |
+| `model-pricing-defaults.json` | `tools/generate_model_pricing_defaults.py`，支持 `--check` | 随包价格目录中的显式精确价卡；保留每款模型的核实日期与期限说明 |
+| `model-plaza-catalog.json` | `tools/generate_model_catalog.py` | `backend/internal/pkg/modelcatalog/catalog_gen.json`；该生成器会联网下载数据，并应用有来源记录的 metadata override |
 | 其他路由、返佣、卡密、站长、审计根参数 | 对应 `tools/generate_*.py` | 依据本次改动逐项追踪，不能假设所有脚本都有检查模式 |
 | `backend/ent/schema/` | 现有 Ent/Wire 生成入口 | Ent 与依赖注入代码，见 [贡献说明](../CONTRIBUTING.md#generated-code) |
 

@@ -11,6 +11,8 @@ export interface Team {
   name: string
   status: TeamStatus
   member_limit: number
+  concurrency: number
+  rpm_limit: number
   default_daily_limit_usd: number
   default_weekly_limit_usd: number
   default_monthly_limit_usd: number

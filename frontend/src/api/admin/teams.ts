@@ -11,6 +11,8 @@ export interface AdminTeam {
   name: string
   status: TeamStatus
   member_limit: number
+  concurrency: number
+  rpm_limit: number
   member_count: number
   created_at: string
   updated_at: string
@@ -39,7 +41,7 @@ const teamsAPI = {
     const { data } = await apiClient.post<TeamContext>('/admin/teams', payload)
     return data
   },
-  async update(id: number, payload: { name?: string; status?: TeamStatus; member_limit?: number }): Promise<TeamContext> {
+  async update(id: number, payload: { name?: string; status?: TeamStatus; member_limit?: number; concurrency?: number; rpm_limit?: number }): Promise<TeamContext> {
     const { data } = await apiClient.patch<TeamContext>(`/admin/teams/${id}`, payload)
     return data
   },

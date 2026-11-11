@@ -100,6 +100,16 @@ func MemberLimit(v int) predicate.Team {
 	return predicate.Team(sql.FieldEQ(FieldMemberLimit, v))
 }
 
+// Concurrency applies equality check predicate on the "concurrency" field. It's identical to ConcurrencyEQ.
+func Concurrency(v int) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldConcurrency, v))
+}
+
+// RpmLimit applies equality check predicate on the "rpm_limit" field. It's identical to RpmLimitEQ.
+func RpmLimit(v int) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldRpmLimit, v))
+}
+
 // DefaultDailyLimitUsd applies equality check predicate on the "default_daily_limit_usd" field. It's identical to DefaultDailyLimitUsdEQ.
 func DefaultDailyLimitUsd(v float64) predicate.Team {
 	return predicate.Team(sql.FieldEQ(FieldDefaultDailyLimitUsd, v))
@@ -543,6 +553,86 @@ func MemberLimitLT(v int) predicate.Team {
 // MemberLimitLTE applies the LTE predicate on the "member_limit" field.
 func MemberLimitLTE(v int) predicate.Team {
 	return predicate.Team(sql.FieldLTE(FieldMemberLimit, v))
+}
+
+// ConcurrencyEQ applies the EQ predicate on the "concurrency" field.
+func ConcurrencyEQ(v int) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldConcurrency, v))
+}
+
+// ConcurrencyNEQ applies the NEQ predicate on the "concurrency" field.
+func ConcurrencyNEQ(v int) predicate.Team {
+	return predicate.Team(sql.FieldNEQ(FieldConcurrency, v))
+}
+
+// ConcurrencyIn applies the In predicate on the "concurrency" field.
+func ConcurrencyIn(vs ...int) predicate.Team {
+	return predicate.Team(sql.FieldIn(FieldConcurrency, vs...))
+}
+
+// ConcurrencyNotIn applies the NotIn predicate on the "concurrency" field.
+func ConcurrencyNotIn(vs ...int) predicate.Team {
+	return predicate.Team(sql.FieldNotIn(FieldConcurrency, vs...))
+}
+
+// ConcurrencyGT applies the GT predicate on the "concurrency" field.
+func ConcurrencyGT(v int) predicate.Team {
+	return predicate.Team(sql.FieldGT(FieldConcurrency, v))
+}
+
+// ConcurrencyGTE applies the GTE predicate on the "concurrency" field.
+func ConcurrencyGTE(v int) predicate.Team {
+	return predicate.Team(sql.FieldGTE(FieldConcurrency, v))
+}
+
+// ConcurrencyLT applies the LT predicate on the "concurrency" field.
+func ConcurrencyLT(v int) predicate.Team {
+	return predicate.Team(sql.FieldLT(FieldConcurrency, v))
+}
+
+// ConcurrencyLTE applies the LTE predicate on the "concurrency" field.
+func ConcurrencyLTE(v int) predicate.Team {
+	return predicate.Team(sql.FieldLTE(FieldConcurrency, v))
+}
+
+// RpmLimitEQ applies the EQ predicate on the "rpm_limit" field.
+func RpmLimitEQ(v int) predicate.Team {
+	return predicate.Team(sql.FieldEQ(FieldRpmLimit, v))
+}
+
+// RpmLimitNEQ applies the NEQ predicate on the "rpm_limit" field.
+func RpmLimitNEQ(v int) predicate.Team {
+	return predicate.Team(sql.FieldNEQ(FieldRpmLimit, v))
+}
+
+// RpmLimitIn applies the In predicate on the "rpm_limit" field.
+func RpmLimitIn(vs ...int) predicate.Team {
+	return predicate.Team(sql.FieldIn(FieldRpmLimit, vs...))
+}
+
+// RpmLimitNotIn applies the NotIn predicate on the "rpm_limit" field.
+func RpmLimitNotIn(vs ...int) predicate.Team {
+	return predicate.Team(sql.FieldNotIn(FieldRpmLimit, vs...))
+}
+
+// RpmLimitGT applies the GT predicate on the "rpm_limit" field.
+func RpmLimitGT(v int) predicate.Team {
+	return predicate.Team(sql.FieldGT(FieldRpmLimit, v))
+}
+
+// RpmLimitGTE applies the GTE predicate on the "rpm_limit" field.
+func RpmLimitGTE(v int) predicate.Team {
+	return predicate.Team(sql.FieldGTE(FieldRpmLimit, v))
+}
+
+// RpmLimitLT applies the LT predicate on the "rpm_limit" field.
+func RpmLimitLT(v int) predicate.Team {
+	return predicate.Team(sql.FieldLT(FieldRpmLimit, v))
+}
+
+// RpmLimitLTE applies the LTE predicate on the "rpm_limit" field.
+func RpmLimitLTE(v int) predicate.Team {
+	return predicate.Team(sql.FieldLTE(FieldRpmLimit, v))
 }
 
 // DefaultDailyLimitUsdEQ applies the EQ predicate on the "default_daily_limit_usd" field.

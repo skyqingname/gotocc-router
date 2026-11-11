@@ -685,7 +685,7 @@ func (h *AsyncImageHandler) run(taskID, platform string, taskCtx *gin.Context, r
 		return
 	}
 	var err error
-	releaseUser, err = h.openAI.concurrencyHelper.acquireWorkerUserSlotWithWait(taskCtx, user.UserID, user.Concurrency)
+	releaseUser, err = h.openAI.concurrencyHelper.acquireWorkerUserSlotWithWait(taskCtx, user.RequestLimitScopeID(), user.Concurrency)
 	if err != nil {
 		h.failTask(taskID, http.StatusServiceUnavailable, imageTaskErrorPayload("api_error", "Unable to confirm user concurrency admission"), taskCtx, snapshot)
 		return

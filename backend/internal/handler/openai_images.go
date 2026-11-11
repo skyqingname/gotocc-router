@@ -124,7 +124,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		}
 		routingModel = requestModel
 	}
-	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.UserID, subject.Concurrency, &streamStarted, reqLog)
+	userReleaseFunc, acquired := h.acquireResponsesUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency, &streamStarted, reqLog)
 	if !acquired {
 		return
 	}

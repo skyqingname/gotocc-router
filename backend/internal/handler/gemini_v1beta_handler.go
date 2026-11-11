@@ -451,7 +451,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
-	userReleaseFunc, err := geminiConcurrency.AcquireUserSlot(c, authSubject.UserID, authSubject.Concurrency)
+	userReleaseFunc, err := geminiConcurrency.AcquireUserSlot(c, authSubject.RequestLimitScopeID(), authSubject.Concurrency)
 	if err != nil {
 		reqLog.Warn("gemini.user_slot_acquire_failed", zap.Error(err))
 		googleConcurrencyError(c, err, "user")
