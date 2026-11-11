@@ -23,5 +23,20 @@
     "volcengine": [
       "bytedance-seed"
     ]
+  },
+  "model_overrides": {
+    "google/gemini-4-carbon": {
+      "limit": {
+        "context": 1048576,
+        "output": 65536
+      }
+    }
+  },
+  "model_override_sources": {
+    "google/gemini-4-carbon": {
+      "source": "https://aistudio.google.com/docs/models/gemini-4-carbon",
+      "verified_on": "2026-11-11",
+      "note": "Default synchronous output is 65,536; optional long decode up to 1M is not advertised as the default."
+    }
   }
 }

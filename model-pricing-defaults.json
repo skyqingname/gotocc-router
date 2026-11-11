@@ -5,7 +5,11 @@
     "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
     "https://models.dev/api.json",
     "https://platform.kimi.ai/docs/pricing/chat",
-    "https://docs.z.ai/guides/overview/pricing"
+    "https://docs.z.ai/guides/overview/pricing",
+    "https://platform.claude.com/docs/en/models/fable-5-2/overview",
+    "https://platform.claude.com/docs/en/about-claude/pricing",
+    "https://aistudio.google.com/docs/pricing#gemini-4-carbon",
+    "https://aistudio.google.com/docs/models/gemini-4-carbon"
   ],
   "verified_date": "2026-09-23",
   "models": {
@@ -269,6 +273,50 @@
       "source_currency": "USD",
       "billing_unit": "credits",
       "source": "https://docs.z.ai/guides/overview/pricing"
+    },
+    "claude-fable-5-2": {
+      "input_cost_per_token": 8e-06,
+      "output_cost_per_token": 4e-05,
+      "cache_read_input_token_cost": 2e-07,
+      "cache_creation_input_token_cost": 1e-05,
+      "cache_creation_input_token_cost_above_1hr": 1.6e-05,
+      "input_cost_per_token_priority": 1.6e-05,
+      "output_cost_per_token_priority": 8e-05,
+      "cache_read_input_token_cost_priority": 4e-07,
+      "cache_creation_input_token_cost_priority": 2e-05,
+      "litellm_provider": "anthropic",
+      "mode": "chat",
+      "supports_prompt_caching": true,
+      "supports_reasoning": true,
+      "supports_service_tier": true,
+      "max_input_tokens": 1000000,
+      "max_output_tokens": 128000,
+      "max_tokens": 128000,
+      "prefer_bundled_pricing": true,
+      "source_currency": "USD",
+      "billing_unit": "credits",
+      "source": "https://platform.claude.com/docs/en/models/fable-5-2/overview"
+    },
+    "gemini-4-carbon": {
+      "input_cost_per_token": 2e-06,
+      "output_cost_per_token": 1e-05,
+      "cache_read_input_token_cost": 1e-07,
+      "cache_creation_input_token_cost": 0.0,
+      "input_cost_per_token_priority": 3.6e-06,
+      "output_cost_per_token_priority": 1.8e-05,
+      "cache_read_input_token_cost_priority": 1.8e-07,
+      "litellm_provider": "gemini",
+      "mode": "chat",
+      "supports_prompt_caching": true,
+      "supports_reasoning": true,
+      "supports_service_tier": true,
+      "max_input_tokens": 1048576,
+      "max_output_tokens": 65536,
+      "max_tokens": 65536,
+      "prefer_bundled_pricing": true,
+      "source_currency": "USD",
+      "billing_unit": "credits",
+      "source": "https://aistudio.google.com/docs/pricing#gemini-4-carbon"
     }
   },
   "model_verified_dates": {
@@ -278,6 +326,27 @@
     "kimi-k3.1-pro-highspeed": "2026-10-25",
     "kimi-k3": "2026-10-25",
     "glm-4.5v": "2026-10-25",
-    "glm-4.6v": "2026-10-25"
+    "glm-4.6v": "2026-10-25",
+    "claude-fable-5-2": "2026-11-11",
+    "gemini-4-carbon": "2026-11-11"
+  },
+  "model_pricing_notes": {
+    "gemini-4-carbon": {
+      "verified_on": "2026-11-11",
+      "current_price_valid_through": "2026-11-30",
+      "announced_price_effective_from": "2026-12-01",
+      "announced_standard_per_million": {
+        "input": 4,
+        "output": 20,
+        "cache_read": 0.2
+      },
+      "announced_priority_per_million": {
+        "input": 7.2,
+        "output": 36,
+        "cache_read": 0.36
+      },
+      "automatic_date_switch": false,
+      "note": "Explicit caching is unsupported. Current promotional rates are frozen in this release; review and update before the announced price change."
+    }
   }
 }

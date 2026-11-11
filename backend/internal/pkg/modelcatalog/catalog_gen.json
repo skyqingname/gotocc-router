@@ -1,6 +1,6 @@
 {
  "source": "https://models.dev/api.json",
- "fetched_at": "2026-10-25T11:41:47.125040+00:00",
+ "fetched_at": "2026-11-11T04:35:13+00:00",
  "vendor_aliases": {
   "zai": [
    "zhipuai"
@@ -38,7 +38,8 @@
       "context": 0,
       "input": 0,
       "output": 0
-     }
+     },
+     "status": "deprecated"
     },
     {
      "id": "gpt-3.5-turbo",
@@ -1250,6 +1251,50 @@
      }
     },
     {
+     "id": "gpt-6.1-terra",
+     "name": "GPT-6.1 Terra",
+     "description": "Fast, efficient model for visual reasoning, precise computer use, and clear, natural writing.",
+     "family": "gpt-terra",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "knowledge": "2026-06-01",
+     "release_date": "2026-10-26",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1050000,
+      "input": 922000,
+      "output": 128000
+     },
+     "canonical_model_id": "openai/gpt-6.1-terra",
+     "cost": {
+      "input": 1,
+      "output": 5,
+      "cache_read": 0.05,
+      "cache_write": 1.25,
+      "tiers": [
+       {
+        "input": 2,
+        "output": 7.5,
+        "cache_read": 0.1,
+        "cache_write": 2.5,
+        "context_over": 272000
+       }
+      ]
+     }
+    },
+    {
      "id": "gpt-daybreak-blue-latest",
      "name": "Daybreak Blue",
      "description": "Alias for flagship general-purpose models with safeguards for defensive cybersecurity work",
@@ -1328,33 +1373,6 @@
      }
     },
     {
-     "id": "gpt-image-1",
-     "name": "gpt-image-1",
-     "description": "OpenAI image model for production generation, edits, and brand-safe visual workflows",
-     "family": "gpt-image",
-     "reasoning": false,
-     "tool_call": false,
-     "attachment": true,
-     "open_weights": false,
-     "release_date": "2025-04-24",
-     "modalities": {
-      "input": [
-       "text",
-       "image"
-      ],
-      "output": [
-       "image"
-      ]
-     },
-     "limit": {
-      "context": 0,
-      "input": 0,
-      "output": 0
-     },
-     "status": "deprecated",
-     "canonical_model_id": "openai/gpt-image-1"
-    },
-    {
      "id": "gpt-image-1-mini",
      "name": "gpt-image-1-mini",
      "description": "Image model for prompt-driven generation, editing, and visual design workflows",
@@ -1378,7 +1396,8 @@
       "context": 0,
       "input": 0,
       "output": 0
-     }
+     },
+     "status": "deprecated"
     },
     {
      "id": "gpt-image-1.5",
@@ -1405,6 +1424,7 @@
       "input": 0,
       "output": 0
      },
+     "status": "deprecated",
      "canonical_model_id": "openai/gpt-image-1.5"
     },
     {
@@ -1816,6 +1836,40 @@
       "output": 50,
       "cache_read": 0.25,
       "cache_write": 12.5
+     }
+    },
+    {
+     "id": "claude-fable-5-2",
+     "name": "Claude Fable 5.2",
+     "description": "Claude model for demanding reasoning and long-horizon agentic work",
+     "family": "claude-fable",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "knowledge": "2026-06",
+     "release_date": "2026-11-09",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1000000,
+      "output": 128000
+     },
+     "canonical_model_id": "anthropic/claude-fable-5-2",
+     "cost": {
+      "input": 8,
+      "output": 40,
+      "cache_read": 0.2,
+      "cache_write": 10
      }
     },
     {
@@ -2360,7 +2414,7 @@
       ]
      },
      "limit": {
-      "context": 131072,
+      "context": 1048576,
       "output": 65536
      },
      "canonical_model_id": "google/deep-research-max-preview-04-2026",
@@ -2403,7 +2457,7 @@
       ]
      },
      "limit": {
-      "context": 131072,
+      "context": 1048576,
       "output": 65536
      },
      "canonical_model_id": "google/deep-research-preview-04-2026",
@@ -2518,6 +2572,7 @@
       "context": 32768,
       "output": 32768
      },
+     "status": "deprecated",
      "canonical_model_id": "google/gemini-2.5-flash-image",
      "cost": {
       "input": 0.3,
@@ -2724,37 +2779,6 @@
      }
     },
     {
-     "id": "gemini-3-pro-image-preview",
-     "name": "Nano Banana Pro",
-     "description": "Nano Banana Pro for higher-fidelity image generation and design-heavy edits",
-     "family": "gemini-pro",
-     "reasoning": true,
-     "tool_call": false,
-     "attachment": true,
-     "open_weights": false,
-     "knowledge": "2025-01",
-     "release_date": "2025-11-20",
-     "modalities": {
-      "input": [
-       "text",
-       "image"
-      ],
-      "output": [
-       "text",
-       "image"
-      ]
-     },
-     "limit": {
-      "context": 131072,
-      "output": 32768
-     },
-     "canonical_model_id": "google/gemini-3-pro-image-preview",
-     "cost": {
-      "input": 2,
-      "output": 120
-     }
-    },
-    {
      "id": "gemini-3.1-flash-image",
      "name": "Nano Banana 2",
      "description": "Image model for prompt-driven generation, editing, and visual design workflows",
@@ -2782,37 +2806,6 @@
       "output": 32768
      },
      "canonical_model_id": "google/gemini-3.1-flash-image",
-     "cost": {
-      "input": 0.5,
-      "output": 60
-     }
-    },
-    {
-     "id": "gemini-3.1-flash-image-preview",
-     "name": "Nano Banana 2",
-     "description": "Image model for prompt-driven generation, editing, and visual design workflows",
-     "family": "gemini-flash",
-     "reasoning": true,
-     "tool_call": false,
-     "attachment": true,
-     "open_weights": false,
-     "knowledge": "2025-01",
-     "release_date": "2026-02-26",
-     "modalities": {
-      "input": [
-       "text",
-       "image",
-       "pdf"
-      ],
-      "output": [
-       "text",
-       "image"
-      ]
-     },
-     "limit": {
-      "context": 65536,
-      "output": 65536
-     },
      "cost": {
       "input": 0.5,
       "output": 60
@@ -3298,6 +3291,41 @@
       "output": 32768
      },
      "canonical_model_id": "google/gemini-4-argon",
+     "cost": {
+      "input": 2,
+      "output": 10,
+      "cache_read": 0.1
+     }
+    },
+    {
+     "id": "gemini-4-carbon",
+     "name": "Gemini 4 Carbon",
+     "description": "Google's most capable reasoning model for complex software engineering, deep math and science, high factual accuracy, and long-horizon autonomous agents",
+     "family": "gemini",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "knowledge": "2026-03",
+     "release_date": "2026-11-10",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "video",
+       "audio",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 65536
+     },
+     "canonical_model_id": "google/gemini-4-carbon",
      "cost": {
       "input": 2,
       "output": 10,
@@ -3967,32 +3995,6 @@
      "canonical_model_id": "xai/grok-imagine-image"
     },
     {
-     "id": "grok-imagine-image-quality",
-     "name": "Grok Imagine Image Quality",
-     "description": "Higher-fidelity Grok Imagine image model for prompt-driven generation, editing, and visual design workflows",
-     "family": "grok",
-     "reasoning": false,
-     "tool_call": false,
-     "attachment": true,
-     "open_weights": false,
-     "release_date": "2026-04-03",
-     "modalities": {
-      "input": [
-       "text",
-       "image"
-      ],
-      "output": [
-       "image"
-      ]
-     },
-     "limit": {
-      "context": 16000,
-      "output": 0
-     },
-     "status": "deprecated",
-     "canonical_model_id": "xai/grok-imagine-image-quality"
-    },
-    {
      "id": "grok-imagine-video",
      "name": "Grok Imagine Video",
      "description": "Image model for prompt-driven generation, editing, and visual design workflows",
@@ -4343,13 +4345,13 @@
     {
      "id": "kimi-k3.1-pro",
      "name": "Kimi K3.1 Pro",
-     "description": "Multimodal Kimi model with 1M context and always-on reasoning for coding, 3D creation, financial research, and agentic work",
+     "description": "Multimodal Kimi model with a 1M-token context window and always-on reasoning, for coding, 3D creation and financial research",
      "family": "kimi-k3",
      "reasoning": true,
      "tool_call": true,
      "structured_output": true,
      "attachment": true,
-     "open_weights": false,
+     "open_weights": true,
      "release_date": "2026-10-23",
      "modalities": {
       "input": [
@@ -4376,13 +4378,13 @@
     {
      "id": "kimi-k3.1-pro-highspeed",
      "name": "Kimi K3.1 Pro Highspeed",
-     "description": "Multimodal Kimi model with 1M context and always-on reasoning for coding, 3D creation, financial research, and agentic work",
+     "description": "Multimodal Kimi model with a 1M-token context window and always-on reasoning, for coding, 3D creation and financial research",
      "family": "kimi-k3",
      "reasoning": true,
      "tool_call": true,
      "structured_output": true,
      "attachment": true,
-     "open_weights": false,
+     "open_weights": true,
      "release_date": "2026-10-23",
      "modalities": {
       "input": [
@@ -5822,7 +5824,7 @@
      "tool_call": true,
      "structured_output": false,
      "attachment": true,
-     "open_weights": false,
+     "open_weights": true,
      "release_date": "2026-10-19",
      "modalities": {
       "input": [
@@ -8304,6 +8306,37 @@
      }
     },
     {
+     "id": "deepseek-v4-1-flash-1017",
+     "name": "DeepSeek V4.1 Flash 1017",
+     "description": "October 17 update of DeepSeek V4.1 Flash with improved reasoning, coding, agentic tasks, and visual understanding",
+     "family": "deepseek-flash",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": false,
+     "open_weights": true,
+     "knowledge": "2025-05",
+     "release_date": "2026-10-17",
+     "modalities": {
+      "input": [
+       "text"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 128000
+     },
+     "canonical_model_id": "deepseek/deepseek-v4.1-flash-1017",
+     "cost": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.007
+     }
+    },
+    {
      "id": "devstral-2512",
      "name": "Devstral 2",
      "description": "Mistral's coding-agent model for repository work, terminal tasks, and software fixes",
@@ -8758,9 +8791,42 @@
      "status": "beta",
      "canonical_model_id": "mistral/mistral-large-4",
      "cost": {
-      "input": 1.36,
-      "output": 4.18,
-      "cache_read": 0.14
+      "input": 0.7,
+      "output": 2.1,
+      "cache_read": 0.07
+     }
+    },
+    {
+     "id": "mistral-large-4-0-8",
+     "name": "Mistral Large 4.0.8",
+     "description": "Mistral's 1T-parameter multimodal MoE for reasoning, coding, and agentic work",
+     "family": "mistral-large",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "release_date": "2026-10-06",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 262144
+     },
+     "status": "beta",
+     "canonical_model_id": "mistral/mistral-large-4",
+     "cost": {
+      "input": 0.7,
+      "output": 2.1,
+      "cache_read": 0.07
      }
     },
     {
@@ -9277,6 +9343,48 @@
    "id": "meta",
    "name": "Meta",
    "models": [
+    {
+     "id": "muse-ember-1.0",
+     "name": "Muse Ember",
+     "description": "Muse Ember is Meta's smallest and most efficient reasoning model, built for the work agents repeat all day: tool calls, coding subtasks, routing, extraction, and long-document parsing. It pairs with Muse Wonder or Muse Spark, which plan while Muse Ember handles the volume.",
+     "family": "muse",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "release_date": "2026-11-09",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "video",
+       "pdf",
+       "audio"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 524288
+     },
+     "canonical_model_id": "meta/muse-ember-1.0",
+     "cost": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.004,
+      "tiers": [
+       {
+        "input": 0.3,
+        "output": 1.5,
+        "cache_read": 0.012,
+        "context_over": 200000
+       }
+      ]
+     }
+    },
     {
      "id": "muse-spark-1.1",
      "name": "Muse Spark 1.1",

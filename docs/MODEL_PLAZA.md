@@ -89,11 +89,33 @@ shared GLM IDs, matching the existing official USD billing cards. Zhipu AI's
 converted USD prices do not replace the Z.AI native USD figures. Registered CNY
 face-value cards continue to take precedence without currency conversion.
 
-The 2026-10-25 snapshot has 298 provider entries (four added, twenty removed by
-the source, 137 modified). Retiring a source entry does not remove configured
-accounts, group membership, saved pricing, or historical usage.
-`model-pricing-defaults.json` also updates the exact backend price cards for
-`gemini-pro-latest`, Kimi K3/K3.1 Pro/Highspeed, GLM-4.5V and GLM-4.6V.
-Kimi's 5-minute and 1-hour cache write prices follow its official pricing page.
-Other changed models.dev prices remain plaza references; the snapshot does not
-change billing defaults automatically.
+The 2026-11-11 snapshot has 300 provider entries (six added, four removed by
+the source, ten modified). New first-party entries include Claude Fable 5.2,
+Gemini 4 Carbon, GPT-6.1 Terra and Muse Ember. Resold models do not become
+first-party prices. Retiring a source entry does not remove configured accounts,
+group membership, saved pricing, or historical usage.
+
+`model-plaza-catalog.json` can carry explicitly sourced `model_overrides` for
+metadata where the original publisher's specification differs from the registry.
+The generator applies these after trimming the registry entry. Carbon's default
+synchronous output limit is 65,536, according to Google; optional long decode up
+to 1M is not the default. Override sources and review dates stay in the root file.
+
+`model-pricing-defaults.json` maintains exact Fable 5.2 and Carbon billing cards,
+including cache and priority prices, and `prefer_bundled_pricing` prevents an
+older downloaded catalog from replacing them. Existing group/channel custom
+prices retain precedence. Fable 5.2 standard input/output/read/5m-write/1h-write
+prices are 8/40/0.20/10/16 per million tokens. Carbon standard input/output/read
+prices are 2/10/0.10; it has implicit caching only. Existing thinking-tier aliases
+resolve to the matching base card. Other models.dev price changes remain plaza
+references and do not automatically replace billing defaults.
+
+Carbon's current promotion ends on 2026-11-30. Google's announced prices from
+2026-12-01 are 4/20/0.20 for standard and 7.20/36/0.36 for priority. This release
+freezes the current price; it does not add a scheduled switch. Review/update the
+price card before that date. Details and sources are recorded in the root
+`model_pricing_notes` entry.
+
+Sources: [Claude Fable 5.2](https://platform.claude.com/docs/en/models/fable-5-2/overview),
+[Gemini pricing](https://aistudio.google.com/docs/pricing#gemini-4-carbon),
+[Gemini model limits](https://aistudio.google.com/docs/models/gemini-4-carbon).

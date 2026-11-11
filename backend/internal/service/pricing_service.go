@@ -1662,13 +1662,13 @@ func normalizeModelNameForPricing(model string) string {
 	return normalizeAntigravityClaudeTierAlias(normalizeGeminiThinkingTierAlias(model))
 }
 
-// normalizeAntigravityClaudeTierAlias maps Antigravity's Claude 5.5 thinking-tier
+// normalizeAntigravityClaudeTierAlias maps supported Claude thinking-tier
 // model IDs (claude-opus-5-5-high, claude-sonnet-5-5-low, ...) to the public base
 // model. Like the Gemini tiers, the suffix selects reasoning depth rather than a
 // separate token rate; without this the IDs fall into substring family matching
 // and are billed as claude-opus-5 / claude-sonnet-4-5.
 func normalizeAntigravityClaudeTierAlias(model string) string {
-	for _, baseModel := range []string{"claude-opus-5-5", "claude-sonnet-5-5"} {
+	for _, baseModel := range []string{"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"} {
 		for _, tier := range []string{"-high", "-low", "-medium"} {
 			if model == baseModel+tier {
 				return baseModel
@@ -1683,7 +1683,7 @@ func normalizeAntigravityClaudeTierAlias(model string) string {
 // the published token rate, so this keeps -high/-low/-medium and -tiered
 // requests on the corresponding base model's price card.
 func normalizeGeminiThinkingTierAlias(model string) string {
-	for _, baseModel := range []string{"gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-4-argon"} {
+	for _, baseModel := range []string{"gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-4-argon", "gemini-4-carbon"} {
 		for _, tier := range []string{"-high", "-low", "-medium", "-tiered"} {
 			if model == baseModel+tier {
 				return baseModel
