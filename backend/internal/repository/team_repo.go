@@ -42,7 +42,7 @@ func (r *teamRepository) Create(ctx context.Context, name string, ownerUserID in
 	var teamID int64
 	if err = tx.QueryRowContext(ctx, `
 		INSERT INTO teams (name, status, member_limit, concurrency, rpm_limit, reseller_owner_id, created_at, updated_at)
-		SELECT $1, 'active', $2, concurrency, rpm_limit,
+		SELECT $1, 'active', $2, GREATEST(concurrency, 0), GREATEST(rpm_limit, 0),
 		       (SELECT owner_user_id FROM reseller_customers WHERE user_id=$3), NOW(), NOW()
 		FROM users WHERE id=$3 AND deleted_at IS NULL RETURNING id`, name, memberLimit, ownerUserID).Scan(&teamID); err != nil {
 		return nil, err

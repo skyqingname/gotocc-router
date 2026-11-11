@@ -268,6 +268,8 @@ type TeamRepository interface {
 	Create(ctx context.Context, name string, ownerUserID int64, memberLimit int) (*TeamContext, error)
 	GetContextByUserID(ctx context.Context, userID int64) (*TeamContext, error)
 	GetContextByTeamID(ctx context.Context, teamID int64) (*TeamContext, error)
+	// GetConcurrency also reads dissolved teams so accepted work can finish.
+	GetConcurrency(ctx context.Context, teamID int64) (int, error)
 	UpdateName(ctx context.Context, teamID int64, name string) error
 	SetDefaultMemberLimits(ctx context.Context, teamID int64, daily, weekly, monthly float64) error
 	ListMembers(ctx context.Context, teamID int64) ([]TeamMembership, error)

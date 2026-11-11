@@ -45,7 +45,10 @@ team-owner authorization contract.
 - Internal request-limit cache IDs reserve negative team IDs. These IDs are used
   only in concurrency/RPM caches, waiting counters and lease recovery. They are
   never substituted for persisted user IDs, task actors or billing users.
-- Every concurrency admission reads the current team limit from PostgreSQL.
+- Every concurrency admission reads the saved team limit from PostgreSQL.
+  This capacity read does not require current membership or a live owner: already
+  accepted durable work can complete after dissolution. New requests still pass
+  the existing team lifecycle authentication and remain blocked after dissolution.
   HTTP, Responses WS, Live and detached image execution use the same team scope.
   Batch image workers use their stored team ID. The existing unfinished-provider-
   task count is a separate policy and remains unchanged.
@@ -60,7 +63,8 @@ team-owner authorization contract.
 
 Migration `334_team_request_limits.sql` adds `teams.concurrency` and
 `teams.rpm_limit`. Existing teams copy the current owner's numerical settings
-once. Creating a team also snapshots its initial owner's settings once in the
+once, normalizing legacy negative (unlimited) values to zero. Creating a team
+also normalizes and snapshots its initial owner's settings once in the
 creation transaction. Subsequent edits are entirely independent; ownership
 transfer does not copy the new owner's values. Personal settings, balances,
 wallet entries and historical task funding are not rewritten.

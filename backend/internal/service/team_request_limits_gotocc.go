@@ -28,9 +28,9 @@ func (s *ConcurrencyService) resolveTeamConcurrency(ctx context.Context, teamID 
 	}
 	readCtx, cancel := context.WithTimeout(ctx, regularLeaseOperationTimeout)
 	defer cancel()
-	team, err := s.teamRepo.GetContextByTeamID(readCtx, teamID)
+	limit, err := s.teamRepo.GetConcurrency(readCtx, teamID)
 	if err != nil {
 		return 0, fmt.Errorf("current team concurrency unavailable: %w", err)
 	}
-	return team.Team.Concurrency, nil
+	return limit, nil
 }
