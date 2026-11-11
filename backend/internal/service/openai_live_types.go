@@ -40,6 +40,7 @@ type LiveCallRequest struct {
 }
 
 type LiveCallIdentity struct {
+	TeamID          *int64
 	APIKeyID        int64
 	UserID          int64
 	GroupID         *int64
@@ -50,22 +51,23 @@ type LiveCallIdentity struct {
 }
 
 type LiveCallRecord struct {
-	CallID          string
-	CallHash        string
-	AccountID       int64
-	APIKeyID        int64
-	UserID          int64
-	GroupID         int64
-	SubscriptionID  int64
-	LeaseID         string
-	Model           string
-	CreatedAt       time.Time
-	ExpiresAt       time.Time
-	Controller      string
-	ControllerOwner string
-	UserAgent       string
-	IPAddress       string
-	InboundEndpoint string
+	ConcurrencyScopeID int64
+	CallID             string
+	CallHash           string
+	AccountID          int64
+	APIKeyID           int64
+	UserID             int64
+	GroupID            int64
+	SubscriptionID     int64
+	LeaseID            string
+	Model              string
+	CreatedAt          time.Time
+	ExpiresAt          time.Time
+	Controller         string
+	ControllerOwner    string
+	UserAgent          string
+	IPAddress          string
+	InboundEndpoint    string
 	// AttestationCiphertext 仅用于让同一会话的 Sideband 复用创建时的证明。
 	AttestationCiphertext string
 	OutboundSnapshot      *LiveOutboundSnapshot
@@ -73,6 +75,14 @@ type LiveCallRecord struct {
 	// lifecycle work. Live summaries remain non-billable until a usage contract
 	// supplies actual billable units.
 	PricingSnapshot json.RawMessage
+}
+
+// requestLimitScopeID preserves pre-upgrade live leases that stored only UserID.
+func (r *LiveCallRecord) requestLimitScopeID() int64 {
+	if r.ConcurrencyScopeID != 0 {
+		return r.ConcurrencyScopeID
+	}
+	return r.UserID
 }
 
 // LiveOutboundSnapshot contains no credential material. The call's declarations

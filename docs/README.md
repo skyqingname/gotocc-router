@@ -42,6 +42,7 @@ belong in GitHub Release notes.
 - [Available-channel model catalog](AVAILABLE_CHANNELS.md)
 - [Channel pricing](CHANNEL_PRICING.md)
 - [Composite groups](COMPOSITE_GROUPS.md)
+- [Independent team request limits](TEAM_REQUEST_LIMITS.md)
 - [Administrator user support view](USER_SUPPORT_VIEW.md)
 - [Payment integration](PAYMENT.md)
 - [Payment integration — Chinese](PAYMENT_CN.md)

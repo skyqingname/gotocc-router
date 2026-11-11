@@ -138,7 +138,7 @@ func (h *GatewayHandler) ChatCompletions(c *gin.Context) {
 
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
 
-	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlot(c, subject.UserID, subject.Concurrency)
+	userReleaseFunc, err := h.concurrencyHelper.AcquireUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency)
 	if err != nil {
 		reqLog.Warn("gateway.cc.user_slot_acquire_failed", zap.Error(err))
 		h.handleConcurrencyError(c, err, "user", streamStarted)

@@ -173,6 +173,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		return nil, fmt.Errorf("capture live pricing: %w", err)
 	}
 
+	capacityScopeID := RequestLimitScopeID(identity.UserID, identity.TeamID)
 	excluded := make(map[int64]struct{})
 	// Live 会话没有文本 token 结算，不属于 token 利润门的语义范围：显式豁免，避免
 	// 防御性装门按文本 D 过滤 Live 账号池且门与计费时刻不同源。
@@ -213,7 +214,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			continue
 		}
 		leaseID := generateRequestID()
-		currentUserLimit, limitErr := s.concurrencyService.ResolveUserConcurrency(ctx, identity.UserID, userMaxConcurrency)
+		currentUserLimit, limitErr := s.concurrencyService.ResolveUserConcurrency(ctx, capacityScopeID, userMaxConcurrency)
 		if limitErr != nil {
 			selection.ReleaseFunc()
 			return nil, limitErr
@@ -222,7 +223,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			ctx,
 			account.ID,
 			account.Concurrency,
-			identity.UserID,
+			capacityScopeID,
 			currentUserLimit,
 			identity.APIKeyID,
 			leaseID,
@@ -239,7 +240,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		created, createErr := s.createUpstreamLiveCall(ctx, account, request, attestation)
 		selection.ReleaseFunc()
 		if createErr != nil && created == nil {
-			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
+			s.releaseLiveLease(account.ID, capacityScopeID, identity.APIKeyID, leaseID)
 			if !s.shouldFailoverLiveCreateError(account, createErr) {
 				return nil, createErr
 			}
@@ -255,6 +256,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			AccountID:             account.ID,
 			APIKeyID:              identity.APIKeyID,
 			UserID:                identity.UserID,
+			ConcurrencyScopeID:    capacityScopeID,
 			GroupID:               liveGroupID(identity.GroupID),
 			SubscriptionID:        liveGroupID(identity.SubscriptionID),
 			LeaseID:               leaseID,
@@ -457,7 +459,7 @@ func (s *OpenAIGatewayService) cleanupUnmappedLiveCall(record *LiveCallRecord, t
 	}
 	err := s.closeUnmappedLiveCall(record, target)
 	if err == nil {
-		s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+		s.releaseLiveLease(record.AccountID, record.requestLimitScopeID(), record.APIKeyID, record.LeaseID)
 		s.liveCreateReservations.Add(-1)
 		return
 	}
@@ -474,7 +476,7 @@ func (s *OpenAIGatewayService) compensateUnmappedLiveCall(record *LiveCallRecord
 	for {
 		if !time.Now().Before(record.ExpiresAt) {
 			logger.L().Warn("OpenAI Live mapping cleanup lifetime expired without close confirmation", zap.Int64("account_id", record.AccountID), zap.String("call_hash", record.CallHash), zap.String("reason", "cleanup_lifetime_expired"))
-			s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+			s.releaseLiveLease(record.AccountID, record.requestLimitScopeID(), record.APIKeyID, record.LeaseID)
 			return
 		}
 		if !s.refreshLiveLease(record) && !leaseWarningLogged {
@@ -483,7 +485,7 @@ func (s *OpenAIGatewayService) compensateUnmappedLiveCall(record *LiveCallRecord
 		}
 		if target != nil {
 			if err := s.closeUnmappedLiveCall(record, target); err == nil {
-				s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+				s.releaseLiveLease(record.AccountID, record.requestLimitScopeID(), record.APIKeyID, record.LeaseID)
 				return
 			}
 		}
@@ -1142,7 +1144,7 @@ func (s *OpenAIGatewayService) refreshLiveLease(record *LiveCallRecord) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
 	defer cancel()
-	refreshed, err := cache.RefreshLiveLease(ctx, record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+	refreshed, err := cache.RefreshLiveLease(ctx, record.AccountID, record.requestLimitScopeID(), record.APIKeyID, record.LeaseID)
 	return err == nil && refreshed
 }
 
@@ -1170,7 +1172,7 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 	if err != nil || !first {
 		return
 	}
-	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+	s.releaseLiveLease(record.AccountID, record.requestLimitScopeID(), record.APIKeyID, record.LeaseID)
 	if s.usageLogRepo == nil {
 		return
 	}

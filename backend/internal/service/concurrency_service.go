@@ -230,6 +230,7 @@ const (
 // ConcurrencyService 管理账号和用户的并发限制。
 type ConcurrencyService struct {
 	cache         ConcurrencyCache
+	teamRepo      TeamRepository
 	userRepo      UserRepository
 	ownerRecovery concurrencyOwnerRecovery
 
@@ -347,7 +348,8 @@ func (s *ConcurrencyService) AcquireAccountSlot(ctx context.Context, accountID i
 }
 
 // AcquireUserSlot attempts to acquire a concurrency slot for a user.
-// All keys, platforms and agent requests use the same user pool. A full pool
+// All keys, platforms and agent requests use one personal or team pool.
+// userID is a request-limit scope ID (negative for teams). A full pool
 // returns Acquired=false; waiting is the handler's responsibility.
 // Returns a release function that MUST be called when the request completes.
 func (s *ConcurrencyService) AcquireUserSlot(ctx context.Context, userID int64, maxConcurrency int) (*AcquireResult, error) {

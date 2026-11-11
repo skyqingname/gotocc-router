@@ -1,7 +1,9 @@
 # Gateway task admission
 
 Gateway execution concurrency and unfinished asynchronous work are separate
-limits. The execution pool is shared by user across API keys and providers;
+limits. Personal execution capacity is shared by user; team execution capacity
+is shared independently by all keys in the team across providers. See
+[team request limits](TEAM_REQUEST_LIMITS.md). Within either scope,
 independent main-agent and subagent requests each need admission. An idle
 provider queue does not keep an execution lease. Short poll/cancel requests
 remain able to acquire execution capacity while the provider is working.

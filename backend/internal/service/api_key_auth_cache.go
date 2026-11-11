@@ -52,9 +52,11 @@ type APIKeyAuthActorSnapshot struct {
 
 type APIKeyAuthTeamSnapshot struct {
 	TeamWallet
-	ID     int64  `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Concurrency int    `json:"concurrency"`
+	RPMLimit    int    `json:"rpm_limit"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
 }
 
 // APIKeyAuthUserSnapshot 用户快照

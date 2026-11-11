@@ -145,6 +145,34 @@ func (_c *TeamCreate) SetNillableMemberLimit(v *int) *TeamCreate {
 	return _c
 }
 
+// SetConcurrency sets the "concurrency" field.
+func (_c *TeamCreate) SetConcurrency(v int) *TeamCreate {
+	_c.mutation.SetConcurrency(v)
+	return _c
+}
+
+// SetNillableConcurrency sets the "concurrency" field if the given value is not nil.
+func (_c *TeamCreate) SetNillableConcurrency(v *int) *TeamCreate {
+	if v != nil {
+		_c.SetConcurrency(*v)
+	}
+	return _c
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (_c *TeamCreate) SetRpmLimit(v int) *TeamCreate {
+	_c.mutation.SetRpmLimit(v)
+	return _c
+}
+
+// SetNillableRpmLimit sets the "rpm_limit" field if the given value is not nil.
+func (_c *TeamCreate) SetNillableRpmLimit(v *int) *TeamCreate {
+	if v != nil {
+		_c.SetRpmLimit(*v)
+	}
+	return _c
+}
+
 // SetDefaultDailyLimitUsd sets the "default_daily_limit_usd" field.
 func (_c *TeamCreate) SetDefaultDailyLimitUsd(v float64) *TeamCreate {
 	_c.mutation.SetDefaultDailyLimitUsd(v)
@@ -329,6 +357,14 @@ func (_c *TeamCreate) defaults() error {
 		v := team.DefaultMemberLimit
 		_c.mutation.SetMemberLimit(v)
 	}
+	if _, ok := _c.mutation.Concurrency(); !ok {
+		v := team.DefaultConcurrency
+		_c.mutation.SetConcurrency(v)
+	}
+	if _, ok := _c.mutation.RpmLimit(); !ok {
+		v := team.DefaultRpmLimit
+		_c.mutation.SetRpmLimit(v)
+	}
 	if _, ok := _c.mutation.DefaultDailyLimitUsd(); !ok {
 		v := team.DefaultDefaultDailyLimitUsd
 		_c.mutation.SetDefaultDailyLimitUsd(v)
@@ -380,6 +416,22 @@ func (_c *TeamCreate) check() error {
 	if v, ok := _c.mutation.MemberLimit(); ok {
 		if err := team.MemberLimitValidator(v); err != nil {
 			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`ent: validator failed for field "Team.member_limit": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Concurrency(); !ok {
+		return &ValidationError{Name: "concurrency", err: errors.New(`ent: missing required field "Team.concurrency"`)}
+	}
+	if v, ok := _c.mutation.Concurrency(); ok {
+		if err := team.ConcurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency", err: fmt.Errorf(`ent: validator failed for field "Team.concurrency": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RpmLimit(); !ok {
+		return &ValidationError{Name: "rpm_limit", err: errors.New(`ent: missing required field "Team.rpm_limit"`)}
+	}
+	if v, ok := _c.mutation.RpmLimit(); ok {
+		if err := team.RpmLimitValidator(v); err != nil {
+			return &ValidationError{Name: "rpm_limit", err: fmt.Errorf(`ent: validator failed for field "Team.rpm_limit": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.DefaultDailyLimitUsd(); !ok {
@@ -468,6 +520,14 @@ func (_c *TeamCreate) createSpec() (*Team, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MemberLimit(); ok {
 		_spec.SetField(team.FieldMemberLimit, field.TypeInt, value)
 		_node.MemberLimit = value
+	}
+	if value, ok := _c.mutation.Concurrency(); ok {
+		_spec.SetField(team.FieldConcurrency, field.TypeInt, value)
+		_node.Concurrency = value
+	}
+	if value, ok := _c.mutation.RpmLimit(); ok {
+		_spec.SetField(team.FieldRpmLimit, field.TypeInt, value)
+		_node.RpmLimit = value
 	}
 	if value, ok := _c.mutation.DefaultDailyLimitUsd(); ok {
 		_spec.SetField(team.FieldDefaultDailyLimitUsd, field.TypeFloat64, value)
@@ -745,6 +805,42 @@ func (u *TeamUpsert) AddMemberLimit(v int) *TeamUpsert {
 	return u
 }
 
+// SetConcurrency sets the "concurrency" field.
+func (u *TeamUpsert) SetConcurrency(v int) *TeamUpsert {
+	u.Set(team.FieldConcurrency, v)
+	return u
+}
+
+// UpdateConcurrency sets the "concurrency" field to the value that was provided on create.
+func (u *TeamUpsert) UpdateConcurrency() *TeamUpsert {
+	u.SetExcluded(team.FieldConcurrency)
+	return u
+}
+
+// AddConcurrency adds v to the "concurrency" field.
+func (u *TeamUpsert) AddConcurrency(v int) *TeamUpsert {
+	u.Add(team.FieldConcurrency, v)
+	return u
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *TeamUpsert) SetRpmLimit(v int) *TeamUpsert {
+	u.Set(team.FieldRpmLimit, v)
+	return u
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *TeamUpsert) UpdateRpmLimit() *TeamUpsert {
+	u.SetExcluded(team.FieldRpmLimit)
+	return u
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *TeamUpsert) AddRpmLimit(v int) *TeamUpsert {
+	u.Add(team.FieldRpmLimit, v)
+	return u
+}
+
 // SetDefaultDailyLimitUsd sets the "default_daily_limit_usd" field.
 func (u *TeamUpsert) SetDefaultDailyLimitUsd(v float64) *TeamUpsert {
 	u.Set(team.FieldDefaultDailyLimitUsd, v)
@@ -995,6 +1091,48 @@ func (u *TeamUpsertOne) AddMemberLimit(v int) *TeamUpsertOne {
 func (u *TeamUpsertOne) UpdateMemberLimit() *TeamUpsertOne {
 	return u.Update(func(s *TeamUpsert) {
 		s.UpdateMemberLimit()
+	})
+}
+
+// SetConcurrency sets the "concurrency" field.
+func (u *TeamUpsertOne) SetConcurrency(v int) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetConcurrency(v)
+	})
+}
+
+// AddConcurrency adds v to the "concurrency" field.
+func (u *TeamUpsertOne) AddConcurrency(v int) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddConcurrency(v)
+	})
+}
+
+// UpdateConcurrency sets the "concurrency" field to the value that was provided on create.
+func (u *TeamUpsertOne) UpdateConcurrency() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateConcurrency()
+	})
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *TeamUpsertOne) SetRpmLimit(v int) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetRpmLimit(v)
+	})
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *TeamUpsertOne) AddRpmLimit(v int) *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddRpmLimit(v)
+	})
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *TeamUpsertOne) UpdateRpmLimit() *TeamUpsertOne {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateRpmLimit()
 	})
 }
 
@@ -1423,6 +1561,48 @@ func (u *TeamUpsertBulk) AddMemberLimit(v int) *TeamUpsertBulk {
 func (u *TeamUpsertBulk) UpdateMemberLimit() *TeamUpsertBulk {
 	return u.Update(func(s *TeamUpsert) {
 		s.UpdateMemberLimit()
+	})
+}
+
+// SetConcurrency sets the "concurrency" field.
+func (u *TeamUpsertBulk) SetConcurrency(v int) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetConcurrency(v)
+	})
+}
+
+// AddConcurrency adds v to the "concurrency" field.
+func (u *TeamUpsertBulk) AddConcurrency(v int) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddConcurrency(v)
+	})
+}
+
+// UpdateConcurrency sets the "concurrency" field to the value that was provided on create.
+func (u *TeamUpsertBulk) UpdateConcurrency() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateConcurrency()
+	})
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *TeamUpsertBulk) SetRpmLimit(v int) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.SetRpmLimit(v)
+	})
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *TeamUpsertBulk) AddRpmLimit(v int) *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.AddRpmLimit(v)
+	})
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *TeamUpsertBulk) UpdateRpmLimit() *TeamUpsertBulk {
+	return u.Update(func(s *TeamUpsert) {
+		s.UpdateRpmLimit()
 	})
 }
 

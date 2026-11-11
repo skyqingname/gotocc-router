@@ -41,8 +41,10 @@ func (r *teamRepository) Create(ctx context.Context, name string, ownerUserID in
 	}
 	var teamID int64
 	if err = tx.QueryRowContext(ctx, `
-		INSERT INTO teams (name, status, member_limit, reseller_owner_id, created_at, updated_at)
-		VALUES ($1, 'active', $2, (SELECT owner_user_id FROM reseller_customers WHERE user_id=$3), NOW(), NOW()) RETURNING id`, name, memberLimit, ownerUserID).Scan(&teamID); err != nil {
+		INSERT INTO teams (name, status, member_limit, concurrency, rpm_limit, reseller_owner_id, created_at, updated_at)
+		SELECT $1, 'active', $2, concurrency, rpm_limit,
+		       (SELECT owner_user_id FROM reseller_customers WHERE user_id=$3), NOW(), NOW()
+		FROM users WHERE id=$3 AND deleted_at IS NULL RETURNING id`, name, memberLimit, ownerUserID).Scan(&teamID); err != nil {
 		return nil, err
 	}
 	if _, err = tx.ExecContext(ctx, `
@@ -66,7 +68,7 @@ func (r *teamRepository) GetContextByTeamID(ctx context.Context, teamID int64) (
 
 func (r *teamRepository) scanContext(ctx context.Context, where string, arg int64) (*service.TeamContext, error) {
 	query := `
-		SELECT t.id, t.name, t.status, t.member_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
+		SELECT t.id, t.name, t.status, t.member_limit, t.concurrency, t.rpm_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
 		       t.default_daily_limit_usd, t.default_weekly_limit_usd, t.default_monthly_limit_usd,
 		       t.created_at, t.updated_at,
 		       (SELECT COUNT(*) FROM team_memberships cm WHERE cm.team_id = t.id AND cm.left_at IS NULL AND cm.role = 'member') AS member_count,
@@ -92,7 +94,7 @@ func (r *teamRepository) scanContext(ctx context.Context, where string, arg int6
 	row := r.db.QueryRowContext(ctx, query, arg)
 	teamCtx := &service.TeamContext{Team: &service.Team{}, Membership: &service.TeamMembership{}, Owner: &service.TeamMembership{}}
 	err := row.Scan(
-		&teamCtx.Team.ID, &teamCtx.Team.Name, &teamCtx.Team.Status, &teamCtx.Team.MemberLimit,
+		&teamCtx.Team.ID, &teamCtx.Team.Name, &teamCtx.Team.Status, &teamCtx.Team.MemberLimit, &teamCtx.Team.Concurrency, &teamCtx.Team.RPMLimit,
 		&teamCtx.Team.Balance, &teamCtx.Team.FrozenBalance, &teamCtx.Team.ResellerOwnerID,
 		&teamCtx.Team.DefaultDailyLimitUSD, &teamCtx.Team.DefaultWeeklyLimitUSD, &teamCtx.Team.DefaultMonthlyLimitUSD,
 		&teamCtx.Team.CreatedAt, &teamCtx.Team.UpdatedAt, &teamCtx.Team.MemberCount,
@@ -634,6 +636,14 @@ func (r *teamRepository) UpdateAdmin(ctx context.Context, teamID int64, update s
 		args = append(args, *update.MemberLimit)
 		setClauses = append(setClauses, fmt.Sprintf("member_limit = $%d", len(args)))
 	}
+	if update.Concurrency != nil {
+		args = append(args, *update.Concurrency)
+		setClauses = append(setClauses, fmt.Sprintf("concurrency = $%d", len(args)))
+	}
+	if update.RPMLimit != nil {
+		args = append(args, *update.RPMLimit)
+		setClauses = append(setClauses, fmt.Sprintf("rpm_limit = $%d", len(args)))
+	}
 	result, err := r.db.ExecContext(ctx, `UPDATE teams SET `+strings.Join(setClauses, ", ")+` WHERE id = $1 AND deleted_at IS NULL`, args...)
 	return requireTeamAffected(result, err)
 }
@@ -702,7 +712,7 @@ func transferTeamOwnership(ctx context.Context, tx *sql.Tx, teamID, fromUserID, 
 
 func (r *teamRepository) ListAdmin(ctx context.Context) ([]service.TeamAdminListItem, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT t.id, t.name, t.status, t.member_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
+		SELECT t.id, t.name, t.status, t.member_limit, t.concurrency, t.rpm_limit, t.balance, t.frozen_balance, t.reseller_owner_id,
 		       t.default_daily_limit_usd, t.default_weekly_limit_usd, t.default_monthly_limit_usd,
 		       t.created_at, t.updated_at,
 		       (SELECT COUNT(*) FROM team_memberships cm WHERE cm.team_id = t.id AND cm.left_at IS NULL AND cm.role = 'member'),
@@ -720,7 +730,7 @@ func (r *teamRepository) ListAdmin(ctx context.Context) ([]service.TeamAdminList
 	for rows.Next() {
 		var item service.TeamAdminListItem
 		if err := rows.Scan(
-			&item.ID, &item.Name, &item.Status, &item.MemberLimit,
+			&item.ID, &item.Name, &item.Status, &item.MemberLimit, &item.Concurrency, &item.RPMLimit,
 			&item.Balance, &item.FrozenBalance, &item.ResellerOwnerID,
 			&item.DefaultDailyLimitUSD, &item.DefaultWeeklyLimitUSD, &item.DefaultMonthlyLimitUSD,
 			&item.CreatedAt, &item.UpdatedAt, &item.MemberCount, &item.OwnerUserID, &item.OwnerEmail,

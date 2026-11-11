@@ -33,6 +33,10 @@ const (
 	FieldStatus = "status"
 	// FieldMemberLimit holds the string denoting the member_limit field in the database.
 	FieldMemberLimit = "member_limit"
+	// FieldConcurrency holds the string denoting the concurrency field in the database.
+	FieldConcurrency = "concurrency"
+	// FieldRpmLimit holds the string denoting the rpm_limit field in the database.
+	FieldRpmLimit = "rpm_limit"
 	// FieldDefaultDailyLimitUsd holds the string denoting the default_daily_limit_usd field in the database.
 	FieldDefaultDailyLimitUsd = "default_daily_limit_usd"
 	// FieldDefaultWeeklyLimitUsd holds the string denoting the default_weekly_limit_usd field in the database.
@@ -100,6 +104,8 @@ var Columns = []string{
 	FieldResellerOwnerID,
 	FieldStatus,
 	FieldMemberLimit,
+	FieldConcurrency,
+	FieldRpmLimit,
 	FieldDefaultDailyLimitUsd,
 	FieldDefaultWeeklyLimitUsd,
 	FieldDefaultMonthlyLimitUsd,
@@ -143,6 +149,14 @@ var (
 	DefaultMemberLimit int
 	// MemberLimitValidator is a validator for the "member_limit" field. It is called by the builders before save.
 	MemberLimitValidator func(int) error
+	// DefaultConcurrency holds the default value on creation for the "concurrency" field.
+	DefaultConcurrency int
+	// ConcurrencyValidator is a validator for the "concurrency" field. It is called by the builders before save.
+	ConcurrencyValidator func(int) error
+	// DefaultRpmLimit holds the default value on creation for the "rpm_limit" field.
+	DefaultRpmLimit int
+	// RpmLimitValidator is a validator for the "rpm_limit" field. It is called by the builders before save.
+	RpmLimitValidator func(int) error
 	// DefaultDefaultDailyLimitUsd holds the default value on creation for the "default_daily_limit_usd" field.
 	DefaultDefaultDailyLimitUsd float64
 	// DefaultDailyLimitUsdValidator is a validator for the "default_daily_limit_usd" field. It is called by the builders before save.
@@ -208,6 +222,16 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByMemberLimit orders the results by the member_limit field.
 func ByMemberLimit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMemberLimit, opts...).ToFunc()
+}
+
+// ByConcurrency orders the results by the concurrency field.
+func ByConcurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConcurrency, opts...).ToFunc()
+}
+
+// ByRpmLimit orders the results by the rpm_limit field.
+func ByRpmLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRpmLimit, opts...).ToFunc()
 }
 
 // ByDefaultDailyLimitUsd orders the results by the default_daily_limit_usd field.

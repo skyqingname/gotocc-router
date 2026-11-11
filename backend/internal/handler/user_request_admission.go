@@ -21,7 +21,7 @@ func acquireGatewayUserRequest(c *gin.Context, helper *ConcurrencyHelper, writeE
 		writeError(c, http.StatusServiceUnavailable, "api_error", "Concurrency service is unavailable")
 		return nil, false
 	}
-	release, err := helper.AcquireUserSlot(c, subject.UserID, subject.Concurrency)
+	release, err := helper.AcquireUserSlot(c, subject.RequestLimitScopeID(), subject.Concurrency)
 	if err != nil {
 		status, errType, code, message := concurrencyErrorResponse(err, "user")
 		setRPMRetryAfter(c, err)

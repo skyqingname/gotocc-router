@@ -1,5 +1,13 @@
 export default {
   team: {
+    requestLimits: "Team request limits",
+    concurrency: "Team concurrency",
+    rpmLimit: "Team RPM",
+    unlimitedRequests: "Unlimited",
+    requestLimitsHint: "All members’ team keys share these total limits. Zero means unlimited. Changes apply to subsequent requests; personal keys keep their own settings. Public group RPM limits still apply.",
+    requestLimitsShared: "Shared by all team keys and managed by the platform administrator. Personal key concurrency and RPM are counted separately.",
+    initialLimitsHint: "New teams copy the owner’s concurrency and RPM once at creation. Edit the team to manage them independently.",
+
     wallet: {
       title: 'Team balance',
       editBalance: 'Adjust team balance',

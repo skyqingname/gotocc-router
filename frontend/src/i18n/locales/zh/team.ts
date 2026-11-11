@@ -1,5 +1,13 @@
 export default {
   team: {
+    requestLimits: "团队请求上限",
+    concurrency: "团队并发",
+    rpmLimit: "团队 RPM",
+    unlimitedRequests: "不限",
+    requestLimitsHint: "全部成员的团队密钥合计共享这些上限，0 表示不限。保存后对后续请求生效；个人密钥使用各自的个人配置。分组公共 RPM 限制仍然生效。",
+    requestLimitsShared: "全员团队密钥共享，由平台管理员统一调整；与个人密钥的并发和 RPM 分开计算。",
+    initialLimitsHint: "新团队仅在创建时复制负责人的并发和 RPM，之后可在团队编辑中独立调整。",
+
     wallet: {
       title: '团队余额',
       editBalance: '调整团队余额',

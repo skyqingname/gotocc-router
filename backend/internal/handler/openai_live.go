@@ -95,7 +95,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 	leaseCtx, cancelLease := service.WithConcurrencyLeaseContext(c.Request.Context())
 	defer cancelLease(nil)
 	c.Request = c.Request.WithContext(leaseCtx)
-	currentLimit, err := h.concurrencyHelper.concurrencyService.ResolveUserConcurrency(leaseCtx, subject.UserID, subject.Concurrency)
+	currentLimit, err := h.concurrencyHelper.concurrencyService.ResolveUserConcurrency(leaseCtx, subject.RequestLimitScopeID(), subject.Concurrency)
 	if err != nil {
 		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Live concurrency unavailable")
 		return
@@ -104,7 +104,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 
 	userRelease, acquired, err := h.concurrencyHelper.TryAcquireUserSlot(
 		c.Request.Context(),
-		subject.UserID,
+		subject.RequestLimitScopeID(),
 		subject.Concurrency,
 	)
 	if err != nil {
@@ -192,6 +192,7 @@ func liveCallIdentity(
 	}
 	return service.LiveCallIdentity{
 		APIKeyID:        apiKey.ID,
+		TeamID:          apiKey.TeamID,
 		UserID:          userID,
 		GroupID:         apiKey.GroupID,
 		SubscriptionID:  subscriptionID,
@@ -260,6 +261,7 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 	}
 	identity := service.LiveCallIdentity{
 		APIKeyID: apiKey.ID,
+		TeamID:   apiKey.TeamID,
 		UserID:   subject.UserID,
 		GroupID:  apiKey.GroupID,
 	}

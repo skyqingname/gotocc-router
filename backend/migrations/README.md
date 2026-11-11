@@ -4,6 +4,12 @@ SQL migrations are embedded in the application and applied automatically at
 startup. The runner records each filename and SHA256 checksum in
 `schema_migrations`.
 
+Migration `334_team_request_limits.sql` adds independent team concurrency and
+RPM, initially copied once from the current owner. Wallets and personal settings
+are unchanged. Drain old gateway instances before enabling independent scopes;
+old binaries continue enforcing owner-based limits. See
+[team request limits](../../docs/TEAM_REQUEST_LIMITS.md).
+
 Migration `331_api_key_native_access_preferences.sql` adds empty-default client
 and endpoint presentation preferences. They grant no endpoint access and change
 no routing; omitted updates preserve values. See [native Composite access](../../docs/COMPOSITE_GROUPS.md#optional-unified-endpoint-and-native-access).

@@ -1,8 +1,9 @@
 # Gateway request admission
 
-Authenticated gateway endpoint families share the user's execution-concurrency
-and request-rate policies across API keys, groups, providers, and request
-origins. Main-agent and sub-agent requests use the same user identity. A client
+Authenticated gateway endpoint families share execution-concurrency and
+request-rate policies across API keys, groups, providers, and request origins.
+Personal keys use a user pool; team keys use an independent shared team pool.
+Main-agent and sub-agent requests use the same applicable capacity scope. A client
 header, model alias, account retry, or provider change does not create another
 user or grant capacity. See [global concurrency](COMPOSITE_GROUPS.md#user-concurrency-across-suppliers-and-agent-requests)
 and [unfinished asynchronous tasks](GATEWAY_TASK_LIMITS.md) for the separate
@@ -15,6 +16,12 @@ that queue or request deadline is returned to its exact owner without starting
 upstream execution; queue accounting is released as well. A slot accepted before
 the deadline keeps its execution lease independently of the completed wait
 scope, and lost capacity cancels its upstream work.
+
+Team administration, initial migration and lease identity are described in
+[independent team request limits](TEAM_REQUEST_LIMITS.md). Team keys use
+`team.rpm_limit` and `(team, group)` counters with public group defaults; they
+do not consume the owner's personal counters or inherit personal overrides.
+The policies below describe personal RPM and the shared window/counting rules.
 
 ## User and user-group RPM
 
@@ -71,7 +78,9 @@ private state.
   compatible group refreshes its policy and user-group override. A changed or
   missing group/platform/subscription retains the connection's billing group
   and clears the cached override, so the original group's own override is
-  queried. A different key/user identity or a failed lookup retains the existing
+  queried. For team keys, capacity refresh follows the stable team ID even
+  after ownership transfer, while the connection retains its billing identity.
+  A different key/capacity scope or a failed lookup retains the existing
   connection snapshot. Earlier accepted turn snapshots are not mutated.
 - An asynchronous submission counts once. Its trusted detached execution
   carries the admission scope so its internal forwarding does not count the

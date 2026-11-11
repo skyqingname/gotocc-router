@@ -177,6 +177,48 @@ func (_u *TeamUpdate) AddMemberLimit(v int) *TeamUpdate {
 	return _u
 }
 
+// SetConcurrency sets the "concurrency" field.
+func (_u *TeamUpdate) SetConcurrency(v int) *TeamUpdate {
+	_u.mutation.ResetConcurrency()
+	_u.mutation.SetConcurrency(v)
+	return _u
+}
+
+// SetNillableConcurrency sets the "concurrency" field if the given value is not nil.
+func (_u *TeamUpdate) SetNillableConcurrency(v *int) *TeamUpdate {
+	if v != nil {
+		_u.SetConcurrency(*v)
+	}
+	return _u
+}
+
+// AddConcurrency adds value to the "concurrency" field.
+func (_u *TeamUpdate) AddConcurrency(v int) *TeamUpdate {
+	_u.mutation.AddConcurrency(v)
+	return _u
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (_u *TeamUpdate) SetRpmLimit(v int) *TeamUpdate {
+	_u.mutation.ResetRpmLimit()
+	_u.mutation.SetRpmLimit(v)
+	return _u
+}
+
+// SetNillableRpmLimit sets the "rpm_limit" field if the given value is not nil.
+func (_u *TeamUpdate) SetNillableRpmLimit(v *int) *TeamUpdate {
+	if v != nil {
+		_u.SetRpmLimit(*v)
+	}
+	return _u
+}
+
+// AddRpmLimit adds value to the "rpm_limit" field.
+func (_u *TeamUpdate) AddRpmLimit(v int) *TeamUpdate {
+	_u.mutation.AddRpmLimit(v)
+	return _u
+}
+
 // SetDefaultDailyLimitUsd sets the "default_daily_limit_usd" field.
 func (_u *TeamUpdate) SetDefaultDailyLimitUsd(v float64) *TeamUpdate {
 	_u.mutation.ResetDefaultDailyLimitUsd()
@@ -484,6 +526,16 @@ func (_u *TeamUpdate) check() error {
 			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`ent: validator failed for field "Team.member_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Concurrency(); ok {
+		if err := team.ConcurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency", err: fmt.Errorf(`ent: validator failed for field "Team.concurrency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RpmLimit(); ok {
+		if err := team.RpmLimitValidator(v); err != nil {
+			return &ValidationError{Name: "rpm_limit", err: fmt.Errorf(`ent: validator failed for field "Team.rpm_limit": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultDailyLimitUsd(); ok {
 		if err := team.DefaultDailyLimitUsdValidator(v); err != nil {
 			return &ValidationError{Name: "default_daily_limit_usd", err: fmt.Errorf(`ent: validator failed for field "Team.default_daily_limit_usd": %w`, err)}
@@ -555,6 +607,18 @@ func (_u *TeamUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedMemberLimit(); ok {
 		_spec.AddField(team.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Concurrency(); ok {
+		_spec.SetField(team.FieldConcurrency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConcurrency(); ok {
+		_spec.AddField(team.FieldConcurrency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RpmLimit(); ok {
+		_spec.SetField(team.FieldRpmLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRpmLimit(); ok {
+		_spec.AddField(team.FieldRpmLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.DefaultDailyLimitUsd(); ok {
 		_spec.SetField(team.FieldDefaultDailyLimitUsd, field.TypeFloat64, value)
@@ -963,6 +1027,48 @@ func (_u *TeamUpdateOne) AddMemberLimit(v int) *TeamUpdateOne {
 	return _u
 }
 
+// SetConcurrency sets the "concurrency" field.
+func (_u *TeamUpdateOne) SetConcurrency(v int) *TeamUpdateOne {
+	_u.mutation.ResetConcurrency()
+	_u.mutation.SetConcurrency(v)
+	return _u
+}
+
+// SetNillableConcurrency sets the "concurrency" field if the given value is not nil.
+func (_u *TeamUpdateOne) SetNillableConcurrency(v *int) *TeamUpdateOne {
+	if v != nil {
+		_u.SetConcurrency(*v)
+	}
+	return _u
+}
+
+// AddConcurrency adds value to the "concurrency" field.
+func (_u *TeamUpdateOne) AddConcurrency(v int) *TeamUpdateOne {
+	_u.mutation.AddConcurrency(v)
+	return _u
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (_u *TeamUpdateOne) SetRpmLimit(v int) *TeamUpdateOne {
+	_u.mutation.ResetRpmLimit()
+	_u.mutation.SetRpmLimit(v)
+	return _u
+}
+
+// SetNillableRpmLimit sets the "rpm_limit" field if the given value is not nil.
+func (_u *TeamUpdateOne) SetNillableRpmLimit(v *int) *TeamUpdateOne {
+	if v != nil {
+		_u.SetRpmLimit(*v)
+	}
+	return _u
+}
+
+// AddRpmLimit adds value to the "rpm_limit" field.
+func (_u *TeamUpdateOne) AddRpmLimit(v int) *TeamUpdateOne {
+	_u.mutation.AddRpmLimit(v)
+	return _u
+}
+
 // SetDefaultDailyLimitUsd sets the "default_daily_limit_usd" field.
 func (_u *TeamUpdateOne) SetDefaultDailyLimitUsd(v float64) *TeamUpdateOne {
 	_u.mutation.ResetDefaultDailyLimitUsd()
@@ -1283,6 +1389,16 @@ func (_u *TeamUpdateOne) check() error {
 			return &ValidationError{Name: "member_limit", err: fmt.Errorf(`ent: validator failed for field "Team.member_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Concurrency(); ok {
+		if err := team.ConcurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "concurrency", err: fmt.Errorf(`ent: validator failed for field "Team.concurrency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RpmLimit(); ok {
+		if err := team.RpmLimitValidator(v); err != nil {
+			return &ValidationError{Name: "rpm_limit", err: fmt.Errorf(`ent: validator failed for field "Team.rpm_limit": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultDailyLimitUsd(); ok {
 		if err := team.DefaultDailyLimitUsdValidator(v); err != nil {
 			return &ValidationError{Name: "default_daily_limit_usd", err: fmt.Errorf(`ent: validator failed for field "Team.default_daily_limit_usd": %w`, err)}
@@ -1371,6 +1487,18 @@ func (_u *TeamUpdateOne) sqlSave(ctx context.Context) (_node *Team, err error) {
 	}
 	if value, ok := _u.mutation.AddedMemberLimit(); ok {
 		_spec.AddField(team.FieldMemberLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Concurrency(); ok {
+		_spec.SetField(team.FieldConcurrency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConcurrency(); ok {
+		_spec.AddField(team.FieldConcurrency, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RpmLimit(); ok {
+		_spec.SetField(team.FieldRpmLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRpmLimit(); ok {
+		_spec.AddField(team.FieldRpmLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.DefaultDailyLimitUsd(); ok {
 		_spec.SetField(team.FieldDefaultDailyLimitUsd, field.TypeFloat64, value)

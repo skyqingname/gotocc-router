@@ -53279,6 +53279,10 @@ type TeamMutation struct {
 	status                       *string
 	member_limit                 *int
 	addmember_limit              *int
+	concurrency                  *int
+	addconcurrency               *int
+	rpm_limit                    *int
+	addrpm_limit                 *int
 	default_daily_limit_usd      *float64
 	adddefault_daily_limit_usd   *float64
 	default_weekly_limit_usd     *float64
@@ -53835,6 +53839,118 @@ func (m *TeamMutation) ResetMemberLimit() {
 	m.addmember_limit = nil
 }
 
+// SetConcurrency sets the "concurrency" field.
+func (m *TeamMutation) SetConcurrency(i int) {
+	m.concurrency = &i
+	m.addconcurrency = nil
+}
+
+// Concurrency returns the value of the "concurrency" field in the mutation.
+func (m *TeamMutation) Concurrency() (r int, exists bool) {
+	v := m.concurrency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConcurrency returns the old "concurrency" field's value of the Team entity.
+// If the Team object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TeamMutation) OldConcurrency(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConcurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConcurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConcurrency: %w", err)
+	}
+	return oldValue.Concurrency, nil
+}
+
+// AddConcurrency adds i to the "concurrency" field.
+func (m *TeamMutation) AddConcurrency(i int) {
+	if m.addconcurrency != nil {
+		*m.addconcurrency += i
+	} else {
+		m.addconcurrency = &i
+	}
+}
+
+// AddedConcurrency returns the value that was added to the "concurrency" field in this mutation.
+func (m *TeamMutation) AddedConcurrency() (r int, exists bool) {
+	v := m.addconcurrency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetConcurrency resets all changes to the "concurrency" field.
+func (m *TeamMutation) ResetConcurrency() {
+	m.concurrency = nil
+	m.addconcurrency = nil
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (m *TeamMutation) SetRpmLimit(i int) {
+	m.rpm_limit = &i
+	m.addrpm_limit = nil
+}
+
+// RpmLimit returns the value of the "rpm_limit" field in the mutation.
+func (m *TeamMutation) RpmLimit() (r int, exists bool) {
+	v := m.rpm_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRpmLimit returns the old "rpm_limit" field's value of the Team entity.
+// If the Team object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TeamMutation) OldRpmLimit(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRpmLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRpmLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRpmLimit: %w", err)
+	}
+	return oldValue.RpmLimit, nil
+}
+
+// AddRpmLimit adds i to the "rpm_limit" field.
+func (m *TeamMutation) AddRpmLimit(i int) {
+	if m.addrpm_limit != nil {
+		*m.addrpm_limit += i
+	} else {
+		m.addrpm_limit = &i
+	}
+}
+
+// AddedRpmLimit returns the value that was added to the "rpm_limit" field in this mutation.
+func (m *TeamMutation) AddedRpmLimit() (r int, exists bool) {
+	v := m.addrpm_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRpmLimit resets all changes to the "rpm_limit" field.
+func (m *TeamMutation) ResetRpmLimit() {
+	m.rpm_limit = nil
+	m.addrpm_limit = nil
+}
+
 // SetDefaultDailyLimitUsd sets the "default_daily_limit_usd" field.
 func (m *TeamMutation) SetDefaultDailyLimitUsd(f float64) {
 	m.default_daily_limit_usd = &f
@@ -54307,7 +54423,7 @@ func (m *TeamMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TeamMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, team.FieldCreatedAt)
 	}
@@ -54334,6 +54450,12 @@ func (m *TeamMutation) Fields() []string {
 	}
 	if m.member_limit != nil {
 		fields = append(fields, team.FieldMemberLimit)
+	}
+	if m.concurrency != nil {
+		fields = append(fields, team.FieldConcurrency)
+	}
+	if m.rpm_limit != nil {
+		fields = append(fields, team.FieldRpmLimit)
 	}
 	if m.default_daily_limit_usd != nil {
 		fields = append(fields, team.FieldDefaultDailyLimitUsd)
@@ -54370,6 +54492,10 @@ func (m *TeamMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case team.FieldMemberLimit:
 		return m.MemberLimit()
+	case team.FieldConcurrency:
+		return m.Concurrency()
+	case team.FieldRpmLimit:
+		return m.RpmLimit()
 	case team.FieldDefaultDailyLimitUsd:
 		return m.DefaultDailyLimitUsd()
 	case team.FieldDefaultWeeklyLimitUsd:
@@ -54403,6 +54529,10 @@ func (m *TeamMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldStatus(ctx)
 	case team.FieldMemberLimit:
 		return m.OldMemberLimit(ctx)
+	case team.FieldConcurrency:
+		return m.OldConcurrency(ctx)
+	case team.FieldRpmLimit:
+		return m.OldRpmLimit(ctx)
 	case team.FieldDefaultDailyLimitUsd:
 		return m.OldDefaultDailyLimitUsd(ctx)
 	case team.FieldDefaultWeeklyLimitUsd:
@@ -54481,6 +54611,20 @@ func (m *TeamMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMemberLimit(v)
 		return nil
+	case team.FieldConcurrency:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConcurrency(v)
+		return nil
+	case team.FieldRpmLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRpmLimit(v)
+		return nil
 	case team.FieldDefaultDailyLimitUsd:
 		v, ok := value.(float64)
 		if !ok {
@@ -54522,6 +54666,12 @@ func (m *TeamMutation) AddedFields() []string {
 	if m.addmember_limit != nil {
 		fields = append(fields, team.FieldMemberLimit)
 	}
+	if m.addconcurrency != nil {
+		fields = append(fields, team.FieldConcurrency)
+	}
+	if m.addrpm_limit != nil {
+		fields = append(fields, team.FieldRpmLimit)
+	}
 	if m.adddefault_daily_limit_usd != nil {
 		fields = append(fields, team.FieldDefaultDailyLimitUsd)
 	}
@@ -54547,6 +54697,10 @@ func (m *TeamMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedResellerOwnerID()
 	case team.FieldMemberLimit:
 		return m.AddedMemberLimit()
+	case team.FieldConcurrency:
+		return m.AddedConcurrency()
+	case team.FieldRpmLimit:
+		return m.AddedRpmLimit()
 	case team.FieldDefaultDailyLimitUsd:
 		return m.AddedDefaultDailyLimitUsd()
 	case team.FieldDefaultWeeklyLimitUsd:
@@ -54589,6 +54743,20 @@ func (m *TeamMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMemberLimit(v)
+		return nil
+	case team.FieldConcurrency:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddConcurrency(v)
+		return nil
+	case team.FieldRpmLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRpmLimit(v)
 		return nil
 	case team.FieldDefaultDailyLimitUsd:
 		v, ok := value.(float64)
@@ -54679,6 +54847,12 @@ func (m *TeamMutation) ResetField(name string) error {
 		return nil
 	case team.FieldMemberLimit:
 		m.ResetMemberLimit()
+		return nil
+	case team.FieldConcurrency:
+		m.ResetConcurrency()
+		return nil
+	case team.FieldRpmLimit:
+		m.ResetRpmLimit()
 		return nil
 	case team.FieldDefaultDailyLimitUsd:
 		m.ResetDefaultDailyLimitUsd()

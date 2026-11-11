@@ -1,12 +1,20 @@
 package middleware
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/LuckyKuang/sub2api-plus/internal/service"
+	"github.com/gin-gonic/gin"
+)
 
 // AuthSubject is the minimal authenticated identity stored in gin context.
-// Decision: {UserID int64, Concurrency int}
+// UserID remains the billing/authorization identity; TeamID scopes request capacity.
 type AuthSubject struct {
 	UserID      int64
 	Concurrency int
+	TeamID      *int64
+}
+
+func (s AuthSubject) RequestLimitScopeID() int64 {
+	return service.RequestLimitScopeID(s.UserID, s.TeamID)
 }
 
 func GetAuthSubjectFromContext(c *gin.Context) (AuthSubject, bool) {

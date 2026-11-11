@@ -173,11 +173,14 @@ func (s *ConcurrencyService) ResolveUserConcurrency(ctx context.Context, userID 
 	if s == nil {
 		return 0, errors.New("concurrency service unavailable")
 	}
-	if s.userRepo == nil {
-		return fallback, nil
-	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if userID < 0 {
+		return s.resolveTeamConcurrency(ctx, -userID)
+	}
+	if s.userRepo == nil {
+		return fallback, nil
 	}
 	readCtx, cancel := context.WithTimeout(ctx, regularLeaseOperationTimeout)
 	defer cancel()

@@ -82,14 +82,14 @@ func (p *BatchImageProviderProcessor) Process(ctx context.Context, batchID strin
 		return BatchImageProcessResult{Terminal: true}, nil
 	}
 
-	// Each worker execution competes with all of the user's active gateway
-	// requests. The queued/upstream-waiting job itself retains no execution slot.
+	// Each worker execution uses its original team's or personal capacity.
+	// The queued/upstream-waiting job itself retains no execution slot.
 	if p.Concurrency == nil {
 		return BatchImageProcessResult{}, infraerrors.New(http.StatusServiceUnavailable, "CONCURRENCY_UNAVAILABLE", "batch execution admission is unavailable")
 	}
 	leaseCtx, cancelLease := WithConcurrencyLeaseContext(ctx)
 	defer cancelLease(nil)
-	lease, admissionErr := p.Concurrency.AcquireUserSlot(leaseCtx, job.UserID, 0)
+	lease, admissionErr := p.Concurrency.AcquireUserSlot(leaseCtx, RequestLimitScopeID(job.UserID, job.TeamID), 0)
 	if admissionErr != nil {
 		return BatchImageProcessResult{}, admissionErr
 	}

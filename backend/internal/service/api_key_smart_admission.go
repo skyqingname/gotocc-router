@@ -73,7 +73,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 	if !payer.CanBindGroup(groupID, currentGroup.IsExclusive) && payer.ResellerCustomer != nil {
 		return nil, ErrAutoRouteNoAccess
 	}
-	if s.keys.userGroupRateRepo != nil {
+	if key.TeamID == nil && s.keys.userGroupRateRepo != nil {
 		override, err := s.keys.userGroupRateRepo.GetRPMOverrideByUserAndGroup(ctx, payer.ID, groupID)
 		if err != nil {
 			return nil, ErrAutoRouteUnavailable.WithCause(err)

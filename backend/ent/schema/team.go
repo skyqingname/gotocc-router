@@ -52,6 +52,8 @@ func (Team) Fields() []ent.Field {
 			return nil
 		}),
 		field.Int("member_limit").Default(10).NonNegative(),
+		field.Int("concurrency").Default(0).NonNegative(),
+		field.Int("rpm_limit").Default(0).NonNegative(),
 		defaultLimit("default_daily_limit_usd"),
 		defaultLimit("default_weekly_limit_usd"),
 		defaultLimit("default_monthly_limit_usd"),

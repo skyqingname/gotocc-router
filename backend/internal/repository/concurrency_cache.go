@@ -433,7 +433,7 @@ var (
 // score 为给定的绝对过期时间（Redis Unix 秒）。索引失败不影响并发槽位/等待队列本身，
 // 后续释放或清理会再次校正，因此只记日志不上抛。
 func (c *concurrencyCache) touchActiveIndexAt(ctx context.Context, indexKey string, id int64, expireAt int64) {
-	if c == nil || c.rdb == nil || id <= 0 || expireAt <= 0 {
+	if c == nil || c.rdb == nil || id == 0 || (id < 0 && indexKey != userActiveIndexKey) || expireAt <= 0 {
 		return
 	}
 	if err := c.rdb.ZAdd(ctx, indexKey, redis.Z{
@@ -456,7 +456,7 @@ func (c *concurrencyCache) refreshUserActiveIndex(ctx context.Context, userID in
 // 释放槽位、等待计数减少、清理过期成员后都会调用它，防止索引残留。
 // 索引维护是 best-effort：失败只记日志，不影响主流程。
 func (c *concurrencyCache) refreshActiveIndex(ctx context.Context, indexKey string, id int64, slotKey, waitKey string) {
-	if c == nil || c.rdb == nil || id <= 0 {
+	if c == nil || c.rdb == nil || id == 0 || (id < 0 && indexKey != userActiveIndexKey) {
 		return
 	}
 	now, err := c.redisUnixSeconds(ctx)
@@ -536,7 +536,7 @@ func (c *concurrencyCache) readIndexLoads(ctx context.Context, spec slotIndexSpe
 	candidates := make([]activeIndexLoad, 0, len(members))
 	for _, member := range members {
 		id, err := strconv.ParseInt(member, 10, 64)
-		if err != nil || id <= 0 {
+		if err != nil || id == 0 || (id < 0 && spec.indexKey != userActiveIndexKey) {
 			staleMembers = append(staleMembers, member)
 			continue
 		}
@@ -800,7 +800,7 @@ func (c *concurrencyCache) AcquireLiveLease(
 	leaseID string,
 	replacingRegularSlots bool,
 ) (bool, error) {
-	if c == nil || c.rdb == nil || accountID <= 0 || userID <= 0 || apiKeyID <= 0 || leaseID == "" {
+	if c == nil || c.rdb == nil || accountID <= 0 || userID == 0 || apiKeyID <= 0 || leaseID == "" {
 		return false, nil
 	}
 	replacing := 0
