@@ -22,3 +22,8 @@ Flash/Pro, Muse Ember, Claude Fable 5.2 and Gemini 4 Carbon. Gemini 4 Argon
 reference outputs are replaced with the upstream's Vertex US samples. The
 numerical algorithms and sequence-shape rule are unchanged. No SDK, automatic
 sampling or tokenizer probe is enabled by this reference refresh.
+
+Known upstream-data limitation: some saved OpenPangu 2.0 Flash output groups
+trigger the unchanged sequence-shape rejection. Enrollment is not a guarantee
+of reliable identification; this refresh preserves the upstream thresholds and
+reference artifact rather than adjusting them to make saved samples pass.
