@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -83,7 +84,7 @@ func newCountTokensAuditHandler(t *testing.T, endpoint, accountType string, coor
 		return true, nil
 	}
 	platform := service.PlatformOpenAI
-	if endpoint == "anthropic" {
+	if endpoint == "anthropic" || endpoint == "anthropic_messages" {
 		platform = service.PlatformAnthropic
 	} else if endpoint == "grok" {
 		platform = service.PlatformGrok
@@ -115,7 +116,94 @@ func newCountTokensAuditHandler(t *testing.T, endpoint, accountType string, coor
 		nil, service.NewBillingService(cfg, nil), nil, billing, nil, &boundary.wire, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	h := &GatewayHandler{gatewayService: gateway, billingCacheService: billing, cfg: cfg, securityAuditCoordinator: coordinator,
 		concurrencyHelper: NewConcurrencyHelper(concurrency, SSEPingFormatNone, 0)}
+	if endpoint == "anthropic_messages" {
+		return h.Messages, group, boundary
+	}
 	return h.CountTokens, group, boundary
+}
+
+func TestClaudeAdvisorMessagesRealAuditsBeforeSideEffects(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fixture, err := os.ReadFile("../testdata/official_agents/claude_advisor_messages.json")
+	require.NoError(t, err)
+	for _, kind := range []string{service.AccountTypeOAuth, service.AccountTypeSetupToken, service.AccountTypeAPIKey, service.AccountTypeBedrock, service.AccountTypeServiceAccount} {
+		for _, engine := range []string{"moderation", "prompt"} {
+			for _, stream := range []bool{false, true} {
+				for _, recognized := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%s/stream=%t/recognized=%t", kind, engine, stream, recognized), func(t *testing.T) {
+						var payload map[string]any
+						require.NoError(t, json.Unmarshal(fixture, &payload))
+						payload["stream"] = stream
+						scans, want := 1, "audit current request"
+						if !recognized {
+							message := payload["messages"].([]any)[2].(map[string]any)
+							message["content"] = message["content"].([]any)[1:]
+							scans, want = 0, ""
+						}
+						body, err := json.Marshal(payload)
+						require.NoError(t, err)
+						moderation := service.ExtractContentModerationInput(service.ContentModerationProtocolAnthropicMessages, body)
+						require.Equal(t, want, moderation.Text)
+						prompt, err := securityaudit.ExtractPromptSnapshot(securityaudit.Request{Protocol: service.ContentModerationProtocolAnthropicMessages, Body: body})
+						// The retained legacy helper includes sanitized history/tool
+						// context. Production uses Content Moderation only; do not
+						// change that old helper's policy as part of advisor support.
+						require.NoError(t, err)
+						require.NotContains(t, prompt.ScanText, "ADVISOR_ENCRYPTED_CANARY")
+						require.NotContains(t, prompt.ScanText, "ADVISOR_UNKNOWN_CANARY")
+						if recognized {
+							require.True(t, strings.HasPrefix(prompt.ScanText, want))
+						}
+						if engine == "prompt" {
+							scans = 1 // Legacy metadata is text; encrypted bytes never are.
+							if !recognized {
+								scans = 2 // Safe legacy priority/context chunks both complete.
+							}
+						}
+						coordinator, supplier := newCountTokensAuditCoordinator(t, engine, recognized, scans)
+						send, group, boundary := newCountTokensAuditHandler(t, "anthropic_messages", kind, coordinator)
+						w := httptest.NewRecorder()
+						c, _ := gin.CreateTestContext(w)
+						c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(string(body)))
+						c.Request.Header.Set("Content-Type", "application/json")
+						c.Request.Header.Set("anthropic-beta", "advisor-tool-2026-03-01")
+						user := &service.User{ID: 8652, Status: service.StatusActive}
+						c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{ID: 8653, UserID: user.ID, User: user, GroupID: &group.ID, Group: group})
+						c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: user.ID, Concurrency: 1})
+						boundary.slots.acquireUserSlotFn = func(context.Context, int64, int, string) (bool, error) {
+							completed, _ := c.Get(securityAuditCompletedContextKey)
+							require.Equal(t, true, completed, "opaque input must pass audit before admission")
+							boundary.userSlots.Add(1)
+							return false, nil // Stop after audit, before billing and provider work.
+						}
+						send(c)
+						observed := supplier.snapshot()
+						require.Len(t, observed, scans)
+						if recognized {
+							require.Equal(t, http.StatusForbidden, w.Code, w.Body.String())
+							require.Contains(t, observed[0], want)
+							require.NotContains(t, observed[0], "ADVISOR_ENCRYPTED_CANARY")
+							require.NotContains(t, observed[0], "ADVISOR_UNKNOWN_CANARY")
+							if engine == "moderation" {
+								require.NotContains(t, observed[0], "historical user request")
+							}
+							require.Zero(t, boundary.userSlots.Load())
+						} else {
+							require.Equal(t, http.StatusTooManyRequests, w.Code, w.Body.String())
+							require.Equal(t, int32(1), boundary.userSlots.Load())
+						}
+						for _, scanned := range observed {
+							require.NotContains(t, scanned, "ADVISOR_ENCRYPTED_CANARY")
+							require.NotContains(t, scanned, "ADVISOR_UNKNOWN_CANARY")
+						}
+						require.Zero(t, boundary.reads.Load(), "no account selection before audit/admission")
+						require.Zero(t, boundary.accountSlots.Load())
+						require.Empty(t, boundary.wire.calls())
+					})
+				}
+			}
+		}
+	}
 }
 
 type countTokensAuditSupplier struct {

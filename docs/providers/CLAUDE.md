@@ -89,6 +89,9 @@ for supported model pairs and the server-side usage format. A supplier returning
 ordinary `tool_use` without advisor iterations has not performed the server-side
 advisor protocol; the gateway does not synthesize an advisor result or charge.
 
+Advisor history retains the canonical ingress audit and encrypted-content
+exclusion rules described in the [audit coverage matrix](../SECURITY_AUDIT_CONTENT_COVERAGE.md#claude-advisor-messages-continuation).
+
 ## Interrupted compatibility streams
 
 Anthropic-backed Chat Completions and Responses streams stop writing after

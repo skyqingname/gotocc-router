@@ -3,12 +3,45 @@
 package auditcontent
 
 import (
+	"encoding/json"
 	"math"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestExtractClaudeAdvisorHistoryPreservesCurrentUser(t *testing.T) {
+	body, err := os.ReadFile("../testdata/official_agents/claude_advisor_messages.json")
+	require.NoError(t, err)
+	for _, recognized := range []bool{true, false} {
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(body, &payload))
+		if !recognized {
+			message := payload["messages"].([]any)[2].(map[string]any)
+			message["content"] = message["content"].([]any)[1:]
+		}
+		encoded, err := json.Marshal(payload)
+		require.NoError(t, err)
+		document, err := Extract("anthropic_messages", encoded)
+		require.NoError(t, err)
+		var direct []string
+		for _, segment := range document.Segments {
+			if segment.Current && segment.Role == "user" && segment.Source == SourceMessage {
+				direct = append(direct, segment.Text)
+			}
+		}
+		if recognized {
+			require.Equal(t, []string{"audit current request"}, direct)
+		} else {
+			require.Empty(t, direct, "opaque advisor continuation cannot invent direct-user text")
+		}
+		allText := strings.Join(segmentTexts(document.Segments), " ")
+		require.NotContains(t, allText, "ADVISOR_ENCRYPTED_CANARY")
+		require.NotContains(t, allText, "ADVISOR_UNKNOWN_CANARY")
+	}
+}
 
 func TestExtractCanonicalProtocolPayloads(t *testing.T) {
 	tests := []struct {

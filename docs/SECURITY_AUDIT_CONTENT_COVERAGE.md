@@ -387,6 +387,36 @@ classifications.
   return an unavailable decision, or change an empty selection into a policy
   violation.
 
+## Claude advisor Messages continuation
+
+The native `advisor_20260301` tool does not introduce an audit exemption.
+`server_tool_use(name=advisor)` and `advisor_tool_result` history use the existing
+server-tool context extraction. The nested `advisor_redacted_result` carries
+opaque encrypted content, whose bytes are excluded from audit text and supplier
+calls. Advisor tool/model metadata and historical user messages do not become
+current direct-user text. Unknown valid continuation blocks pass through;
+recognized current user-text siblings remain auditable.
+
+The synthetic real-shape fixture
+`backend/internal/testdata/official_agents/claude_advisor_messages.json` covers
+the native tool definition, server-tool history, encrypted result and a current
+user message with unknown sibling content. `TestExtractClaudeAdvisorHistoryPreservesCurrentUser`
+checks canonical extraction and omission of opaque bytes.
+`TestClaudeAdvisorMessagesRealAuditsBeforeSideEffects` exercises native Messages
+with streaming on/off, both real audit engines, and OAuth/setup-token/API-key/
+Bedrock/Vertex service-account candidates. Recognized-content rejection occurs
+before user/account concurrency, account selection, billing or provider writes.
+For the active Content Moderation engine, opaque-only controls pass audit
+without an audit-supplier call and reach user admission, which the fixture
+deliberately denies before billing/provider work. The separately constructed
+retained Prompt Audit engine can scan sanitized history/tool metadata even in
+that control; its safe result reaches admission, while encrypted/unknown bytes
+never reach its supplier. That legacy helper is not part of production wiring.
+The existing `TestPromptAuditGatePrecedesAccountBillingAndUpstreamSideEffects`
+also checks the Messages billing and reservation order. These are extraction
+and ordering regressions, not cloud-provider capability acceptance or a change
+to the retired Prompt Audit production configuration.
+
 ## Protocol Matrix
 
 | Protocol family | Canonical text sources | Current-content rule | Explicit no-text or control cases |
@@ -467,25 +497,29 @@ questions per text chunk with string `instructions`; content stays in
 `score_categories` before evaluation and persistence. Existing parent thresholds
 remain in effect; historical logs and threshold snapshots are not rewritten.
 
-The upstream engines consume the same canonical document:
+The engines consume the same canonical document. The retained GoToCC Prompt
+Audit helper differs from the old upstream current-user-only description:
+`prompt_snapshot_gotocc.go` includes client-controlled transcript context and
+optionally narrows blocking to the latest user plus preceding output. It is
+not wired into production ingress. Advisor verification preserves that
+existing helper behavior rather than re-enabling it or changing its policy.
 
 | Engine/mode | Segment selection |
 | --- | --- |
 | Content Moderation | Scans only current direct-user text and images. Chat and Anthropic require an explicit `user` role; Responses, Live, and Gemini also accept their protocol-defined roleless user forms. Direct Alpha Search queries, embedding strings, and media prompts remain eligible. Instructions, system/developer context, reusable prompt variables, assistant/model messages, reasoning, tool definitions/calls/results, approval responses, and tool-produced images are excluded so platform or external content is not attributed to the user. |
-| Prompt Audit blocking and async | Scans the same current direct-user text as Content Moderation. It does not scan images. Chat and Anthropic require an explicit `user` role; Responses, Live, and Gemini also accept their protocol-defined roleless user forms. Direct Alpha Search queries, embedding strings, and media prompts remain eligible. Instructions, system/developer context, reusable prompt variables, assistant/model messages, reasoning, tool definitions/calls/results, and approval responses are excluded. A turn with no current user text is an empty selection. Client harness XML blocks inside user text (`environment_context`, `permission_profile`, `system-reminder`, `filesystem`) are stripped; surrounding user sentences remain. Native System One is the exception: its literal `<system-reminder>`/`<environment_context>` text is ordinary audited content that is never stripped, and its evaluated state is promoted to the priority segment. |
+| Retained Prompt Audit helper (not active in GoToCC ingress) | Uses sanitized client-controlled transcript segments, including history and tool context, with the latest user text first. Its optional blocking window uses the latest user turn plus preceding output; an opaque current turn may still leave older/context text to scan. Encoded media and encrypted bytes remain excluded. Client harness XML blocks are stripped from user text. Native System One keeps literal wrapper text and prioritizes its evaluated state. |
 
 Sharing a canonical document does not mean that the engines evaluate identical
 payloads. Content Moderation preserves the `v0.1.177+custom.003` attribution
 rule: only a direct user submission may produce a user content-policy
-violation, and it may also scan current-user images. Prompt Audit Guard scans
-that same current-user text through Qwen3Guard and never treats URLs or encoded
-media as prompt text. Ordinary user `hi` still blocks when that text itself is
-a jailbreak. Client wrapper XML such as `<environment_context>` inside a user
-message is stripped so sentences like `你能做什么？` are scanned without the
-harness block. A turn containing only instructions, a tool result, or tool
-schema is an empty Prompt Audit selection. Incomplete canonical extraction is
-observable but does not override either engine's selection policy: extracted
-content is still evaluated, while an empty selection passes through.
+violation, and it may also scan current-user images. The retained Prompt Audit
+helper does not treat URLs or encoded media as prompt text, but its history and
+tool-context selection can remain nonempty without a current user sentence.
+Incomplete extraction is observable and does not itself become a refusal;
+successfully selected text follows the respective engine policy, while an
+empty selection passes through. Existing upstream tests describing a narrower
+legacy helper selection are not evidence that GoToCC's retired helper implements
+that policy; this advisor change does not alter that separate legacy behavior.
 
 The optional Codex environment-timezone alignment rewrites the model-visible
 `<timezone>` / `<current_date>` pair inside the stripped `<environment_context>`
