@@ -16,7 +16,7 @@
 | `release-channel.json` | `tools/generate_release_channel.py` | `backend/internal/releasechannel/channel_gen.go`、安装脚本、通道相关文本与镜像引用 |
 | `billing-credits.json` | `tools/generate_billing_credits.py` | `backend/internal/service/billing_credits_defaults_gotocc.go`、随包价格目录 |
 | `content-audit-jev.json` | `tools/generate_content_audit_jev.py` | 后端嵌入的 `content_audit_jev_gen.json`、统一审核类别/阈值/评分映射；前端直接读取根 JSON |
-| `upstream-request-adaptations.json` | `tools/generate_upstream_request_adaptations.py`，支持 `--check` | `backend/internal/service/upstream_request_adaptations_gen_gotocc.go`及冻结的迁移329；图片编辑按账号能力选择multipart，前端直接读取根参数默认值；原生Messages按最终Opus 5.5模型转换旧思考参数 |
+| `upstream-request-adaptations.json` | `tools/generate_upstream_request_adaptations.py`，支持 `--check` | `backend/internal/service/upstream_request_adaptations_gen_gotocc.go`及冻结的迁移329；图片编辑按账号能力选择multipart，前端直接读取根参数默认值；原生Messages按最终Opus 5.5模型转换旧思考参数；OAuth Responses最终HTTP/plugin出站使用生成的Zstd等级和窗口参数 |
 | `model-fingerprint.json` | `tools/generate_model_fingerprint.py` | 后端指纹参数及前端 `parameters.gen.json` |
 | `model-pricing-defaults.json` | `tools/generate_model_pricing_defaults.py`，支持 `--check` | 随包价格目录中的显式精确价卡；保留每款模型的核实日期与期限说明 |
 | `model-plaza-catalog.json` | `tools/generate_model_catalog.py` | `backend/internal/pkg/modelcatalog/catalog_gen.json`；该生成器会联网下载数据，并应用有来源记录的 metadata override |

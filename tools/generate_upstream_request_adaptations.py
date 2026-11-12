@@ -18,6 +18,9 @@ def main():
         'package service',
         '',
         'const openAIImageEditsMultipartDefault = ' + json.dumps(config['image_edits_multipart']['default']),
+        '',
+        'const codexRequestCompressionLevel = ' + str(config['codex_request_compression']['level']),
+        'const codexRequestCompressionWindowBytes = ' + str(config['codex_request_compression']['window_bytes']),
     ]
     lines += ['', 'var claudeOpus55LegacyThinking = map[string]claudeLegacyThinkingAdaptation{']
     for mode, rule in config['claude_opus55_legacy_thinking'].items():

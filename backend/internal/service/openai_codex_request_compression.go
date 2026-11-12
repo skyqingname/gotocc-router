@@ -19,7 +19,11 @@ type codexRequestCompression struct {
 }
 
 var codexRequestEncoder = sync.OnceValues(func() (*zstd.Encoder, error) {
-	return zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(3)), zstd.WithEncoderConcurrency(1))
+	return zstd.NewWriter(nil,
+		zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(codexRequestCompressionLevel)),
+		zstd.WithEncoderConcurrency(1),
+		zstd.WithWindowSize(codexRequestCompressionWindowBytes),
+	)
 })
 
 // PrepareCodexRequestCompression selects compression from the credential owner,
@@ -42,8 +46,10 @@ func PrepareCodexRequestCompression(req *http.Request, account *Account) {
 
 // ApplyCodexRequestCompression encodes the final OAuth Responses body at the
 // transport boundary, after JSON adapters, before HTTP or plugin transmission.
-// Official Codex 1b6e0d8145 uses Zstd level 3 for these HTTP requests. WS, API
-// keys, unary endpoints and signed Agent Identity requests keep their encoding.
+// Keep level 3 with the bounded window from upstream-request-adaptations.json:
+// larger-window frames can produce a generic upstream 400 despite decoding
+// locally to identical JSON. WS, API keys, unary endpoints and signed Agent
+// Identity requests keep their encoding.
 func ApplyCodexRequestCompression(req *http.Request) error {
 	if req == nil || req.URL == nil {
 		return nil
