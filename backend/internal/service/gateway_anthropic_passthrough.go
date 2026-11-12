@@ -736,6 +736,9 @@ func parseSSEUsagePassthrough(data string, usage *ClaudeUsage) {
 	if parsed.Get("type").String() == "message_start" {
 		usageNode = parsed.Get("message.usage")
 	}
+	if iterations := usageNode.Get("iterations"); iterations.IsArray() {
+		usage.AdvisorIterations = parseClaudeAdvisorUsage(iterations.Value())
+	}
 	normalizeAnthropicCompatiblePromptUsage(usageNode, usage)
 }
 
@@ -810,6 +813,7 @@ func parseClaudeUsageFromResponseBody(body []byte) *ClaudeUsage {
 	usage.OutputTokens = int(usageNode.Get("output_tokens").Int())
 	usage.CacheCreationInputTokens = int(usageNode.Get("cache_creation_input_tokens").Int())
 	usage.CacheReadInputTokens = int(usageNode.Get("cache_read_input_tokens").Int())
+	usage.AdvisorIterations = parseClaudeAdvisorUsage(usageNode.Get("iterations").Value())
 
 	cc5m := usageNode.Get("cache_creation.ephemeral_5m_input_tokens").Int()
 	cc1h := usageNode.Get("cache_creation.ephemeral_1h_input_tokens").Int()

@@ -160,7 +160,7 @@ func TestGatewayServiceRecordUsage_TeamAttributionUsesActorAndBillingOwner(t *te
 
 	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
 		Result:  &ForwardResult{RequestID: "gateway_team_attribution", Usage: ClaudeUsage{InputTokens: 10}, Model: "claude-sonnet-4", Duration: time.Second},
-		APIKey:  &APIKey{ID: 501, UserID: actor.ID, TeamID: &teamID, User: owner, ActorUser: actor},
+		APIKey:  &APIKey{ID: 501, UserID: actor.ID, TeamID: &teamID, TeamMembership: &TeamMembership{ID: 78}, User: owner, ActorUser: actor},
 		User:    owner,
 		Account: &Account{ID: 701},
 	})

@@ -276,6 +276,8 @@ func getAnthropicGatewayBaseURL(account *Account) string {
 // prompt-caching-scope-2026-01-05、redact-thinking-2026-02-12、
 // thinking-token-count-2026-05-13；以及 claude-code-20250219 / oauth-2025-04-20 等
 // 客户端身份 beta——Vertex service_account 走 Bearer 鉴权，不需要它们。
+// 显式声明 advisor 工具的请求单独保留其 beta，由目标供应商判定能力；
+// 没有该工具的普通 Claude Code 请求仍使用下列白名单。
 var vertexSupportedBetaTokens = map[string]bool{
 	"context-1m-2025-08-07":                  true,
 	"context-management-2025-06-27":          true,
@@ -285,8 +287,9 @@ var vertexSupportedBetaTokens = map[string]bool{
 
 // filterVertexBetaTokens 解析 client 的 anthropic-beta header，先剔除 drop 集合中的
 // token（BetaPolicy filter + 默认 drop），再只保留 Vertex 支持的 token，去重后逗号拼接。
+// advisor 为 true 时保留显式 advisor 请求的能力 token；不自动注入。
 // 返回最终 header（可能为空字符串）。
-func filterVertexBetaTokens(header string, drop map[string]struct{}) string {
+func filterVertexBetaTokens(header string, drop map[string]struct{}, advisor ...bool) string {
 	tokens := parseAnthropicBetaHeader(header)
 	if len(tokens) == 0 {
 		return ""
@@ -297,7 +300,7 @@ func filterVertexBetaTokens(header string, drop map[string]struct{}) string {
 		if _, dropped := drop[t]; dropped {
 			continue
 		}
-		if !vertexSupportedBetaTokens[t] {
+		if !vertexSupportedBetaTokens[t] && !(len(advisor) > 0 && advisor[0] && t == claudeAdvisorBeta) {
 			continue
 		}
 		if seen[t] {
@@ -339,7 +342,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicVertex(
 	if policy.blockErr != nil {
 		return nil, policy.blockErr
 	}
-	finalBeta := filterSonnet55ToolsetBeta(filterVertexBetaTokens(clientBeta, mergeDropSets(policy.filterSet)), vertexBody, modelID)
+	finalBeta := filterSonnet55ToolsetBeta(filterVertexBetaTokens(clientBeta, mergeDropSets(policy.filterSet), hasClaudeAdvisorTool(body)), vertexBody, modelID)
 
 	// 能力维度 sanitize：基于最终 beta（而非原始 client 值）决定是否保留 body 中的
 	// context_management，与 Anthropic 直连 / Bedrock 路径对称。
@@ -603,6 +606,9 @@ func (s *GatewayService) computeFinalAnthropicBeta(
 				if containsBetaToken(clientBeta, token) {
 					incomingBetas = append(incomingBetas, token)
 				}
+			}
+			if hasClaudeAdvisorTool(body) && containsBetaToken(clientBeta, claudeAdvisorBeta) {
+				incomingBetas = append(incomingBetas, claudeAdvisorBeta)
 			}
 			return mergeAnthropicBetaDropping(claude.FullClaudeCodeMimicryBetas(), strings.Join(incomingBetas, ","), effectiveDropSet), true
 		}

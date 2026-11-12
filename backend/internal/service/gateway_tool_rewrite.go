@@ -382,5 +382,5 @@ func reverseToolNamesIfPresent(c interface {
 	if rw == nil && len(staticToolNameRewrites) == 0 {
 		return chunk
 	}
-	return restoreToolNamesInBytes(chunk, rw)
+	return restoreToolNamesPreservingAdvisor(chunk, rw)
 }

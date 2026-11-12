@@ -11,9 +11,10 @@ The current GoToCC development tree integrates the complete fixed Plus release
 `0b4e6d4228e2528b4c168b06ad3d21030fda5ed8`, peeled commit
 `c54cae37813b21077afeefcf9b252a54d052380c`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.20`, commit `dab829a4e9b7d1cc307189aea8b0319eb29e29d0`.
-The owned release identity is `skyqingname/gotocc-router@v0.2.20+custom.001`.
-Publication was requested on 2026-11-09 after the local candidate checks. The
-owned and upstream tags share a name but point to different fixed commits;
+The owned release identity is `skyqingname/gotocc-router@v0.2.20+custom.003`.
+Publication was requested on 2026-11-12 after the local Responses compression
+and Claude advisor checks. Owned `.002` was published on 2026-11-11. The earlier
+owned and upstream `.001` tags share a name but point to different fixed commits;
 repository, tag and peeled commit must always be considered together.
 
 The integration retains GoToCC team/reseller funding, unified invitation and
@@ -306,3 +307,7 @@ published tags and artifacts are immutable.
 | `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed upstream integrated into the owned v0.2.20+custom.001 release |
 
 | `skyqingname/gotocc-router@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378` with retained GoToCC contracts and UI scrolling/dialog fixes; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.20+custom.002` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378`; team limits and model reference refresh, published 2026-11-11; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.20+custom.003` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378`; bounded Responses compression and native Claude advisor usage/billing; publication requested 2026-11-12; see owned GitHub Release for publication status |

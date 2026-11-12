@@ -6,6 +6,10 @@
       "us-direct-api.sourcesdata.com"
     ]
   },
+  "codex_request_compression": {
+    "level": 3,
+    "window_bytes": 524288
+  },
   "claude_opus55_legacy_thinking": {
     "enabled": {
       "type": "adaptive",

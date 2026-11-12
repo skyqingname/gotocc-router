@@ -3,6 +3,9 @@ package service
 
 const openAIImageEditsMultipartDefault = false
 
+const codexRequestCompressionLevel = 3
+const codexRequestCompressionWindowBytes = 524288
+
 var claudeOpus55LegacyThinking = map[string]claudeLegacyThinkingAdaptation{
 	"enabled":  {Type: "adaptive", Effort: ""},
 	"disabled": {Type: "adaptive", Effort: "low"},

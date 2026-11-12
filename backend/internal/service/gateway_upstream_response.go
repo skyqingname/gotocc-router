@@ -1208,6 +1208,8 @@ func (s *GatewayService) parseSSEUsage(data string, usage *ClaudeUsage) {
 }
 
 type sseUsagePatch struct {
+	advisorIterations        []ClaudeAdvisorUsage
+	hasAdvisorIterations     bool
 	inputTokens              int
 	hasInputTokens           bool
 	outputTokens             int
@@ -1237,6 +1239,10 @@ func (s *GatewayService) extractSSEUsagePatch(event map[string]any) *sseUsagePat
 		}
 
 		patch := &sseUsagePatch{}
+		if iterations, exists := usageObj["iterations"]; exists {
+			patch.advisorIterations = parseClaudeAdvisorUsage(iterations)
+			patch.hasAdvisorIterations = true
+		}
 		patch.hasInputTokens = true
 		if v, ok := parseSSEUsageInt(usageObj["input_tokens"]); ok {
 			patch.inputTokens = v
@@ -1268,6 +1274,10 @@ func (s *GatewayService) extractSSEUsagePatch(event map[string]any) *sseUsagePat
 		}
 
 		patch := &sseUsagePatch{}
+		if iterations, exists := usageObj["iterations"]; exists {
+			patch.advisorIterations = parseClaudeAdvisorUsage(iterations)
+			patch.hasAdvisorIterations = true
+		}
 		if v, ok := parseSSEUsageInt(usageObj["input_tokens"]); ok && v > 0 {
 			patch.inputTokens = v
 			patch.hasInputTokens = true
@@ -1303,6 +1313,10 @@ func (s *GatewayService) extractSSEUsagePatch(event map[string]any) *sseUsagePat
 func mergeSSEUsagePatch(usage *ClaudeUsage, patch *sseUsagePatch) {
 	if usage == nil || patch == nil {
 		return
+	}
+	if patch.hasAdvisorIterations {
+		// Each event contains the current iteration snapshot, not an increment.
+		usage.AdvisorIterations = patch.advisorIterations
 	}
 
 	if patch.hasInputTokens {
@@ -1450,6 +1464,7 @@ func (s *GatewayService) handleNonStreamingResponse(ctx context.Context, resp *h
 	}
 
 	// 解析嵌套的 cache_creation 对象中的 5m/1h 明细
+	response.Usage.AdvisorIterations = parseClaudeAdvisorUsage(gjson.GetBytes(body, "usage.iterations").Value())
 	cc5m := gjson.GetBytes(body, "usage.cache_creation.ephemeral_5m_input_tokens")
 	cc1h := gjson.GetBytes(body, "usage.cache_creation.ephemeral_1h_input_tokens")
 	if cc5m.Exists() || cc1h.Exists() {
