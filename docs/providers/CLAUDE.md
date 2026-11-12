@@ -51,6 +51,44 @@ upstream model retains that older model's behavior. See the
 [official Opus 5.5 migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)
 for the upstream parameter contract.
 
+## Native Messages advisor tool
+
+Requests using `anthropic-beta: advisor-tool-2026-03-01` and a tool with
+`type: advisor_20260301`, `name: advisor` retain the beta and the tool's model and
+parameters. OAuth mimicry preserves this explicitly requested capability. The
+Vertex/Bedrock compatibility filters also retain it when an actual advisor tool
+is present; incidental beta headers without that tool keep their previous
+filtering behavior. Existing administrative beta blocks/filters and account
+header overrides still apply. Passing the capability does not establish that a
+particular supplier supports the server tool.
+
+Native JSON and SSE responses preserve `server_tool_use` blocks named `advisor`,
+`advisor_tool_result` blocks (including encrypted results) and `usage.iterations`.
+Advisor payloads and iteration models bypass whole-response tool-name restoration.
+Main-model rewriting remains scoped to the existing top-level model fields.
+
+Only `advisor_message` iterations create additional usage rows. The executor is
+charged once from outer usage; advisor tokens are never added to those totals.
+Each advisor iteration uses its own model price and the frozen group/payer
+pricing context. Executor fast/thinking declarations and input/cache reclassification
+are not copied into the advisor charge. An unidentified advisor price falls back
+to the price model actually selected for the main request and emits
+`claude_advisor_pricing_fallback`; the usage row still names the advisor model.
+
+Each child charge uses `<main request ID>:advisor:<iterations array index>` and
+the existing atomic usage/billing deduplication. IDs exceeding the existing
+64-character usage limit use a deterministic compact ID. Every advisor row
+records `parent_request_id`, `iteration` and `pricing_model` under
+`billing_rate_snapshot.advisor`, including compact-ID and price-fallback cases.
+Missing iterations, including a disconnected client that never receives them,
+produce no advisor charge or advisor-specific error. Ordinary requests retain
+their previous billing path.
+
+See the [Anthropic advisor contract](https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool)
+for supported model pairs and the server-side usage format. A supplier returning
+ordinary `tool_use` without advisor iterations has not performed the server-side
+advisor protocol; the gateway does not synthesize an advisor result or charge.
+
 ## Interrupted compatibility streams
 
 Anthropic-backed Chat Completions and Responses streams stop writing after

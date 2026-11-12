@@ -690,7 +690,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if input.PricingSnapshot != nil {
 		ctx = pricingSnapshotContext(ctx, input.PricingSnapshot)
 	}
-	return s.recordUsageCore(ctx, &recordUsageCoreInput{
+	core := &recordUsageCoreInput{
 		Result:             input.Result,
 		APIKey:             input.APIKey,
 		User:               input.User,
@@ -708,27 +708,36 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		APIKeyService:      input.APIKeyService,
 		QuotaPlatform:      input.QuotaPlatform,
 		ChannelUsageFields: input.ChannelUsageFields,
-	})
+	}
+	if len(input.Result.Usage.AdvisorIterations) > 0 {
+		return s.recordUsageWithAdvisor(ctx, core)
+	}
+	return s.recordUsageCore(ctx, core)
 }
 
 // recordUsageCoreInput 是 recordUsageCore 的公共输入字段，从两种输入结构体中提取。
 type recordUsageCoreInput struct {
-	Result             *ForwardResult
-	APIKey             *APIKey
-	User               *User
-	Account            *Account
-	Subscription       *UserSubscription
-	PricingAt          time.Time
-	InboundEndpoint    string
-	UpstreamEndpoint   string
-	UserAgent          string
-	IPAddress          string
-	SessionID          string
-	RequestPayloadHash string
-	ForceCacheBilling  bool
-	IsComplete         *bool
-	APIKeyService      APIKeyQuotaUpdater
-	QuotaPlatform      string
+	requestID              string // Stable parent/iteration identity for advisor settlement.
+	advisorPricingModel    string // Price lookup only; the usage row keeps the advisor model.
+	advisorParentRequestID string
+	advisorIteration       int
+	settledPricingModel    string // Actual main-model price source for advisor fallback.
+	Result                 *ForwardResult
+	APIKey                 *APIKey
+	User                   *User
+	Account                *Account
+	Subscription           *UserSubscription
+	PricingAt              time.Time
+	InboundEndpoint        string
+	UpstreamEndpoint       string
+	UserAgent              string
+	IPAddress              string
+	SessionID              string
+	RequestPayloadHash     string
+	ForceCacheBilling      bool
+	IsComplete             *bool
+	APIKeyService          APIKeyQuotaUpdater
+	QuotaPlatform          string
 	ChannelUsageFields
 }
 
@@ -842,13 +851,16 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	// Cache TTL Override: 确保计费时 token 分类与账号设置一致。
 	// 账号级设置优先；全局 1h 请求注入开启时，默认把 usage 计费归回 5m。
 	cacheTTLOverridden := false
-	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok {
+	if overrideTarget, ok := s.resolveCacheTTLUsageOverrideTarget(ctx, account); ok && input.advisorPricingModel == "" {
 		applyCacheTTLOverride(&result.Usage, overrideTarget)
 		cacheTTLOverridden = (result.Usage.CacheCreation5mTokens + result.Usage.CacheCreation1hTokens) > 0
 	}
 
 	multiplier, imageMultiplier, pricingAt := s.recordUsageMultipliers(ctx, apiKey, user, input.PricingAt)
 	billingModel := s.recordUsageBillingModel(ctx, apiKey, result, input.ChannelUsageFields)
+	if input.advisorPricingModel != "" {
+		billingModel = input.advisorPricingModel
+	}
 	if err := validateDurableBillingModel(ctx, billingModel); err != nil {
 		return err
 	}
@@ -862,6 +874,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	// 计算费用
 	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, pricingAt)
+	input.settledPricingModel = billingModel
 	// response_model：按上游成功响应自报的模型计费（渠道显式开启才生效）。
 	// 采纳条件见 responseModelBillingDeclaration + hasIdentifiedResponseModelPricing
 	// + responseModelBillingAdoptable。任一条件不满足都静默回落基线，即开启本模式前的
@@ -880,6 +893,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				// 因此这里不改写它，改由日志记录实际生效的计费基准。
 				logResponseModelBillingApplied("service.gateway", account, result.RequestID, billingModel, responseModel, cost, responseCost)
 				cost = responseCost
+				input.settledPricingModel = responseModel
 			}
 		}
 	}
@@ -909,6 +923,13 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		unit = cost.BillingUnit
 	}
 	applyUsageBillingRateSnapshot(ctx, usageLog, apiKey, unit, pricingAt)
+	if input.advisorParentRequestID != "" {
+		usageLog.BillingRateSnapshot["advisor"] = map[string]any{
+			"parent_request_id": input.advisorParentRequestID,
+			"iteration":         input.advisorIteration,
+			"pricing_model":     input.advisorPricingModel,
+		}
+	}
 	if result.SearchCount > 0 {
 		appendUsageBillingComponent(ctx, usageLog, apiKey, "request", pricingAt)
 	}
@@ -1464,7 +1485,10 @@ func (s *GatewayService) buildRecordUsageLog(
 	cost *CostBreakdown,
 ) *UsageLog {
 	durationMs := int(result.Duration.Milliseconds())
-	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	requestID := input.requestID
+	if requestID == "" {
+		requestID = resolveUsageBillingRequestID(ctx, result.RequestID)
+	}
 	sentModel := upstreamSentModel(result.Model, result.UpstreamModel)
 	if result.UpstreamResponseModelConflict {
 		slog.Warn("upstream_response_model_conflict",

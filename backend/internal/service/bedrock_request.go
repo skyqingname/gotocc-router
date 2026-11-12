@@ -206,7 +206,7 @@ func PrepareBedrockRequestBody(body []byte, modelID string, betaHeader string) (
 func PrepareBedrockRequestBodyWithTokens(body []byte, modelID string, betaTokens []string, ccCompat bool) ([]byte, error) {
 	var err error
 
-	betaTokens = filterBedrockBetaTokens(betaTokens)
+	betaTokens = filterBedrockBetaTokens(betaTokens, hasClaudeAdvisorTool(body))
 	body = sanitizeBedrockFieldsForBetaTokens(body, betaTokens)
 
 	// 注入 anthropic_version（Bedrock 要求）
@@ -286,7 +286,7 @@ func PrepareBedrockRequestBodyWithTokens(body []byte, modelID string, betaTokens
 func ResolveBedrockBetaTokens(betaHeader string, body []byte, modelID string) []string {
 	betaTokens := parseAnthropicBetaHeader(betaHeader)
 	betaTokens = autoInjectBedrockBetaTokens(betaTokens, body, modelID)
-	return filterBedrockBetaTokens(betaTokens)
+	return filterBedrockBetaTokens(betaTokens, hasClaudeAdvisorTool(body))
 }
 
 // convertOutputFormatToInlineSchema 将结构化输出的 JSON schema 内联到最后一条 user message
@@ -638,7 +638,8 @@ func bedrockModelSupportsToolSearch(modelID string) bool {
 // 1. 应用转换规则（如 advanced-tool-use → tool-search-tool）
 // 2. 过滤掉 Bedrock 不支持的 token（如 output-128k, files-api, structured-outputs 等）
 // 3. 自动关联 tool-examples（当 tool-search-tool 存在时）
-func filterBedrockBetaTokens(tokens []string) []string {
+// 显式 advisor 请求保留其原能力 token；其余请求的白名单不变。
+func filterBedrockBetaTokens(tokens []string, advisor ...bool) []string {
 	seen := make(map[string]bool, len(tokens))
 	var result []string
 
@@ -648,7 +649,7 @@ func filterBedrockBetaTokens(tokens []string) []string {
 			t = replacement
 		}
 		// 只保留白名单中的 token，且去重
-		if bedrockSupportedBetaTokens[t] && !seen[t] {
+		if (bedrockSupportedBetaTokens[t] || (len(advisor) > 0 && advisor[0] && t == claudeAdvisorBeta)) && !seen[t] {
 			result = append(result, t)
 			seen[t] = true
 		}
@@ -873,7 +874,7 @@ func sanitizeBedrockCCBetaTokens(body []byte, modelID string) []byte {
 	// 复用现有的 Bedrock beta token 过滤逻辑（自动注入 + 白名单过滤 + 转换）
 	// 即使 tokens 为空，也要执行自动注入（根据 body 内容补充必要的 beta token）
 	tokens = autoInjectBedrockBetaTokens(tokens, body, modelID)
-	tokens = filterBedrockBetaTokens(tokens)
+	tokens = filterBedrockBetaTokens(tokens, hasClaudeAdvisorTool(body))
 
 	if len(tokens) == 0 {
 		// 所有 token 都被过滤掉，删除 anthropic_beta 字段
