@@ -203,7 +203,7 @@ func codexCLITaskConfig(accountConfig string, request CodexCLITaskRequest, heade
 	config["feedback"] = map[string]any{"enabled": false}
 	config["otel"] = map[string]any{"exporter": "none", "trace_exporter": "none", "metrics_exporter": "none", "log_user_prompt": false}
 	config["web_search"] = "disabled"
-	disableCodexCLITaskRemoteFeatures(config)
+	applyCodexCLITaskFeaturePolicy(config)
 	cloud, ok := config["cloud"].(map[string]any)
 	if !ok {
 		cloud = make(map[string]any)
@@ -232,7 +232,7 @@ func codexCLITaskConfig(accountConfig string, request CodexCLITaskRequest, heade
 	return encoded, optionalTrimmedStringPtr(effort), err
 }
 
-func disableCodexCLITaskRemoteFeatures(config map[string]any) {
+func applyCodexCLITaskFeaturePolicy(config map[string]any) {
 	features, ok := config["features"].(map[string]any)
 	if !ok {
 		features = make(map[string]any)
@@ -241,6 +241,10 @@ func disableCodexCLITaskRemoteFeatures(config map[string]any) {
 	for _, key := range []string{"plugins", "remote_plugin", "plugin_sharing", "apps", "tool_suggest", "recommended_plugins"} {
 		features[key] = false
 	}
+	// Match the gateway's uncompressed Responses transport. Even valid Zstd
+	// with a 512 KiB window can receive a generic upstream 400. Saved CLI
+	// configuration must not reintroduce that encoding on this separate path.
+	features["enable_request_compression"] = false
 }
 
 func codexCLITaskForwardResult(task codexcli.TaskResult, request CodexCLITaskRequest, model, id string, duration time.Duration) *OpenAIForwardResult {

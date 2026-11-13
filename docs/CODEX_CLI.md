@@ -182,6 +182,13 @@ startup requests, including GitHub catalog synchronization and ChatGPT catalog
 fallback. Local task tools still follow the account's saved root sandbox and
 approval policy.
 
+The managed overlay also sets `features.enable_request_compression = false`,
+even when saved account TOML enables it. This keeps task inference consistent
+with the gateway's uncompressed Codex Responses transport; reducing the Zstd
+window did not prevent all compression-dependent upstream 400 responses. The
+transparent bridge preserves the final JSON bytes and uses that same native or
+plugin sender. Response decoding and credential-owner identity are unchanged.
+
 Each execution supplies `-c project_root_markers=[]` so project discovery stops
 at the fresh private working directory. A trusted ancestor Git project's
 `.codex/config.toml` must not override the account's saved configuration or

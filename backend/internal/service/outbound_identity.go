@@ -1126,7 +1126,6 @@ func prepareAccountOutboundRequest(req *http.Request, account *Account) *http.Re
 				return req
 			}
 		}
-		PrepareCodexRequestCompression(req, account)
 	}
 	return req
 }
