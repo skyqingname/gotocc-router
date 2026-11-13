@@ -674,3 +674,16 @@ func TestCodexCLITaskStandardTierHonorsFastPolicyBeforeSideEffects(t *testing.T)
 		})
 	}
 }
+
+// Managed CLI inference must not reintroduce request Zstd outside HTTPUpstream.
+func TestCodexCLITaskDisablesRequestCompression(t *testing.T) {
+	for _, saved := range []string{"", "[features]\nenable_request_compression = true\n", "[features]\nenable_request_compression = false\n"} {
+		t.Run(saved, func(t *testing.T) {
+			body, _, err := codexCLITaskConfig("approval_policy = \"never\"\n"+saved, CodexCLITaskRequest{Model: "gpt-6.1-sol"}, http.Header{})
+			require.NoError(t, err)
+			var decoded map[string]any
+			require.NoError(t, toml.Unmarshal(body, &decoded))
+			require.Equal(t, false, decoded["features"].(map[string]any)["enable_request_compression"])
+		})
+	}
+}
