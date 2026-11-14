@@ -355,15 +355,12 @@ const flagAsyncImageAccess = () => canUseAsyncImage.value
 const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
-// withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
+// 两种个人菜单均包含 /dashboard；全站统计使用独立的 /admin/dashboard。
 //
 // 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
-function buildSelfNavItems(withDashboard: boolean): NavItem[] {
-  const items: NavItem[] = []
-  if (withDashboard) {
-    items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
-  }
+function buildSelfNavItems(): NavItem[] {
+  const items: NavItem[] = [{ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon }]
   items.push(
     // 带 embedded=1 在后台布局内打开，与页眉入口一致。
     { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, featureFlag: flagModelPlaza },
@@ -402,7 +399,7 @@ function finalizeNav(items: NavItem[]): NavItem[] {
 
 // User navigation items (for regular users)
 const userNavItems = computed((): NavItem[] => {
-  const items = finalizeNav(buildSelfNavItems(true))
+  const items = finalizeNav(buildSelfNavItems())
   const id = adminSupportContext.value?.userId
   return id ? items.map(item => item.external ? item : ({ ...item, path: supportPathForPersonalPath(id, item.path) || item.path })) : items
 })
@@ -415,7 +412,8 @@ const isAdminSupportMode = computed(() => {
   return supportTargetId.value !== null && supportTargetId.value !== authStore.user?.id
 })
 
-const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems(false)))
+const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems()).map(item =>
+  item.path === '/dashboard' ? { ...item, label: t('nav.personalDashboard') } : item))
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {
