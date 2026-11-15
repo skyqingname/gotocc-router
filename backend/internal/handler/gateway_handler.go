@@ -1883,7 +1883,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 // usageUnrestricted 处理 unrestricted 模式的响应（向后兼容）
 func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, apiKey *service.APIKey, subject middleware2.AuthSubject, usageData gin.H, dailyUsage any, modelStats any) {
 	// 订阅模式
-	if apiKey.Group != nil && apiKey.Group.IsSubscriptionType() {
+	if apiKey.TeamID == nil && apiKey.User.ResellerCustomer == nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType() {
 		resp := gin.H{
 			"mode":     "unrestricted",
 			"isValid":  true,
@@ -1924,11 +1924,16 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		return
 	}
 
-	// 余额模式
-	latestUser, err := h.userService.GetByID(ctx, subject.UserID)
-	if err != nil {
-		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get user info")
-		return
+	// Auth has already refreshed the team wallet or reseller credit identity.
+	// A personal-user lookup must not replace that request's funding source.
+	latestUser := apiKey.User
+	if apiKey.TeamID == nil && apiKey.User.ResellerCustomer == nil {
+		var err error
+		latestUser, err = h.userService.GetByID(ctx, subject.UserID)
+		if err != nil {
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get user info")
+			return
+		}
 	}
 
 	resp := gin.H{
