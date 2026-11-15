@@ -6,12 +6,13 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current GoToCC development candidate integrates the complete fixed Plus release
+GoToCC `skyqingname/gotocc-router@v0.2.21+custom.001` integrates the complete fixed Plus release
 `LuckyKuang/sub2api-plus@v0.2.21+custom.001`, peeled commit
 `0ccd6314909df1918baf9216458d1ed717e0ad8c`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.21`, commit `10ba8f9b4dc2e6023d4a9879ab77b21841babd10`.
-The owned base is `skyqingname/gotocc-router@v0.2.20+custom.004`;
-this candidate has no newly assigned owned release number and is not published.
+The owned base is `skyqingname/gotocc-router@v0.2.20+custom.004`.
+Publication of the verified candidate was authorized on 2026-11-15; the owned
+GitHub Release is the authority for completed publication.
 Repository, tag and peeled commit are separate parts of version identity.
 Post-tag upstream main is excluded.
 
@@ -48,8 +49,8 @@ registration-email blacklist, image capability controls and catalog layout
 settings are imported. MCP stays opt-in and disabled without its configured URL.
 
 Upstream `307_mcp_oauth.sql` is imported as **333_mcp_oauth.sql**; every existing
-GoToCC SQL migration remains unchanged. Authentication snapshot version 33
-retains team/routing fields and imports the upstream Composite/privacy fields.
+GoToCC SQL migration remains unchanged. Authentication snapshot version 35
+retains team/routing fields and includes aggregate bindings and Composite/privacy fields.
 The compiled release-channel baseline is regenerated independently of an owned
 release assignment. Source integration, candidate acceptance, publication and
 production installation remain separate states.
@@ -248,7 +249,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.001
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.005` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
 | `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | published |
-| `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by the unpublished GoToCC candidate |
+| `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.001 |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
@@ -348,3 +349,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.20+custom.003` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378`; bounded Responses compression and native Claude advisor usage/billing; published 2026-11-12; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.20+custom.004` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | fixed Plus `c54cae378`; remove Codex request Zstd across native/plugin/CLI paths; publication authorized 2026-11-13; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `0ccd631490`; aggregate keys retain team/reseller funding, 301 catalog entries and 70 fingerprint identities; publication authorized 2026-11-15; see owned GitHub Release |
