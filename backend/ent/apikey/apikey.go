@@ -27,6 +27,10 @@ const (
 	FieldTeamID = "team_id"
 	// FieldTeamOwnerDisabled holds the string denoting the team_owner_disabled field in the database.
 	FieldTeamOwnerDisabled = "team_owner_disabled"
+	// FieldGroupBindingMode holds the string denoting the group_binding_mode field in the database.
+	FieldGroupBindingMode = "group_binding_mode"
+	// FieldAggregateGroupIds holds the string denoting the aggregate_group_ids field in the database.
+	FieldAggregateGroupIds = "aggregate_group_ids"
 	// FieldConversionEnabled holds the string denoting the conversion_enabled field in the database.
 	FieldConversionEnabled = "conversion_enabled"
 	// FieldDefaultClient holds the string denoting the default_client field in the database.
@@ -122,6 +126,8 @@ var Columns = []string{
 	FieldUserID,
 	FieldTeamID,
 	FieldTeamOwnerDisabled,
+	FieldGroupBindingMode,
+	FieldAggregateGroupIds,
 	FieldConversionEnabled,
 	FieldDefaultClient,
 	FieldDefaultEndpoint,
@@ -173,6 +179,12 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultTeamOwnerDisabled holds the default value on creation for the "team_owner_disabled" field.
 	DefaultTeamOwnerDisabled bool
+	// DefaultGroupBindingMode holds the default value on creation for the "group_binding_mode" field.
+	DefaultGroupBindingMode string
+	// GroupBindingModeValidator is a validator for the "group_binding_mode" field. It is called by the builders before save.
+	GroupBindingModeValidator func(string) error
+	// DefaultAggregateGroupIds holds the default value on creation for the "aggregate_group_ids" field.
+	DefaultAggregateGroupIds []int64
 	// DefaultConversionEnabled holds the default value on creation for the "conversion_enabled" field.
 	DefaultConversionEnabled bool
 	// DefaultDefaultClient holds the default value on creation for the "default_client" field.
@@ -249,6 +261,11 @@ func ByTeamID(opts ...sql.OrderTermOption) OrderOption {
 // ByTeamOwnerDisabled orders the results by the team_owner_disabled field.
 func ByTeamOwnerDisabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTeamOwnerDisabled, opts...).ToFunc()
+}
+
+// ByGroupBindingMode orders the results by the group_binding_mode field.
+func ByGroupBindingMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupBindingMode, opts...).ToFunc()
 }
 
 // ByConversionEnabled orders the results by the conversion_enabled field.

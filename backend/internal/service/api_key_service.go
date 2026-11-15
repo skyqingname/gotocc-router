@@ -67,13 +67,14 @@ const (
 // 若编辑 Key 时无条件整行回写，并发累计的配额与限流计数就会被旧快照覆盖。
 // 因此调用方必须显式声明要改的列。
 type APIKeyUpdateFields struct {
-	RoutingMode bool
-	Preferences bool
-	Name        bool
-	Status      bool
-	Quota       bool
-	GroupID     bool
-	ExpiresAt   bool
+	GroupBinding bool
+	RoutingMode  bool
+	Preferences  bool
+	Name         bool
+	Status       bool
+	Quota        bool
+	GroupID      bool
+	ExpiresAt    bool
 	// QuotaUsed 仅供"重置配额用量"路径声明；常规计费走 IncrementQuotaUsed。
 	QuotaUsed bool
 	// RateLimits 覆盖 rate_limit_5h / _1d / _7d 三个阈值。
@@ -220,15 +221,17 @@ type APIKeyAuthCacheInvalidator interface {
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
 	RoutingMode       string   `json:"routing_mode"`
+	GroupBindingMode  string   `json:"group_binding_mode"`
+	AggregateGroupIDs []int64  `json:"aggregate_group_ids"`
+	ConversionEnabled bool     `json:"conversion_enabled"`
+	DefaultClient     string   `json:"default_client"`
+	DefaultEndpoint   string   `json:"default_endpoint"`
 	Name              string   `json:"name"`
 	Scope             string   `json:"scope"`
 	GroupID           *int64   `json:"group_id"`
 	CustomKey         *string  `json:"custom_key"`   // 可选的自定义key
 	IPWhitelist       []string `json:"ip_whitelist"` // IP 白名单
 	IPBlacklist       []string `json:"ip_blacklist"` // IP 黑名单
-	ConversionEnabled bool     `json:"conversion_enabled"`
-	DefaultClient     string   `json:"default_client"`
-	DefaultEndpoint   string   `json:"default_endpoint"`
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -244,14 +247,16 @@ type CreateAPIKeyRequest struct {
 type UpdateAPIKeyRequest struct {
 	RoutingMode       *string   `json:"routing_mode"`
 	GroupIDSet        bool      `json:"-"`
+	GroupBindingMode  *string   `json:"group_binding_mode"`
+	AggregateGroupIDs *[]int64  `json:"aggregate_group_ids"`
+	ConversionEnabled *bool     `json:"conversion_enabled"`
+	DefaultClient     *string   `json:"default_client"`
+	DefaultEndpoint   *string   `json:"default_endpoint"`
 	Name              *string   `json:"name"`
 	GroupID           *int64    `json:"group_id"`
 	Status            *string   `json:"status"`
 	IPWhitelist       *[]string `json:"ip_whitelist"` // IP 白名单（nil 不修改，空数组清空）
 	IPBlacklist       *[]string `json:"ip_blacklist"` // IP 黑名单（nil 不修改，空数组清空）
-	ConversionEnabled *bool     `json:"conversion_enabled"`
-	DefaultClient     *string   `json:"default_client"`
-	DefaultEndpoint   *string   `json:"default_endpoint"`
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -274,6 +279,9 @@ func validateAPIKeyLimit(v float64) error {
 }
 
 func validateCreateAPIKeyRequest(req CreateAPIKeyRequest) error {
+	if err := validateAggregateRoutingMode(req.GroupBindingMode, req.RoutingMode); err != nil {
+		return err
+	}
 	var mode *string
 	if req.RoutingMode != "" {
 		mode = &req.RoutingMode
@@ -317,6 +325,8 @@ type RateLimitCacheInvalidator interface {
 
 type APIKeyService struct {
 	resellerRepo              ResellerRepository
+	aggregateAccounts         aggregateAccountReader
+	aggregateChannels         ChannelRepository
 	apiKeyRepo                APIKeyRepository
 	userRepo                  UserRepository
 	groupRepo                 GroupRepository
@@ -582,6 +592,10 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		teamID = &id
 	}
 
+	if err := s.validateGroupBinding(ctx, user, req.GroupBindingMode, req.AggregateGroupIDs, req.GroupID, req.ConversionEnabled, req.DefaultClient, req.DefaultEndpoint); err != nil {
+		return nil, err
+	}
+
 	// 验证 IP 白名单格式
 	if len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
@@ -658,6 +672,8 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
+		GroupBindingMode:  NormalizeGroupBindingMode(req.GroupBindingMode),
+		AggregateGroupIDs: append([]int64{}, req.AggregateGroupIDs...),
 		UserID:            userID,
 		TeamID:            teamID,
 		Key:               key,
@@ -921,6 +937,16 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			return nil, err
 		}
 	}
+	routingMode, bindingMode := apiKey.EffectiveRoutingMode(), apiKey.GroupBindingMode
+	if req.RoutingMode != nil {
+		routingMode = *req.RoutingMode
+	}
+	if req.GroupBindingMode != nil {
+		bindingMode = *req.GroupBindingMode
+	}
+	if err := validateAggregateRoutingMode(bindingMode, routingMode); err != nil {
+		return nil, err
+	}
 
 	// 验证 IP 白名单格式
 	if req.IPWhitelist != nil && len(*req.IPWhitelist) > 0 {
@@ -939,6 +965,35 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	// fields 只登记本次请求真正要改的列。quota_used 与 usage_5h/1d/7d 由计费热路径
 	// 原子递增，除非用户显式点了"重置"，否则这里不用快照把它们写回去。
 	var fields APIKeyUpdateFields
+	if req.GroupBindingMode != nil || req.AggregateGroupIDs != nil {
+		mode := NormalizeGroupBindingMode(apiKey.GroupBindingMode)
+		if req.GroupBindingMode != nil {
+			mode = *req.GroupBindingMode
+		}
+		if (NormalizeGroupBindingMode(mode) == GroupBindingSingle) == apiKey.IsAggregate() {
+			return nil, infraerrors.BadRequest("API_KEY_GROUP_BINDING_INVALID", "Create a separate key to change between single and aggregate binding")
+		}
+		ids := apiKey.AggregateGroupIDs
+		if req.AggregateGroupIDs != nil {
+			ids = *req.AggregateGroupIDs
+		}
+		if mode == GroupBindingAll && req.AggregateGroupIDs == nil {
+			ids = nil
+		}
+		billingUserID := userID
+		if apiKey.TeamID != nil {
+			billingUserID = apiKey.User.ID
+		}
+		user, err := s.userRepo.GetByID(ctx, billingUserID)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.validateGroupBinding(ctx, user, mode, ids, nil, false, "", ""); err != nil {
+			return nil, err
+		}
+		apiKey.GroupBindingMode, apiKey.AggregateGroupIDs = mode, append([]int64{}, ids...)
+		fields.GroupBinding = true
+	}
 	enabled := apiKey.ConversionEnabled
 	if req.ConversionEnabled != nil {
 		enabled = *req.ConversionEnabled
@@ -949,6 +1004,9 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 	}
 	if req.DefaultEndpoint != nil {
 		endpoint = *req.DefaultEndpoint
+	}
+	if apiKey.IsAggregate() && (req.GroupID != nil || enabled || client != "" || endpoint != "") {
+		return nil, infraerrors.BadRequest("API_KEY_GROUP_BINDING_INVALID", "Aggregate keys cannot bind a single group or configure conversion")
 	}
 	if err := ValidateCompositeAccessConfiguration(enabled, client, endpoint); err != nil {
 		return nil, err

@@ -126,58 +126,61 @@ const (
 // APIKeyMutation represents an operation that mutates the APIKey nodes in the graph.
 type APIKeyMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int64
-	created_at          *time.Time
-	updated_at          *time.Time
-	deleted_at          *time.Time
-	team_owner_disabled *bool
-	conversion_enabled  *bool
-	default_client      *string
-	default_endpoint    *string
-	key                 *string
-	name                *string
-	routing_mode        *string
-	status              *string
-	last_used_at        *time.Time
-	ip_whitelist        *[]string
-	appendip_whitelist  []string
-	ip_blacklist        *[]string
-	appendip_blacklist  []string
-	quota               *float64
-	addquota            *float64
-	quota_used          *float64
-	addquota_used       *float64
-	expires_at          *time.Time
-	rate_limit_5h       *float64
-	addrate_limit_5h    *float64
-	rate_limit_1d       *float64
-	addrate_limit_1d    *float64
-	rate_limit_7d       *float64
-	addrate_limit_7d    *float64
-	usage_5h            *float64
-	addusage_5h         *float64
-	usage_1d            *float64
-	addusage_1d         *float64
-	usage_7d            *float64
-	addusage_7d         *float64
-	window_5h_start     *time.Time
-	window_1d_start     *time.Time
-	window_7d_start     *time.Time
-	clearedFields       map[string]struct{}
-	user                *int64
-	cleareduser         bool
-	group               *int64
-	clearedgroup        bool
-	usage_logs          map[int64]struct{}
-	removedusage_logs   map[int64]struct{}
-	clearedusage_logs   bool
-	team                *int64
-	clearedteam         bool
-	done                bool
-	oldValue            func(context.Context) (*APIKey, error)
-	predicates          []predicate.APIKey
+	op                        Op
+	typ                       string
+	id                        *int64
+	created_at                *time.Time
+	updated_at                *time.Time
+	deleted_at                *time.Time
+	team_owner_disabled       *bool
+	group_binding_mode        *string
+	aggregate_group_ids       *[]int64
+	appendaggregate_group_ids []int64
+	conversion_enabled        *bool
+	default_client            *string
+	default_endpoint          *string
+	key                       *string
+	name                      *string
+	routing_mode              *string
+	status                    *string
+	last_used_at              *time.Time
+	ip_whitelist              *[]string
+	appendip_whitelist        []string
+	ip_blacklist              *[]string
+	appendip_blacklist        []string
+	quota                     *float64
+	addquota                  *float64
+	quota_used                *float64
+	addquota_used             *float64
+	expires_at                *time.Time
+	rate_limit_5h             *float64
+	addrate_limit_5h          *float64
+	rate_limit_1d             *float64
+	addrate_limit_1d          *float64
+	rate_limit_7d             *float64
+	addrate_limit_7d          *float64
+	usage_5h                  *float64
+	addusage_5h               *float64
+	usage_1d                  *float64
+	addusage_1d               *float64
+	usage_7d                  *float64
+	addusage_7d               *float64
+	window_5h_start           *time.Time
+	window_1d_start           *time.Time
+	window_7d_start           *time.Time
+	clearedFields             map[string]struct{}
+	user                      *int64
+	cleareduser               bool
+	group                     *int64
+	clearedgroup              bool
+	usage_logs                map[int64]struct{}
+	removedusage_logs         map[int64]struct{}
+	clearedusage_logs         bool
+	team                      *int64
+	clearedteam               bool
+	done                      bool
+	oldValue                  func(context.Context) (*APIKey, error)
+	predicates                []predicate.APIKey
 }
 
 var _ ent.Mutation = (*APIKeyMutation)(nil)
@@ -518,6 +521,93 @@ func (m *APIKeyMutation) OldTeamOwnerDisabled(ctx context.Context) (v bool, err 
 // ResetTeamOwnerDisabled resets all changes to the "team_owner_disabled" field.
 func (m *APIKeyMutation) ResetTeamOwnerDisabled() {
 	m.team_owner_disabled = nil
+}
+
+// SetGroupBindingMode sets the "group_binding_mode" field.
+func (m *APIKeyMutation) SetGroupBindingMode(s string) {
+	m.group_binding_mode = &s
+}
+
+// GroupBindingMode returns the value of the "group_binding_mode" field in the mutation.
+func (m *APIKeyMutation) GroupBindingMode() (r string, exists bool) {
+	v := m.group_binding_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupBindingMode returns the old "group_binding_mode" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldGroupBindingMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupBindingMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupBindingMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupBindingMode: %w", err)
+	}
+	return oldValue.GroupBindingMode, nil
+}
+
+// ResetGroupBindingMode resets all changes to the "group_binding_mode" field.
+func (m *APIKeyMutation) ResetGroupBindingMode() {
+	m.group_binding_mode = nil
+}
+
+// SetAggregateGroupIds sets the "aggregate_group_ids" field.
+func (m *APIKeyMutation) SetAggregateGroupIds(i []int64) {
+	m.aggregate_group_ids = &i
+	m.appendaggregate_group_ids = nil
+}
+
+// AggregateGroupIds returns the value of the "aggregate_group_ids" field in the mutation.
+func (m *APIKeyMutation) AggregateGroupIds() (r []int64, exists bool) {
+	v := m.aggregate_group_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAggregateGroupIds returns the old "aggregate_group_ids" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldAggregateGroupIds(ctx context.Context) (v []int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAggregateGroupIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAggregateGroupIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAggregateGroupIds: %w", err)
+	}
+	return oldValue.AggregateGroupIds, nil
+}
+
+// AppendAggregateGroupIds adds i to the "aggregate_group_ids" field.
+func (m *APIKeyMutation) AppendAggregateGroupIds(i []int64) {
+	m.appendaggregate_group_ids = append(m.appendaggregate_group_ids, i...)
+}
+
+// AppendedAggregateGroupIds returns the list of values that were appended to the "aggregate_group_ids" field in this mutation.
+func (m *APIKeyMutation) AppendedAggregateGroupIds() ([]int64, bool) {
+	if len(m.appendaggregate_group_ids) == 0 {
+		return nil, false
+	}
+	return m.appendaggregate_group_ids, true
+}
+
+// ResetAggregateGroupIds resets all changes to the "aggregate_group_ids" field.
+func (m *APIKeyMutation) ResetAggregateGroupIds() {
+	m.aggregate_group_ids = nil
+	m.appendaggregate_group_ids = nil
 }
 
 // SetConversionEnabled sets the "conversion_enabled" field.
@@ -1813,7 +1903,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 31)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1831,6 +1921,12 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.team_owner_disabled != nil {
 		fields = append(fields, apikey.FieldTeamOwnerDisabled)
+	}
+	if m.group_binding_mode != nil {
+		fields = append(fields, apikey.FieldGroupBindingMode)
+	}
+	if m.aggregate_group_ids != nil {
+		fields = append(fields, apikey.FieldAggregateGroupIds)
 	}
 	if m.conversion_enabled != nil {
 		fields = append(fields, apikey.FieldConversionEnabled)
@@ -1921,6 +2017,10 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.TeamID()
 	case apikey.FieldTeamOwnerDisabled:
 		return m.TeamOwnerDisabled()
+	case apikey.FieldGroupBindingMode:
+		return m.GroupBindingMode()
+	case apikey.FieldAggregateGroupIds:
+		return m.AggregateGroupIds()
 	case apikey.FieldConversionEnabled:
 		return m.ConversionEnabled()
 	case apikey.FieldDefaultClient:
@@ -1988,6 +2088,10 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldTeamID(ctx)
 	case apikey.FieldTeamOwnerDisabled:
 		return m.OldTeamOwnerDisabled(ctx)
+	case apikey.FieldGroupBindingMode:
+		return m.OldGroupBindingMode(ctx)
+	case apikey.FieldAggregateGroupIds:
+		return m.OldAggregateGroupIds(ctx)
 	case apikey.FieldConversionEnabled:
 		return m.OldConversionEnabled(ctx)
 	case apikey.FieldDefaultClient:
@@ -2084,6 +2188,20 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTeamOwnerDisabled(v)
+		return nil
+	case apikey.FieldGroupBindingMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupBindingMode(v)
+		return nil
+	case apikey.FieldAggregateGroupIds:
+		v, ok := value.([]int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAggregateGroupIds(v)
 		return nil
 	case apikey.FieldConversionEnabled:
 		v, ok := value.(bool)
@@ -2474,6 +2592,12 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldTeamOwnerDisabled:
 		m.ResetTeamOwnerDisabled()
+		return nil
+	case apikey.FieldGroupBindingMode:
+		m.ResetGroupBindingMode()
+		return nil
+	case apikey.FieldAggregateGroupIds:
+		m.ResetAggregateGroupIds()
 		return nil
 	case apikey.FieldConversionEnabled:
 		m.ResetConversionEnabled()
@@ -59572,6 +59696,10 @@ type UsageLogMutation struct {
 	service_host                  *string
 	codex_rollout_budget_units    *float64
 	addcodex_rollout_budget_units *float64
+	cache_creation_30m_tokens     *int
+	addcache_creation_30m_tokens  *int
+	cache_creation_12h_tokens     *int
+	addcache_creation_12h_tokens  *int
 	input_cost                    *float64
 	addinput_cost                 *float64
 	output_cost                   *float64
@@ -61161,6 +61289,118 @@ func (m *UsageLogMutation) ResetCodexRolloutBudgetUnits() {
 	m.codex_rollout_budget_units = nil
 	m.addcodex_rollout_budget_units = nil
 	delete(m.clearedFields, usagelog.FieldCodexRolloutBudgetUnits)
+}
+
+// SetCacheCreation30mTokens sets the "cache_creation_30m_tokens" field.
+func (m *UsageLogMutation) SetCacheCreation30mTokens(i int) {
+	m.cache_creation_30m_tokens = &i
+	m.addcache_creation_30m_tokens = nil
+}
+
+// CacheCreation30mTokens returns the value of the "cache_creation_30m_tokens" field in the mutation.
+func (m *UsageLogMutation) CacheCreation30mTokens() (r int, exists bool) {
+	v := m.cache_creation_30m_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCreation30mTokens returns the old "cache_creation_30m_tokens" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldCacheCreation30mTokens(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCreation30mTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCreation30mTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCreation30mTokens: %w", err)
+	}
+	return oldValue.CacheCreation30mTokens, nil
+}
+
+// AddCacheCreation30mTokens adds i to the "cache_creation_30m_tokens" field.
+func (m *UsageLogMutation) AddCacheCreation30mTokens(i int) {
+	if m.addcache_creation_30m_tokens != nil {
+		*m.addcache_creation_30m_tokens += i
+	} else {
+		m.addcache_creation_30m_tokens = &i
+	}
+}
+
+// AddedCacheCreation30mTokens returns the value that was added to the "cache_creation_30m_tokens" field in this mutation.
+func (m *UsageLogMutation) AddedCacheCreation30mTokens() (r int, exists bool) {
+	v := m.addcache_creation_30m_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheCreation30mTokens resets all changes to the "cache_creation_30m_tokens" field.
+func (m *UsageLogMutation) ResetCacheCreation30mTokens() {
+	m.cache_creation_30m_tokens = nil
+	m.addcache_creation_30m_tokens = nil
+}
+
+// SetCacheCreation12hTokens sets the "cache_creation_12h_tokens" field.
+func (m *UsageLogMutation) SetCacheCreation12hTokens(i int) {
+	m.cache_creation_12h_tokens = &i
+	m.addcache_creation_12h_tokens = nil
+}
+
+// CacheCreation12hTokens returns the value of the "cache_creation_12h_tokens" field in the mutation.
+func (m *UsageLogMutation) CacheCreation12hTokens() (r int, exists bool) {
+	v := m.cache_creation_12h_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCreation12hTokens returns the old "cache_creation_12h_tokens" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldCacheCreation12hTokens(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCreation12hTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCreation12hTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCreation12hTokens: %w", err)
+	}
+	return oldValue.CacheCreation12hTokens, nil
+}
+
+// AddCacheCreation12hTokens adds i to the "cache_creation_12h_tokens" field.
+func (m *UsageLogMutation) AddCacheCreation12hTokens(i int) {
+	if m.addcache_creation_12h_tokens != nil {
+		*m.addcache_creation_12h_tokens += i
+	} else {
+		m.addcache_creation_12h_tokens = &i
+	}
+}
+
+// AddedCacheCreation12hTokens returns the value that was added to the "cache_creation_12h_tokens" field in this mutation.
+func (m *UsageLogMutation) AddedCacheCreation12hTokens() (r int, exists bool) {
+	v := m.addcache_creation_12h_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheCreation12hTokens resets all changes to the "cache_creation_12h_tokens" field.
+func (m *UsageLogMutation) ResetCacheCreation12hTokens() {
+	m.cache_creation_12h_tokens = nil
+	m.addcache_creation_12h_tokens = nil
 }
 
 // SetInputCost sets the "input_cost" field.
@@ -63325,7 +63565,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 65)
+	fields := make([]string, 0, 67)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -63409,6 +63649,12 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.codex_rollout_budget_units != nil {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
+	}
+	if m.cache_creation_30m_tokens != nil {
+		fields = append(fields, usagelog.FieldCacheCreation30mTokens)
+	}
+	if m.cache_creation_12h_tokens != nil {
+		fields = append(fields, usagelog.FieldCacheCreation12hTokens)
 	}
 	if m.input_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
@@ -63585,6 +63831,10 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.ServiceHost()
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.CodexRolloutBudgetUnits()
+	case usagelog.FieldCacheCreation30mTokens:
+		return m.CacheCreation30mTokens()
+	case usagelog.FieldCacheCreation12hTokens:
+		return m.CacheCreation12hTokens()
 	case usagelog.FieldInputCost:
 		return m.InputCost()
 	case usagelog.FieldOutputCost:
@@ -63724,6 +63974,10 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldServiceHost(ctx)
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.OldCodexRolloutBudgetUnits(ctx)
+	case usagelog.FieldCacheCreation30mTokens:
+		return m.OldCacheCreation30mTokens(ctx)
+	case usagelog.FieldCacheCreation12hTokens:
+		return m.OldCacheCreation12hTokens(ctx)
 	case usagelog.FieldInputCost:
 		return m.OldInputCost(ctx)
 	case usagelog.FieldOutputCost:
@@ -64002,6 +64256,20 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCodexRolloutBudgetUnits(v)
+		return nil
+	case usagelog.FieldCacheCreation30mTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCreation30mTokens(v)
+		return nil
+	case usagelog.FieldCacheCreation12hTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCreation12hTokens(v)
 		return nil
 	case usagelog.FieldInputCost:
 		v, ok := value.(float64)
@@ -64300,6 +64568,12 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addcodex_rollout_budget_units != nil {
 		fields = append(fields, usagelog.FieldCodexRolloutBudgetUnits)
 	}
+	if m.addcache_creation_30m_tokens != nil {
+		fields = append(fields, usagelog.FieldCacheCreation30mTokens)
+	}
+	if m.addcache_creation_12h_tokens != nil {
+		fields = append(fields, usagelog.FieldCacheCreation12hTokens)
+	}
 	if m.addinput_cost != nil {
 		fields = append(fields, usagelog.FieldInputCost)
 	}
@@ -64385,6 +64659,10 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAudioOutputTokens()
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		return m.AddedCodexRolloutBudgetUnits()
+	case usagelog.FieldCacheCreation30mTokens:
+		return m.AddedCacheCreation30mTokens()
+	case usagelog.FieldCacheCreation12hTokens:
+		return m.AddedCacheCreation12hTokens()
 	case usagelog.FieldInputCost:
 		return m.AddedInputCost()
 	case usagelog.FieldOutputCost:
@@ -64501,6 +64779,20 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCodexRolloutBudgetUnits(v)
+		return nil
+	case usagelog.FieldCacheCreation30mTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheCreation30mTokens(v)
+		return nil
+	case usagelog.FieldCacheCreation12hTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheCreation12hTokens(v)
 		return nil
 	case usagelog.FieldInputCost:
 		v, ok := value.(float64)
@@ -64958,6 +65250,12 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldCodexRolloutBudgetUnits:
 		m.ResetCodexRolloutBudgetUnits()
+		return nil
+	case usagelog.FieldCacheCreation30mTokens:
+		m.ResetCacheCreation30mTokens()
+		return nil
+	case usagelog.FieldCacheCreation12hTokens:
+		m.ResetCacheCreation12hTokens()
 		return nil
 	case usagelog.FieldInputCost:
 		m.ResetInputCost()

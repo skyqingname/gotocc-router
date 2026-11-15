@@ -87,9 +87,10 @@ export async function create(
   rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
   scope?: 'personal' | 'team',
   routingMode: ApiKeyRoutingMode = 'fixed',
-  nativeAccess?: { conversion_enabled: boolean; default_client: string; default_endpoint: string }
+  nativeAccess?: { conversion_enabled: boolean; default_client: string; default_endpoint: string },
+  groupBinding?: Pick<CreateApiKeyRequest, 'group_binding_mode' | 'aggregate_group_ids'>
 ): Promise<ApiKey> {
-  const payload: CreateApiKeyRequest = { name, routing_mode: routingMode, ...nativeAccess }
+  const payload: CreateApiKeyRequest = { name, routing_mode: routingMode, ...nativeAccess, ...groupBinding }
   if (scope !== undefined) {
     payload.scope = scope
   }

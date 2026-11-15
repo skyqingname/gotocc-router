@@ -111,6 +111,9 @@
               </button>
             </div>
           </div>
+          <button v-support-readonly class="btn btn-primary" data-testid="create-aggregate-key" @click="startAggregateCreate">
+            {{ t('keys.createAggregate') }}
+          </button>
           <button v-support-readonly @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
@@ -206,8 +209,8 @@
                   :peak-end="row.group.peak_end"
                   :peak-rate-multiplier="row.group.peak_rate_multiplier"
                 />
-                <span v-else-if="!isAutoRouting(row)" class="text-sm text-gray-400 dark:text-dark-500">{{
-                  t('keys.noGroup')
+                <span v-else-if="!isAutoRouting(row)" class="text-sm surface-muted">{{
+                  row.group_binding_mode === 'all' ? t('keys.aggregateAll') : row.group_binding_mode === 'custom' ? t('keys.aggregateCustomCount', { count: row.aggregate_group_ids?.length || 0 }) : t('keys.noGroup')
                 }}</span>
                 <span v-if="!isAutoRouting(row)" class="shrink-0 text-xs surface-muted">{{ t('keys.selectGroup') }}</span>
                 <svg
@@ -244,13 +247,22 @@
             <div class="text-sm">
               <div class="flex items-center gap-1.5">
                 <span class="surface-muted">{{ t('keys.today') }}:</span>
-                <span class="font-medium text-gray-900 dark:text-white">
+                <span
+                  v-if="usageLoading && !usageStats[row.id]"
+                  data-test="usage-pending"
+                  class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
+                />
+                <span v-else class="font-medium text-gray-900 dark:text-white">
                   {{ withCreditUnit((usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4)) }}
                 </span>
               </div>
               <div class="mt-0.5 flex items-center gap-1.5">
                 <span class="surface-muted">{{ t('keys.total') }}:</span>
-                <span class="font-medium text-gray-900 dark:text-white">
+                <span
+                  v-if="usageLoading && !usageStats[row.id]"
+                  class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
+                />
+                <span v-else class="font-medium text-gray-900 dark:text-white">
                   {{ withCreditUnit((usageStats[row.id]?.total_actual_cost ?? 0).toFixed(4)) }}
                 </span>
               </div>
@@ -518,7 +530,7 @@
           />
         </div>
 
-        <fieldset v-if="!showEditModal" data-tour="key-form-provider">
+        <fieldset v-if="!showEditModal && formData.group_binding_mode === 'single'" data-tour="key-form-provider">
           <legend class="input-label">{{ t('keys.providerLabel') }}</legend>
           <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <label
@@ -566,7 +578,7 @@
           </p>
         </fieldset>
 
-        <div>
+        <div v-if="formData.group_binding_mode === 'single'">
           <label class="input-label">{{ t('keys.routingMode.label') }}</label>
           <div
             class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
@@ -610,7 +622,7 @@
         </div>
 
         <RoutingPriorityPanel
-          v-if="(showCreateModal || showEditModal) && formData.routing_mode === 'auto'"
+          v-if="(showCreateModal || showEditModal) && formData.group_binding_mode === 'single' && formData.routing_mode === 'auto'"
           :key="showEditModal ? selectedKey?.id : 'create'"
           ref="routingPriorityPanel"
           :key-id="showEditModal ? selectedKey?.id : undefined"
@@ -618,7 +630,50 @@
           :scope="scope"
         />
 
-        <div v-if="formData.routing_mode === 'fixed'">
+        <div v-if="formData.group_binding_mode !== 'single'" class="space-y-3" data-testid="aggregate-key-fields">
+          <div>
+            <label class="input-label" for="key-aggregate-mode">{{ t('keys.aggregateScope') }}</label>
+            <Select id="key-aggregate-mode" v-model="formData.group_binding_mode" :options="aggregateModeOptions" :searchable="false" />
+          </div>
+          <p class="text-sm surface-muted">{{ t('keys.aggregateHint') }}</p>
+          <CheckboxDropdown v-if="formData.group_binding_mode === 'custom'" v-model="formData.aggregate_group_ids" :options="aggregateGroupOptions" :label="t('keys.selectAggregateGroups')" searchable :search-placeholder="t('keys.searchGroup')">
+            <template #selected="{ options }">
+              <span class="flex min-w-0 flex-wrap gap-1.5">
+                <template v-for="option in options" :key="option.value">
+                  <GroupBadge
+                    v-if="option.group"
+                    data-testid="aggregate-selected-group"
+                    class="min-w-0 max-w-full"
+                    :name="option.group.name"
+                    :platform="option.group.platform"
+                    :subscription-type="option.group.subscription_type"
+                    :rate-multiplier="option.group.rate_multiplier"
+                    :user-rate-multiplier="userGroupRates[option.value]"
+                    :truncate="false"
+                  />
+                  <span v-else class="surface-muted">{{ option.label }}</span>
+                </template>
+              </span>
+            </template>
+            <template #option="{ option }">
+              <GroupBadge
+                v-if="option.group"
+                data-testid="aggregate-group-option"
+                class="min-w-0 max-w-full"
+                :name="option.group.name"
+                :platform="option.group.platform"
+                :subscription-type="option.group.subscription_type"
+                :rate-multiplier="option.group.rate_multiplier"
+                :user-rate-multiplier="userGroupRates[option.value]"
+                :truncate="false"
+              />
+              <span v-else class="surface-muted">{{ option.label }}</span>
+            </template>
+          </CheckboxDropdown>
+          <p v-if="formData.group_binding_mode === 'custom' && aggregateGroupOptions.length === 0" class="text-sm surface-muted">{{ t('common.noGroupsAvailable') }}</p>
+        </div>
+
+        <div v-else-if="formData.routing_mode === 'fixed'">
           <label class="input-label" for="key-form-group">{{ t('keys.groupLabel') }}</label>
           <Select
             :key="showEditModal ? 'edit' : createProvider"
@@ -669,7 +724,7 @@
           <GroupRateSummary v-if="formData.group_id" class="mt-3 rounded-lg surface-inset p-3" :group="quoteFor(formData.group_id)" :loading="quotesLoading" :failed="quotesFailed" @retry="refreshQuotes" />
         </div>
 
-        <NativeAccessFields v-if="groups.find(group => group.id === formData.group_id)?.platform === 'composite'" ref="nativeAccessFields" v-model:conversion-enabled="formData.conversion_enabled" v-model:client="formData.default_client" v-model:endpoint="formData.default_endpoint" :group-id="formData.group_id" :base-url="publicSettings?.api_base_url" />
+        <NativeAccessFields v-if="formData.group_binding_mode === 'single' && groups.find(group => group.id === formData.group_id)?.platform === 'composite'" ref="nativeAccessFields" v-model:conversion-enabled="formData.conversion_enabled" v-model:client="formData.default_client" v-model:endpoint="formData.default_endpoint" :group-id="formData.group_id" :base-url="publicSettings?.api_base_url" />
 
         <!-- Custom Key Section (only for create) -->
         <div v-if="!showEditModal" class="space-y-3">
@@ -1151,6 +1206,7 @@
     <!-- Use Key Modal -->
     <UseKeyModal
       :show="showUseKeyModal"
+      :aggregate-key-id="selectedKey?.group_binding_mode === 'all' || selectedKey?.group_binding_mode === 'custom' ? selectedKey.id : undefined"
       :api-key="selectedKey?.key || ''"
       :api-key-id="selectedKey?.id"
       :base-url="publicSettings?.api_base_url || ''"
@@ -1343,6 +1399,7 @@ import SearchInput from '@/components/common/SearchInput.vue'
 import Icon from '@/components/icons/Icon.vue'
 import NativeAccessFields from '@/components/keys/NativeAccessFields.vue'
 import UseKeyModal from '@/components/keys/UseKeyModal.vue'
+import CheckboxDropdown from '@/components/common/CheckboxDropdown.vue'
 import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
@@ -1355,6 +1412,7 @@ import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import { platformBadgeLightClass } from '@/utils/platformColors'
 import { KEY_GROUP_PROVIDERS, KEY_GROUP_PROVIDER_ICONS, getKeyGroupProvider, type KeyGroupProvider } from '@/utils/keyGroupProviders'
@@ -1511,6 +1569,7 @@ const submitting = ref(false)
 const now = ref(new Date())
 let resetTimer: ReturnType<typeof setInterval> | null = null
 const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({})
+const usageLoading = ref(false)
 const userGroupRates = ref<Record<number, number>>({})
 
 const pagination = ref({
@@ -1575,6 +1634,8 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 
 const nativeAccessFields = ref<InstanceType<typeof NativeAccessFields> | null>(null)
 const formData = ref({
+  group_binding_mode: 'single' as 'single' | 'all' | 'custom',
+  aggregate_group_ids: [] as number[],
   name: '',
   conversion_enabled: false,
   default_client: '',
@@ -1688,6 +1749,25 @@ const groupOptions = computed(() =>
   }))
 )
 
+const aggregateModeOptions = computed(() => [
+  { value: 'all', label: t('keys.aggregateAll') },
+  { value: 'custom', label: t('keys.aggregateCustom') }
+])
+const aggregateGroupOptions = computed(() => {
+  const options: { value: number; label: string; group?: Group }[] = groups.value
+    .filter(group => group.platform !== 'composite' && group.subscription_type === 'standard')
+    .map(group => ({ value: group.id, label: `${group.name} · ×${userGroupRates.value[group.id] ?? group.rate_multiplier}`, group }))
+  for (const id of formData.value.aggregate_group_ids) {
+    if (!options.some(option => option.value === id)) options.push({ value: id, label: t('keys.aggregateUnavailable', { id }) })
+  }
+  return options
+})
+const startAggregateCreate = () => {
+  closeModals()
+  formData.value.group_binding_mode = 'all'
+  showCreateModal.value = true
+}
+
 const createProvider = ref<KeyGroupProvider>('anthropic')
 const createProviderOptions = computed(() => KEY_GROUP_PROVIDERS.map((value) => ({
   value,
@@ -1761,6 +1841,7 @@ const loadApiKeys = async () => {
   abortController = controller
   const { signal } = controller
   loading.value = true
+  usageLoading.value = false
   try {
     // Build filters
     const filters: {
@@ -1789,18 +1870,10 @@ const loadApiKeys = async () => {
     pagination.value.total = response.total
     pagination.value.pages = response.pages
 
-    // Load usage stats for all API keys in the list
+    // 用量统计要聚合 30 天的 usage_logs，可能比列表慢很多：不阻塞表格渲染，单独加载
+    usageLoading.value = response.items.length > 0
     if (response.items.length > 0) {
-      const keyIds = response.items.map((k) => k.id)
-      try {
-        const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, { signal })
-        if (signal.aborted) return
-        usageStats.value = usageResponse.stats
-      } catch (e) {
-        if (!isAbortError(e)) {
-          console.error('Failed to load usage stats:', e)
-        }
-      }
+      void loadUsageStats(response.items.map((k) => k.id), signal)
     }
   } catch (error) {
     if (isAbortError(error)) {
@@ -1815,6 +1888,22 @@ const loadApiKeys = async () => {
 }
 
 let groupsRequest = 0
+const loadUsageStats = async (keyIds: number[], signal: AbortSignal) => {
+  try {
+    const usageResponse = await usageAPI.getDashboardApiKeysUsage(keyIds, { signal })
+    if (signal.aborted) return
+    usageStats.value = usageResponse.stats
+  } catch (e) {
+    if (!isAbortError(e)) {
+      console.error('Failed to load usage stats:', e)
+    }
+  } finally {
+    if (!signal.aborted) {
+      usageLoading.value = false
+    }
+  }
+}
+
 const loadGroups = async () => {
   const request = ++groupsRequest
   try {
@@ -1897,6 +1986,8 @@ const editKey = (key: ApiKey) => {
   const hasIPRestriction = (key.ip_whitelist?.length > 0) || (key.ip_blacklist?.length > 0)
   const hasExpiration = !!key.expires_at
   formData.value = {
+    group_binding_mode: key.group_binding_mode || 'single',
+    aggregate_group_ids: [...(key.aggregate_group_ids || [])],
     name: key.name,
     conversion_enabled: key.conversion_enabled || false,
     default_client: key.default_client || '',
@@ -1936,6 +2027,7 @@ const toggleKeyStatus = async (key: ApiKey) => {
 }
 
 const openGroupSelector = (key: ApiKey) => {
+  if (key.group_binding_mode === 'all' || key.group_binding_mode === 'custom') { editKey(key); return }
   if (groupSelectorKeyId.value === key.id) {
     groupSelectorKeyId.value = null
     dropdownPosition.value = null
@@ -2015,8 +2107,13 @@ const handleSubmit = async () => {
   if (formData.value.routing_mode === 'auto' && routingPriorityPanel.value?.validate?.() === false) return
   // Fixed routing keeps the existing group requirement. Auto routing uses the
   // explicit null/group contract and lets the server resolve a group per request.
-  if (formData.value.routing_mode === 'fixed' && formData.value.group_id === null) {
+  if (formData.value.group_binding_mode === 'single' && formData.value.routing_mode === 'fixed' && formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
+    return
+  }
+
+  if (formData.value.group_binding_mode === 'custom' && formData.value.aggregate_group_ids.length === 0) {
+    appStore.showError(t('keys.aggregateGroupsRequired'))
     return
   }
 
@@ -2074,6 +2171,7 @@ const handleSubmit = async () => {
     const targetKey = showEditModal.value ? selectedKey.value : createdKeyForRetry.value
     if (targetKey) {
       const updates: UpdateApiKeyRequest = {
+        ...(formData.value.group_binding_mode !== 'single' ? { group_binding_mode: formData.value.group_binding_mode, aggregate_group_ids: formData.value.group_binding_mode === 'custom' ? formData.value.aggregate_group_ids : [] } : {}),
         name: formData.value.name,
         group_id: groupID,
         routing_mode: formData.value.routing_mode,
@@ -2109,7 +2207,8 @@ const handleSubmit = async () => {
         rateLimitData,
         scope.value,
         formData.value.routing_mode,
-        { conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled, default_client: formData.value.default_client, default_endpoint: formData.value.default_endpoint }
+        { conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled, default_client: formData.value.default_client, default_endpoint: formData.value.default_endpoint },
+        formData.value.group_binding_mode !== 'single' ? { group_binding_mode: formData.value.group_binding_mode, aggregate_group_ids: formData.value.group_binding_mode === 'custom' ? formData.value.aggregate_group_ids : [] } : undefined
       )
       clearAutoRoutingCapabilities()
       keyFieldsSaved = true
@@ -2123,10 +2222,9 @@ const handleSubmit = async () => {
     }
     closeModals()
     loadApiKeys()
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (keyFieldsSaved) void loadApiKeys()
-    const errorMsg = error.response?.data?.detail || error.message || t('keys.failedToSave')
-    appStore.showError(errorMsg)
+    appStore.showError(extractI18nErrorMessage(error, t, 'keys.errors', t('keys.failedToSave')))
     // Don't advance tour on error
   } finally {
     submitting.value = false
@@ -2170,6 +2268,8 @@ const closeModals = () => {
   showEditModal.value = false
   selectedKey.value = null
   formData.value = {
+    group_binding_mode: 'single',
+    aggregate_group_ids: [],
     name: '',
     conversion_enabled: false,
   default_client: '',
@@ -2260,6 +2360,7 @@ const resetRateLimitUsage = async () => {
 }
 
 const importToCcswitch = (row: ApiKey) => {
+  if (row.group_binding_mode === 'all' || row.group_binding_mode === 'custom') { openUseKeyModal(row); return }
   if (!canUseClientConfig(row)) return
   const platform = row.group?.platform || 'anthropic'
 

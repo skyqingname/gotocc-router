@@ -27,6 +27,7 @@ const personalReads = [
   /^\/keys\/\d+\/(routing-capabilities|routing-policy)$/,
   /^\/groups\/(available|rates|routing-priorities)$/,
   /^\/team(?:\/(keys|members|usage\/members))?$/,
+  /^\/(?:keys|groups)\/\d+\/native-access$/,
   /^\/channels\/available$/,
   /^\/usage(?:\/(live|stats|errors(?:\/\d+)?|\d+|dashboard\/(stats|trend|models|snapshot-v2|api-keys-usage)))?$/,
   /^\/subscriptions(?:\/(active|progress|summary))?$/,

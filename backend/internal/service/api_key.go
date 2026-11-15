@@ -34,21 +34,27 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ResellerPrices    map[int64]*reseller.Snapshot `json:"-"`
-	ID                int64
-	UserID            int64
-	TeamID            *int64
-	TeamOwnerDisabled bool
-	Key               string
-	Name              string
-	GroupID           *int64
-	RoutingMode       string
-	ConversionEnabled bool
-	DefaultClient     string
-	DefaultEndpoint   string
-	Status            string
-	IPWhitelist       []string
-	IPBlacklist       []string
+	GroupBindingMode  string
+	AggregateGroupIDs []int64
+	// AggregateGroups is a fresh, request-local authorized scope, never cached.
+	AggregateGroups       []Group
+	AggregateModelIDs     []string
+	aggregateChannelCache *channelCache
+	ResellerPrices        map[int64]*reseller.Snapshot `json:"-"`
+	ID                    int64
+	UserID                int64
+	TeamID                *int64
+	TeamOwnerDisabled     bool
+	Key                   string
+	Name                  string
+	GroupID               *int64
+	RoutingMode           string
+	ConversionEnabled     bool
+	DefaultClient         string
+	DefaultEndpoint       string
+	Status                string
+	IPWhitelist           []string
+	IPBlacklist           []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
 	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
 	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`

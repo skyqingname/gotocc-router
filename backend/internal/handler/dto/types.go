@@ -56,6 +56,8 @@ type AdminUser struct {
 }
 
 type APIKey struct {
+	GroupBindingMode  string     `json:"group_binding_mode"`
+	AggregateGroupIDs []int64    `json:"aggregate_group_ids"`
 	ID                int64      `json:"id"`
 	UserID            int64      `json:"user_id"`
 	TeamID            *int64     `json:"team_id,omitempty"`
@@ -684,9 +686,11 @@ type UsageLog struct {
 	CacheCreationTokens int `json:"cache_creation_tokens"`
 	CacheReadTokens     int `json:"cache_read_tokens"`
 
-	CacheCreation5mTokens int `json:"cache_creation_5m_tokens"`
-	CacheCreation1hTokens int `json:"cache_creation_1h_tokens"`
-	AudioOutputTokens     int `json:"audio_output_tokens"`
+	CacheCreation5mTokens  int `json:"cache_creation_5m_tokens"`
+	CacheCreation1hTokens  int `json:"cache_creation_1h_tokens"`
+	CacheCreation30mTokens int `json:"cache_creation_30m_tokens"`
+	CacheCreation12hTokens int `json:"cache_creation_12h_tokens"`
+	AudioOutputTokens      int `json:"audio_output_tokens"`
 
 	InputCost                 float64        `json:"input_cost"`
 	OutputCost                float64        `json:"output_cost"`

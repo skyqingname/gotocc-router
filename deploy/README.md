@@ -673,7 +673,7 @@ sudo ./install.sh install --version 'v0.2.19+custom.007'
 Roll back a downloaded-script installation one operation at a time:
 
 ```bash
-sudo ./install.sh rollback 'v0.2.19+custom.006'
+sudo ./install.sh rollback 'v0.2.20+custom.001'
 ```
 
 Or uninstall while preserving `/etc/sub2api`:

@@ -743,15 +743,16 @@ func promptDetailsFromResponses(src *ResponsesInputTokensDetails) *ChatTokenDeta
 	if src == nil {
 		return nil
 	}
-	if len(src.presentFields) == 0 && src.CachedTokens == 0 && src.AudioTokens == 0 && src.CacheCreationTokens == 0 && src.CacheWriteTokens == 0 {
+	if len(src.presentFields) == 0 && src.CachedTokens == 0 && src.AudioTokens == 0 && src.CacheCreationTokens == 0 && src.CacheWriteTokens == 0 && len(src.CacheWriteTokensDetails) == 0 {
 		return nil
 	}
 	return &ChatTokenDetails{
-		CachedTokens:        src.CachedTokens,
-		AudioTokens:         src.AudioTokens,
-		CacheCreationTokens: src.CacheCreationTokens,
-		CacheWriteTokens:    src.CacheWriteTokens,
-		presentFields:       src.presentFields,
+		CachedTokens:            src.CachedTokens,
+		AudioTokens:             src.AudioTokens,
+		CacheCreationTokens:     src.CacheCreationTokens,
+		CacheWriteTokens:        src.CacheWriteTokens,
+		CacheWriteTokensDetails: src.CacheWriteTokensDetails,
+		presentFields:           src.presentFields,
 	}
 }
 
@@ -827,10 +828,12 @@ func generateChatCmplID() string {
 // ---------------------------------------------------------------------------
 
 type bufferedFuncCall struct {
-	Type   string
-	CallID string
-	Name   string
-	Args   strings.Builder
+	Type                  string
+	CallID                string
+	Name                  string
+	Namespace             string
+	EncryptedFunctionArgs json.RawMessage
+	Args                  strings.Builder
 }
 
 // BufferedResponseAccumulator collects content from Responses SSE delta events
@@ -897,11 +900,11 @@ func (a *BufferedResponseAccumulator) ProcessEvent(event *ResponsesStreamEvent) 
 		kind := responsesToolCallTypeForEvent(event.Type)
 		idx, ok := a.outputIndexToFuncIdx[event.OutputIndex]
 		if !ok && (event.Name != "" || event.CallID != "") {
-			idx = a.ensureFuncCall(event.OutputIndex, kind, event.CallID, event.Name)
+			idx = a.ensureFuncCall(event.OutputIndex, kind, event.CallID, event.Name, "", nil)
 			ok = idx >= 0
 		}
 		if ok && idx >= 0 && idx < len(a.funcCalls) {
-			a.mergeFuncCallMetadata(idx, kind, event.CallID, event.Name)
+			a.mergeFuncCallMetadata(idx, kind, event.CallID, event.Name, "", nil)
 			a.appendFuncCallAggregate(idx, arguments)
 		}
 	case "response.reasoning_summary_text.delta", "response.reasoning_text.delta":
@@ -1013,25 +1016,31 @@ func (a *BufferedResponseAccumulator) processOutputItem(event *ResponsesStreamEv
 			}
 		}
 	case "function_call", "custom_tool_call", "tool_search_call":
-		idx := a.ensureFuncCall(event.OutputIndex, item.Type, item.CallID, item.Name)
+		idx := a.ensureFuncCall(event.OutputIndex, item.Type, item.CallID, item.Name, item.Namespace, item.EncryptedFunctionArgs)
 		if idx >= 0 {
 			a.appendFuncCallAggregate(idx, responsesToolCallArguments(item))
 		}
 	}
 }
 
-func (a *BufferedResponseAccumulator) ensureFuncCall(outputIndex int, kind, callID, name string) int {
+func (a *BufferedResponseAccumulator) ensureFuncCall(outputIndex int, kind, callID, name, namespace string, encrypted json.RawMessage) int {
 	if idx, ok := a.outputIndexToFuncIdx[outputIndex]; ok {
-		a.mergeFuncCallMetadata(idx, kind, callID, name)
+		a.mergeFuncCallMetadata(idx, kind, callID, name, namespace, encrypted)
 		return idx
 	}
 	idx := len(a.funcCalls)
 	a.outputIndexToFuncIdx[outputIndex] = idx
-	a.funcCalls = append(a.funcCalls, bufferedFuncCall{Type: kind, CallID: callID, Name: name})
+	a.funcCalls = append(a.funcCalls, bufferedFuncCall{
+		Type:                  kind,
+		CallID:                callID,
+		Name:                  name,
+		Namespace:             namespace,
+		EncryptedFunctionArgs: encrypted,
+	})
 	return idx
 }
 
-func (a *BufferedResponseAccumulator) mergeFuncCallMetadata(idx int, kind, callID, name string) {
+func (a *BufferedResponseAccumulator) mergeFuncCallMetadata(idx int, kind, callID, name, namespace string, encrypted json.RawMessage) {
 	if idx < 0 || idx >= len(a.funcCalls) {
 		return
 	}
@@ -1044,6 +1053,12 @@ func (a *BufferedResponseAccumulator) mergeFuncCallMetadata(idx int, kind, callI
 	}
 	if call.Name == "" && name != "" {
 		call.Name = name
+	}
+	if call.Namespace == "" && namespace != "" {
+		call.Namespace = namespace
+	}
+	if len(call.EncryptedFunctionArgs) == 0 && len(encrypted) > 0 {
+		call.EncryptedFunctionArgs = encrypted
 	}
 }
 
@@ -1111,9 +1126,11 @@ func (a *BufferedResponseAccumulator) BuildOutput() []ResponsesOutput {
 			kind = "function_call"
 		}
 		item := ResponsesOutput{
-			Type:   kind,
-			CallID: a.funcCalls[i].CallID,
-			Name:   a.funcCalls[i].Name,
+			Type:                  kind,
+			CallID:                a.funcCalls[i].CallID,
+			Name:                  a.funcCalls[i].Name,
+			Namespace:             a.funcCalls[i].Namespace,
+			EncryptedFunctionArgs: a.funcCalls[i].EncryptedFunctionArgs,
 		}
 		if kind == "custom_tool_call" {
 			item.Input = a.funcCalls[i].Args.String()

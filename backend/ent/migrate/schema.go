@@ -16,6 +16,8 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "team_owner_disabled", Type: field.TypeBool, Default: false},
+		{Name: "group_binding_mode", Type: field.TypeString, Size: 16, Default: "single"},
+		{Name: "aggregate_group_ids", Type: field.TypeJSON},
 		{Name: "conversion_enabled", Type: field.TypeBool, Default: false},
 		{Name: "default_client", Type: field.TypeString, Size: 32, Default: ""},
 		{Name: "default_endpoint", Type: field.TypeString, Size: 64, Default: ""},
@@ -50,19 +52,19 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_groups_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[27]},
+				Columns:    []*schema.Column{APIKeysColumns[29]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "api_keys_teams_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[28]},
+				Columns:    []*schema.Column{APIKeysColumns[30]},
 				RefColumns: []*schema.Column{TeamsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "api_keys_users_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[29]},
+				Columns:    []*schema.Column{APIKeysColumns[31]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -71,22 +73,22 @@ var (
 			{
 				Name:    "apikey_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[29]},
+				Columns: []*schema.Column{APIKeysColumns[31]},
 			},
 			{
 				Name:    "apikey_team_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[28]},
+				Columns: []*schema.Column{APIKeysColumns[30]},
 			},
 			{
 				Name:    "apikey_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[27]},
+				Columns: []*schema.Column{APIKeysColumns[29]},
 			},
 			{
 				Name:    "apikey_status",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[11]},
+				Columns: []*schema.Column{APIKeysColumns[13]},
 			},
 			{
 				Name:    "apikey_deleted_at",
@@ -96,17 +98,17 @@ var (
 			{
 				Name:    "apikey_last_used_at",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[12]},
+				Columns: []*schema.Column{APIKeysColumns[14]},
 			},
 			{
 				Name:    "apikey_quota_quota_used",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[15], APIKeysColumns[16]},
+				Columns: []*schema.Column{APIKeysColumns[17], APIKeysColumns[18]},
 			},
 			{
 				Name:    "apikey_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[17]},
+				Columns: []*schema.Column{APIKeysColumns[19]},
 			},
 		},
 	}
@@ -2104,6 +2106,8 @@ var (
 		{Name: "response_service_tier", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "service_host", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "codex_rollout_budget_units", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "cache_creation_30m_tokens", Type: field.TypeInt, Default: 0},
+		{Name: "cache_creation_12h_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "input_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "output_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "cache_creation_cost", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
@@ -2156,37 +2160,37 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[60]},
+				Columns:    []*schema.Column{UsageLogsColumns[62]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[61]},
+				Columns:    []*schema.Column{UsageLogsColumns[63]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[62]},
+				Columns:    []*schema.Column{UsageLogsColumns[64]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_teams_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[63]},
+				Columns:    []*schema.Column{UsageLogsColumns[65]},
 				RefColumns: []*schema.Column{TeamsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[64]},
+				Columns:    []*schema.Column{UsageLogsColumns[66]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[65]},
+				Columns:    []*schema.Column{UsageLogsColumns[67]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2195,7 +2199,7 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[64]},
+				Columns: []*schema.Column{UsageLogsColumns[66]},
 			},
 			{
 				Name:    "usagelog_billing_user_id",
@@ -2205,32 +2209,32 @@ var (
 			{
 				Name:    "usagelog_team_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[63]},
+				Columns: []*schema.Column{UsageLogsColumns[65]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[60]},
+				Columns: []*schema.Column{UsageLogsColumns[62]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[61]},
+				Columns: []*schema.Column{UsageLogsColumns[63]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[62]},
+				Columns: []*schema.Column{UsageLogsColumns[64]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[65]},
+				Columns: []*schema.Column{UsageLogsColumns[67]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[59]},
+				Columns: []*schema.Column{UsageLogsColumns[61]},
 			},
 			{
 				Name:    "usagelog_model",
@@ -2250,17 +2254,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[64], UsageLogsColumns[59]},
+				Columns: []*schema.Column{UsageLogsColumns[66], UsageLogsColumns[61]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[60], UsageLogsColumns[59]},
+				Columns: []*schema.Column{UsageLogsColumns[62], UsageLogsColumns[61]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[62], UsageLogsColumns[59]},
+				Columns: []*schema.Column{UsageLogsColumns[64], UsageLogsColumns[61]},
 			},
 		},
 	}

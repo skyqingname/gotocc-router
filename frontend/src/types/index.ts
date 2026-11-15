@@ -792,6 +792,8 @@ export interface CompositeRouteDecision {
 }
 
 export interface ApiKey {
+  group_binding_mode?: 'single' | 'all' | 'custom'
+  aggregate_group_ids?: number[]
   conversion_enabled?: boolean
   default_client?: string
   default_endpoint?: string
@@ -833,6 +835,8 @@ export interface ApiKey {
 }
 
 export interface CreateApiKeyRequest {
+  group_binding_mode?: 'single' | 'all' | 'custom'
+  aggregate_group_ids?: number[]
   conversion_enabled?: boolean
   default_client?: string
   default_endpoint?: string
@@ -851,6 +855,8 @@ export interface CreateApiKeyRequest {
 }
 
 export interface UpdateApiKeyRequest {
+  group_binding_mode?: 'single' | 'all' | 'custom'
+  aggregate_group_ids?: number[]
   conversion_enabled?: boolean
   default_client?: string
   default_endpoint?: string
@@ -1820,6 +1826,8 @@ export interface UsageLog {
   cache_creation_5m_tokens: number
   cache_creation_1h_tokens: number
   audio_output_tokens: number
+  cache_creation_30m_tokens?: number
+  cache_creation_12h_tokens?: number
 
   input_cost: number
   output_cost: number

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
@@ -139,6 +140,18 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		if handleAutoAPIKeyAuth(c, apiKeyService, cfg, apiKey, true) {
 			return
 		}
+		var aggregateOK bool
+		apiKey, aggregateOK = prepareAggregateAPIKey(c, apiKeyService, apiKey, true)
+		if !aggregateOK {
+			return
+		}
+		if apiKey.IsAggregate() {
+			defer func() {
+				if c.Writer.Status() < 400 && c.Writer.Status() != http.StatusSwitchingProtocols {
+					_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+				}
+			}()
+		}
 		if code, message, ok := validateAPIKeyGroupAvailable(apiKey); !ok {
 			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnavailable)
 			if code == "GROUP_DELETED" {
@@ -172,7 +185,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 			setGroupContext(c, apiKey.Group)
-			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+			if !apiKey.IsAggregate() {
+				_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+			}
 			c.Next()
 			return
 		}
@@ -245,7 +260,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 		setGroupContext(c, apiKey.Group)
-		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+		if !apiKey.IsAggregate() {
+			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+		}
 		c.Next()
 	}
 }

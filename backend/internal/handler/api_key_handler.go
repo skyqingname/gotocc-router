@@ -41,6 +41,8 @@ func NewAPIKeyHandler(apiKeyService *service.APIKeyService, accountService *serv
 
 // CreateAPIKeyRequest represents the create API key request payload
 type CreateAPIKeyRequest struct {
+	GroupBindingMode  string                  `json:"group_binding_mode"`
+	AggregateGroupIDs []int64                 `json:"aggregate_group_ids"`
 	RoutingMode       dto.NullableStringField `json:"routing_mode"`
 	Name              string                  `json:"name" binding:"required"`
 	Scope             string                  `json:"scope" binding:"omitempty,oneof=personal team"`
@@ -62,6 +64,8 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest represents the update API key request payload
 type UpdateAPIKeyRequest struct {
+	GroupBindingMode  *string                 `json:"group_binding_mode"`
+	AggregateGroupIDs *[]int64                `json:"aggregate_group_ids"`
 	RoutingMode       dto.NullableStringField `json:"routing_mode"`
 	Name              string                  `json:"name"`
 	GroupID           dto.NullableInt64Field  `json:"group_id"`
@@ -253,6 +257,8 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 
 	svcReq := service.CreateAPIKeyRequest{
+		GroupBindingMode:  req.GroupBindingMode,
+		AggregateGroupIDs: req.AggregateGroupIDs,
 		Name:              req.Name,
 		Scope:             req.Scope,
 		GroupID:           req.GroupID,
@@ -321,6 +327,8 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	svcReq := service.UpdateAPIKeyRequest{
 		RoutingMode:         req.RoutingMode.Value,
 		GroupIDSet:          req.GroupID.Set,
+		GroupBindingMode:    req.GroupBindingMode,
+		AggregateGroupIDs:   req.AggregateGroupIDs,
 		ConversionEnabled:   req.ConversionEnabled,
 		DefaultClient:       req.DefaultClient,
 		DefaultEndpoint:     req.DefaultEndpoint,

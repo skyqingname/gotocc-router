@@ -1,6 +1,6 @@
 {
  "source": "https://models.dev/api.json",
- "fetched_at": "2026-11-11T04:35:13+00:00",
+ "fetched_at": "2026-11-15T02:31:33+00:00",
  "vendor_aliases": {
   "zai": [
    "zhipuai"
@@ -39,7 +39,12 @@
       "input": 0,
       "output": 0
      },
-     "status": "deprecated"
+     "status": "deprecated",
+     "cost": {
+      "input": 5,
+      "output": 10,
+      "cache_read": 1.25
+     }
     },
     {
      "id": "gpt-3.5-turbo",
@@ -1425,7 +1430,12 @@
       "output": 0
      },
      "status": "deprecated",
-     "canonical_model_id": "openai/gpt-image-1.5"
+     "canonical_model_id": "openai/gpt-image-1.5",
+     "cost": {
+      "input": 5,
+      "output": 10,
+      "cache_read": 1.25
+     }
     },
     {
      "id": "gpt-image-2",
@@ -2242,6 +2252,7 @@
       "context": 200000,
       "output": 64000
      },
+     "status": "deprecated",
      "canonical_model_id": "anthropic/claude-sonnet-4-5",
      "cost": {
       "input": 3,
@@ -2276,6 +2287,7 @@
       "context": 200000,
       "output": 64000
      },
+     "status": "deprecated",
      "cost": {
       "input": 3,
       "output": 15,
@@ -2502,14 +2514,7 @@
      "canonical_model_id": "google/gemini-2.5-computer-use-preview-10-2025",
      "cost": {
       "input": 1.25,
-      "output": 10,
-      "tiers": [
-       {
-        "input": 2.5,
-        "output": 15,
-        "context_over": 200000
-       }
-      ]
+      "output": 10
      }
     },
     {
@@ -3150,7 +3155,7 @@
      },
      "limit": {
       "context": 16384,
-      "output": 32768
+      "output": 16384
      },
      "canonical_model_id": "google/gemini-3.5-live-translate-preview",
      "cost": {
@@ -3330,6 +3335,41 @@
       "input": 2,
       "output": 10,
       "cache_read": 0.1
+     }
+    },
+    {
+     "id": "gemini-4-hydrogen",
+     "name": "Gemini 4 Hydrogen",
+     "description": "Google's Gemini 4 model for everyday coding and agentic workflows, with four thinking levels and a 1M-token context window",
+     "family": "gemini",
+     "reasoning": true,
+     "tool_call": true,
+     "structured_output": true,
+     "attachment": true,
+     "open_weights": false,
+     "knowledge": "2026-03",
+     "release_date": "2026-11-12",
+     "modalities": {
+      "input": [
+       "text",
+       "image",
+       "video",
+       "audio",
+       "pdf"
+      ],
+      "output": [
+       "text"
+      ]
+     },
+     "limit": {
+      "context": 1048576,
+      "output": 65536
+     },
+     "canonical_model_id": "google/gemini-4-hydrogen",
+     "cost": {
+      "input": 1.5,
+      "output": 7.5,
+      "cache_read": 0.075
      }
     },
     {
@@ -3557,6 +3597,10 @@
      "limit": {
       "context": 262144,
       "output": 32768
+     },
+     "cost": {
+      "input": 0,
+      "output": 0
      }
     },
     {
@@ -3582,6 +3626,10 @@
      "limit": {
       "context": 262144,
       "output": 32768
+     },
+     "cost": {
+      "input": 0,
+      "output": 0
      }
     },
     {
@@ -8060,7 +8108,7 @@
       ]
      },
      "limit": {
-      "context": 256000,
+      "context": 1024000,
       "output": 256000
      },
      "canonical_model_id": "bytedance-seed/seed-2.1-pro",
@@ -8164,7 +8212,7 @@
       ]
      },
      "limit": {
-      "context": 256000,
+      "context": 1024000,
       "output": 256000
      },
      "canonical_model_id": "bytedance-seed/seed-evolving",
@@ -8313,13 +8361,14 @@
      "reasoning": true,
      "tool_call": true,
      "structured_output": true,
-     "attachment": false,
+     "attachment": true,
      "open_weights": true,
      "knowledge": "2025-05",
      "release_date": "2026-10-17",
      "modalities": {
       "input": [
-       "text"
+       "text",
+       "image"
       ],
       "output": [
        "text"
@@ -8599,7 +8648,7 @@
      },
      "limit": {
       "context": 131072,
-      "output": 262144
+      "output": 131072
      },
      "canonical_model_id": "mistral/ministral-3-3b-instruct-2512",
      "cost": {
@@ -8832,15 +8881,14 @@
     {
      "id": "mistral-large-latest",
      "name": "Mistral Large (latest)",
-     "description": "Flagship Mistral model for advanced reasoning, coding, and multilingual work",
+     "description": "Mistral's 1T-parameter multimodal MoE for reasoning, coding, and agentic work",
      "family": "mistral-large",
-     "reasoning": false,
+     "reasoning": true,
      "tool_call": true,
      "structured_output": true,
      "attachment": true,
-     "open_weights": true,
-     "knowledge": "2024-11",
-     "release_date": "2024-11-01",
+     "open_weights": false,
+     "release_date": "2026-10-06",
      "modalities": {
       "input": [
        "text",
@@ -8852,13 +8900,15 @@
       ]
      },
      "limit": {
-      "context": 262144,
+      "context": 1048576,
       "output": 262144
      },
+     "status": "beta",
+     "canonical_model_id": "mistral/mistral-large-4",
      "cost": {
-      "input": 0.5,
-      "output": 1.5,
-      "cache_read": 0.05
+      "input": 0.7,
+      "output": 2.1,
+      "cache_read": 0.07
      }
     },
     {

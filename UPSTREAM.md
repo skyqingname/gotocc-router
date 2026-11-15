@@ -6,17 +6,39 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The current GoToCC development tree integrates the complete fixed Plus release
-`LuckyKuang/sub2api-plus@v0.2.20+custom.001`: tag object
-`0b4e6d4228e2528b4c168b06ad3d21030fda5ed8`, peeled commit
-`c54cae37813b21077afeefcf9b252a54d052380c`. Its official baseline is
-`Wei-Shaw/sub2api@v0.2.20`, commit `dab829a4e9b7d1cc307189aea8b0319eb29e29d0`.
-The owned release identity is `skyqingname/gotocc-router@v0.2.20+custom.004`.
-Publication was authorized on 2026-11-13 after the uncompressed Responses
-candidate completed its transport regressions and 30 valid live requests.
-Owned `.003` was published on 2026-11-12 and `.002` on 2026-11-11. The earlier
-owned and upstream `.001` tags share a name but point to different fixed commits;
-repository, tag and peeled commit must always be considered together.
+The current GoToCC development candidate integrates the complete fixed Plus release
+`LuckyKuang/sub2api-plus@v0.2.21+custom.001`, peeled commit
+`0ccd6314909df1918baf9216458d1ed717e0ad8c`. Its official baseline is
+`Wei-Shaw/sub2api@v0.2.21`, commit `10ba8f9b4dc2e6023d4a9879ab77b21841babd10`.
+The owned base is `skyqingname/gotocc-router@v0.2.20+custom.004`;
+this candidate has no newly assigned owned release number and is not published.
+Repository, tag and peeled commit are separate parts of version identity.
+Post-tag upstream main is excluded.
+
+The v0.2.21 import adds disjoint OpenAI 30-minute/12-hour cache-write meters and
+optional 12-hour prices, atomic console refresh-token consumption, prompt-audit
+worker wakeups, account-slot cleanup on hydration failure, memory-aware ingress
+budget defaults, EasyPay refund success-code configuration and console fixes.
+Official migrations 249/250 are Plus 309/310 and become GoToCC 336/337;
+Plus aggregate-key migration 308 becomes GoToCC 335. Deployed SQL is unchanged.
+Claude Code's compiled version advances to `2.1.321` with its source priority,
+client family and SDK/runtime fingerprint preserved. Fable/Mythos 5.2 receive
+separate catalog, conversion and billing support; account access remains subject
+to provider eligibility. See [Claude](docs/providers/CLAUDE.md).
+The independently fixed Claude acceptance floor remains `2.1.258`, preserving
+existing explicit pins. OpenAI cache-duration counters survive converted HTTP
+streams/buffered responses and native WS turn/session accounting, with one
+shared validator and the existing aggregate fallback for unknown durations.
+
+Upstream semantic/visible TTFT settings and its injectable WS classifier are
+excluded: Plus removed that setting and retains strict nonempty token deltas,
+independent first-output/first-byte clocks and per-response WS timing windows.
+The Codex pin remains `0.167.0`, with no automatic version synchronization.
+Call-less page snapshots share the wire validator with canonical audit extraction;
+raw ingress audit still precedes account selection, pricing and forwarding.
+Plus Release-manifest pricing trust, atomic validated cache bundles, frozen
+billing, aggregate keys, owner snapshots, strict proxies, error policies, UI
+controls and container validation/release workflows remain authoritative.
 
 The integration retains GoToCC team/reseller funding, unified invitation and
 commission rules, original-currency pricing, content audit, owned update channel,
@@ -123,10 +145,13 @@ upstream CI, release and validation tooling listed in
 
 ## Plus Baseline Version
 
+These identifiers describe the current planned source revision. Its tag and
+image are not published; the mapping status below governs publication.
+
 ```text
-Git/GitHub: v0.2.20+custom.001
-Application: 0.2.20+custom.001
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.20-custom.001
+Git/GitHub: v0.2.21+custom.001
+Application: 0.2.21+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.001
 ```
 
 ## Release Mapping
@@ -215,6 +240,15 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.20-custom.001
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | upstream published |
 | `skyqingname/gotocc-router@v0.2.19+custom.001` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | owned integration; publication status is authoritative in the owned GitHub Release |
 | `skyqingname/gotocc-router@v0.2.19+custom.002` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | account image-edit protocol; publication status is authoritative in the owned GitHub Release |
+| `LuckyKuang/sub2api-plus@v0.2.18+custom.001` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | published |
+| `LuckyKuang/sub2api-plus@v0.2.18+custom.002` | `v0.2.18` | `ac1b8f1271be0d674fa6f074403c1410f30a3a81` | withdrawn |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.002` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.003` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.004` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.005` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
+| `LuckyKuang/sub2api-plus@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
+| `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | published |
+| `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by the unpublished GoToCC candidate |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
