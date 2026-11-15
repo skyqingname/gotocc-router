@@ -36,6 +36,8 @@ func (APIKey) Fields() []ent.Field {
 		field.Int64("user_id"),
 		field.Int64("team_id").Optional().Nillable(),
 		field.Bool("team_owner_disabled").Default(false),
+		field.String("group_binding_mode").MaxLen(16).Default("single"),
+		field.JSON("aggregate_group_ids", []int64{}).Default([]int64{}),
 		field.Bool("conversion_enabled").Default(false),
 		field.String("default_client").MaxLen(32).Default(""),
 		field.String("default_endpoint").MaxLen(64).Default(""),

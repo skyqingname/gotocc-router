@@ -8,6 +8,7 @@ import { keysAPI } from '@/api'
 import { getKeyQuotes } from '@/api/channels'
 import { group as catalogGroup, offer as catalogOffer, pricing as catalogPricing, rateQuote } from '@/components/channels/__tests__/catalogFixtures'
 import PlanModelCatalog from '@/components/payment/PlanModelCatalog.vue'
+import CheckboxDropdown from '@/components/common/CheckboxDropdown.vue'
 import KeysView from '../KeysView.vue'
 import NativeAccessFields from '@/components/keys/NativeAccessFields.vue'
 import en from '@/i18n/locales/en'
@@ -136,6 +137,8 @@ vi.mock('vue-i18n', async () => {
     useI18n: () => ({
       t: (key: string) => key.startsWith('keys.status.')
         ? { en, zh }[statusLocale].keys.status[key.slice('keys.status.'.length) as ApiKey['status']] ?? key
+        : key.startsWith('keys.errors.')
+          ? { en, zh }[statusLocale].keys.errors[key.slice('keys.errors.'.length) as keyof typeof en.keys.errors] ?? key
         : messages[key] ?? key,
     }),
   }
@@ -192,7 +195,7 @@ const TablePageLayoutStub = {
 
 const DataTableStub = {
   name: 'DataTable',
-  props: { columns: Array, data: Array, selectedKeys: Array, selectable: Boolean },
+  props: { columns: Array, data: Array, selectedKeys: Array, selectable: Boolean, loading: Boolean },
   emits: ['sort', 'update:selectedKeys'],
   template: `
     <div>
@@ -217,6 +220,9 @@ const DataTableStub = {
         </div>
         <div data-test="row-actions">
           <slot name="cell-actions" :row="row" />
+        </div>
+        <div data-test="usage">
+          <slot name="cell-usage" :row="row" />
         </div>
         <div
           v-if="columns.some((col) => col.key === 'last_used_ip')"
@@ -868,6 +874,106 @@ describe('user KeysView column settings', () => {
       getAvailableGroups.mockResolvedValue(availableGroups)
     })
 
+    it('creates an independent aggregate key with dynamic all scope by default', async () => {
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="create-aggregate-key"]').trigger('click')
+      expect(wrapper.find('[data-testid="aggregate-key-fields"]').exists()).toBe(true)
+      expect(wrapper.find('[data-tour="key-form-provider"]').exists()).toBe(false)
+      expect(wrapper.find('[data-tour="key-form-group"]').exists()).toBe(false)
+      expect(wrapper.findComponent(NativeAccessFields).exists()).toBe(false)
+      await wrapper.get('[data-tour="key-form-name"]').setValue('All suppliers')
+      vi.mocked(keysAPI.create).mockResolvedValue({ ...createApiKey(), group_binding_mode: 'all', group_id: null })
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      const args = vi.mocked(keysAPI.create).mock.calls[0]!
+      expect(args[1]).toBeNull()
+      expect(args[8]).toEqual({ conversion_enabled: false, default_client: '', default_endpoint: '' })
+      expect(args[9]).toEqual({ group_binding_mode: 'all', aggregate_group_ids: [] })
+      wrapper.unmount()
+    })
+
+    it('requires a custom selection and excludes Composite and subscription groups', async () => {
+      getAvailableGroups.mockResolvedValue([...availableGroups, { id: 99, name: 'Subscription', platform: 'openai', subscription_type: 'subscription', rate_multiplier: 1 }])
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="create-aggregate-key"]').trigger('click')
+      wrapper.findComponent('#key-aggregate-mode').vm.$emit('update:modelValue', 'custom')
+      await nextTick()
+      const dropdown = wrapper.getComponent(CheckboxDropdown)
+      expect(dropdown.props('searchable')).toBe(true)
+      const ids = dropdown.props('options').map(option => option.value)
+      expect(ids).toContain(1)
+      expect(ids).toContain(2)
+      expect(ids).not.toContain(10)
+      expect(ids).not.toContain(99)
+      await wrapper.get('[data-tour="key-form-name"]').setValue('Chosen suppliers')
+      await wrapper.get('#key-form').trigger('submit')
+      expect(keysAPI.create).not.toHaveBeenCalled()
+      expect(showError).toHaveBeenCalledWith('keys.aggregateGroupsRequired')
+      dropdown.vm.$emit('update:modelValue', [1, 2])
+      await nextTick()
+      vi.mocked(keysAPI.create).mockResolvedValue({ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1, 2], group_id: null })
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(vi.mocked(keysAPI.create).mock.calls[0]![9]).toEqual({ group_binding_mode: 'custom', aggregate_group_ids: [1, 2] })
+      wrapper.unmount()
+    })
+
+    it('edits aggregate scope without introducing Composite conversion or a single binding', async () => {
+      listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1, 2], group_id: null }], total: 1, page: 1, page_size: 20, pages: 1 })
+      const wrapper = await mountView()
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      expect(wrapper.getComponent(CheckboxDropdown).props('modelValue')).toEqual([1, 2])
+      expect(wrapper.findComponent(NativeAccessFields).exists()).toBe(false)
+      wrapper.findComponent('#key-aggregate-mode').vm.$emit('update:modelValue', 'all')
+      await nextTick()
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(updateKey).toHaveBeenCalledWith(1, expect.objectContaining({ group_binding_mode: 'all', aggregate_group_ids: [], group_id: undefined, conversion_enabled: false }))
+      wrapper.unmount()
+    })
+
+    it.each([
+      { locale: 'en', reason: 'API_KEY_COUNT_EXCEEDED', status: 403, expected: 'API key count limit reached. Delete unused keys before creating another.' },
+      { locale: 'zh', reason: 'API_KEY_COUNT_EXCEEDED', status: 403, expected: 'API 密钥数量已达上限，请先删除不用的密钥再创建。' },
+      { locale: 'zh', reason: 'API_KEY_CREATE_RATE_LIMITED', status: 429, expected: '近期创建 API 密钥过于频繁，请稍后再试。' },
+    ] as const)('shows the $reason save rejection in $locale and preserves the draft', async ({ locale, reason, status, expected }) => {
+      statusLocale = locale
+      // Shape emitted by the real API response interceptor for HTTP failures.
+      vi.mocked(keysAPI.create).mockRejectedValue({ status, code: status, reason, message: 'Backend rejection' })
+      const wrapper = await openCreate()
+      await wrapper.get('[data-tour="key-form-name"]').setValue('New key')
+      await chooseProvider(wrapper, 'openai')
+      groupSelect(wrapper).vm.$emit('update:modelValue', 2)
+      await flushPromises()
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+
+      expect(keysAPI.create).toHaveBeenCalledOnce()
+      expect(showError).toHaveBeenCalledWith(expected)
+      expect(showSuccess).not.toHaveBeenCalled()
+      expect((wrapper.get('[data-tour="key-form-name"]').element as HTMLInputElement).value).toBe('New key')
+      wrapper.unmount()
+    })
+
+    it.each([
+      { error: { status: 400, message: 'This group is unavailable' }, expected: 'This group is unavailable' },
+      { error: { status: 0, message: 'Network error. Please check your connection.' }, expected: 'Network error. Please check your connection.' },
+      { error: {}, expected: 'keys.failedToSave' },
+    ])('preserves actionable save errors and falls back only when no message exists: $expected', async ({ error, expected }) => {
+      const wrapper = await mountView()
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      const select = wrapper.findComponent('[data-tour="key-form-group"]')
+      select.vm.$emit('update:modelValue', 2)
+      await flushPromises()
+      updateKey.mockRejectedValue(error)
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(updateKey).toHaveBeenCalledOnce()
+      expect(showError).toHaveBeenCalledWith(expected)
+      expect(showSuccess).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
     it('persists Composite native defaults and only saves conversion after explicit opt-in', async () => {
       const wrapper = await openCreate()
       await wrapper.get('[data-tour="key-form-name"]').setValue('Composite key')
@@ -1051,6 +1157,36 @@ describe('user KeysView column settings', () => {
       await getButtonByText(wrapper, 'common.edit').trigger('click')
       expect(wrapper.find('[data-tour="key-form-provider"]').exists()).toBe(false)
       expect(optionIds(wrapper)).toHaveLength(12)
+    })
+  })
+
+  describe('usage stats loading', () => {
+    it('renders the key list without waiting for slow usage stats', async () => {
+      let resolveUsage!: (value: { stats: Record<string, unknown> }) => void
+      getDashboardApiKeysUsage.mockReturnValue(new Promise((resolve) => { resolveUsage = resolve }))
+      const wrapper = await mountView()
+
+      const table = wrapper.findComponent({ name: 'DataTable' })
+      expect(table.props('loading')).toBe(false)
+      expect(table.props('data')).toHaveLength(1)
+      expect(wrapper.find('[data-test="usage-pending"]').exists()).toBe(true)
+
+      resolveUsage({
+        stats: { 1: { api_key_id: 1, today_actual_cost: 0.5, total_actual_cost: 12.25 } },
+      })
+      await flushPromises()
+      expect(wrapper.find('[data-test="usage-pending"]').exists()).toBe(false)
+      expect(wrapper.get('[data-test="usage"]').text()).toContain('$12.2500')
+    })
+
+    it('stops showing usage placeholders when the usage request fails', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      getDashboardApiKeysUsage.mockRejectedValue(new Error('timeout'))
+      const wrapper = await mountView()
+
+      expect(wrapper.find('[data-test="usage-pending"]').exists()).toBe(false)
+      expect(wrapper.get('[data-test="usage"]').text()).toContain('$0.0000')
+      consoleError.mockRestore()
     })
   })
 })

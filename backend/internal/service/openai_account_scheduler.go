@@ -2730,6 +2730,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 				}
 				if accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
 					decision.StickyPreviousHit = stickyPreviousAccountID > 0 && stickyPreviousAccountID == selection.Account.ID
+					decision.StickySessionHit = selection.stickySessionHit
 					invalidateGroupRemovedResponseBinding(selection)
 					return selection, decision, nil
 				}
@@ -2758,6 +2759,7 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerOnce(
 			if s.isOpenAIAccountTransportCompatible(selection.Account, requiredTransport) &&
 				accountSupportsOpenAICapabilities(selection.Account, requiredCapability, requiredImageCapability) {
 				decision.StickyPreviousHit = stickyPreviousAccountID > 0 && stickyPreviousAccountID == selection.Account.ID
+				decision.StickySessionHit = selection.stickySessionHit
 				invalidateGroupRemovedResponseBinding(selection)
 				return selection, decision, nil
 			}

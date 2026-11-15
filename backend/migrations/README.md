@@ -10,6 +10,22 @@ are unchanged. Drain old gateway instances before enabling independent scopes;
 old binaries continue enforcing owner-based limits. See
 [team request limits](../../docs/TEAM_REQUEST_LIMITS.md).
 
+Migration `336_usage_log_api_key_cost_index_notx.sql` adds the concurrent
+API-key/time usage index with `actual_cost` included. A retry drops a leftover
+invalid index before recreating it; only this new nontransactional migration
+uses the invalid-index recovery hook.
+Migration `337_openai_cache_write_ttl.sql` adds non-null zero-default 30m/12h
+usage counters and nullable 12h prices in channel/group/account-statistics cards
+and intervals. Zero historical counters mean no observed split, not proof that
+the writes used either duration. NULL 12h price preserves the generic rate;
+explicit zero means free. New official 249/250 files are imported as GoToCC 336/337 (Plus 309/310);
+all historical migration filenames/checksums remain immutable.
+
+Migration `335_aggregate_api_keys.sql` adds explicit single/all/custom group
+bindings and atomic custom membership. Existing keys retain single-group or
+ungrouped behavior, including Composite conversion preferences. See
+[aggregate API keys](../../docs/AGGREGATE_API_KEYS.md).
+
 Migration `331_api_key_native_access_preferences.sql` adds empty-default client
 and endpoint presentation preferences. They grant no endpoint access and change
 no routing; omitted updates preserve values. See [native Composite access](../../docs/COMPOSITE_GROUPS.md#optional-unified-endpoint-and-native-access).

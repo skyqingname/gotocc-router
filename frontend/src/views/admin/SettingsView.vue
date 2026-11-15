@@ -8497,8 +8497,8 @@
 
         </div>
 
-        <!-- Save Button -->
-        <div v-show="activeTab !== 'backup'" class="card workspace-fixed flex justify-end px-6 py-3" data-test="settings-save-bar">
+        <!-- Save dock remains outside the scrolling settings panels. -->
+        <div v-show="activeTab !== 'backup'" class="settings-save-dock" data-test="settings-save-bar">
           <button
             type="submit"
             :disabled="saving || loadFailed"
@@ -12938,5 +12938,13 @@ watch(
 
 .settings-tab-label {
   @apply min-w-0 overflow-hidden text-ellipsis whitespace-nowrap leading-none;
+}
+
+/* ============ 系统设置 保存浮标 ============ */
+.settings-save-dock {
+  @apply sticky bottom-3 z-20 ml-auto flex w-fit items-center rounded-full border border-gray-200/80 bg-white/90 p-1.5 backdrop-blur-xl dark:border-dark-600/80 dark:bg-dark-800/90;
+  box-shadow:
+    0 10px 26px rgb(15 23 42 / 0.12),
+    0 1px 0 rgb(255 255 255 / 0.9) inset;
 }
 </style>

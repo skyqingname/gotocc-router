@@ -196,6 +196,18 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		if handleAutoAPIKeyAuth(c, apiKeyService, cfg, apiKey, false) {
 			return
 		}
+		var aggregateOK bool
+		apiKey, aggregateOK = prepareAggregateAPIKey(c, apiKeyService, apiKey, false)
+		if !aggregateOK {
+			return
+		}
+		if apiKey.IsAggregate() {
+			defer func() {
+				if c.Writer.Status() < 400 && c.Writer.Status() != http.StatusSwitchingProtocols {
+					_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+				}
+			}()
+		}
 		if abortIfAPIKeyGroupUnavailable(c, apiKey) {
 			return
 		}
@@ -228,7 +240,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 			setGroupContext(c, apiKey.Group)
-			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+			if !apiKey.IsAggregate() {
+				_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+			}
 			c.Next()
 			return
 		}
@@ -323,7 +337,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
 		setGroupContext(c, apiKey.Group)
-		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+		if !apiKey.IsAggregate() {
+			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
+		}
 
 		c.Next()
 	}

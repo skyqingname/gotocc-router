@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 34 // v34: independent team request capacity
+const apiKeyAuthSnapshotVersion = 35 // v35: aggregate bindings and independent team request capacity
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -342,6 +342,8 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		return nil
 	}
 	snapshot := &APIKeyAuthSnapshot{
+		GroupBindingMode:  NormalizeGroupBindingMode(apiKey.GroupBindingMode),
+		AggregateGroupIDs: append([]int64{}, apiKey.AggregateGroupIDs...),
 		Version:           apiKeyAuthSnapshotVersion,
 		APIKeyID:          apiKey.ID,
 		UserID:            apiKey.UserID,
@@ -479,6 +481,8 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		CreatedAt:         snapshot.CreatedAt,
 		GroupID:           snapshot.GroupID,
 		RoutingMode:       snapshot.RoutingMode,
+		GroupBindingMode:  snapshot.GroupBindingMode,
+		AggregateGroupIDs: append([]int64{}, snapshot.AggregateGroupIDs...),
 		ConversionEnabled: snapshot.ConversionEnabled,
 		DefaultClient:     snapshot.DefaultClient,
 		DefaultEndpoint:   snapshot.DefaultEndpoint,

@@ -46,6 +46,8 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 	builder := r.client.APIKey.Create().
 		SetUserID(key.UserID).
 		SetNillableTeamID(key.TeamID).
+		SetGroupBindingMode(service.NormalizeGroupBindingMode(key.GroupBindingMode)).
+		SetAggregateGroupIds(append([]int64{}, key.AggregateGroupIDs...)).
 		SetKey(key.Key).
 		SetName(key.Name).
 		SetConversionEnabled(key.ConversionEnabled).
@@ -137,6 +139,8 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		Where(apikey.KeyEQ(key)).
 		Select(
 			apikey.FieldID,
+			apikey.FieldGroupBindingMode,
+			apikey.FieldAggregateGroupIds,
 			apikey.FieldConversionEnabled,
 			apikey.FieldDefaultClient,
 			apikey.FieldDefaultEndpoint,
@@ -277,6 +281,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey, fiel
 	builder := client.APIKey.Update().
 		Where(apikey.IDEQ(key.ID), apikey.DeletedAtIsNil()).
 		SetUpdatedAt(now)
+	if fields.GroupBinding {
+		builder.SetGroupBindingMode(service.NormalizeGroupBindingMode(key.GroupBindingMode)).SetAggregateGroupIds(append([]int64{}, key.AggregateGroupIDs...))
+	}
 	if fields.Name {
 		builder.SetName(key.Name)
 	}
@@ -919,6 +926,8 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		return nil
 	}
 	out := &service.APIKey{
+		GroupBindingMode:  m.GroupBindingMode,
+		AggregateGroupIDs: append([]int64{}, m.AggregateGroupIds...),
 		ID:                m.ID,
 		UserID:            m.UserID,
 		TeamID:            m.TeamID,

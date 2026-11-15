@@ -83,6 +83,8 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		return nil
 	}
 	out := &APIKey{
+		GroupBindingMode:   service.NormalizeGroupBindingMode(k.GroupBindingMode),
+		AggregateGroupIDs:  append([]int64{}, k.AggregateGroupIDs...),
 		ConversionEnabled:  k.ConversionEnabled,
 		DefaultClient:      k.DefaultClient,
 		DefaultEndpoint:    k.DefaultEndpoint,
@@ -773,6 +775,8 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		CacheReadTokens:           l.CacheReadTokens,
 		CacheCreation5mTokens:     l.CacheCreation5mTokens,
 		CacheCreation1hTokens:     l.CacheCreation1hTokens,
+		CacheCreation30mTokens:    l.CacheCreation30mTokens,
+		CacheCreation12hTokens:    l.CacheCreation12hTokens,
 		AudioOutputTokens:         l.AudioOutputTokens,
 		InputCost:                 l.InputCost,
 		OutputCost:                l.OutputCost,

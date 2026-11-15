@@ -118,6 +118,11 @@ User usage, My Orders, API Keys, asynchronous-image and batch-image lists use
 the main branch. Both native tables and responsive record cards scroll inside
 the remaining space; pagination and filters remain visible. User usage keeps its
 server-side `page`/`page_size` interface and loads only the selected page.
+API-key create/edit failures use the shared API error extractor, preserving the
+response interceptor's normalized message. Count and creation-frequency limits
+show localized recovery guidance; other API/network failures retain their
+specific message. Rejected saves leave the form draft open. These messages do
+not change the creation limits described in [deployment settings](../deploy/README.md#balance-reservations-and-api-key-creation-limits).
 Admin Order Management and Subscription Plans also use the fixed workspace:
 query controls, refresh/create actions and pagination stay outside the scrolling
 table. Available Channels keeps controls outside its scrolling model catalog,
@@ -511,6 +516,11 @@ after cleanup.
 ## Refresh and motion
 
 Initial loads use skeletons; background refresh preserves rows/charts.
+Account refresh keeps the existing table and quotas visible while marking the
+region busy and suppressing overlapping row actions. Initial cost reads remain
+lazy and retain the selected aggregate-key scope. Settings use a floating save
+dock with reserved content space, responsive placement and existing permissions;
+the dock does not restore the removed TTFT setting.
 `useAutoRefresh` coalesces pending work, pauses while hidden/offline, resumes once,
 honors seconds/date `Retry-After`, and uses jittered exponential backoff capped
 at 300 seconds. Callers must return the actual pending promise. Poll errors keep

@@ -9,7 +9,9 @@
     "https://platform.claude.com/docs/en/models/fable-5-2/overview",
     "https://platform.claude.com/docs/en/about-claude/pricing",
     "https://aistudio.google.com/docs/pricing#gemini-4-carbon",
-    "https://aistudio.google.com/docs/models/gemini-4-carbon"
+    "https://aistudio.google.com/docs/models/gemini-4-carbon",
+    "https://aistudio.google.com/docs/pricing#gemini-4-hydrogen",
+    "https://aistudio.google.com/docs/models/gemini-4-hydrogen"
   ],
   "verified_date": "2026-09-23",
   "models": {
@@ -317,6 +319,27 @@
       "source_currency": "USD",
       "billing_unit": "credits",
       "source": "https://aistudio.google.com/docs/pricing#gemini-4-carbon"
+    },
+    "gemini-4-hydrogen": {
+      "input_cost_per_token": 1.5e-06,
+      "output_cost_per_token": 7.5e-06,
+      "cache_read_input_token_cost": 7.5e-08,
+      "cache_creation_input_token_cost": 0.0,
+      "input_cost_per_token_priority": 2.7e-06,
+      "output_cost_per_token_priority": 1.35e-05,
+      "cache_read_input_token_cost_priority": 1.35e-07,
+      "litellm_provider": "gemini",
+      "mode": "chat",
+      "supports_prompt_caching": true,
+      "supports_reasoning": true,
+      "supports_service_tier": true,
+      "max_input_tokens": 1048576,
+      "max_output_tokens": 65536,
+      "max_tokens": 65536,
+      "prefer_bundled_pricing": true,
+      "source_currency": "USD",
+      "billing_unit": "credits",
+      "source": "https://aistudio.google.com/docs/pricing#gemini-4-hydrogen"
     }
   },
   "model_verified_dates": {
@@ -328,7 +351,8 @@
     "glm-4.5v": "2026-10-25",
     "glm-4.6v": "2026-10-25",
     "claude-fable-5-2": "2026-11-11",
-    "gemini-4-carbon": "2026-11-11"
+    "gemini-4-carbon": "2026-11-11",
+    "gemini-4-hydrogen": "2026-11-15"
   },
   "model_pricing_notes": {
     "gemini-4-carbon": {
@@ -347,6 +371,10 @@
       },
       "automatic_date_switch": false,
       "note": "Explicit caching is unsupported. Current promotional rates are frozen in this release; review and update before the announced price change."
+    },
+    "gemini-4-hydrogen": {
+      "verified_on": "2026-11-15",
+      "note": "Implicit cache only; synchronous output max 65,536 with a unified 1,048,576-token context. Long decode is not enabled by this catalog update."
     }
   }
 }

@@ -505,6 +505,29 @@ func formatPositiveFloat(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 2, 64)
 }
 
+const balanceRechargeMultiplierMaxDecimals = 6
+
+func balanceRechargeMultiplierHasExcessPrecision(v float64) bool {
+	scaled := v * math.Pow(10, balanceRechargeMultiplierMaxDecimals)
+	return math.IsInf(scaled, 0) || math.Round(scaled) <= 0 || math.Abs(scaled-math.Round(scaled)) > 1e-6
+}
+
+func formatBalanceRechargeMultiplier(v *float64) string {
+	if v == nil || *v <= 0 {
+		return "" // empty → parsePaymentConfig uses default
+	}
+	rounded := math.Round(*v*math.Pow(10, balanceRechargeMultiplierMaxDecimals)) / math.Pow(10, balanceRechargeMultiplierMaxDecimals)
+	return strconv.FormatFloat(rounded, 'f', -1, 64)
+}
+
+// formatPositiveFloatExact 保留完整精度，用于汇率等对小数位敏感的配置。
+func formatPositiveFloatExact(v *float64) string {
+	if v == nil || *v <= 0 {
+		return "" // empty → parsePaymentConfig 视为未配置（换算关闭）
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
+}
+
 func formatNonNegativeFloat(v *float64) string {
 	if v == nil || *v < 0 {
 		return ""

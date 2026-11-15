@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/domain"
@@ -554,6 +555,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 
+	// Reject invalid UTF-8 before JSON transformation so malformed bytes do not
+	// become retryable upstream errors.
+	if !utf8.Valid(body) {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Request body must be valid UTF-8 JSON. Send UTF-8 encoded bytes.")
+		return
+	}
+
 	setOpsRequestContext(c, "", false)
 	securityAuditBody := append([]byte(nil), body...)
 	// 校验请求体 JSON 合法性
@@ -664,6 +672,10 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	} else if changed {
 		body = cappedBody
+	}
+	if normalizedBody, changed := normalizeCodexPageContext(body); changed {
+		body = normalizedBody
+		reqLog.Info("openai.codex_page_context_normalized", zap.String("normalization", "call_output_to_user_message"))
 	}
 	if normalizedBody, changed := normalizeCodexAutomationBootstrap(body); changed {
 		body = normalizedBody
@@ -2046,7 +2058,7 @@ func (k *openAIWSTurnBillingAPIKeys) begin(ctx context.Context, apiKeyService *s
 	} else {
 		ctx = service.WithRPMAdmissionScope(ctx)
 	}
-	if turn > 1 && apiKeyService != nil {
+	if turn > 1 && apiKeyService != nil && !conn.IsAggregate() {
 		turnKey = refreshOpenAIWSTurnBillingAPIKey(ctx, apiKeyService, conn)
 	}
 	k.set(turn, turnKey)
@@ -2553,6 +2565,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		reqModel = route.UpstreamModel
 		previousResponseCanMove = false
 		ctx = c.Request.Context()
+	}
+	if apiKey.IsAggregate() {
+		_ = h.apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 	}
 	// Audit derives this request context from the IP-policy domain. Retain all
 	// admitted metadata, including Fast rules for keys without a group snapshot.
@@ -3113,6 +3128,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		initialAutoRoute, _ := service.AutoRouteDecisionFromContext(ctx)
 		autoTurnState.Store(&autoWSTurnState{turn: 1, key: apiKey, subscription: subscription, subject: subject, route: initialAutoRoute, ctx: ctx})
 		var turnBillingAPIKeys openAIWSTurnBillingAPIKeys
+		var aggregateTurnKey atomic.Pointer[service.APIKey]
+		aggregateTurnKey.Store(apiKey)
 		hooks := &service.OpenAIWSIngressHooks{
 			ClientLifecycleContext:      clientLifecycleCtx,
 			InitialRequestModel:         reqModel,
@@ -3164,18 +3181,29 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					subject = middleware2.AuthSubject{UserID: apiKey.User.ID, Concurrency: apiKey.User.Concurrency, TeamID: apiKey.TeamID}
 				}
 
+				auditKey := apiKey
+				if apiKey.IsAggregate() {
+					fresh, err := h.apiKeyService.RefreshAggregateBinding(ctx, apiKey, model, service.APIProtocolResponses)
+					if err != nil {
+						return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "aggregate group is no longer available; reconnect with an authorized group", err)
+					}
+					aggregateTurnKey.Store(fresh)
+					auditKey = fresh
+					apiKey = fresh
+					subject = middleware2.AuthSubject{UserID: fresh.User.ID, Concurrency: fresh.User.Concurrency, TeamID: fresh.TeamID}
+				}
 				// 分组级模型白名单：后续 turn 同样校验客户端模型（省略 model 时
 				// 沿用会话实际生效模型，含 session.update 轮换后的模型），不通过
 				// 则关闭整条连接，与推理强度 deny 一致。实际生效模型始终参与校验；
 				// 帧内重复 model 键/大小写变体/嵌套 session.model 额外逐一校验，
 				// 防止候选集非空时掩盖被轮换掉的禁用模型。
 				candidates := append([]string{model}, requestmodel.FromBodyCandidates("", "application/json", payload)...)
-				if blocked := blockedModelAllowlistCandidate(apiKey.Group, candidates); blocked != "" {
+				if blocked := blockedModelAllowlistCandidate(auditKey.Group, candidates); blocked != "" {
 					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
 					middleware2.MarkIngressRejected(c, middleware2.IngressRejectModelNotAllowed)
 					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, fmt.Sprintf("Model %q is not available for this group", blocked), nil)
 				}
-				if decision := h.checkSecurityAuditStage(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload, "subsequent_turn"); decision != nil && !decision.AllowNextStage {
+				if decision := h.checkSecurityAuditStage(c, reqLog, auditKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload, "subsequent_turn"); decision != nil && !decision.AllowNextStage {
 					writeSecurityAuditWSError(ctx, wsConn, decision)
 					return service.NewOpenAIWSClientCloseError(securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision), nil)
 				}
@@ -3291,6 +3319,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					}
 				}
 				turnKey := apiKey
+				if apiKey.IsAggregate() {
+					turnKey = aggregateTurnKey.Load()
+				}
 				if turn == 1 {
 					turnKey = firstAttemptKey
 				}

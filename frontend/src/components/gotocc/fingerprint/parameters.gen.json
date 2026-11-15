@@ -1,6 +1,6 @@
 {
   "reference_repository": "https://github.com/Ikaleio/lm-detector",
-  "reference_commit": "a7e9d3056e019827904dd50722c20b4a0c896738",
+  "reference_commit": "2c61f8f836de93d3ce60a9f76f8b8ff9e15011ac",
   "reference_website": "https://lm.ikale.io/",
   "challenge_count": 3,
   "max_output_tokens": 8192,

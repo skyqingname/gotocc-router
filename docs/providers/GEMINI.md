@@ -122,3 +122,18 @@ Model discovery and cache writes use the credential owner's
 Vertex catalog page share the operation's snapshot. Detached cache cleanup keeps
 the same snapshot after client cancellation; recovery resolves the bound owner,
 and a different failover account resolves its own identity.
+
+The v0.2.21 Messages compatibility path excludes Gemini `thought` text from a
+non-streaming response body. Thought metadata does not become user-visible text;
+existing usage, identity, audit and billing rules are unchanged.
+
+## Gemini 4 Hydrogen catalog refresh
+
+The 2026-11-15 candidate adds the canonical `gemini-4-hydrogen` to default model
+discovery and the bundled exact price card. Standard input/output/cache-read are
+1.50/7.50/0.075 per million tokens; Priority is 2.70/13.50/0.135. The unified
+context is 1,048,576 tokens and synchronous output is 65,536; explicit caching
+and long-decode support are not added by this refresh. Existing group/channel
+prices keep precedence. Provider-specific aliases and availability are not
+inferred from the family name. Sources: [model](https://aistudio.google.com/docs/models/gemini-4-hydrogen),
+[pricing](https://aistudio.google.com/docs/pricing#gemini-4-hydrogen).

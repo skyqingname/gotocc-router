@@ -9,6 +9,8 @@ import (
 
 // APIKeyAuthSnapshot API Key 认证缓存快照（仅包含认证所需字段）
 type APIKeyAuthSnapshot struct {
+	GroupBindingMode  string                   `json:"group_binding_mode"`
+	AggregateGroupIDs []int64                  `json:"aggregate_group_ids,omitempty"`
 	Version           int                      `json:"version"`
 	APIKeyID          int64                    `json:"api_key_id"`
 	UserID            int64                    `json:"user_id"`
