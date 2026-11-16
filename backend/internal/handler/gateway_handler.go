@@ -2120,6 +2120,10 @@ func (h *GatewayHandler) handleStreamingAwareErrorWithCode(c *gin.Context, statu
 				errorCode = `,"code":` + strconv.Quote(code)
 			}
 			errorEvent := `data: {"type":"error","error":{"type":` + strconv.Quote(errType) + errorCode + `,"message":` + strconv.Quote(message) + `}}` + "\n\n"
+			if gatewayStreamHasOnlyHeartbeats(c) {
+				// 只发过心跳的流：官方 Anthropic SDK 按事件名分发，缺 event 行会把错误帧整帧忽略，客户端得到一个没有报错的空流。
+				errorEvent = "event: error\n" + errorEvent
+			}
 			if _, err := fmt.Fprint(c.Writer, errorEvent); err != nil {
 				_ = c.Error(err)
 			}

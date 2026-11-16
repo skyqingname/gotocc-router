@@ -27,7 +27,7 @@ the first heartbeat keeps its original status code and body.
 
 | Inbound endpoint | Handler | Heartbeat | Failure after a heartbeat |
 | --- | --- | --- | --- |
-| Anthropic `/v1/messages` | Anthropic gateway | `data: {"type": "ping"}` | `data: {"type":"error",...}` |
+| Anthropic `/v1/messages` | Anthropic gateway | `data: {"type": "ping"}` | `event: error` with `data: {"type":"error",...}` |
 | Anthropic `/v1/messages` | OpenAI gateway | `:` comment | `event: error` with an Anthropic error object |
 | OpenAI `/v1/responses` | Anthropic or OpenAI gateway | `:` comment | `response.failed` |
 | OpenAI `/v1/chat/completions` | OpenAI gateway | `:` comment | `event: error` with `{"error": ...}` |
@@ -43,6 +43,10 @@ Heartbeats are counted with the queue heartbeats as non-semantic output:
   continues the heartbeats.
 - When failover is exhausted after a heartbeat, the failure uses the stream
   error event the entry already sends after a queue heartbeat (table above).
+  On the Anthropic gateway a stream that carried only heartbeats gets the
+  `event: error` line: official Anthropic SDKs dispatch on the event name and
+  drop a data-only error frame, leaving an empty stream without an error.
+  Errors after model output keep the existing data-only frame.
   Operations error logs keep the real error status through the existing stream
   error marking.
 - Upstream errors that a forwarding service writes itself (for example a
