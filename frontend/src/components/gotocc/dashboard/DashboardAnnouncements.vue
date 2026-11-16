@@ -1,6 +1,6 @@
 <template>
   <div v-if="showAnnouncements" class="card overflow-hidden">
-    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+    <div class="flex min-h-[61px] items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-dark-700">
       <h2 class="flex min-w-0 items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
         <Icon name="bell" size="md" class="shrink-0 text-primary-600 dark:text-primary-400" />
         <span class="truncate">{{ t('gotocc.dashboard.announcements.title') }}</span>

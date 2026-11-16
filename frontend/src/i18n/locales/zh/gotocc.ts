@@ -1,5 +1,9 @@
 export default {
   gotocc: {
+    // ============ 界面美化第一批：仪表盘「联系我们」卡 ============
+    contactCard: {
+      title: '联系我们',
+    },
     dashboard: {
       live: {
         rpm: 'RPM',
