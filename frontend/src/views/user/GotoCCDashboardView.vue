@@ -18,8 +18,9 @@
           <UserDashboardRecentUsage :data="recentUsage" :loading="recentLoading" />
           <DashboardAnnouncements />
         </div>
-        <div>
-          <UserDashboardQuickActions />
+        <div class="space-y-4">
+          <DashboardQuickActions />
+          <DashboardContact />
         </div>
       </div>
     </div>
@@ -30,11 +31,12 @@
 import { onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import UserDashboardRecentUsage from '@/components/user/dashboard/UserDashboardRecentUsage.vue'
-import UserDashboardQuickActions from '@/components/user/dashboard/UserDashboardQuickActions.vue'
 import DashboardAnnouncements from '@/components/gotocc/dashboard/DashboardAnnouncements.vue'
+import DashboardContact from '@/components/gotocc/dashboard/DashboardContact.vue'
 import DashboardHeatmap from '@/components/gotocc/dashboard/DashboardHeatmap.vue'
 import DashboardLiveStats from '@/components/gotocc/dashboard/DashboardLiveStats.vue'
 import DashboardPlatformUsage from '@/components/gotocc/dashboard/DashboardPlatformUsage.vue'
+import DashboardQuickActions from '@/components/gotocc/dashboard/DashboardQuickActions.vue'
 import DashboardToolbar from '@/components/gotocc/dashboard/DashboardToolbar.vue'
 import DashboardUsageChart from '@/components/gotocc/dashboard/DashboardUsageChart.vue'
 import { dashboardMotionVars } from '@/components/gotocc/dashboard/motion'
@@ -45,7 +47,7 @@ import { useAnnouncementStore } from '@/stores/announcements'
 import { formatDateLocalInput } from '@/utils/format'
 import type { UsageLog } from '@/types'
 
-// GoToCC 用户仪表盘：布局与动效参照 TokenRouter（LGPL-3.0），保留平台额度、最近使用和快捷操作。
+// GoToCC 用户仪表盘：布局与动效参照 TokenRouter（LGPL-3.0），保留平台额度、最近使用和快捷操作；右侧栏是快捷入口和联系我们。
 // 最近使用固定展示近 7 天，与卡片标题一致。
 const RECENT_DAYS = 7
 const RECENT_COUNT = 5

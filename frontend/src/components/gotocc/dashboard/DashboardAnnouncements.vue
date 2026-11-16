@@ -1,6 +1,6 @@
 <template>
   <div v-if="showAnnouncements" class="card overflow-hidden">
-    <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+    <div class="flex min-h-[61px] items-center justify-between gap-3 border-b border-gray-100 px-5 py-3 dark:border-dark-700">
       <h2 class="flex min-w-0 items-center gap-2 text-base font-semibold text-gray-900 dark:text-white">
         <Icon name="bell" size="md" class="shrink-0 text-primary-600 dark:text-primary-400" />
         <span class="truncate">{{ t('gotocc.dashboard.announcements.title') }}</span>
@@ -63,14 +63,13 @@ const { showAnnouncements } = useResellerCommunications()
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import Skeleton from '@/components/common/Skeleton.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAnnouncementStore } from '@/stores/announcements'
-import { formatDate, formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import type { UserAnnouncement } from '@/types'
+import { formatAnnouncementDate, summarizeAnnouncement } from '../announcementDisplay'
 
 // 最新公告时间线，结构参照 TokenRouter（LGPL-3.0）。按发布时间倒序展示最近 5 条，点开即标记已读。
 const MAX_ITEMS = 5
@@ -80,25 +79,11 @@ const announcementStore = useAnnouncementStore()
 const { announcements, loading, unreadCount } = storeToRefs(announcementStore)
 const selected = ref<UserAnnouncement | null>(null)
 
-// 同年省略年份，跨年补充年份。
-const formatAnnouncementDate = (createdAt: string): string => {
-  const date = new Date(createdAt)
-  const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric' }
-  if (date.getFullYear() !== new Date().getFullYear()) options.year = 'numeric'
-  return formatDate(date, options)
-}
-
-// 公告正文支持 Markdown 和 HTML，走与弹窗相同的安全解析后提取纯文本摘要。
-const createSummary = (content: string): string => {
-  const html = DOMPurify.sanitize(marked.parse(content, { breaks: true, gfm: true }) as string)
-  return (new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').replace(/\s+/g, ' ').trim()
-}
-
 // 接口列表未读优先，时间线恢复为发布时间倒序。
 const items = computed(() => [...announcements.value]
   .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)
   .slice(0, MAX_ITEMS)
-  .map((announcement) => ({ announcement, summary: createSummary(announcement.content) })))
+  .map((announcement) => ({ announcement, summary: summarizeAnnouncement(announcement.content) })))
 
 const openAnnouncement = (announcement: UserAnnouncement) => {
   selected.value = announcement
