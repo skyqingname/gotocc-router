@@ -8,7 +8,7 @@
         </h3>
         <span class="truncate text-xs text-gray-500 dark:text-dark-400">{{ subtitle }}</span>
       </div>
-      <RouterLink to="/usage" class="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+      <RouterLink to="/usage" class="text-link inline-flex shrink-0 items-center gap-1 text-xs font-medium">
         {{ t('gotocc.dashboard.topModels.viewAll') }}
         <Icon name="chevronRight" size="xs" />
       </RouterLink>

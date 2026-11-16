@@ -296,9 +296,9 @@
               {{ formatMarketplaceStat(supportedProviders.length) }} {{ t('home.stats.providerTypes') }}
             </p>
           </div>
-          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-primary-600 dark:text-dark-400 dark:hover:text-primary-300">
+          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-link inline-flex shrink-0 items-center gap-1 self-start whitespace-nowrap text-sm font-medium sm:self-auto">
             {{ t('home.viewAll') }}
-            <Icon name="arrowRight" size="xs" class="inline-block" />
+            <Icon name="arrowRight" size="xs" />
           </router-link>
         </div>
 

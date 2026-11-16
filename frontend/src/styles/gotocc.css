@@ -21,6 +21,43 @@
   }
 }
 
+/* ============ 界面美化第一批：文字链接 ============
+   文字链接的结构与交互参照 TokenRouter（LGPL-3.0）style.css 的 .text-link 系列，颜色换成 GoToCC 主色与暖色外壳变量。 */
+
+/* 文字链接：常态为正文色加下划线，悬停或键盘聚焦变主色。
+   .text-link 用在单个链接上；.text-link-content 让容器里的链接（如公告正文）沿用同一样式；
+   .text-link-area 是整块可点的行，悬停或聚焦整行时其中的 .text-link 一起变色。 */
+.text-link,
+:where(.text-link-content) a[href] {
+  color: var(--surface-text);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+  transition:
+    color var(--motion-fast) var(--motion-ease),
+    text-decoration-color var(--motion-fast) var(--motion-ease);
+}
+
+.text-link:is(:hover, :focus-visible),
+:where(.text-link-content) a[href]:is(:hover, :focus-visible),
+:where(.text-link-area:is(:hover, :focus-visible)) .text-link {
+  color: theme('colors.primary.600');
+  text-decoration-color: currentColor;
+}
+
+.dark .text-link:is(:hover, :focus-visible),
+.dark :where(.text-link-content) a[href]:is(:hover, :focus-visible),
+.dark :where(.text-link-area:is(:hover, :focus-visible)) .text-link {
+  color: theme('colors.primary.300');
+}
+
+.text-link:focus-visible,
+:where(.text-link-content) a[href]:focus-visible {
+  outline: 2px solid theme('colors.primary.500');
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* 主按钮：靛 600 底白字（对比度 6.3:1），悬停加深。 */
 .btn-primary {
   @apply bg-primary-600 text-white;
