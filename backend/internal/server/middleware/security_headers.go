@@ -71,6 +71,8 @@ var requiredCSPDirectiveValues = []struct {
 	{"frame-src", TencentCaptchaGlobalDomain},
 	{"frame-src", TencentCaptchaPrehandleDomain},
 	{"worker-src", TencentCaptchaWorkerSource},
+	// 任务中心预览视频：带登录态取回的视频以同源 blob: 对象地址交给 <video> 播放。
+	{"media-src", "blob:"},
 	{"script-src", StripeDomain},
 	{"frame-src", StripeDomain},
 	{"script-src", AirwallexStaticDomain},

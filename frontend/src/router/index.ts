@@ -281,6 +281,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'imageTasks.description'
     }
   },
+  {
+    // GoToCC 任务中心：视频与图片任务的状态、耗时、费用、预览和下载。
+    path: '/tasks',
+    name: 'TaskCenter',
+    component: () => import('@/views/user/GotoCCTaskCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Task Center',
+      titleKey: 'gotocc.taskCenter.title'
+    }
+  },
   { path: '/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
   { path: '/docs/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
   {

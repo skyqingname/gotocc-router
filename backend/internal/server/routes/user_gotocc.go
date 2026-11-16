@@ -41,3 +41,16 @@ func registerUserTeamRoutes(authenticated *gin.RouterGroup, h *handler.Handlers,
 		team.DELETE("/ownership-transfer", gin.HandlerFunc(stepUpAuth), h.Team.CancelOwnershipTransfer)
 	}
 }
+
+// registerUserTaskCenterRoutes mounts the task center beside the image task
+// history: the user's own video tasks plus an image task summary.
+func registerUserTaskCenterRoutes(authenticated *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
+	authenticated.GET("/image-tasks/summary", h.ImageTasks.Summary)
+	videoTasks := authenticated.Group("/video-tasks")
+	{
+		videoTasks.GET("", h.VideoTasks.List)
+		videoTasks.GET("/filters", h.VideoTasks.Filters)
+		videoTasks.GET("/summary", h.VideoTasks.Summary)
+		videoTasks.GET("/:task_id/content", panelRateLimiter.Heavy(), h.VideoTasks.Content)
+	}
+}

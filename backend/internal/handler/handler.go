@@ -83,6 +83,7 @@ type Handlers struct {
 	BatchImage       *BatchImageHandler
 	Team             *TeamHandler
 	ImageTasks       *ImageTaskUserHandler
+	VideoTasks       *VideoTaskUserHandler
 }
 
 // BuildInfo contains build-time information

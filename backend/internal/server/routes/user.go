@@ -223,5 +223,6 @@ func RegisterUserRoutes(
 			imageTasks.GET("/:task_id/download", panelRateLimiter.Heavy(), h.ImageTasks.Download)
 			imageTasks.DELETE("/:task_id", h.ImageTasks.Delete)
 		}
+		registerUserTaskCenterRoutes(authenticated, h, panelRateLimiter)
 	}
 }

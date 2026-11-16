@@ -9,6 +9,10 @@ export const METRIC_TONES = {
   cost: { icon: 'text-amber-600 dark:text-amber-400', tile: 'bg-amber-500/10' },
   cacheHitRate: { icon: 'text-violet-600 dark:text-violet-400', tile: 'bg-violet-500/10' },
   latency: { icon: 'text-rose-600 dark:text-rose-400', tile: 'bg-rose-500/10' },
+  // 任务中心：任务数用主色，已完成用绿色，处理中用品牌辅色；任务费用沿用 cost。
+  tasks: { icon: 'text-primary-600 dark:text-primary-400', tile: 'bg-primary-500/10' },
+  completed: { icon: 'text-emerald-600 dark:text-emerald-400', tile: 'bg-emerald-500/10' },
+  processing: { icon: 'text-violet-600 dark:text-violet-400', tile: 'bg-violet-500/10' },
 } as const
 
 export type MetricTone = keyof typeof METRIC_TONES
