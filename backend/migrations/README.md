@@ -17,6 +17,11 @@ Plus 311/312/313 are imported as GoToCC 338/339/340; all historical migration
 filenames/checksums remain immutable. See
 [async image tasks](../../docs/ASYNC_IMAGE_TASKS.md).
 
+Migration `341_openai_video_tasks_actor_created_index_notx.sql` adds the
+concurrent `(actor_user_id, created_at DESC, id DESC)` index on
+`openai_video_tasks`. The GoToCC task center lists one user's video tasks across
+every API key, newest first; gateway video endpoints keep their existing lookups.
+
 Migration `334_team_request_limits.sql` adds independent team concurrency and
 RPM, initially copied once from the current owner. Wallets and personal settings
 are unchanged. Drain old gateway instances before enabling independent scopes;
