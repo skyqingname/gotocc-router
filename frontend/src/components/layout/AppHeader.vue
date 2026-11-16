@@ -29,7 +29,7 @@
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex shrink-0 items-center gap-1 sm:gap-3">
         <!-- Announcement Bell -->
-        <AnnouncementBell v-if="user" />
+        <GotoCCAnnouncementBell v-if="user" />
 
         <!-- Docs Link -->
         <a
@@ -126,7 +126,7 @@ import { useAppStore, useAuthStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
-import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import GotoCCAnnouncementBell from '@/components/gotocc/GotoCCAnnouncementBell.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GotoCCUserMenu from '@/components/gotocc/GotoCCUserMenu.vue'
 import { sanitizeUrl } from '@/utils/url'
