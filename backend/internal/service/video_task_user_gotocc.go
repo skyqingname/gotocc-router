@@ -137,8 +137,8 @@ func (s *VideoTaskUserService) Summary(ctx context.Context, actorUserID int64, f
 
 // ServeContent streams a completed task's video through the same service path
 // as GET /v1/videos/:id/content: ForwardVideo with the task's creation-time
-// account, provider snapshot and upstream task ID. The client's Range header
-// and the upstream status, type and length pass through. Nothing is billed.
+// account, provider snapshot and upstream task ID. The upstream status and
+// content type pass through. Nothing is billed.
 func (s *VideoTaskUserService) ServeContent(ctx context.Context, c *gin.Context, actorUserID int64, taskID string) error {
 	task, err := s.tasks.GetByTaskIDForActor(ctx, taskID, actorUserID)
 	if errors.Is(err, ErrOpenAIVideoTaskNotFound) {

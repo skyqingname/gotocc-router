@@ -115,8 +115,8 @@ manual dispatch. It runs only the same real build entry point; it does not
 type-check test files.
 
 There is no full test matrix or promotion gate. Do not run test suites; use
-focused checks and actual behavior evidence, and keep existing tests compiling
-when a signature or interface changes.
+focused checks and actual behavior evidence. Preserved upstream test sources are
+not compiled by the build or by CI.
 
 The [seven-provider matrix](docs/SEVEN_PROVIDER_TEST_MATRIX.md) maps the critical
 provider scenarios to their observable assertions. The full validation profile
