@@ -565,8 +565,9 @@ gateway:
   # Stream data interval timeout (seconds), 0=disable
   # 流数据间隔超时（秒），0=禁用
   stream_data_interval_timeout: 180
-  # Stream keepalive interval (seconds), 0=disable
-  # 流式 keepalive 间隔（秒），0=禁用
+  # Stream keepalive interval (seconds), 0=disable; also heartbeats streaming requests while waiting for upstream
+  # response headers, committing HTTP 200 at the first heartbeat (docs/STREAM_KEEPALIVE.md)
+  # 流式 keepalive 间隔（秒），0=禁用；等上游响应头期间同样按此间隔发心跳，首个心跳后 HTTP 状态固化为 200
   stream_keepalive_interval: 10
   # Image stream data interval timeout (seconds), 0=disable; independent from ordinary text streams
   # 图片流数据间隔超时（秒），0=禁用；独立于普通文本流式
