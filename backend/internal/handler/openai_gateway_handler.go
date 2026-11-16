@@ -716,6 +716,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// HTTP 429 for a full user instead of committing a streaming 200 response.
 	stopCompactKeepalive := service.StartOpenAICompactSSEKeepalive(c, h.openAICompactKeepaliveInterval())
 	defer stopCompactKeepalive()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream && !legacyCompact, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment)()
 	var imageReleaseFunc func()
 	if imageIntent {
 		var imageAcquired bool
@@ -1495,6 +1496,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	defer inflightDone()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment)()
 
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
 	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)
@@ -1711,11 +1713,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						)
 						return
 					}
-					if c.Writer.Size() != writerSizeBeforeForward {
+					if c.Writer.Size() != writerSizeBeforeForward && !gatewayStreamHasOnlyHeartbeats(c) {
 						h.gatewayService.ObserveOpenAIAccountHealthFailure(c.Request.Context(), account, err)
 						h.handleAnthropicFailoverExhausted(c, failoverErr, true)
 						return
 					}
+					streamStarted = streamStarted || c.Writer.Written() // 等待期心跳已提交 200，后续失败走流内错误事件
 					if failoverErr.ShouldReportAccountScheduleFailure() {
 						h.gatewayService.ReportOpenAIAccountScheduleResult(account, openAIAccountScheduleModel(c, account, currentRoutingModel, false, nil), false, nil, err)
 					}
