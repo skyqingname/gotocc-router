@@ -24,7 +24,12 @@ var openAIVideoAllowedHeaders = map[string]bool{
 	"accept":          true,
 	"accept-language": true,
 	"content-type":    true,
+	"range":           true,
 }
+
+// openAIVideoContentHeaders describe the streamed video body and its byte
+// range; the shared response filter omits them, so content responses copy them.
+var openAIVideoContentHeaders = []string{"Content-Length", "Content-Range", "Accept-Ranges"}
 
 // OpenAIVideoForwardInput describes the OpenAI-compatible video task surface.
 type OpenAIVideoForwardInput struct {
@@ -224,6 +229,11 @@ func (s *OpenAIGatewayService) ForwardVideo(ctx context.Context, c *gin.Context,
 	}
 	if c != nil && c.Writer != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), response.Header, s.responseHeaderFilter)
+		for _, name := range openAIVideoContentHeaders {
+			if value := response.Header.Get(name); value != "" {
+				c.Writer.Header().Set(name, value)
+			}
+		}
 		c.Status(response.StatusCode)
 		if _, err := io.Copy(c.Writer, response.Body); err != nil {
 			return nil, err

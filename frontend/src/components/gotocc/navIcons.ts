@@ -58,6 +58,15 @@ export const BatchImageIcon = icon('images', [
   ]],
 ])
 
+// 任务中心：Lucide list-checks，悬停时两个对勾依次描出。
+export const TaskCenterIcon = icon('list-checks', [
+  ['path', { d: 'M13 5h8' }],
+  ['path', { d: 'M13 12h8' }],
+  ['path', { d: 'M13 19h8' }],
+  drawn('path', { d: 'm3 7 2 2 4-4' }, 0),
+  drawn('path', { d: 'm3 17 2 2 4-4' }, 1),
+])
+
 // 画布框与两颗星光沿用侧栏线宽；悬停时星光错峰闪亮。
 export const CanvasIcon = icon('canvas', [
   ['g', { class: 'gc-a' }, [
