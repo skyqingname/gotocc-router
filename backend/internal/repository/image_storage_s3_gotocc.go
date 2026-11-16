@@ -36,27 +36,12 @@ func (s *S3ImageStorage) SaveReader(ctx context.Context, key, contentType string
 	return url, err
 }
 
-// SignURL returns a fresh public or presigned URL for an existing object.
+// SignURL returns a fresh public or presigned URL for an existing object and,
+// for presigned URLs, the instant the signature expires.
 func (s *S3ImageStorage) SignURL(ctx context.Context, key string) (string, int64, error) {
-	if s == nil || s.client == nil || strings.TrimSpace(s.bucket) == "" {
-		return "", 0, fmt.Errorf("S3 image storage is not configured")
+	url, err := s.Sign(ctx, key)
+	if err != nil || s.publicBaseURL != "" {
+		return url, 0, err
 	}
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return "", 0, fmt.Errorf("S3 image storage key is empty")
-	}
-
-	if s.publicBaseURL != "" {
-		return s.publicBaseURL + "/" + strings.TrimLeft(key, "/"), 0, nil
-	}
-
-	presignClient := s3.NewPresignClient(s.client)
-	result, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: &s.bucket,
-		Key:    &key,
-	}, s3.WithPresignExpires(s.presignExpiry))
-	if err != nil {
-		return "", 0, fmt.Errorf("presign url: %w", err)
-	}
-	return result.URL, time.Now().UTC().Add(s.presignExpiry).Unix(), nil
+	return url, time.Now().UTC().Add(s.presignExpiry).Unix(), nil
 }

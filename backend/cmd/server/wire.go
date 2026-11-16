@@ -109,6 +109,7 @@ func provideCleanup(
 	batchImageCleanup *service.BatchImageCleanupService,
 	batchImageWorker *service.BatchImageWorkerRuntime,
 	openAIVideoTaskRuntime *service.OpenAIVideoTaskRuntime,
+	imageHistoryRetry *service.ImageTaskHistoryRetryService,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
@@ -148,6 +149,10 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"ImageTaskHistoryRetryService", func() error {
+				imageHistoryRetry.Stop()
+				return nil
+			}},
 			{"CodexSafetyBufferingRuntime", func() error {
 				if settingService != nil {
 					settingService.StopCodexSafetyBufferingRuntime()

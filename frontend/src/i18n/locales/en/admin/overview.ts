@@ -107,21 +107,6 @@ export default {
         testFailed: 'S3 connection test failed',
         saved: 'S3 configuration saved'
       },
-      imageStorage: {
-        title: 'Async image object storage',
-        description: 'Enables the asynchronous image endpoints and offloads generated images to object storage, keeping only short links in Redis. Shares the S3 client with backups and takes effect on save — no restart needed.',
-        localDescription: 'New images are stored on this server. Existing images remain in their original S3 storage. The server parameter file controls the local directory, public URL and URL lifetime.',
-        localLegacySettings: 'Local storage is active. S3 settings below serve existing images; the key prefix and date path also apply to new images. The connection check verifies local reads and writes.',
-        enabled: 'Enable async image tasks',
-        reuseBackupS3: 'Reuse the backup S3 configuration above (different bucket/prefix only)',
-        bucket: 'Bucket',
-        bucketInherited: 'Leave empty to use the backup bucket',
-        prefix: 'Key prefix',
-        publicBaseUrl: 'Public base URL',
-        publicBaseUrlPlaceholder: 'Leave empty to return presigned links',
-        presignExpiryHours: 'Presigned link TTL (hours)',
-        saved: 'Async image object storage saved'
-      },
       schedule: {
         title: 'Scheduled Backup',
         description: 'Configure automatic scheduled backups',

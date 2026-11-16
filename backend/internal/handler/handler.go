@@ -49,6 +49,7 @@ type AdminHandlers struct {
 	IPAccessControl        *admin.IPAccessControlHandler
 	Team                   *admin.TeamHandler
 	CanvasBridge           *admin.CanvasBridgeHandler
+	ImageTask              *admin.ImageTaskSettingsHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -81,6 +82,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	Team             *TeamHandler
+	ImageTasks       *ImageTaskUserHandler
 }
 
 // BuildInfo contains build-time information

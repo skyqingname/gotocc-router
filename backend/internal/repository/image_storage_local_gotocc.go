@@ -108,6 +108,30 @@ func (s *routedImageStorage) SignURL(ctx context.Context, key string) (string, i
 	return s.routing.PublicBaseURL + service.LocalImageURLPath + "?token=" + url.QueryEscape(token), expiresAt.Unix(), nil
 }
 
+// Sign serves the upstream history reads, which re-sign every recorded key.
+func (s *routedImageStorage) Sign(ctx context.Context, key string) (string, error) {
+	imageURL, _, err := s.SignURL(ctx, key)
+	return imageURL, err
+}
+
+// CheckStoredImage lets history reads report a missing local file the same way
+// as a missing S3 object; unmarked keys keep the S3 HEAD check.
+func (s *routedImageStorage) CheckStoredImage(ctx context.Context, key string) error {
+	if !strings.HasPrefix(key, service.LocalImageStorageKeyPrefix) {
+		return s.s3.CheckStoredImage(ctx, key)
+	}
+	root, err := os.OpenRoot(s.routing.LocalDirectory)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	_, err = root.Stat(filepath.FromSlash(strings.TrimPrefix(key, service.LocalImageStorageKeyPrefix)))
+	if os.IsNotExist(err) {
+		return service.ErrImageTaskObjectMissing
+	}
+	return err
+}
+
 func (s *routedImageStorage) OpenSigned(ctx context.Context, rawToken string) (*service.ImageStorageObject, error) {
 	claims := &jwt.RegisteredClaims{}
 	_, err := jwt.ParseWithClaims(rawToken, claims, func(*jwt.Token) (any, error) {

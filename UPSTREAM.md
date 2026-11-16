@@ -6,15 +6,25 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-GoToCC `skyqingname/gotocc-router@v0.2.21+custom.001` integrates the complete fixed Plus release
-`LuckyKuang/sub2api-plus@v0.2.21+custom.001`, peeled commit
-`0ccd6314909df1918baf9216458d1ed717e0ad8c`. Its official baseline is
+The current GoToCC development candidate integrates the complete fixed Plus release
+`LuckyKuang/sub2api-plus@v0.2.21+custom.002`, peeled commit
+`b5b13fd907ea1539fac28a4934eb36a92ed9eb14`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.21`, commit `10ba8f9b4dc2e6023d4a9879ab77b21841babd10`.
-The owned base is `skyqingname/gotocc-router@v0.2.20+custom.004`.
-Publication of the verified candidate was authorized on 2026-11-15; the owned
-GitHub Release is the authority for completed publication.
+The owned base is `skyqingname/gotocc-router@v0.2.21+custom.001`, which
+integrated Plus `v0.2.21+custom.001` / `0ccd6314909df1918baf9216458d1ed717e0ad8c`;
+this candidate has no newly assigned owned release number and is not published.
 Repository, tag and peeled commit are separate parts of version identity.
 Post-tag upstream main is excluded.
+
+The Plus `v0.2.21+custom.002` import adds the user-level image task center
+(`/image-tasks`, history filters, archive/read states, per-image proxy reads and
+the admin Image Tasks settings panel with backup-S3 reuse), plan-aware
+subscription adjustments, group model lists limited to models their accounts
+serve, and `/v1/models` cache invalidation on account changes. Plus migrations
+311/312/313 become GoToCC 338/339/340; deployed SQL is unchanged. GoToCC keeps
+`/async-image` as its creative studio, explicit local image writes with existing
+S3 reads behind the new settings panel, permanent image objects and their
+ownership-checked URL renewal.
 
 The v0.2.21 import adds disjoint OpenAI 30-minute/12-hour cache-write meters and
 optional 12-hour prices, atomic console refresh-token consumption, prompt-audit
@@ -150,9 +160,9 @@ These identifiers describe the current planned source revision. Its tag and
 image are not published; the mapping status below governs publication.
 
 ```text
-Git/GitHub: v0.2.21+custom.001
-Application: 0.2.21+custom.001
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.001
+Git/GitHub: v0.2.21+custom.002
+Application: 0.2.21+custom.002
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.002
 ```
 
 ## Release Mapping
@@ -250,6 +260,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.001
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
 | `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | published |
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.001 |
+| `LuckyKuang/sub2api-plus@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by the unpublished GoToCC candidate |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains

@@ -156,6 +156,7 @@ var ProviderSet = wire.NewSet(
 	NewRedisInvalidationBus,
 	NewImageTaskHistoryRepository,
 	NewImageObjectRepository,
+	NewImageTaskHistoryRetryRepository,
 	NewBatchImageQueue,
 	NewBatchImageDownloadLimiter,
 	NewLeaderLockCache,

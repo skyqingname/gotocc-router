@@ -221,7 +221,7 @@ import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag, getChannelMonitorMode } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
-import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { useImageTaskModes } from '@/composables/useImageTaskModes'
 import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
 import { parseAdminSupportTargetId } from '@/utils/adminSupport'
 
@@ -279,7 +279,7 @@ const resellerCustomer = useResellerCustomer()
 watch(() => authStore.user?.id, () => { void resellerAccess.load(true).catch(() => { resellerAccess.enabled.value = false }) }, { immediate: true })
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
-const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
+const { anyAvailable: imageTasksAvailable, refreshImageTaskModes } = useImageTaskModes()
 const { canUseAsyncImage, refreshAsyncImageAccess } = useAsyncImageAccess()
 
 const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -289,7 +289,12 @@ const mobileVisible = computed(() => !isDesktop.value && mobileOpen.value)
 const sidebarRef = ref<HTMLElement | null>(null)
 useDialogFocus(() => mobileVisible.value, sidebarRef, closeMobile)
 watch(isDesktop, desktop => { if (desktop) closeMobile() })
-watch(() => route.fullPath, closeMobile)
+watch(() => route.fullPath, () => {
+  closeMobile()
+  // Administrator switch changes apply immediately; re-read the cached
+  // capability as the user moves around the console.
+  void refreshImageTaskModes()
+})
 const isAdmin = computed(() => authStore.isAdmin && !adminSupportContext.value)
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const { isDark, toggleTheme } = useTheme()
@@ -350,9 +355,9 @@ const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagMCP = makeSidebarFlag(FeatureFlags.mcp)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
-const flagBatchImageAccess = () => canUseBatchImage.value
 const flagAsyncImageAccess = () => canUseAsyncImage.value
 const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
+const flagImageTasksAccess = () => imageTasksAvailable.value
 
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
@@ -371,7 +376,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/team', label: t('nav.team'), icon: TeamIcon, hideInSimpleMode: true, featureFlag: flagTeam },
     { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, external: true, hideInSimpleMode: true },
     { path: '/async-image', label: t('creative.title'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
-    { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
+    { path: '/image-tasks', label: t('nav.imageTasks'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageTasksAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/monitor', label: t(getChannelMonitorMode() === 'v3' ? 'channelMonitorV3.title' : 'nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor },
@@ -605,7 +610,7 @@ watch(
 )
 
 onMounted(() => {
-  void refreshBatchImageAccess()
+  void refreshImageTaskModes()
   if (!isAdmin.value) {
     void refreshAsyncImageAccess()
   }

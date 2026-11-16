@@ -45,6 +45,26 @@ func (s *ImageTaskService) SetImageObjectRepository(repo ImageObjectRepository) 
 	}
 }
 
+// completionOwner reads the accepted task's owner for its image object records.
+// Like finish, it recovers the pre-existing history row when the execution
+// cache is unavailable, so a cache outage does not discard a finished result.
+func (s *ImageTaskService) completionOwner(ctx context.Context, id string) (*ImageTaskRecord, error) {
+	task, err := s.store.Get(ctx, id)
+	if err == nil {
+		return task, nil
+	}
+	if reader, ok := s.history.(ImageTaskCompletionReader); ok {
+		task, err = reader.GetForCompletion(ctx, id)
+		if err == nil {
+			return task, nil
+		}
+	}
+	if errors.Is(err, ErrImageTaskNotFound) {
+		return nil, ErrImageTaskNotFound
+	}
+	return nil, ErrImageTaskUnavailable.WithCause(err)
+}
+
 func (s *ImageTaskService) RefreshObjectURL(ctx context.Context, userID int64, objectID string) (*ImageObjectURL, error) {
 	if s == nil || s.objectRepo == nil || userID <= 0 {
 		return nil, ErrImageObjectUnavailable
