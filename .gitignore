@@ -200,6 +200,7 @@ docs/research/*
 !docs/GATEWAY_TASK_LIMITS.md
 !docs/CN_PROVIDER_MODELS.md
 !docs/PLUGIN_DEVELOPMENT.md
+!docs/STREAM_KEEPALIVE.md
 !docs/providers/
 !docs/providers/*.md
 !docs/protocols/
