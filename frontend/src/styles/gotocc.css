@@ -21,6 +21,78 @@
   }
 }
 
+/* ============ 界面美化第一批：文字链接与顶栏 ============
+   文字链接的结构与交互参照 TokenRouter（LGPL-3.0）style.css 的 .text-link 系列，颜色换成 GoToCC 主色与暖色外壳变量。 */
+
+/* 文字链接：常态为正文色加下划线，悬停或键盘聚焦变主色。
+   .text-link 用在单个链接上；.text-link-content 让容器里的链接（如公告正文）沿用同一样式；
+   .text-link-area 是整块可点的行，悬停或聚焦整行时其中的 .text-link 一起变色。 */
+.text-link,
+:where(.text-link-content) a[href] {
+  color: var(--surface-text);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+  transition:
+    color var(--motion-fast) var(--motion-ease),
+    text-decoration-color var(--motion-fast) var(--motion-ease);
+}
+
+.text-link:is(:hover, :focus-visible),
+:where(.text-link-content) a[href]:is(:hover, :focus-visible),
+:where(.text-link-area:is(:hover, :focus-visible)) .text-link {
+  color: theme('colors.primary.600');
+  text-decoration-color: currentColor;
+}
+
+.dark .text-link:is(:hover, :focus-visible),
+.dark :where(.text-link-content) a[href]:is(:hover, :focus-visible),
+.dark :where(.text-link-area:is(:hover, :focus-visible)) .text-link {
+  color: theme('colors.primary.300');
+}
+
+.text-link:focus-visible,
+:where(.text-link-content) a[href]:focus-visible {
+  outline: 2px solid theme('colors.primary.500');
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 顶栏半透明加模糊：只在 1023px 及以下生效，这时顶栏悬浮在页面上方，滚动的内容从它下面经过；
+   1024px 起顶栏与内容区分开、内容区自己滚动（workspace.css），顶栏下没有内容经过，保持原样。
+   底色在管理员设置的卡片透明度上再取 --header-glass-fill，叠加后靠 --glass-blur 的模糊让顶栏文字保持清晰。
+   顶栏上方留白里再铺一层同样的模糊并向上渐隐，内容不会先清晰地露在留白里、再突然变糊。
+   浏览器不支持 backdrop-filter 时整段不生效，保持原来的底色。 */
+:root {
+  --header-glass-fill: 72%;
+  --glass-blur: 16px;
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  @media (max-width: 1023px) {
+    .app-header.shell-surface {
+      background-color: color-mix(in srgb, var(--surface-shell) var(--header-glass-fill), transparent);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+      backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+    }
+
+    .app-content::before {
+      content: '';
+      position: fixed;
+      z-index: 29;
+      top: 0;
+      left: var(--console-content-left);
+      right: max(var(--shell-gutter), env(safe-area-inset-right));
+      height: var(--shell-inset-top);
+      pointer-events: none;
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-mask-image: linear-gradient(to top, #000, transparent);
+      mask-image: linear-gradient(to top, #000, transparent);
+    }
+  }
+}
+
 /* 主按钮：靛 600 底白字（对比度 6.3:1），悬停加深。 */
 .btn-primary {
   @apply bg-primary-600 text-white;

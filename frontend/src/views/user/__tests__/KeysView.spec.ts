@@ -18,10 +18,9 @@ import { notifyLocaleChanged } from '@/utils/localeRefresh'
 let statusLocale: 'en' | 'zh' = 'en'
 
 const {
-  savePriority,
   listKeys,
+  getKeyById,
   updateKey,
-  createKey,
   getPublicSettings,
   getDashboardApiKeysUsage,
   getAvailableGroups,
@@ -31,13 +30,10 @@ const {
   copyToClipboard,
   isCurrentStep,
   nextStep,
-  replaceRoute,
-  routeQuery,
 } = vi.hoisted(() => ({
-  savePriority: vi.fn(),
   listKeys: vi.fn(),
+  getKeyById: vi.fn(),
   updateKey: vi.fn(),
-  createKey: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
@@ -47,13 +43,10 @@ const {
   copyToClipboard: vi.fn(),
   isCurrentStep: vi.fn(),
   nextStep: vi.fn(),
-  replaceRoute: vi.fn(),
-  routeQuery: {} as Record<string, string>,
 }))
 
 const messages: Record<string, string> = {
   'common.actions': 'Actions',
-  'common.cancel': 'Cancel',
   'common.name': 'Name',
   'common.refresh': 'Refresh',
   'common.status': 'Status',
@@ -69,9 +62,6 @@ const messages: Record<string, string> = {
   'keys.currentConcurrency': 'Current Concurrency',
   'keys.lastUsedAt': 'Last Used',
   'keys.lastUsedIP': 'Last Used IP',
-  'keys.oneClickAccess': 'One-Click Access',
-  'keys.oneClickSelect.description': 'Choose a personal API key.',
-  'keys.oneClickSelect.title': 'Select a key to connect',
   'keys.rateLimitColumn': 'Rate Limit',
   'keys.searchPlaceholder': 'Search name or key...',
   'keys.status.active': 'Active',
@@ -79,13 +69,13 @@ const messages: Record<string, string> = {
   'keys.status.inactive': 'Inactive',
   'keys.status.quota_exhausted': 'Quota exhausted',
   'keys.usage': 'Usage',
-  'keys.useKey': 'Use Key',
 }
 
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
-    create: createKey,
+    getById: getKeyById,
+    create: vi.fn(),
     update: updateKey,
     delete: vi.fn(),
     toggleStatus: vi.fn(),
@@ -102,10 +92,6 @@ vi.mock('@/api', () => ({
   },
 }))
 
-vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: routeQuery }),
-  useRouter: () => ({ replace: replaceRoute }),
-}))
 vi.mock('@/api/client', () => ({ apiClient: { get: vi.fn(async () => ({ data: { endpoints: ['/v1/responses'], conversion_endpoints: ['/v1/responses'], models: [{ name: 'public-model', platform: 'openai', endpoints: ['/v1/responses'], conversion_endpoints: ['/v1/responses'] }] } })) } }))
 
 vi.mock('@/api/channels', () => ({ getKeyQuotes: vi.fn(async () => ({ groups: [], user_rate_status: 'loaded' })) }))
@@ -147,9 +133,6 @@ vi.mock('vue-i18n', async () => {
 const createApiKey = (): ApiKey => ({
   id: 1,
   user_id: 1,
-  team_id: null,
-  scope: 'personal',
-  team_owner_disabled: false,
   key: 'sk-test-key',
   name: 'test-key',
   group_id: null,
@@ -218,9 +201,6 @@ const DataTableStub = {
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
-        <div data-test="row-actions">
-          <slot name="cell-actions" :row="row" />
-        </div>
         <div data-test="usage">
           <slot name="cell-usage" :row="row" />
         </div>
@@ -267,19 +247,6 @@ const IconStub = {
   template: '<span data-test="icon">{{ name }}</span>',
 }
 
-const BaseDialogStub = {
-  name: 'BaseDialog',
-  props: ['show', 'title'],
-  emits: ['close'],
-  template: `<div v-if="show"><button data-test="close-dialog" @click="$emit('close')">Close</button><slot /><slot name="footer" /></div>`,
-}
-
-const UseKeyModalStub = {
-  name: 'UseKeyModal',
-  props: ['show', 'apiKey'],
-  template: '<div v-if="show" data-test="use-key-modal">{{ apiKey }}</div>',
-}
-
 const mountView = async () => {
   const wrapper = mount(KeysView, {
     global: {
@@ -288,16 +255,19 @@ const mountView = async () => {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: PaginationStub,
-        BaseDialog: BaseDialogStub,
+        BaseDialog: {
+          props: ['show', 'title'],
+          emits: ['close'],
+          template: '<div v-if="show" role="dialog"><button data-test="close-dialog" @click="$emit(\'close\')">Close</button><slot /><slot name="footer" /></div>',
+        },
         ConfirmDialog: true,
         EmptyState: true,
         Select: SelectStub,
         SearchInput: SearchInputStub,
         Icon: IconStub,
-        UseKeyModal: UseKeyModalStub,
+        UseKeyModal: true,
         BulkEditKeysModal: true,
         EndpointPopover: true,
-        RoutingPriorityPanel: { props: ['scope', 'keyId'], methods: { save: savePriority, validate: () => true }, template: '<div data-test="priority-panel-stub">{{ scope }}</div>' },
         GroupBadge: true,
         GroupOptionItem: true,
         Teleport: true,
@@ -346,11 +316,10 @@ describe('user KeysView column settings', () => {
     statusLocale = 'en'
     localStorage.clear()
 
-    savePriority.mockReset().mockResolvedValue(undefined)
     listKeys.mockReset()
+    getKeyById.mockReset().mockResolvedValue({ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1, 2] })
     updateKey.mockReset()
     vi.mocked(keysAPI.create).mockReset()
-    createKey.mockReset()
     getPublicSettings.mockReset()
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
@@ -361,8 +330,6 @@ describe('user KeysView column settings', () => {
     copyToClipboard.mockReset()
     isCurrentStep.mockReset()
     nextStep.mockReset()
-    replaceRoute.mockReset()
-    for (const key of Object.keys(routeQuery)) delete routeQuery[key]
 
     listKeys.mockResolvedValue({
       items: [createApiKey()],
@@ -375,8 +342,6 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
-    createKey.mockResolvedValue(createApiKey())
-    replaceRoute.mockResolvedValue(undefined)
     isCurrentStep.mockReturnValue(false)
   })
 
@@ -416,7 +381,7 @@ describe('user KeysView column settings', () => {
     expect(getButtonByText(wrapper, 'common.delete').attributes()).toHaveProperty('disabled')
     await wrapper.get('button[title="keys.copyToClipboard"]').trigger('click')
     expect(copyToClipboard).toHaveBeenCalledWith('sk-test-key', 'keys.copied')
-    await wrapper.get('[data-test="use-key-action"]').trigger('click')
+    await getButtonByText(wrapper, 'keys.useKey').trigger('click')
     await flushPromises()
     const guide = wrapper.findComponent({ name: 'UseKeyModal' })
     expect(guide.props('show')).toBe(true)
@@ -688,164 +653,6 @@ describe('user KeysView column settings', () => {
         group_id: 42,
         sort_by: key,
         sort_order: order,
-        scope: 'personal',
-      },
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
-    )
-  })
-
-  it('loads personal keys and group metadata with an explicit personal scope', async () => {
-    await mountView()
-
-    expect(listKeys).toHaveBeenCalledWith(
-      1,
-      20,
-      expect.objectContaining({ scope: 'personal' }),
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
-    )
-    expect(getAvailableGroups).toHaveBeenCalledWith('personal')
-    expect(getUserGroupRates).toHaveBeenCalledWith('personal')
-  })
-
-  it('opens the Plus key configuration directly when one personal key is available', async () => {
-    const wrapper = await mountView()
-
-    expect(wrapper.get('[data-test="one-click-access-global"]').attributes('disabled')).toBeUndefined()
-    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
-
-    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-test-key')
-  })
-
-  it('selects a personal key before opening one-click access when multiple keys are available', async () => {
-    listKeys.mockResolvedValueOnce({
-      items: [createApiKey(), { ...createApiKey(), id: 2, key: 'sk-second-key', name: 'second-key' }],
-      total: 2,
-      page: 1,
-      page_size: 20,
-      pages: 1,
-    })
-    const wrapper = await mountView()
-
-    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
-    const options = wrapper.findAll('[data-test="one-click-key-option"]')
-    expect(options).toHaveLength(2)
-
-    await options[1].trigger('click')
-    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-second-key')
-  })
-
-  it('exposes one-click access for team-scoped keys', async () => {
-    routeQuery.scope = 'team'
-    listKeys.mockResolvedValueOnce({
-      items: [{ ...createApiKey(), team_id: 8, scope: 'team', key: 'sk-***-masked' }],
-      total: 1,
-      page: 1,
-      page_size: 20,
-      pages: 1,
-    })
-    const wrapper = await mountView()
-
-    expect(wrapper.get('[data-test="one-click-access-global"]').exists()).toBe(true)
-    expect(wrapper.get('[data-test="use-key-action"]').exists()).toBe(true)
-
-    await wrapper.get('[data-test="one-click-access-global"]').trigger('click')
-    expect(wrapper.get('[data-test="use-key-modal"]').text()).toBe('sk-***-masked')
-  })
-
-  it('creates a team key without falling back to personal scope', async () => {
-    routeQuery.scope = 'team'
-    const wrapper = await mountView()
-
-    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
-    await nextTick()
-    await wrapper.get('[data-tour="key-form-name"]').setValue('team-key')
-    const selects = wrapper.findAllComponents({ name: 'Select' })
-    await selects[3].vm.$emit('update:modelValue', 7)
-    await wrapper.get('#key-form').trigger('submit')
-    await flushPromises()
-
-    expect(createKey).toHaveBeenCalledWith(
-      'team-key',
-      7,
-      undefined,
-      [],
-      [],
-      0,
-      undefined,
-      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
-      'team',
-      'fixed'
-    )
-    expect(listKeys).toHaveBeenCalledWith(
-      1,
-      20,
-      expect.objectContaining({ scope: 'team' }),
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
-    )
-  })
-
-  it('refreshes a partially created key and retries its priority without creating a duplicate', async () => {
-    savePriority.mockRejectedValueOnce(new Error('priority save failed')).mockResolvedValueOnce(undefined)
-    const wrapper = await mountView()
-    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
-    await wrapper.get('[data-tour="key-form-name"]').setValue('new-auto-key')
-    await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
-    const listCalls = listKeys.mock.calls.length
-    await wrapper.get('#key-form').trigger('submit')
-    await flushPromises()
-    expect(createKey).toHaveBeenCalledTimes(1)
-    expect(listKeys.mock.calls.length).toBeGreaterThan(listCalls)
-    expect(wrapper.find('#key-form').exists()).toBe(true)
-    await wrapper.get('#key-form').trigger('submit')
-    await flushPromises()
-    expect(createKey).toHaveBeenCalledTimes(1)
-    expect(updateKey).toHaveBeenCalledWith(createApiKey().id, expect.objectContaining({ name: 'new-auto-key', routing_mode: 'auto' }))
-    expect(savePriority).toHaveBeenCalledTimes(2)
-    wrapper.unmount()
-  })
-
-  it('creates an automatic-routing team key with an explicit null group contract', async () => {
-    routeQuery.scope = 'team'
-    const wrapper = await mountView()
-
-    await wrapper.get('[data-tour="keys-create-btn"]').trigger('click')
-    await nextTick()
-    await wrapper.get('[data-tour="key-form-name"]').setValue('team-auto-key')
-    expect(wrapper.find('[data-test="priority-panel-stub"]').exists()).toBe(false)
-    await wrapper.get('[data-test="key-routing-auto"]').trigger('click')
-    expect(wrapper.get('[data-test="priority-panel-stub"]').text()).toBe('team')
-    await wrapper.get('#key-form').trigger('submit')
-    await flushPromises()
-
-    expect(createKey).toHaveBeenCalledWith(
-      'team-auto-key',
-      null,
-      undefined,
-      [],
-      [],
-      0,
-      undefined,
-      { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 },
-      'team',
-      'auto'
-    )
-  })
-
-  it('sends a separate routing-mode filter without changing the ungrouped filter', async () => {
-    const wrapper = await mountView()
-    const selects = wrapper.findAllComponents({ name: 'Select' })
-
-    await selects[2].vm.$emit('update:modelValue', 'auto')
-    await flushPromises()
-
-    expect(listKeys).toHaveBeenLastCalledWith(
-      1,
-      20,
-      {
-        routing_mode: 'auto',
-        sort_by: 'created_at',
-        sort_order: 'desc',
-        scope: 'personal',
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
@@ -922,6 +729,7 @@ describe('user KeysView column settings', () => {
       listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1, 2], group_id: null }], total: 1, page: 1, page_size: 20, pages: 1 })
       const wrapper = await mountView()
       await getButtonByText(wrapper, 'common.edit').trigger('click')
+      await flushPromises()
       expect(wrapper.getComponent(CheckboxDropdown).props('modelValue')).toEqual([1, 2])
       expect(wrapper.findComponent(NativeAccessFields).exists()).toBe(false)
       wrapper.findComponent('#key-aggregate-mode').vm.$emit('update:modelValue', 'all')
@@ -929,6 +737,70 @@ describe('user KeysView column settings', () => {
       await wrapper.get('#key-form').trigger('submit')
       await flushPromises()
       expect(updateKey).toHaveBeenCalledWith(1, expect.objectContaining({ group_binding_mode: 'all', aggregate_group_ids: [], group_id: undefined, conversion_enabled: false }))
+      wrapper.unmount()
+    })
+
+    it('blocks editing custom keys if the stored scope cannot be loaded', async () => {
+      // List membership is redacted for display. Falling back to [1] would
+      // replace persisted [1, 2] when saving an unrelated name change.
+      listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1], group_id: null }], total: 1, page: 1, page_size: 20, pages: 1 })
+      getKeyById.mockRejectedValue(new Error('temporary read failure'))
+      const wrapper = await mountView()
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('#key-form').exists()).toBe(false)
+      expect(showError).toHaveBeenCalledWith('keys.failedToLoad')
+      expect(updateKey).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('omits unchanged aggregate scope on an unrelated edit and submits deliberate changes', async () => {
+      // Revoked members remain stored for later restoration. A name-only edit
+      // must neither remove them nor rebind them through current authorization.
+      listKeys.mockResolvedValue({ items: [{ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1], group_id: null }], total: 1, page: 1, page_size: 20, pages: 1 })
+      getKeyById.mockResolvedValue({ ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1, 2], group_id: null })
+      const wrapper = await mountView()
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      await flushPromises()
+      expect(wrapper.getComponent(CheckboxDropdown).props('modelValue')).toEqual([1, 2])
+      await wrapper.get('[data-tour="key-form-name"]').setValue('Renamed key')
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(updateKey).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'Renamed key' }))
+      expect(updateKey.mock.calls[0]![1]).not.toHaveProperty('aggregate_group_ids')
+      expect(updateKey.mock.calls[0]![1]).not.toHaveProperty('group_binding_mode')
+
+      await getButtonByText(wrapper, 'common.edit').trigger('click')
+      await flushPromises()
+      wrapper.getComponent(CheckboxDropdown).vm.$emit('update:modelValue', [1])
+      await nextTick()
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(updateKey).toHaveBeenLastCalledWith(1, expect.objectContaining({ group_binding_mode: 'custom', aggregate_group_ids: [1] }))
+      wrapper.unmount()
+    })
+
+    it('keeps a late detail response for another key out of the active edit', async () => {
+      const first: ApiKey = { ...createApiKey(), group_binding_mode: 'custom', aggregate_group_ids: [1], group_id: null }
+      const second: ApiKey = { ...first, id: 2, name: 'Second key', aggregate_group_ids: [2] }
+      let resolveFirst!: (key: ApiKey) => void
+      const pendingFirst = new Promise<ApiKey>(resolve => { resolveFirst = resolve })
+      getKeyById.mockImplementation((id: number) => id === 1 ? pendingFirst : Promise.resolve(second))
+      listKeys.mockResolvedValue({ items: [first, second], total: 2, page: 1, page_size: 20, pages: 1 })
+      const wrapper = await mountView()
+      const editButtons = wrapper.findAll('button').filter(button => button.text().includes('common.edit'))
+      await editButtons[0]!.trigger('click')
+      await editButtons[1]!.trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-tour="key-form-name"]').setValue('Second key draft')
+      resolveFirst(first)
+      await flushPromises()
+      expect((wrapper.get('[data-tour="key-form-name"]').element as HTMLInputElement).value).toBe('Second key draft')
+      expect(wrapper.getComponent(CheckboxDropdown).props('modelValue')).toEqual([2])
+      await wrapper.get('#key-form').trigger('submit')
+      await flushPromises()
+      expect(updateKey).toHaveBeenCalledWith(2, expect.objectContaining({ name: 'Second key draft' }))
+      expect(updateKey.mock.calls[0]![1]).not.toHaveProperty('aggregate_group_ids')
       wrapper.unmount()
     })
 

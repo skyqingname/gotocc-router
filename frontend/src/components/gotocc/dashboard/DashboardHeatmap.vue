@@ -338,36 +338,45 @@ defineExpose({ reload: load })
   border-radius: 4px;
 }
 
-/* 可点击的格子：悬停或键盘聚焦时放大并加外环 */
+/* 今天、选中、悬停与键盘聚焦写进同一个 box-shadow：内层是今天的半透明细线，外层是贴边 1px 圈，
+   几种状态叠加时互不覆盖；描边都贴着格子边缘，不再外扩填满格子之间 3px 的缝。参照 TokenRouter（LGPL-3.0）。 */
 .heatmap-cell-interactive {
+  --cell-mark: 0 0 #0000;
+  --cell-ring: 0 0 #0000;
   cursor: pointer;
+  box-shadow: var(--cell-mark), var(--cell-ring);
   transition: transform var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease);
 }
 
+/* 悬停或键盘聚焦：放大并加一圈贴边的主色细线 */
 .heatmap-cell-interactive:hover,
 .heatmap-cell-interactive:focus-visible {
+  --cell-ring: 0 0 0 1px theme('colors.primary.400');
   transform: scale(1.25);
   outline: none;
-  box-shadow: 0 0 0 1px theme('colors.primary.400');
 }
 
-/* 今天与选中日的描边；选中日更粗更深 */
+.dark .heatmap-cell-interactive:hover,
+.dark .heatmap-cell-interactive:focus-visible {
+  --cell-ring: 0 0 0 1px theme('colors.primary.300');
+}
+
+/* 今天：格内一圈半透明细线，叠在任何色阶上都看得出 */
 .heatmap-cell-today {
-  outline: 1px solid theme('colors.gray.400');
-  outline-offset: 1px;
-}
-
-.heatmap-cell-selected {
-  outline: 2px solid theme('colors.primary.700');
-  outline-offset: 1px;
+  --cell-mark: inset 0 0 0 1px theme('colors.gray.900 / 35%');
 }
 
 .dark .heatmap-cell-today {
-  outline-color: theme('colors.dark.400');
+  --cell-mark: inset 0 0 0 1px theme('colors.white / 40%');
 }
 
-.dark .heatmap-cell-selected {
-  outline-color: theme('colors.primary.300');
+/* 选中日：与悬停同样的贴边圈，颜色更深；复合选择器保证悬停或聚焦选中格时仍是选中色 */
+.heatmap-cell-interactive.heatmap-cell-selected {
+  --cell-ring: 0 0 0 1px theme('colors.primary.700');
+}
+
+.dark .heatmap-cell-interactive.heatmap-cell-selected {
+  --cell-ring: 0 0 0 1px theme('colors.primary.200');
 }
 
 /* 首次入场：按列错峰从小到大淡入 */

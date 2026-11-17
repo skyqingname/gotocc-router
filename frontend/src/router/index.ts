@@ -254,19 +254,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/batch-image',
-    name: 'BatchImageGuide',
-    alias: '/docs/batch-image',
-    component: () => import('@/views/user/BatchImageGuideView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Batch Image Guide',
-      titleKey: 'batchImageGuide.title',
-      descriptionKey: 'batchImageGuide.description'
-    }
-  },
-  {
     path: '/async-image',
     alias: '/creative',
     name: 'AsyncImage',
@@ -280,6 +267,34 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'studioGotocc.description'
     }
   },
+  {
+    // One entry for both generation modes. The mode is selected inside the page,
+    // and old links keep working so existing bookmarks do not break.
+    path: '/image-tasks',
+    name: 'ImageTasks',
+    component: () => import('@/views/user/ImageTasksView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Tasks',
+      titleKey: 'imageTasks.title',
+      descriptionKey: 'imageTasks.description'
+    }
+  },
+  {
+    // GoToCC 任务中心：视频与图片任务的状态、耗时、费用、预览和下载。
+    path: '/tasks',
+    name: 'TaskCenter',
+    component: () => import('@/views/user/GotoCCTaskCenterView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Task Center',
+      titleKey: 'gotocc.taskCenter.title'
+    }
+  },
+  { path: '/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
+  { path: '/docs/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
   {
     path: '/usage',
     name: 'Usage',
@@ -1095,6 +1110,9 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
+  // The image task page decides from backend capability which mode to show, so
+  // the router no longer blocks users who only have batch access.
+  // The GoToCC creative studio keeps its key-based entry guard.
   if (to.meta.requiresAsyncImageAccess && (supportResource || !authStore.isAdmin)) {
     const { canUseAsyncImage, refreshAsyncImageAccess } = useAsyncImageAccess()
     await refreshAsyncImageAccess()

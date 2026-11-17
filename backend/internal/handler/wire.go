@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/LuckyKuang/sub2api-plus/internal/config"
 	"github.com/LuckyKuang/sub2api-plus/internal/handler/admin"
 	"github.com/LuckyKuang/sub2api-plus/internal/securityaudit"
@@ -8,6 +10,15 @@ import (
 
 	"github.com/google/wire"
 )
+
+// ProvideImageTaskUserHandler wires local capability metadata without provider probes.
+func ProvideImageTaskUserHandler(tasks *service.ImageTaskService, storage *service.ImageStorageSettingService, batch *service.BatchImageSettingsService, keys *service.APIKeyService, accounts service.AccountRepository, cfg *config.Config) *ImageTaskUserHandler {
+	h := NewImageTaskUserHandler(tasks, storage, batch, keys)
+	h.accounts = accounts
+	h.batchProviders = service.NewBatchImageProviderRegistryFromConfig(cfg)
+	h.vertexEnabled = cfg != nil && cfg.BatchImage.VertexEnabled && strings.TrimSpace(cfg.BatchImage.VertexManagedGCSBucket) != ""
+	return h
+}
 
 // ProvideAdminHandlers creates the AdminHandlers struct
 func ProvideAdminHandlers(
@@ -54,6 +65,7 @@ func ProvideAdminHandlers(
 	ipAccessControlHandler *admin.IPAccessControlHandler,
 	teamHandler *admin.TeamHandler,
 	canvasBridgeHandler *admin.CanvasBridgeHandler,
+	imageTaskSettingsHandler *admin.ImageTaskSettingsHandler,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
 	usageAlert *service.UsageAlertService,
 	opencodeGoUsage *service.OpenCodeGoUsageService,
@@ -107,6 +119,7 @@ func ProvideAdminHandlers(
 		IPAccessControl:        ipAccessControlHandler,
 		Team:                   teamHandler,
 		CanvasBridge:           canvasBridgeHandler,
+		ImageTask:              imageTaskSettingsHandler,
 	}
 }
 
@@ -288,6 +301,8 @@ func ProvideHandlers(
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
 	teamHandler *TeamHandler,
+	imageTaskUserHandler *ImageTaskUserHandler,
+	videoTaskUserHandler *VideoTaskUserHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -321,6 +336,8 @@ func ProvideHandlers(
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
 		Team:             teamHandler,
+		ImageTasks:       imageTaskUserHandler,
+		VideoTasks:       videoTaskUserHandler,
 	}
 }
 
@@ -354,6 +371,8 @@ var ProviderSet = wire.NewSet(
 	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
 	NewTeamHandler,
+	ProvideImageTaskUserHandler,
+	NewVideoTaskUserHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -383,6 +402,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewUserAttributeHandler,
 	admin.NewErrorPassthroughHandler,
 	admin.NewTLSFingerprintProfileHandler,
+	admin.NewImageTaskSettingsHandler,
 	admin.NewPluginHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,

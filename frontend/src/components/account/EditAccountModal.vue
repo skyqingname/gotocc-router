@@ -379,6 +379,7 @@
               :platform="account?.platform || 'anthropic'"
               :account-id="account?.id"
               :show-sync-button="account.platform !== 'grok' || !account.id"
+              :upstream-models="grokUpstreamModels"
               @upstream-sync-finished="refreshGrokDiagnostics"
             />
 
@@ -929,6 +930,7 @@
             :platform="account?.platform || 'anthropic'"
             :account-id="account?.id"
             :show-sync-button="account.platform !== 'grok' || !account.id"
+            :upstream-models="grokUpstreamModels"
             @upstream-sync-finished="refreshGrokDiagnostics"
           />
 
@@ -3457,6 +3459,9 @@ const grokOAuthCustomBaseUrlEnabled = ref(false)
 const grokImagesB64JsonOnly = ref(false)
 const grokOAuthBaseUrl = ref('')
 const grokDiagnostics = ref<GrokModelDiagnostics | null>(null)
+// The saved upstream catalogue lists what the account can actually serve today,
+// including models newer than the bundled per-platform preset list.
+const grokUpstreamModels = computed(() => (props.account?.platform === 'grok' ? grokDiagnostics.value?.models ?? [] : []))
 const diagnosticsLoading = ref(false)
 const diagnosticsRefreshFailed = ref(false)
 const grokDiagnosticsSyncing = ref(false)

@@ -111,17 +111,12 @@ python3 tools/gotocc_build.py --output backend/bin/sub2api
 ```
 
 GitHub runs `.github/workflows/ci.yml` (GoToCC Build) on pull requests and on
-manual dispatch. It runs the same entry point, then type-checks every backend
-package with its unit and integration tests:
-
-```bash
-go -C backend vet -tags=unit ./...
-go -C backend vet -tags=integration ./...
-```
+manual dispatch. It runs only the same real build entry point; it does not
+type-check test files.
 
 There is no full test matrix or promotion gate. Do not run test suites; use
-focused checks and actual behavior evidence, and keep existing tests compiling
-when a signature or interface changes.
+focused checks and actual behavior evidence. Preserved upstream test sources are
+not compiled by the build or by CI.
 
 The [seven-provider matrix](docs/SEVEN_PROVIDER_TEST_MATRIX.md) maps the critical
 provider scenarios to their observable assertions. The full validation profile

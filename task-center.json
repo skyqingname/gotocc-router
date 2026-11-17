@@ -1,0 +1,5 @@
+{
+  "page_size": 20,
+  "default_range_days": 30,
+  "processing_poll_interval_ms": 10000
+}

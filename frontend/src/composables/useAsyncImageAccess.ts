@@ -29,7 +29,10 @@ export function keyAllowsAsyncImage(
     return key.status === 'active' && capabilities?.async_image_submit === true
   }
   return key.status === 'active'
-    && (key.group?.platform === 'openai' || key.group?.platform === 'grok')
+    && (!key.expires_at || Date.parse(key.expires_at) > Date.now())
+    && !(key.quota > 0 && key.quota_used >= key.quota)
+    && (!key.group?.status || key.group.status === 'active')
+    && (key.group?.platform === 'openai' || key.group?.platform === 'grok' || key.group?.platform === 'composite')
     && key.group?.allow_image_generation === true
 }
 

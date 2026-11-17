@@ -55,7 +55,7 @@
           <router-link
             v-if="isAuthenticated"
             :to="dashboardPath"
-            class="inline-flex items-center gap-1.5 rounded-full bg-primary-600 py-1.5 pl-1.5 pr-3 text-xs font-semibold text-white shadow-none transition hover:bg-primary-700 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-700"
+            class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-primary-600 py-1.5 pl-1.5 pr-3 text-xs font-semibold text-white shadow-none transition hover:bg-primary-700 dark:bg-primary-600 dark:text-white dark:hover:bg-primary-700"
           >
             <span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-[10px] text-white">
               {{ userInitial }}
@@ -111,41 +111,28 @@
         </div>
       </section>
 
-      <section class="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4">
-        <div v-for="card in homeStatsCards" :key="card.key" class="text-center">
-          <p class="min-h-[1.1em] text-3xl font-bold tabular-nums tracking-tight text-gray-950 dark:text-white md:text-4xl">
+      <!-- 手机上也排成一行四列，数字字号随屏宽缩放，给带单位的紧凑数值留出空间 -->
+      <section class="mx-auto mt-12 grid max-w-4xl grid-cols-4 gap-2 sm:gap-4 md:mt-16 md:gap-6">
+        <div v-for="card in homeStatsCards" :key="card.key" class="min-w-0 text-center">
+          <p class="min-h-[1.1em] break-words text-[clamp(0.75rem,calc(5vw_-_0.1875rem),1.5rem)] font-bold leading-tight tabular-nums tracking-tight text-gray-950 dark:text-white sm:text-3xl md:text-4xl">
             {{ card.value }}
           </p>
-          <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">{{ card.label }}</p>
+          <p class="mt-1 break-words text-xs leading-snug text-gray-500 dark:text-dark-400 md:mt-2 md:text-sm">{{ card.label }}</p>
         </div>
       </section>
       <p v-if="homeStatsError" class="mt-4 text-center text-xs text-gray-500 dark:text-dark-400">
         {{ t('home.stats.unavailable') }}
       </p>
 
-      <!-- Provider icon marquee -->
-      <section class="mx-auto mt-14 max-w-5xl" aria-hidden="true">
-        <div class="home-marquee relative overflow-hidden">
-          <div class="home-marquee-track flex w-max items-center gap-8">
-            <span
-              v-for="(brand, index) in homeMarqueeBrands"
-              :key="`${brand}-${index}`"
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200/80 bg-white text-gray-700 shadow-sm dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100"
-            >
-              <ProviderIcon :brand="brand" size="17px" />
-            </span>
-          </div>
-        </div>
-      </section>
-
+      <!-- 特性卡：扁平描边，悬停只加深边框；卡内链接用 ::after 铺满整卡，链接统一贴在卡片底部 -->
       <section class="mx-auto mt-20 grid max-w-7xl gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
-          <div class="relative h-44 overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
-            <div class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110">
+        <article class="home-feature-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-900">
+          <div class="relative h-44 shrink-0 overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
+            <div class="home-feature-art absolute inset-0">
               <span
                 v-for="(icon, index) in homeProviderCloudIcons"
                 :key="`${icon.brand}-${index}`"
-                class="absolute flex h-7 w-7 items-center justify-center rounded-full border border-gray-100 bg-white/95 text-gray-700 shadow-[0_5px_16px_rgba(15,23,42,0.13)] ring-1 ring-black/[0.02] dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100 dark:ring-white/[0.04]"
+                class="absolute flex h-7 w-7 items-center justify-center rounded-full border border-gray-100 bg-white/95 text-gray-700 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100"
                 :style="{
                   left: icon.left,
                   top: icon.top,
@@ -160,24 +147,24 @@
               class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white via-white/35 to-transparent dark:from-dark-950 dark:via-dark-950/35"
             ></span>
           </div>
-          <div class="p-5">
+          <div class="flex flex-1 flex-col p-5">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
               {{ t('home.features.unifiedGateway') }}
             </h2>
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.unifiedGatewayDesc') }}
             </p>
-            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
+            <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="home-feature-link text-link mt-auto inline-flex items-center gap-1 self-start pt-4 text-sm font-medium">
               {{ t('home.features.browseAll') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
-          <div class="relative flex h-44 items-center justify-center overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
-            <div class="relative h-full w-full transition-transform duration-500 ease-out group-hover:scale-110">
-              <div class="absolute left-1/2 top-7 z-10 max-w-[82%] -translate-x-1/2 truncate rounded-lg bg-gray-100 px-3.5 py-1.5 text-xs font-medium text-gray-800 shadow-sm dark:bg-dark-900 dark:text-dark-100">
+        <article class="home-feature-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-900">
+          <div class="relative flex h-44 shrink-0 items-center justify-center overflow-hidden border-b border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950">
+            <div class="home-feature-art relative h-full w-full">
+              <div class="absolute left-1/2 top-7 z-10 max-w-[82%] -translate-x-1/2 truncate rounded-lg bg-gray-100 px-3.5 py-1.5 text-xs font-medium text-gray-800 dark:bg-dark-800 dark:text-dark-100">
                 {{ homeRouteLabel }}
               </div>
               <svg
@@ -203,30 +190,30 @@
                 <span
                   v-for="brand in homeRouteProviderBrands"
                   :key="brand"
-                  class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-100 bg-white text-gray-700 shadow-[0_5px_16px_rgba(15,23,42,0.13)] dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100"
+                  class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-100 bg-white text-gray-700 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-100"
                 >
                   <ProviderIcon :brand="brand" size="17px" />
                 </span>
               </div>
             </div>
           </div>
-          <div class="p-5">
+          <div class="flex flex-1 flex-col p-5">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
               {{ t('home.features.multiAccount') }}
             </h2>
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.multiAccountDesc') }}
             </p>
-            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
+            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="home-feature-link text-link mt-auto inline-flex items-center gap-1 self-start pt-4 text-sm font-medium">
               {{ t('home.features.learnMore') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
-          <div class="flex h-44 items-center justify-center border-b border-gray-200 bg-gray-50 p-6 dark:border-dark-800 dark:bg-dark-950">
-            <div class="w-full max-w-[200px] rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-transform duration-500 ease-out group-hover:scale-110 dark:border-dark-700 dark:bg-dark-900">
+        <article class="home-feature-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-900">
+          <div class="flex h-44 shrink-0 items-center justify-center overflow-hidden border-b border-gray-200 bg-gray-50 p-6 dark:border-dark-800 dark:bg-dark-950">
+            <div class="home-feature-art w-full max-w-[200px] rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
               <div class="mb-4 flex items-center justify-between text-xs text-gray-500 dark:text-dark-400">
                 <span>{{ t('home.features.usageChart') }}</span>
                 <Icon name="chart" size="sm" />
@@ -239,30 +226,30 @@
               </div>
             </div>
           </div>
-          <div class="p-5">
+          <div class="flex flex-1 flex-col p-5">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
               {{ t('home.features.balanceQuota') }}
             </h2>
             <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
               {{ t('home.features.balanceQuotaDesc') }}
             </p>
-            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300">
+            <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="home-feature-link text-link mt-auto inline-flex items-center gap-1 self-start pt-4 text-sm font-medium">
               {{ t('home.features.viewUsage') }}
               <Icon name="arrowRight" size="xs" />
             </router-link>
           </div>
         </article>
 
-        <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
-          <div class="flex h-44 items-center justify-center border-b border-gray-200 bg-gray-50 dark:border-dark-800 dark:bg-dark-950">
-            <div class="relative flex h-24 w-24 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-transform duration-500 ease-out group-hover:scale-110 dark:border-dark-700 dark:bg-dark-900">
+        <article class="home-feature-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-900">
+          <div class="flex h-44 shrink-0 items-center justify-center overflow-hidden border-b border-gray-200 bg-gray-50 dark:border-dark-800 dark:bg-dark-950">
+            <div class="home-feature-art relative flex h-24 w-24 items-center justify-center rounded-full border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
               <Icon name="shield" size="xl" class="text-gray-400 dark:text-dark-300" />
               <span class="absolute -right-1 -top-1 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
                 <Icon name="check" size="md" :stroke-width="2" />
               </span>
             </div>
           </div>
-          <div class="p-5">
+          <div class="flex flex-1 flex-col p-5">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white">
               {{ t('home.features.dataPolicies') }}
             </h2>
@@ -274,7 +261,7 @@
               :href="docUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-300"
+              class="home-feature-link text-link mt-auto inline-flex items-center gap-1 self-start pt-4 text-sm font-medium"
             >
               {{ t('home.docs') }}
               <Icon name="externalLink" size="xs" />
@@ -296,9 +283,9 @@
               {{ formatMarketplaceStat(supportedProviders.length) }} {{ t('home.stats.providerTypes') }}
             </p>
           </div>
-          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-sm font-medium text-gray-500 transition hover:text-primary-600 dark:text-dark-400 dark:hover:text-primary-300">
+          <router-link v-if="showModelPlazaEntry" to="/model-plaza" class="text-link inline-flex shrink-0 items-center gap-1 self-start whitespace-nowrap text-sm font-medium sm:self-auto">
             {{ t('home.viewAll') }}
-            <Icon name="arrowRight" size="xs" class="inline-block" />
+            <Icon name="arrowRight" size="xs" />
           </router-link>
         </div>
 
@@ -368,7 +355,7 @@
           <article
             v-for="step in homeSteps"
             :key="step.key"
-            class="flex min-h-[190px] flex-col"
+            class="flex flex-col"
           >
             <div class="flex items-center gap-3">
               <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-base font-semibold text-primary-600 dark:bg-primary-500/10 dark:text-primary-300">
@@ -376,61 +363,42 @@
               </span>
               <h2 class="text-lg font-semibold tracking-tight text-gray-950 dark:text-white">{{ step.title }}</h2>
             </div>
-            <p class="mt-4 max-w-sm text-sm leading-6 text-gray-600 dark:text-dark-300">{{ step.description }}</p>
+            <p class="mt-4 max-w-sm text-sm leading-6 text-gray-600 dark:text-dark-300 md:min-h-12">{{ step.description }}</p>
 
-            <div v-if="step.key === 'signup'" class="mt-8">
-              <div class="flex items-center gap-3 text-primary-500">
-                <Icon name="user" size="md" :stroke-width="1.8" />
-                <div class="space-y-1.5">
-                  <div class="h-1.5 w-7 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
-                  <div class="h-1.5 w-20 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
-                </div>
+            <!-- 插图只是示意：浅色占位、小圆角，三步共用「图标 + 占位线」首行，下方各放一组样例 -->
+            <div class="flex w-full max-w-[240px] flex-col gap-3 pt-6" aria-hidden="true">
+              <div class="flex items-center gap-2 text-primary-500 dark:text-primary-400">
+                <Icon :name="step.icon" size="md" :stroke-width="1.6" class="shrink-0" />
+                <span v-if="step.key === 'api-key'" class="home-step-sample flex h-6 min-w-0 flex-1 items-center px-2 font-mono text-xs tracking-wide">
+                  <span class="truncate">GOTOCC_API_KEY</span>
+                </span>
+                <template v-else>
+                  <span class="home-step-lines w-8"></span>
+                  <span class="home-step-lines w-20"></span>
+                </template>
               </div>
-              <div class="mt-4 grid max-w-[156px] grid-cols-3 gap-3">
-                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:ring-dark-800">
+
+              <div v-if="step.key === 'signup'" class="flex gap-2">
+                <span class="home-step-sample flex h-10 w-10 items-center justify-center">
                   <ProviderIcon brand="Google" size="20px" />
                 </span>
-                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-gray-800 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-gray-100 dark:ring-dark-800">
+                <span class="home-step-sample flex h-10 w-10 items-center justify-center text-gray-800 dark:text-gray-100">
                   <GitHubMark class="h-5 w-5" />
                 </span>
-                <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-primary-500 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:ring-dark-800">
-                  <Icon name="mail" size="md" :stroke-width="1.8" />
+                <span class="home-step-sample flex h-10 w-10 items-center justify-center text-primary-500 dark:text-primary-400">
+                  <Icon name="mail" size="md" :stroke-width="1.6" />
                 </span>
               </div>
-            </div>
 
-            <div v-else-if="step.key === 'browse'" class="mt-auto max-w-[270px] pt-6">
-              <div class="flex items-center gap-3 text-primary-500">
-                <Icon name="grid" size="md" :stroke-width="1.8" />
-                <div class="grid flex-1 grid-cols-4 gap-2">
-                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
-                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
-                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
-                  <div class="h-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></div>
+              <div v-else-if="step.key === 'browse'" class="flex flex-col gap-2">
+                <div v-for="name in ['Claude', 'GPT']" :key="name" class="home-step-sample flex h-6 items-center gap-2 px-2">
+                  <span class="w-12 shrink-0 text-xs font-medium">{{ name }}</span>
+                  <span class="home-step-bar h-1.5 min-w-0 flex-1"></span>
+                  <span class="home-step-bar h-1.5 w-10 shrink-0"></span>
                 </div>
               </div>
-              <div class="mt-4 space-y-2">
-                <div class="flex items-center gap-2 rounded-md bg-white/90 px-3 py-2 text-gray-700 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-200 dark:ring-dark-800">
-                  <span class="w-14 text-xs font-medium">Claude</span>
-                  <span class="h-2 flex-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
-                  <span class="h-2 w-12 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
-                </div>
-                <div class="flex items-center gap-2 rounded-md bg-white/90 px-3 py-2 text-gray-700 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-200 dark:ring-dark-800">
-                  <span class="w-14 text-xs font-medium">GPT</span>
-                  <span class="h-2 flex-1 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
-                  <span class="h-2 w-12 rounded-full bg-primary-100 dark:bg-primary-400/20"></span>
-                </div>
-              </div>
-            </div>
 
-            <div v-else class="mt-8 max-w-[270px]">
-              <div class="flex items-center gap-3 text-primary-500">
-                <Icon name="key" size="md" :stroke-width="1.8" />
-                <div class="flex-1 rounded-md bg-white/90 px-3 py-2 font-mono text-xs text-gray-600 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-dark-300 dark:ring-dark-800">
-                  GOTOCC_API_KEY
-                </div>
-              </div>
-              <div class="mt-3 rounded-md bg-white/90 px-3 py-2 font-mono text-sm tracking-[0.2em] text-gray-950 shadow-sm ring-1 ring-gray-100 dark:bg-dark-950 dark:text-white dark:ring-dark-800">
+              <div v-else class="home-step-sample flex h-6 items-center px-2 text-xs tracking-wider">
                 ••••••••••••••••
               </div>
             </div>
@@ -662,12 +630,6 @@ const footerColumns = computed(() => {
     quickLinks.push({ label: t('home.docs'), url: docUrl.value })
   }
   return [{ title: t('home.footer.quickLinks'), links: quickLinks }]
-})
-
-// 服务商图标滚动条:图标列表复制一份实现无缝循环
-const homeMarqueeBrands = computed(() => {
-  const brands = homeProviderVisuals.value.slice(0, 20)
-  return [...brands, ...brands]
 })
 
 const marketplaceGroups = ref<HomeMarketplaceGroup[]>([])
@@ -1204,32 +1166,106 @@ onUnmounted(() => {
   transform: translateY(70%);
 }
 
-/* 服务商图标无缝滚动条,两端用渐隐遮罩 */
-.home-marquee {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
-  mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+/* 特性卡：扁平描边，悬停或键盘聚焦只把边框加深为主色，不上浮、不加阴影；插图轻微放大。
+   结构参照 TokenRouter（LGPL-3.0）HomeView.vue。 */
+.home-feature-card {
+  transition: border-color var(--motion-fast) var(--motion-ease);
 }
 
-.home-marquee-track {
-  animation: home-marquee-scroll 48s linear infinite;
+.home-feature-card:is(:hover, :focus-within) {
+  border-color: theme('colors.primary.300');
 }
 
-.home-marquee:hover .home-marquee-track {
-  animation-play-state: paused;
+.dark .home-feature-card:is(:hover, :focus-within) {
+  border-color: theme('colors.primary.500 / 60%');
 }
 
-@keyframes home-marquee-scroll {
-  0% {
-    transform: translateX(0);
+.home-feature-art {
+  transition: transform var(--motion-normal) var(--motion-ease);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-feature-card:hover .home-feature-art {
+    transform: scale(1.05);
   }
-  100% {
-    transform: translateX(-50%);
-  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .home-marquee-track {
-    animation: none;
-  }
+/* 卡内链接的 ::after 铺满整卡，整张卡都可点；文字仍是链接的可读名称。键盘聚焦时在卡内画焦点框。 */
+.home-feature-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: theme('borderRadius.xl');
+}
+
+.home-feature-link:focus-visible {
+  outline: none;
+}
+
+.home-feature-link:focus-visible::after {
+  box-shadow: inset 0 0 0 2px theme('colors.primary.600');
+}
+
+.dark .home-feature-link:focus-visible::after {
+  box-shadow: inset 0 0 0 2px theme('colors.primary.400');
+}
+
+/* 上手三步的示意插图：浅色占位与 4px 小圆角，不用白底、描边和阴影。 */
+.home-step-sample,
+.home-step-bar,
+.home-step-lines::before,
+.home-step-lines::after {
+  border-radius: 4px;
+}
+
+.home-step-sample {
+  background-color: theme('colors.primary.950 / 4.5%');
+  color: theme('colors.gray.950 / 70%');
+}
+
+.home-step-bar {
+  background-color: theme('colors.primary.950 / 8%');
+}
+
+.dark .home-step-sample {
+  background-color: theme('colors.white / 5%');
+  color: theme('colors.white / 70%');
+}
+
+.dark .home-step-bar {
+  background-color: theme('colors.white / 8%');
+}
+
+/* 占位线：上粗下细两道。 */
+.home-step-lines {
+  display: flex;
+  height: 1rem;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.home-step-lines::before,
+.home-step-lines::after {
+  content: '';
+}
+
+.home-step-lines::before {
+  height: 4px;
+  background-color: theme('colors.primary.950 / 18%');
+}
+
+.home-step-lines::after {
+  height: 2px;
+  background-color: theme('colors.primary.950 / 8%');
+}
+
+.dark .home-step-lines::before {
+  background-color: theme('colors.white / 20%');
+}
+
+.dark .home-step-lines::after {
+  background-color: theme('colors.white / 8%');
 }
 </style>
