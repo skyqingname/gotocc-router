@@ -1,0 +1,12 @@
+{
+  "models": [
+    { "model": "gpt-6.1-sol", "author": "OpenAI" },
+    { "model": "gpt-6-luna", "author": "OpenAI" },
+    { "model": "gpt-6-astra", "author": "OpenAI" },
+    { "model": "claude-opus-5-5", "author": "Anthropic" },
+    { "model": "claude-sonnet-5-5", "author": "Anthropic" },
+    { "model": "gemini-3.8-flash", "author": "Google" },
+    { "model": "deepseek-v4.1-flash", "author": "DeepSeek" },
+    { "model": "grok-4.7", "author": "xAI" }
+  ]
+}

@@ -4,6 +4,14 @@ export default {
     contactCard: {
       title: '联系我们',
     },
+    // ============ 界面美化第二批：首页精选模型卡 ============
+    home: {
+      featured: {
+        byAuthor: '由 {author} 开发',
+        modalities: '输入 / 输出',
+        maxDiscount: '最高优惠',
+      },
+    },
     dashboard: {
       live: {
         rpm: 'RPM',

@@ -289,62 +289,63 @@
           </router-link>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-3">
+        <!-- 精选模型卡：清单来自产品根目录 home-featured-models.json，只渲染模型广场里实际存在的模型 -->
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div
             v-if="homeMarketplaceLoading"
-            class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-center text-sm text-gray-500 dark:border-dark-800 dark:bg-dark-900 dark:text-dark-400 lg:col-span-3"
+            class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-center text-sm text-gray-500 dark:border-dark-800 dark:bg-dark-900 dark:text-dark-400 sm:col-span-2 lg:col-span-4"
           >
             {{ t('common.loading') }}
           </div>
 
           <div
-            v-else-if="supportedProviders.length === 0"
-            class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-center text-sm text-gray-500 dark:border-dark-800 dark:bg-dark-900 dark:text-dark-400 lg:col-span-3"
+            v-else-if="featuredModels.length === 0"
+            class="rounded-xl border border-gray-200 bg-white px-5 py-4 text-center text-sm text-gray-500 dark:border-dark-800 dark:bg-dark-900 dark:text-dark-400 sm:col-span-2 lg:col-span-4"
           >
             {{ homeMarketplaceError ? t('home.providers.unavailable') : t('home.providers.empty') }}
           </div>
 
           <template v-else>
             <article
-              v-for="provider in supportedProviders.slice(0, 6)"
-              :key="provider.key"
-              class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm ring-1 ring-transparent transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-[0_12px_32px_rgba(13,42,63,0.1)] focus-within:border-primary-300 dark:border-dark-800 dark:bg-dark-900 dark:hover:border-dark-600 dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
+              v-for="featured in featuredModels"
+              :key="featured.name"
+              class="flex flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-dark-800 dark:bg-dark-900"
             >
               <div class="flex items-start gap-4">
-                <span
-                  class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-950"
-                  :class="providerIconWrapClass(provider)"
-                >
-                  <ProviderIcon :brand="provider.iconBrand" size="22px" />
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-950">
+                  <ModelIcon :model="featured.name" size="28px" />
                 </span>
                 <div class="min-w-0 flex-1">
-                  <h3 class="truncate text-lg font-semibold text-gray-950 dark:text-white">
-                    {{ provider.label }}
+                  <h3 class="truncate text-lg font-semibold text-gray-950 dark:text-white" :title="featured.name">
+                    {{ featured.displayName }}
                   </h3>
-                  <p class="text-sm text-gray-500 dark:text-dark-400">
-                    {{ provider.groupCount }} {{ t('home.providers.groups') }}
+                  <p class="truncate text-sm text-gray-500 dark:text-dark-400">
+                    {{ t('gotocc.home.featured.byAuthor', { author: featured.author }) }}
                   </p>
                 </div>
               </div>
-              <div class="mt-5 border-t border-gray-200 pt-5 dark:border-dark-800">
-                <div class="flex items-end justify-between gap-4">
-                  <div>
-                    <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('home.providers.modelCount') }}</p>
-                    <p class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">
-                      {{ provider.modelCount }}
-                    </p>
-                  </div>
-                  <p
-                    v-if="provider.officialPriceRatio"
-                    class="max-w-[180px] text-right text-sm font-semibold text-emerald-600 dark:text-emerald-300"
+              <dl class="mt-5 flex flex-1 items-start justify-between gap-4 border-t border-gray-200 pt-5 text-sm dark:border-dark-800">
+                <div class="min-w-0">
+                  <dt class="text-gray-500 dark:text-dark-400">{{ t('gotocc.home.featured.modalities') }}</dt>
+                  <dd class="mt-1.5 flex flex-wrap items-center gap-1">
+                    <template v-if="featured.input.length > 0">
+                      <span v-for="modality in featured.input" :key="`in-${modality}`" class="home-modality" :class="MODALITY_CLASSES[modality]">{{ modalityLabel(modality) }}</span>
+                      <Icon name="arrowRight" size="xs" class="text-gray-400 dark:text-dark-500" />
+                      <span v-for="modality in featured.output" :key="`out-${modality}`" class="home-modality" :class="MODALITY_CLASSES[modality]">{{ modalityLabel(modality) }}</span>
+                    </template>
+                    <span v-else class="text-gray-400 dark:text-dark-500">—</span>
+                  </dd>
+                </div>
+                <div class="shrink-0 text-right">
+                  <dt class="text-gray-500 dark:text-dark-400">{{ t('gotocc.home.featured.maxDiscount') }}</dt>
+                  <dd
+                    class="mt-1 text-lg font-semibold tabular-nums"
+                    :class="featured.discountOff ? 'text-emerald-600 dark:text-emerald-300' : 'text-gray-400 dark:text-dark-500'"
                   >
-                    {{ formatOfficialPriceRatio(provider.officialPriceRatio) }}
-                  </p>
-                  <p v-else class="text-sm font-medium text-primary-600 dark:text-primary-300">
-                    {{ t('home.providers.supported') }}
-                  </p>
+                    {{ featured.discountOff ?? '—' }}
+                  </dd>
                 </div>
-              </div>
+              </dl>
             </article>
           </template>
         </div>
@@ -485,19 +486,21 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import GitHubMark from '@/components/auth/GitHubMark.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 import ProviderIcon from '@/components/common/ProviderIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { isTokenModel, modelRate } from '@/components/gotocc/plaza/plazaPricing'
 import { useTheme } from '@/composables/useTheme'
 import { getHomepageModelPlaza, getHomepageStats, type HomepageStats } from '@/api/home'
-import type { ModelPlazaGroup } from '@/api/modelPlaza'
+import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import {
   providerBrandDisplayName,
   providerBrandFilterKey,
-  resolveProviderBrand,
   resolveProviderBrandKey,
 } from '@/utils/providerBrand'
+import featuredConfig from '../../../home-featured-models.json'
 
 type HomeStatsKey = 'today-tokens' | 'total-tokens' | 'total-users' | 'supported-models'
 type HomeStatsIcon = 'bolt' | 'database' | 'users' | 'grid'
@@ -511,11 +514,19 @@ interface HomeProviderCategory {
 }
 
 interface HomeProviderSummary extends HomeProviderCategory {
-  modelCount: number
-  groupCount: number
-  officialPriceRatio?: number
   sortOrder: number
   firstIndex: number
+}
+
+// 首页精选模型卡：模型名与开发者署名来自参数文件，显示名、输入输出能力与折扣来自模型广场接口。
+interface HomeFeaturedModel {
+  name: string
+  displayName: string
+  author: string
+  input: string[]
+  output: string[]
+  // 相对官方价省下的比例，已按界面语言格式化；没有折扣或无法比较时为 null。
+  discountOff: string | null
 }
 
 interface HomeStatsCard {
@@ -554,7 +565,6 @@ interface HomeMarketplaceGroup {
   display_brand?: string
   platform: string
   sort_order?: number
-  official_price_ratio?: number | null
   models: HomeMarketplaceModel[]
 }
 
@@ -565,9 +575,32 @@ function adaptPlazaGroup(group: ModelPlazaGroup): HomeMarketplaceGroup {
     display_brand: group.name,
     platform: group.platform,
     sort_order: group.id,
-    official_price_ratio: null,
     models: group.models.map((model) => ({ id: model.name, display_name: model.name })),
   }
+}
+
+// 输入输出能力标签配色，类名写成完整字符串，保证 Tailwind 能扫描到。
+const MODALITY_CLASSES: Record<string, string> = {
+  text: 'bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-300',
+  image: 'bg-green-500/10 text-green-600 dark:bg-green-400/10 dark:text-green-300',
+  audio: 'bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-300',
+  video: 'bg-rose-500/10 text-rose-600 dark:bg-rose-400/10 dark:text-rose-300',
+  pdf: 'bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-300',
+}
+
+// 实付价与官方价之比，口径同模型广场卡片和计费：实付 = 渠道单价 × 该分组对这个模型的生效倍率（含用户专属倍率），
+// 取标准时段的基础档。输入、输出各算一次取较大者，表示两项都至少便宜这么多。非 token 计费或缺官方价时无法比较。
+function paidToOfficialRatio(group: ModelPlazaGroup, model: PlazaModel): number | null {
+  const pricing = model.pricing
+  const official = model.official_pricing
+  if (!isTokenModel(model) || !pricing || !official) return null
+  const rate = modelRate(group, model)
+  const ratios = (['input_price', 'output_price'] as const).flatMap((field) => {
+    const paid = pricing[field]
+    const reference = official[field]
+    return paid != null && reference ? [(paid * rate) / reference] : []
+  })
+  return ratios.length > 0 ? Math.max(...ratios) : null
 }
 
 
@@ -632,7 +665,8 @@ const footerColumns = computed(() => {
   return [{ title: t('home.footer.quickLinks'), links: quickLinks }]
 })
 
-const marketplaceGroups = ref<HomeMarketplaceGroup[]>([])
+const plazaGroups = ref<ModelPlazaGroup[]>([])
+const marketplaceGroups = computed(() => plazaGroups.value.map(adaptPlazaGroup))
 const homeStats = ref<HomepageStats | null>(null)
 const homeMarketplaceLoading = ref(true)
 const homeStatsLoading = ref(true)
@@ -724,33 +758,23 @@ const supportedProviders = computed<HomeProviderSummary[]>(() => {
   })
 
   sortedGroups.forEach((group, index) => {
-    const modelCount = group.models.length
-    if (modelCount === 0) {
+    if (group.models.length === 0) {
       return
     }
 
     const category = homeProviderCategory(group)
     const existing = summaries.get(category.key)
-    const ratio = validOfficialPriceRatio(group.official_price_ratio)
     if (!existing) {
       summaries.set(category.key, {
         ...category,
-        modelCount,
-        groupCount: 1,
-        officialPriceRatio: ratio ?? undefined,
         sortOrder: group.sort_order ?? 0,
         firstIndex: index,
       })
       return
     }
 
-    existing.modelCount += modelCount
-    existing.groupCount += 1
     existing.sortOrder = Math.min(existing.sortOrder, group.sort_order ?? 0)
     existing.firstIndex = Math.min(existing.firstIndex, index)
-    if (ratio && (!existing.officialPriceRatio || ratio < existing.officialPriceRatio)) {
-      existing.officialPriceRatio = ratio
-    }
   })
 
   return [...summaries.values()].sort((left, right) => {
@@ -765,6 +789,23 @@ const supportedProviders = computed<HomeProviderSummary[]>(() => {
     return left.firstIndex - right.firstIndex
   })
 })
+
+// 精选模型按参数文件顺序排列；模型广场里没有的模型不出卡片。同一模型在多个分组出现时，折扣取当前访客能用的分组中最大的一个。
+const featuredModels = computed<HomeFeaturedModel[]>(() => featuredConfig.models.flatMap(({ model: name, author }) => {
+  const offers = plazaGroups.value.flatMap((group) => group.models.filter((model) => model.name === name).map((model) => ({ group, model })))
+  if (offers.length === 0) return []
+  const info = offers[0].model.info
+  const ratios = offers.map(({ group, model }) => paidToOfficialRatio(group, model)).filter((ratio): ratio is number => ratio !== null)
+  const best = ratios.length > 0 ? Math.min(...ratios) : null
+  return [{
+    name,
+    displayName: info?.display_name || name,
+    author,
+    input: info?.input_modalities ?? [],
+    output: info?.output_modalities ?? [],
+    discountOff: best !== null && best < 1 ? formatDiscountOff(1 - best) : null,
+  }]
+}))
 
 const homeStatsCards = computed<HomeStatsCard[]>(() => [
   {
@@ -907,18 +948,11 @@ function homeProviderPriority(key: string): number {
   return index === -1 ? priorities.length : index
 }
 
-function validOfficialPriceRatio(value?: number | null): number | null {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+function formatDiscountOff(value: number): string {
+  return new Intl.NumberFormat(numberLocale.value, { style: 'percent', maximumFractionDigits: 1 }).format(value)
 }
 
-function formatOfficialPriceRatio(ratio: number): string {
-  const discount = new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(ratio * 10)
-
-  return t('home.providers.officialPriceDiscount', { discount })
-}
+const modalityLabel = (modality: string) => t(`gotocc.plaza.modalities.${modality}`)
 
 function formatAnimatedHomeStat(
   key: HomeStatsKey,
@@ -1067,23 +1101,16 @@ function mergeProviderVisualBrands(brands: string[]): string[] {
   return merged
 }
 
-function providerIconWrapClass(provider: HomeProviderSummary): string {
-  if (provider.key === 'antigravity') {
-    return 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/30'
-  }
-  return resolveProviderBrand(provider.iconBrand).iconWrapClass
-}
-
 async function fetchHomeMarketplace() {
   homeMarketplaceLoading.value = true
   homeMarketplaceError.value = false
 
   try {
     const plaza = await getHomepageModelPlaza()
-    marketplaceGroups.value = plaza.groups.map(adaptPlazaGroup)
+    plazaGroups.value = plaza.groups
   } catch (error) {
     console.error('Failed to load home model plaza:', error)
-    marketplaceGroups.value = []
+    plazaGroups.value = []
     homeMarketplaceError.value = true
   } finally {
     homeMarketplaceLoading.value = false
@@ -1209,6 +1236,11 @@ onUnmounted(() => {
 
 .dark .home-feature-link:focus-visible::after {
   box-shadow: inset 0 0 0 2px theme('colors.primary.400');
+}
+
+/* 精选模型卡的输入输出能力标签，配色按模态区分，结构参照 TokenRouter（LGPL-3.0）ModalityIcon.vue。 */
+.home-modality {
+  @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium;
 }
 
 /* 上手三步的示意插图：浅色占位与 4px 小圆角，不用白底、描边和阴影。 */
