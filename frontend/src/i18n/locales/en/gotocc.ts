@@ -12,6 +12,23 @@ export default {
         maxDiscount: 'Max discount',
       },
     },
+    // ============ 界面美化第二批：全局搜索 ============
+    search: {
+      open: 'Search',
+      placeholder: 'Search models, pages and actions',
+      dialogLabel: 'Global search',
+      scopeLabel: 'Search scope',
+      scopes: { all: 'All', model: 'Models', page: 'Pages', action: 'Actions' },
+      sections: { recent: 'Recent', model: 'Models', page: 'Pages', action: 'Actions' },
+      noResults: 'No results for "{query}"',
+      modelsFailed: 'Models could not be loaded. Reopen search to try again.',
+      hints: { navigate: 'Select', open: 'Open', close: 'Close' },
+      actions: {
+        goTo: 'Go to {page}',
+        switchTheme: 'Switch to {mode}',
+        switchLanguage: 'Switch to {name}',
+      },
+    },
     dashboard: {
       live: {
         rpm: 'RPM',

@@ -1,0 +1,11 @@
+{
+  "shortcut_key": "k",
+  "slash_key": "/",
+  "recent_limit": 5,
+  "scope_limits": {
+    "all": 6,
+    "single": 100
+  },
+  "loading_rows": 3,
+  "recent_storage_prefix": "gotocc_global_search_recent_"
+}

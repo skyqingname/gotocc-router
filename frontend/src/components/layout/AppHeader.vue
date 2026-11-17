@@ -28,35 +28,16 @@
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex shrink-0 items-center gap-1 sm:gap-3">
-        <!-- Announcement Bell -->
-        <GotoCCAnnouncementBell v-if="user" />
+        <!-- GoToCC 全局搜索 -->
+        <GotoCCGlobalSearch v-if="user" />
 
-        <!-- Docs Link -->
-        <a
-          v-if="docUrl && !compactHeader"
-          :href="docUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors hover:surface-hover hover:text-gray-900 dark:hover:text-white sm:flex surface-muted"
-        >
-          <Icon name="book" size="sm" />
-          <span class="hidden sm:inline">{{ t('nav.docs') }}</span>
-        </a>
-
-        <!-- Model Plaza Entry (icon only below sm) -->
-        <router-link
-          v-if="user && modelPlazaEnabled && !compactHeader"
-          :to="{ path: '/model-plaza', query: { embedded: '1' } }"
-          :title="t('nav.modelPlaza')"
-          :aria-label="t('nav.modelPlaza')"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
-        >
-          <Icon name="grid" size="sm" />
-          <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
-        </router-link>
-
-        <!-- Language Switcher -->
-        <LocaleSwitcher v-if="!compactHeader" />
+        <!-- GoToCC 文字入口：公告、文档、模型广场、语言从 md 起是纯文字，间距由各自内边距撑开 -->
+        <div class="flex items-center">
+          <GotoCCAnnouncementBell v-if="user" />
+          <a v-if="docUrl && !compactHeader" :href="docUrl" target="_blank" rel="noopener noreferrer" class="header-nav-link">{{ t('nav.docs') }}</a>
+          <router-link v-if="user && modelPlazaEnabled && !compactHeader" :to="{ path: '/model-plaza', query: { embedded: '1' } }" class="header-nav-link">{{ t('nav.modelPlaza') }}</router-link>
+          <GotoCCLocaleMenu v-if="!compactHeader" />
+        </div>
 
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
         <SubscriptionProgressMini v-if="user && subscriptionFeatureEnabled && !compactHeader" />
@@ -124,9 +105,10 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
-import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import GotoCCAnnouncementBell from '@/components/gotocc/GotoCCAnnouncementBell.vue'
+import GotoCCLocaleMenu from '@/components/gotocc/GotoCCLocaleMenu.vue'
+import GotoCCGlobalSearch from '@/components/gotocc/search/GotoCCGlobalSearch.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GotoCCUserMenu from '@/components/gotocc/GotoCCUserMenu.vue'
 import { sanitizeUrl } from '@/utils/url'
