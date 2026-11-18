@@ -6,14 +6,14 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-GoToCC `skyqingname/gotocc-router@v0.2.21+custom.002` integrates the complete fixed Plus release
+GoToCC `skyqingname/gotocc-router@v0.2.21+custom.003` integrates the complete fixed Plus release
 `LuckyKuang/sub2api-plus@v0.2.21+custom.002`, peeled commit
 `b5b13fd907ea1539fac28a4934eb36a92ed9eb14`. Its official baseline is
 `Wei-Shaw/sub2api@v0.2.21`, commit `10ba8f9b4dc2e6023d4a9879ab77b21841babd10`.
-The owned base is `skyqingname/gotocc-router@v0.2.21+custom.001`, which
-integrated Plus `v0.2.21+custom.001` / `0ccd6314909df1918baf9216458d1ed717e0ad8c`.
-Publication of the accepted candidate was authorized on 2026-11-16; the owned
-GitHub Release is the authority for completed publication.
+The owned base is `skyqingname/gotocc-router@v0.2.21+custom.002`, which
+integrated the same Plus release; this version adds owned changes only.
+Publication was authorized on 2026-11-18; the owned GitHub Release is the
+authority for completed publication.
 Repository, tag and peeled commit are separate parts of version identity.
 Post-tag upstream main is excluded.
 
@@ -261,7 +261,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.002
 | `LuckyKuang/sub2api-plus@v0.2.19+custom.006` | `v0.2.19` | `dece26153621959ccd7635814f4b2d08304e681a` | published |
 | `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | published |
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.001 |
-| `LuckyKuang/sub2api-plus@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.002 |
+| `LuckyKuang/sub2api-plus@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.002 and 0.2.21+custom.003 |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
@@ -365,3 +365,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `0ccd631490`; aggregate keys retain team/reseller funding, 301 catalog entries and 70 fingerprint identities; publication authorized 2026-11-15; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `b5b13fd907`; task center for a user's own video and image tasks, first interface polish batch; publication authorized 2026-11-16; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.21+custom.003` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `b5b13fd907`; stream keepalive before the first upstream byte, second interface batch, GPT-6.2 Sol/Astra prices and 72 fingerprint identities, user usage page scrolling, #70 and #65; publication authorized 2026-11-18; see owned GitHub Release |
