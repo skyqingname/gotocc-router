@@ -29,6 +29,7 @@ belong in GitHub Release notes.
 - [Managed official Codex CLI tasks](CODEX_CLI.md)
 - [Asynchronous image tasks and Gemini/Vertex batches](ASYNC_IMAGE_TASKS.md)
 - [Usage timing and completion semantics](USAGE_TIMING.md)
+- [Streaming keepalive](STREAM_KEEPALIVE.md)
 - [Console layout, request inspection and refresh](UI_INTERACTION.md)
 
 ## Access, Pricing and Administration

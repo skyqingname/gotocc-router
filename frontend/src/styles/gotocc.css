@@ -93,6 +93,24 @@
   }
 }
 
+/* ============ 界面美化第二批：顶栏文字入口 ============
+   结构与交互参照 TokenRouter（LGPL-3.0）style.css 的 .header-nav-link，颜色与上面的 .text-link 相同但不加下划线。
+   公告、文档、模型广场、语言从 md 起显示成纯文字：常态为正文色，悬停、键盘聚焦或菜单展开时变主色，任何状态都不铺底色。
+   高度与顶栏其它按钮一样保证 44px 点击区域（console.css）。基础规则包在 :where 里，调用处的 hidden、md:inline-flex 等工具类优先。 */
+:where(.header-nav-link) {
+  @apply inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium;
+  color: var(--surface-text);
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.header-nav-link:is(:hover, :focus-visible, [aria-expanded='true']) {
+  color: theme('colors.primary.600');
+}
+
+.dark .header-nav-link:is(:hover, :focus-visible, [aria-expanded='true']) {
+  color: theme('colors.primary.300');
+}
+
 /* 主按钮：靛 600 底白字（对比度 6.3:1），悬停加深。 */
 .btn-primary {
   @apply bg-primary-600 text-white;

@@ -30,6 +30,38 @@
         "context": 1048576,
         "output": 65536
       }
+    },
+    "openai/gpt-image-2": {
+      "cost": {
+        "input": 5,
+        "output": 30,
+        "cache_read": 1.25
+      }
+    },
+    "google/gemini-2.5-flash-image": {
+      "cost": {
+        "input": 0.3,
+        "output": 30,
+        "cache_read": 0.075
+      }
+    },
+    "google/gemini-3-pro-image": {
+      "cost": {
+        "input": 2,
+        "output": 120
+      }
+    },
+    "google/gemini-3.1-flash-image": {
+      "cost": {
+        "input": 0.5,
+        "output": 60
+      }
+    },
+    "google/gemini-3.1-flash-lite-image": {
+      "cost": {
+        "input": 0.25,
+        "output": 30
+      }
     }
   },
   "model_override_sources": {
@@ -37,6 +69,31 @@
       "source": "https://aistudio.google.com/docs/models/gemini-4-carbon",
       "verified_on": "2026-11-11",
       "note": "Default synchronous output is 65,536; optional long decode up to 1M is not advertised as the default."
+    },
+    "openai/gpt-image-2": {
+      "source": "https://developers.openai.com/api/docs/pricing",
+      "verified_on": "2026-11-18",
+      "note": "models.dev dropped this cost on 2026-11-18. Official Standard rates per 1M tokens: text input $5, image output $30, text cached input $1.25 (image input $8, image cached input $2 are not shown); same values as the previous catalog."
+    },
+    "google/gemini-2.5-flash-image": {
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "verified_on": "2026-11-18",
+      "note": "models.dev now lists the text output price for this image model; the plaza reference keeps Google's official image output price per 1M tokens as the model's output, as for gpt-image-2. Text output: priced as Gemini 2.5 Flash."
+    },
+    "google/gemini-3-pro-image": {
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "verified_on": "2026-11-18",
+      "note": "models.dev now lists the text output price for this image model; the plaza reference keeps Google's official image output price per 1M tokens as the model's output, as for gpt-image-2. Text output: $12."
+    },
+    "google/gemini-3.1-flash-image": {
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "verified_on": "2026-11-18",
+      "note": "models.dev now lists the text output price for this image model; the plaza reference keeps Google's official image output price per 1M tokens as the model's output, as for gpt-image-2. Text output: $3."
+    },
+    "google/gemini-3.1-flash-lite-image": {
+      "source": "https://ai.google.dev/gemini-api/docs/pricing",
+      "verified_on": "2026-11-18",
+      "note": "models.dev now lists the text output price for this image model; the plaza reference keeps Google's official image output price per 1M tokens as the model's output, as for gpt-image-2. Text output: $1.50."
     }
   }
 }

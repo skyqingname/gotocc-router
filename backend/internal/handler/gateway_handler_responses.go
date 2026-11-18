@@ -176,6 +176,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	defer inflightRelease()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment, streamErrorResponses)()
 	requestCtx = c.Request.Context()
 
 	// Parse request for session hash

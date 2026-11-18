@@ -4,6 +4,31 @@ export default {
     contactCard: {
       title: '联系我们',
     },
+    // ============ 界面美化第二批：首页精选模型卡 ============
+    home: {
+      featured: {
+        byAuthor: '由 {author} 开发',
+        modalities: '输入 / 输出',
+        maxDiscount: '最高优惠',
+      },
+    },
+    // ============ 界面美化第二批：全局搜索 ============
+    search: {
+      open: '搜索',
+      placeholder: '搜索模型、页面和操作',
+      dialogLabel: '全局搜索',
+      scopeLabel: '搜索范围',
+      scopes: { all: '全部', model: '模型', page: '页面', action: '动作' },
+      sections: { recent: '最近访问', model: '模型', page: '页面', action: '动作' },
+      noResults: '没有找到与“{query}”匹配的结果',
+      modelsFailed: '模型列表加载失败，重新打开搜索会再试一次',
+      hints: { navigate: '选择', open: '打开', close: '关闭' },
+      actions: {
+        goTo: '前往{page}',
+        switchTheme: '切换到{mode}',
+        switchLanguage: '切换为 {name}',
+      },
+    },
     dashboard: {
       live: {
         rpm: 'RPM',

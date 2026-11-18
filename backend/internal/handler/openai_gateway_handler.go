@@ -716,6 +716,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// HTTP 429 for a full user instead of committing a streaming 200 response.
 	stopCompactKeepalive := service.StartOpenAICompactSSEKeepalive(c, h.openAICompactKeepaliveInterval())
 	defer stopCompactKeepalive()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream && !legacyCompact, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment, streamErrorResponses)()
 	var imageReleaseFunc func()
 	if imageIntent {
 		var imageAcquired bool
@@ -1495,6 +1496,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	defer inflightDone()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment, streamErrorAnthropic)()
 
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
 	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)

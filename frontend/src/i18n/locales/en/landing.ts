@@ -118,9 +118,6 @@ export default {
       more: 'More',
       empty: 'No models to display yet',
       unavailable: 'Model data is temporarily unavailable',
-      groups: 'groups',
-      modelCount: 'Models',
-      officialPriceDiscount: 'About {discount}/10 of official price'
     },
     stats: {
       todayTokens: 'Today Total Tokens',

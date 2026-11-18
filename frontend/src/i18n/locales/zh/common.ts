@@ -165,6 +165,7 @@ export default {
     reseller: '站长中心',
     customerCredits: '我的额度',
     dashboard: '仪表盘',
+    personalDashboard: '个人仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
     team: '我的团队',

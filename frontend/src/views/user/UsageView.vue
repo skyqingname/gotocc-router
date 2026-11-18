@@ -1,27 +1,27 @@
 <template>
-  <AppLayout appearance="user" workspace>
-    <div class="workspace-page usage-workspace">
-      <WorkspaceTabs v-model="workspaceTab" class="workspace-fixed" :tabs="workspaceTabs" :label="t('usage.tabs.usage')" />
-        <div v-show="activeTab !== 'live'" class="card workspace-fixed usage-date p-4">
-          <div class="flex flex-wrap items-center gap-4">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
-              <DateRangePicker
-                v-model:start-date="startDate"
-                v-model:end-date="endDate"
-                @change="onDateRangeChange"
-              />
-            </div>
-            <div class="ml-auto flex items-center gap-2">
-              <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.granularity') }}:</span>
-              <div class="w-28">
-                <Select v-model="granularity" :options="granularityOptions" @change="loadChartData" />
-              </div>
+  <AppLayout appearance="user">
+    <div class="usage-page">
+      <div class="card usage-toolbar">
+        <WorkspaceTabs v-model="workspaceTab" embedded :tabs="workspaceTabs" :label="t('usage.tabs.usage')" />
+        <div v-show="activeTab !== 'live'" class="usage-toolbar-range">
+          <div class="filter-pair">
+            <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
+            <DateRangePicker
+              v-model:start-date="startDate"
+              v-model:end-date="endDate"
+              @change="onDateRangeChange"
+            />
+          </div>
+          <div v-show="workspaceTab === 'charts'" class="filter-pair">
+            <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.granularity') }}:</span>
+            <div class="w-28">
+              <Select v-model="granularity" :options="granularityOptions" @change="loadChartData" />
             </div>
           </div>
         </div>
+      </div>
 
-      <section v-if="activeTab !== 'live'" v-show="workspaceTab === 'charts'" class="workspace-shell workspace-scroll space-y-4" data-testid="usage-charts-panel">
+      <section v-if="activeTab !== 'live'" v-show="workspaceTab === 'charts'" class="space-y-4" data-testid="usage-charts-panel">
       <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ModelDistributionChart
@@ -72,8 +72,10 @@
           />
         </div>
       </section>
-      <section ref="recordsPanel" v-show="workspaceTab === 'records'" class="card workspace-table-card workspace-shell" data-testid="usage-records-panel">
-      <div class="usage-detail-tabs card-tabs workspace-fixed" role="tablist" :aria-label="t('usage.tabs.usage')">
+      <section v-show="workspaceTab === 'records'" class="usage-records" data-testid="usage-records-panel">
+      <div class="card usage-records-head">
+      <div class="usage-records-bar">
+      <div class="usage-detail-tabs card-tabs" role="tablist" :aria-label="t('usage.tabs.usage')">
         <button type="button" role="tab" class="card-tab" :aria-selected="activeTab === 'live'" @click="selectRecordTab('live')">{{ t('inspection.live') }}</button>
         <button type="button" role="tab" class="card-tab" :aria-selected="activeTab === 'usage'" @click="selectRecordTab('usage')">
           {{ t('usage.tabs.usage') }}
@@ -82,8 +84,13 @@
           {{ t('usage.tabs.errors') }}
         </button>
       </div>
+      <div v-if="activeTab === 'usage'" class="usage-history-refresh">
+        <RefreshControl :state="historyRefresh" switch-visible manual />
+        <button v-if="newRecordsAvailable" type="button" class="btn btn-secondary" @click="showLatestRecords">{{ t('inspection.newRecords') }}</button>
+      </div>
+      </div>
 
-      <div v-if="activeTab !== 'live'" class="usage-workspace-filters workspace-fixed border-b border-gray-100 p-4 dark:border-dark-700/50">
+      <div v-if="activeTab !== 'live'" class="usage-workspace-filters border-t border-gray-100 p-4 dark:border-dark-700/50">
         <div class="usage-filter-layout flex flex-wrap items-end justify-between gap-4">
           <div v-if="activeTab === 'errors'" class="usage-filter-fields filter-bar flex-1">
             <div class="filter-field">
@@ -191,14 +198,11 @@
           </div>
         </div>
       </div>
+      </div>
 
-      <div v-if="activeTab === 'usage'" class="workspace-body !gap-0">
-        <div class="usage-history-refresh workspace-fixed flex flex-wrap items-center justify-between gap-3 p-4">
-          <RefreshControl :state="historyRefresh" switch-visible manual />
-          <button v-if="newRecordsAvailable" type="button" class="btn btn-secondary" @click="showLatestRecords">{{ t('inspection.newRecords') }}</button>
-        </div>
+      <div v-if="activeTab === 'usage'" ref="usageList" class="usage-records">
         <UsageTable
-          workspace
+          native-table
           :data="usageLogs"
           :loading="loading"
           :columns="visibleColumns"
@@ -215,7 +219,6 @@
         />
 
         <Pagination
-          class="workspace-fixed"
           v-if="pagination.total > 0"
           :page="pagination.page"
           :total="pagination.total"
@@ -223,12 +226,10 @@
           @update:page="handlePageChange"
           @update:pageSize="handlePageSizeChange"
         />
-
       </div>
 
-      <LiveRequestsPanel workspace v-else-if="activeTab === 'live'" mode="user" />
+      <LiveRequestsPanel v-else-if="activeTab === 'live'" mode="user" />
       <UserErrorRequestsTable
-        workspace
         v-else-if="errorViewEnabled"
         :rows="errorRows"
         :total="errorTotal"
@@ -298,7 +299,6 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const workspaceTab = ref(Object.keys(route.query).length ? 'records' : 'charts')
-const recordsPanel = ref<HTMLElement | null>(null)
 const workspaceTabs = computed(() => [
   { value: 'charts', label: t('workspace.charts') },
   { value: 'records', label: t('workspace.usageRecords') },
@@ -653,9 +653,12 @@ const onDateRangeChange = (range: { startDate: string; endDate: string; preset: 
   applyFilters()
 }
 
-const handlePageChange = (page: number) => {
+const usageList = ref<HTMLElement | null>(null)
+const handlePageChange = async (page: number) => {
   pagination.page = page
-  void loadLogs()
+  await loadLogs()
+  await nextTick()
+  usageList.value?.scrollIntoView({ block: 'start' })
 }
 
 const handlePageSizeChange = (pageSize: number) => {
@@ -1101,8 +1104,8 @@ const historyRefresh = useAutoRefresh({
     abortController?.abort(); abortController = controller
     const res = await usageAPI.query(params, { signal: controller.signal })
     if (controller.signal.aborted || filterKey !== JSON.stringify(filters.value)) return
-    const tableScrollTop = recordsPanel.value?.querySelector<HTMLElement>('.workspace-table-viewport')?.scrollTop ?? 0
-    const reading = window.scrollY >= 160 || tableScrollTop >= 160 || !!window.getSelection()?.toString() || !!document.querySelector('[role="dialog"], [role="tooltip"]') || !!document.activeElement?.closest('button, input, select, textarea, a, summary, [tabindex], [contenteditable="true"]')
+    const pageScrollTop = Math.max(window.scrollY, document.querySelector('.app-main')?.scrollTop ?? 0)
+    const reading = pageScrollTop >= 160 || !!window.getSelection()?.toString() || !!document.querySelector('[role="dialog"], [role="tooltip"]') || !!document.activeElement?.closest('button, input, select, textarea, a, summary, [tabindex], [contenteditable="true"]')
     if (pagination.page === 1 && sortState.sort_by === 'created_at' && sortState.sort_order === 'desc' && !reading) {
       usageLogs.value = res.items; pagination.total = res.total; historySnapshot.accept(res, true)
     } else {
@@ -1122,26 +1125,17 @@ function showLatestRecords() {
 </script>
 
 <style scoped>
+.usage-page, .usage-records { display: flex; flex-direction: column; gap: var(--shell-zone-gap); }
+.usage-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 6px 12px 6px 6px; }
+.usage-toolbar-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.usage-records-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px 6px 6px; }
+.usage-history-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 @media (min-width: 1024px) {
-  .usage-detail-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
-  .usage-detail-tabs > button { flex: none; white-space: nowrap; }
-  .usage-date, .usage-workspace-filters { padding: 10px 14px; }
-  .usage-history-refresh { padding: 8px 14px; }
-  .usage-filter-layout { flex-direction: column; align-items: stretch; gap: 8px; }
-  .usage-filter-fields .input-label { min-height: 16px; margin-bottom: 4px; font-size: 12px; line-height: 16px; }
-  .usage-filter-fields :deep(.select-trigger) { min-height: 34px; padding: 6px 10px; }
-  .usage-filter-actions { width: 100%; gap: 8px; }
-  .usage-workspace :deep(.workspace-fixed .btn) { min-height: 34px; padding-top: 6px; padding-bottom: 6px; }
+  .usage-filter-fields { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+  .usage-filter-fields > * { width: auto; min-width: 0; }
 }
-@media (min-width: 1024px) and (max-height: 799px) {
-  .usage-date, .usage-workspace-filters { padding: 8px 12px; }
-  .usage-history-refresh { padding: 4px 12px; }
-  .usage-filter-layout { gap: 6px; }
-  .usage-filter-fields .input-label { margin-bottom: 2px; }
-  .usage-filter-fields :deep(.select-trigger) { min-height: 32px; padding-top: 5px; padding-bottom: 5px; }
-  .usage-workspace :deep(.workspace-tabs) { padding: 4px; }
-  .usage-workspace :deep(.pagination-card) { padding: 8px 12px; }
-  .usage-workspace :deep(.pagination-desktop) { gap: 6px; }
-  .usage-workspace :deep(.pagination-card .input), .usage-workspace :deep(.pagination-card .select-trigger) { min-height: 32px; height: 32px; padding: 4px 8px; }
+@media (max-width: 1023px) {
+  .usage-toolbar, .usage-records-bar { padding-right: 6px; }
+  .usage-toolbar-range { width: 100%; padding: 0 6px 6px; }
 }
 </style>

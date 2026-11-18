@@ -119,3 +119,24 @@ price card before that date. Details and sources are recorded in the root
 Sources: [Claude Fable 5.2](https://platform.claude.com/docs/en/models/fable-5-2/overview),
 [Gemini pricing](https://aistudio.google.com/docs/pricing#gemini-4-carbon),
 [Gemini model limits](https://aistudio.google.com/docs/models/gemini-4-carbon).
+
+The 2026-11-18 snapshot has 303 provider entries: GPT-6.2 Sol and GPT-6.2 Astra
+are added, none removed, and six existing entries changed in the source. The
+source dropped the `gpt-image-2` price, so an explicitly sourced override keeps
+OpenAI's published text input, image output and text cached-input rates
+(5/30/1.25) for the plaza reference. The source also switched four Gemini image
+models to their text output price; overrides keep Google's image output price
+per 1M tokens as their reference output (`gemini-2.5-flash-image` 30,
+`gemini-3-pro-image` 120, `gemini-3.1-flash-image` 60,
+`gemini-3.1-flash-lite-image` 30). Both GPT-6.2 models join OpenAI default
+model discovery and receive exact billing cards with `prefer_bundled_pricing`:
+Sol is 2/10/0.10 with a 2.50 30-minute write, Astra 8/40/0.40 with a 10 write;
+Fast is twice and Batch half the Standard rate; above 272K input tokens, input
+and cache rates double and output is 1.5 times. The cards do not express the
+12-hour write price (5 and 20, billed at the 30-minute rate), Ultrafast (3 times
+Standard through 2027-02-28, then 6 times; billed at the Fast rate) or the
+background completion-window discounts. Requests keep the existing OpenAI
+passthrough; GPT-6.2-specific request handling arrives with a later fixed
+upstream release. Sources: [OpenAI pricing](https://developers.openai.com/api/docs/pricing),
+[GPT-6.2 Sol](https://developers.openai.com/api/docs/models/gpt-6.2-sol),
+[GPT-6.2 Astra](https://developers.openai.com/api/docs/models/gpt-6.2-astra).

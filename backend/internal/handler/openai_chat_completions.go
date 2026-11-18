@@ -167,6 +167,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 	defer inflightRelease()
+	defer installUpstreamHeaderWaitKeepalive(c, reqStream, h.cfg.Gateway.StreamKeepaliveInterval, SSEPingFormatComment, streamErrorChat)()
 
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
 	promptCacheKey := h.gatewayService.ExtractSessionID(c, body)
