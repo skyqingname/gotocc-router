@@ -1,6 +1,6 @@
 {
  "source": "https://models.dev/api.json",
- "fetched_at": "2026-11-18T02:50:18+00:00",
+ "fetched_at": "2026-11-18T04:16:41+00:00",
  "vendor_aliases": {
   "zai": [
    "zhipuai"
@@ -2669,7 +2669,7 @@
      "canonical_model_id": "google/gemini-2.5-flash-image",
      "cost": {
       "input": 0.3,
-      "output": 2.5,
+      "output": 30,
       "cache_read": 0.075
      }
     },
@@ -2868,7 +2868,7 @@
      "canonical_model_id": "google/gemini-3-pro-image",
      "cost": {
       "input": 2,
-      "output": 12
+      "output": 120
      }
     },
     {
@@ -2901,7 +2901,7 @@
      "canonical_model_id": "google/gemini-3.1-flash-image",
      "cost": {
       "input": 0.5,
-      "output": 3
+      "output": 60
      }
     },
     {
@@ -2967,7 +2967,7 @@
      "canonical_model_id": "google/gemini-3.1-flash-lite-image",
      "cost": {
       "input": 0.25,
-      "output": 1.5
+      "output": 30
      }
     },
     {
