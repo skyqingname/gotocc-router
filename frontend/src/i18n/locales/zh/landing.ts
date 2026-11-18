@@ -118,9 +118,6 @@ export default {
       more: '更多',
       empty: '暂无可展示的模型',
       unavailable: '模型数据暂不可用',
-      groups: '个服务组',
-      modelCount: '模型',
-      officialPriceDiscount: '约官方价 {discount} 折'
     },
     stats: {
       todayTokens: '今日总 Token 量',
