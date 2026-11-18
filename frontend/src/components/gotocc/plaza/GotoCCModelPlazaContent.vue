@@ -28,11 +28,14 @@
       <!-- 筛选：搜索、厂商、用途、分组 -->
       <div class="card space-y-3 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="relative w-full sm:w-72">
+          <div class="relative w-full sm:w-80" role="search">
             <Icon name="search" size="sm" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input v-model.trim="search" type="search" class="input pl-9" :placeholder="t('gotocc.plaza.searchPlaceholder')" />
+            <input v-model="search" type="search" class="plaza-search input pl-9 pr-10" :placeholder="t('gotocc.plaza.searchPlaceholder')" :aria-label="t('gotocc.plaza.searchPlaceholder')" aria-controls="plaza-results" @keydown.esc="search = ''" />
+            <button v-if="search" type="button" class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:text-primary-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-dark-400" :aria-label="t('common.clear')" @click="search = ''">
+              <Icon name="x" size="sm" />
+            </button>
           </div>
-          <span class="flex items-center gap-3 text-sm text-gray-500 dark:text-dark-400">
+          <span class="flex items-center gap-3 text-sm text-gray-500 dark:text-dark-400" role="status" aria-live="polite">
             <RouterLink v-if="hasVideoModels" to="/docs/video" class="inline-flex items-center gap-1 rounded-full border border-primary-200 px-3 py-1 text-xs font-medium text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:text-primary-300 dark:hover:bg-primary-500/10">
               <Icon name="book" size="xs" />{{ t('gotocc.plaza.videoDocs') }}
             </RouterLink>
@@ -55,6 +58,7 @@
         </div>
       </div>
 
+      <div id="plaza-results" class="space-y-5">
       <!-- 分组：头部说明，内含模型卡片；可收起 -->
       <section v-for="group in visibleGroups" :key="group.id" class="plaza-group rounded-2xl border border-primary-100 p-4 dark:border-primary-500/20" :class="{ 'plaza-group-open': !collapsed.has(group.id) }">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -96,6 +100,7 @@
 
       <div v-if="visibleGroups.length === 0" class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center text-sm text-gray-500 dark:border-dark-600 dark:text-dark-400">
         {{ hasFilter ? t('modelPlaza.noSearchResult') : t('modelPlaza.empty') }}
+      </div>
       </div>
     </template>
 
@@ -153,7 +158,7 @@ const vendorOf = (model: PlazaModel) => canonicalVendor(model.info?.vendor ?? mo
 const purposesOf = (model: PlazaModel) => model.info?.purposes ?? []
 
 const matchesSearch = (model: PlazaModel) => {
-  const keyword = search.value.toLowerCase()
+  const keyword = search.value.trim().toLowerCase()
   return !keyword || model.name.toLowerCase().includes(keyword) || (model.info?.display_name ?? '').toLowerCase().includes(keyword)
 }
 
@@ -172,7 +177,7 @@ const visibleGroups = computed(() => groups.value
 
 const displayedGroupCount = (group: ModelPlazaGroup) => group.platform === 'video' ? (videoCounts.value[group.id] ?? group.models.length) : group.models.length
 const visibleCount = computed(() => visibleGroups.value.reduce((sum, group) => sum + displayedGroupCount(group), 0))
-const hasFilter = computed(() => search.value !== '' || vendor.value !== 'all' || purpose.value !== 'all' || groupId.value !== 'all')
+const hasFilter = computed(() => search.value.trim() !== '' || vendor.value !== 'all' || purpose.value !== 'all' || groupId.value !== 'all')
 
 // 筛选项的计数基于全部模型，选中项变化时不跳动。
 const allModels = computed(() => groups.value.flatMap((group) => group.models))
@@ -232,6 +237,10 @@ const toggle = (id: number) => {
 </script>
 
 <style scoped>
+.plaza-search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 .plaza-group {
   background-image: linear-gradient(180deg, theme('colors.primary.50'), transparent 160px);
 }

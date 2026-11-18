@@ -165,6 +165,7 @@ export default {
     reseller: 'Reseller Center',
     customerCredits: 'My Credits',
     dashboard: 'Dashboard',
+    personalDashboard: 'Personal dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     team: 'My Team',
