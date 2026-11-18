@@ -29,9 +29,10 @@ func BeginUpstreamHeaderWait(ctx context.Context) func() {
 	return observer.BeginUpstreamHeaderWait()
 }
 
-// RecordStreamKeepaliveBytes 记录网关自发的非语义心跳字节。
-// OpenAICompactKeepaliveAdjustedWrittenSize 与 openAIStreamClientOutputStarted 扣除这部分字节，
-// 只写过心跳的响应仍按"正文未开始"参与换号判定。
-func RecordStreamKeepaliveBytes(c *gin.Context, written int) {
-	recordOpenAIStreamKeepaliveBytes(c, written)
+// OpenAIStreamKeepaliveBytes 返回上游响应头到达后、首字等待期间写给客户端的空闲保活字节。
+// 这部分字节不构成语义正文，前一次尝试写过它们之后安全换号时，等待期保活仍应继续。
+func OpenAIStreamKeepaliveBytes(c *gin.Context) int {
+	value, _ := c.Get(openAIStreamKeepaliveBytesKey)
+	bytes, _ := value.(int)
+	return bytes
 }
