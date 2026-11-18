@@ -104,13 +104,13 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
     return { title, fields: [title, ...availableLocales.map(({ code }) => render(code))] }
   }
 
-  // 同 AppSidebar buildSelfNavItems：用户端主菜单与管理员个人区共用。
-  function selfRules(withDashboard: boolean): PageRule[] {
+  // 同 AppSidebar buildSelfNavItems：用户端主菜单与管理员个人区共用，管理员个人区的仪表盘标为「个人仪表盘」。
+  function selfRules(personal: boolean): PageRule[] {
     const custom = (appStore.cachedPublicSettings?.custom_menu_items ?? [])
       .filter((item) => item.visibility === 'user')
       .sort((a, b) => a.sort_order - b.sort_order)
     return [
-      ...(withDashboard ? [{ path: '/dashboard' }] : []),
+      { path: '/dashboard', titleKey: personal ? 'nav.personalDashboard' : undefined },
       { path: '/model-plaza?embedded=1', when: flag(FeatureFlags.modelPlaza) },
       { path: '/keys' },
       { path: '/team', hideInSimpleMode: true, when: teamEnabled },
@@ -183,8 +183,8 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
     rules.flatMap((rule) => (rule.when && !rule.when() ? [] : rule.children ? flatten(rule.children) : [rule]))
 
   // 同侧栏 finalizeNav：站长客户不能进的页面、简易模式隐藏的入口先去掉，再按条件展开。
-  const selfPages = (withDashboard: boolean) =>
-    flatten(selfRules(withDashboard).filter((rule) => resellerCustomer.canVisit(rule.path) && !(authStore.isSimpleMode && rule.hideInSimpleMode)))
+  const selfPages = (personal: boolean) =>
+    flatten(selfRules(personal).filter((rule) => resellerCustomer.canVisit(rule.path) && !(authStore.isSimpleMode && rule.hideInSimpleMode)))
 
   // 简易模式下管理员菜单去掉标记的入口，补上 API 密钥与 MCP；系统设置和管理员自定义菜单排在最后。
   function adminPages(): PageRule[] {
@@ -201,8 +201,8 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   const supportTargetId = computed(() => parseAdminSupportTargetId(route.params.user_id))
   const isAdminSupportMode = computed(() => supportTargetId.value !== null && supportTargetId.value !== authStore.user?.id)
   const visibleRules = computed<PageRule[]>(() => {
-    if (authStore.isAdmin && !adminSupportContext.value) return [...adminPages(), ...(authStore.isSimpleMode ? [] : selfPages(false))]
-    if (!appStore.backendModeEnabled || isAdminSupportMode.value) return selfPages(true)
+    if (authStore.isAdmin && !adminSupportContext.value) return [...adminPages(), ...(authStore.isSimpleMode ? [] : selfPages(true))]
+    if (!appStore.backendModeEnabled || isAdminSupportMode.value) return selfPages(false)
     return []
   })
 
