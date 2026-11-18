@@ -696,7 +696,8 @@
 
 <script setup lang="ts">
 import { withCreditUnit } from '@/utils/credits'
-import { computed, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
+import { USER_TABLE_LAYOUT_KEY } from '@/composables/useUserTableLayout'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } from '@/utils/format'
@@ -780,6 +781,9 @@ interface Props {
   /** User workspace: keep request metadata beneath the requested model. */
   modelMetadata?: boolean
   workspace?: boolean
+  /** Keep one table row per record at every desktop width (wide column sets scroll
+   *  horizontally) instead of the user console's per-record card fallback. */
+  nativeTable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -794,8 +798,10 @@ const props = withDefaults(defineProps<Props>(), {
   compactUserColumn: false,
   flat: false,
   modelMetadata: false,
-  workspace: false
+  workspace: false,
+  nativeTable: false
 })
+if (props.nativeTable) provide(USER_TABLE_LAYOUT_KEY, computed(() => false))
 const emit = defineEmits<{
   userClick: [userID: number, email?: string]
   sort: [key: string, order: 'asc' | 'desc']

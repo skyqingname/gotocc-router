@@ -86,17 +86,16 @@ observation window using the shared page-size preference (20 by default);
 filters and exports continue to cover the complete window. Browsing later pages
 holds insertions behind the existing new-record notice. Short desktop windows
 keep the administrator live empty-state icon and complete message readable above
-the fixed footer, using a compact horizontal layout. User usage opens directly to historical
-records and provides live/history/error lists only; statistics remain on the
-dashboard. User usage does not fetch aggregate statistics or show chart granularity.
-Its history view has only the existing manual Refresh and Reset actions, without
-an automatic-refresh row, pending-record row or background history polling.
-Live requests retain their existing automatic-refresh controls and lifecycle.
-The user view paginates its real recent observation window (at most 200 rows),
-20 per page, with a separate fixed bottom pagination card. Filters and exports
-still cover the complete observation window. History and errors also retain
-their bottom pagination card for empty results. Controls, scrolling content and
-footer cards have 16px gaps. User history places reasoning and the three-state
+the fixed footer, using a compact horizontal layout. User usage scrolls as one page at every width, so
+the records take over the screen as the page moves up. One toolbar card holds the
+charts/list view tabs and the time range; granularity shows only with the charts.
+The records card puts the live/history/error tabs and the history auto-refresh
+control on one row, followed by the filters with their actions on the same wrap.
+The table and its pagination follow as separate surfaces with 16px gaps instead of
+cards nested in cards; changing page scrolls the first row into view.
+The user live view paginates its real recent observation window (at most 200 rows),
+20 per page. Filters and exports still cover the complete observation window.
+User history places reasoning and the three-state
 request Fast indicator below the model name, removing the separate reasoning
 column. This indicator describes recorded final request intent, independently
 of upstream response tier or billing; raw administrator tier snapshots stay private.
@@ -104,8 +103,7 @@ Its model filter suggests loaded record models and accepts other model names.
 Switching record tabs does not reset filters,
 pagination or drafts. Channel-monitor mode switching retains its original
 component lifecycle so inactive modes do not acquire background polling.
-Fixed filter areas use the available width before wrapping. In shorter usage
-workspaces, the filter fields share a horizontal row with actions below it;
+Fixed filter areas use the available width before wrapping;
 search results stay portalled outside that row so scrolling cannot clip them.
 
 Plugin management and channel monitoring keep their heading/control cards fixed.
@@ -113,7 +111,7 @@ Prompt Audit keeps its title, events/configuration navigation, event filters and
 pagination fixed, scrolling only event rows; configuration scrolls independently.
 System Settings keeps its navigation and save actions in the same form with an
 independently scrolling configuration body, preserving hidden sections and drafts.
-User usage, My Orders, API Keys, asynchronous-image and batch-image lists use
+My Orders, API Keys, asynchronous-image and batch-image lists use
 `AppLayout record-workspace` to retain the same bounded table scroll layout as
 the main branch. Both native tables and responsive record cards scroll inside
 the remaining space; pagination and filters remain visible. User usage keeps its
