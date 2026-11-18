@@ -124,7 +124,11 @@ The 2026-11-18 snapshot has 303 provider entries: GPT-6.2 Sol and GPT-6.2 Astra
 are added, none removed, and six existing entries changed in the source. The
 source dropped the `gpt-image-2` price, so an explicitly sourced override keeps
 OpenAI's published text input, image output and text cached-input rates
-(5/30/1.25) for the plaza reference. Both GPT-6.2 models join OpenAI default
+(5/30/1.25) for the plaza reference. The source also switched four Gemini image
+models to their text output price; overrides keep Google's image output price
+per 1M tokens as their reference output (`gemini-2.5-flash-image` 30,
+`gemini-3-pro-image` 120, `gemini-3.1-flash-image` 60,
+`gemini-3.1-flash-lite-image` 30). Both GPT-6.2 models join OpenAI default
 model discovery and receive exact billing cards with `prefer_bundled_pricing`:
 Sol is 2/10/0.10 with a 2.50 30-minute write, Astra 8/40/0.40 with a 10 write;
 Fast is twice and Batch half the Standard rate; above 272K input tokens, input
