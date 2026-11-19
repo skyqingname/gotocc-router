@@ -6,11 +6,14 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The integration candidate starts from owned main `80bd982ec66f2a80d6928b775d0fc7680e625da7`
-and incorporates the complete `LuckyKuang/sub2api-plus@v0.2.22+custom.001`
-release, peeled commit `1476c0f43dc35ce023e265e9e947bde1ee107a35`. Its official
-baseline is `Wei-Shaw/sub2api@v0.2.22 / b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b`.
-The owned VERSION remains `0.2.21+custom.003` pending acceptance and release.
+GoToCC `skyqingname/gotocc-router@v0.2.22+custom.001` integrates the complete fixed Plus release
+`LuckyKuang/sub2api-plus@v0.2.22+custom.001`, peeled commit
+`1476c0f43dc35ce023e265e9e947bde1ee107a35`. Its official baseline is
+`Wei-Shaw/sub2api@v0.2.22`, commit `b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b`.
+The owned base is `skyqingname/gotocc-router@v0.2.21+custom.003`
+(`80bd982ec66f2a80d6928b775d0fc7680e625da7` on owned main). Publication was
+authorized on 2026-11-19; the owned GitHub Release is the authority for
+completed publication.
 Plus migrations 314/315 are imported as 342/343. The auth snapshot moves to 36.
 The header-wait heartbeat ends when upstream headers arrive. The upstream
 pre-output heartbeat path then forwards keepalives without accepting a session
@@ -161,9 +164,9 @@ These identifiers describe the current planned source revision. Its tag and
 image are not published; the mapping status below governs publication.
 
 ```text
-Git/GitHub: v0.2.21+custom.002
-Application: 0.2.21+custom.002
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.002
+Git/GitHub: v0.2.22+custom.001
+Application: 0.2.22+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.22-custom.001
 ```
 
 ## Release Mapping
@@ -262,6 +265,7 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.21-custom.002
 | `LuckyKuang/sub2api-plus@v0.2.20+custom.001` | `v0.2.20` | `dab829a4e9b7d1cc307189aea8b0319eb29e29d0` | published |
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.001 |
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.002 and 0.2.21+custom.003 |
+| `LuckyKuang/sub2api-plus@v0.2.22+custom.001` | `v0.2.22` | `b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b` | upstream published; adopted by GoToCC 0.2.22+custom.001 |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
@@ -367,3 +371,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `b5b13fd907`; task center for a user's own video and image tasks, first interface polish batch; publication authorized 2026-11-16; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.21+custom.003` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `b5b13fd907`; stream keepalive before the first upstream byte, second interface batch, GPT-6.2 Sol/Astra prices and 72 fingerprint identities, user usage page scrolling, #70 and #65; publication authorized 2026-11-18; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.22+custom.001` | `v0.2.22` | `b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b` | fixed Plus `1476c0f43`; overflow to lower-priority accounts, immediate switch on account-level 429, progress-aware session takeover, usage chart tables, header icon entries and latest models per vendor in search; publication authorized 2026-11-19; see owned GitHub Release |
