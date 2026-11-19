@@ -1,5 +1,19 @@
 # Database Migrations
 
+Migration `342_group_force_openai_ultrafast.sql` adds the non-null,
+false-default group Ultrafast preference. Existing groups retain their tier
+policy until an administrator enables it. See
+[OpenAI group tier policy](../../docs/protocols/OPENAI_RESPONSES.md#compatibility-and-per-turn-billing).
+
+Migration `343_group_usage_rollup_nonblocking_build.sql` adds the retention
+floor and active-build dirty-date tracking to the group usage rollup state.
+Rebuild computation permits usage writes, and publication stops at the earliest
+dirty date so changed days remain in the raw-log tail. Summary reads use one
+read-only repeatable-read snapshot for state, published buckets and raw rows.
+Cleanup advances the retention floor and invalidates affected retained days.
+The two official migration files numbered 251 become Plus 314 and 315, imported here as 342 and 343.
+Historical migration filenames and checksums remain immutable.
+
 SQL migrations are embedded in the application and applied automatically at
 startup. The runner records each filename and SHA256 checksum in
 `schema_migrations`.

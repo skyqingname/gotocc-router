@@ -133,8 +133,8 @@
           :selection-label="(key: ApiKey) => t('keys.bulkEdit.selectKey', { name: key.name })"
           @update:selected-keys="handleSelectionChange"
           :server-side-sort="true"
-          default-sort-key="created_at"
-          default-sort-order="desc"
+          default-sort-key="name"
+          default-sort-order="asc"
           @sort="handleSort"
         >
           <template #cell-id="{ value }">
@@ -446,29 +446,6 @@
                 <Icon name="terminal" size="sm" />
                 <span class="text-xs">{{ t('keys.useKey') }}</span>
               </button>
-              <!-- Import to CC Switch Button -->
-              <button
-                v-if="canUseClientConfig(row) && !publicSettings?.hide_ccs_import_button"
-                @click="importToCcswitch(row)"
-                class="table-action"
-              >
-                <Icon name="upload" size="sm" />
-                <span class="text-xs">{{ t('keys.importToCcSwitch') }}</span>
-              </button>
-              <!-- Toggle Status Button -->
-              <button v-support-readonly
-                @click="toggleKeyStatus(row)"
-                :class="[
-                  'table-action',
-                  row.status === 'active'
-                    ? 'table-action-warning'
-                    : ''
-                ]"
-              >
-                <Icon v-if="row.status === 'active'" name="ban" size="sm" />
-                <Icon v-else name="checkCircle" size="sm" />
-                <span class="text-xs">{{ row.status === 'active' ? t('keys.disable') : t('keys.enable') }}</span>
-              </button>
               <!-- Edit Button -->
               <button
                 @click="editKey(row)"
@@ -477,14 +454,7 @@
                 <Icon name="edit" size="sm" />
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
-              <!-- Delete Button -->
-              <button v-support-readonly
-                @click="confirmDelete(row)"
-                class="table-action table-action-danger"
-              >
-                <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t('common.delete') }}</span>
-              </button>
+              <ActionMenu :items="keyRowActions(row)" @select="handleKeyRowAction(row, $event)" />
             </div>
           </template>
 
@@ -549,7 +519,7 @@
                 @change="selectCreateProvider(provider.value)"
               />
               <span
-                class="flex h-full flex-col items-center gap-2 rounded-xl border border-gray-200 surface-inset px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:peer-checked:bg-primary-500/10"
+                class="flex h-full flex-col items-center gap-2 rounded-lg border border-gray-200 surface-inset px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:peer-checked:bg-primary-500/10"
                 :class="provider.count > 0 && 'hover:border-primary-300 dark:hover:border-primary-700'"
               >
                 <span class="flex h-8 items-center justify-center gap-1.5" aria-hidden="true">
@@ -1394,6 +1364,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ActionMenu, { type ActionMenuItem } from '@/components/common/ActionMenu.vue'
 import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -1579,8 +1550,8 @@ const pagination = ref({
   pages: 0
 })
 const sortState = ref({
-  sort_by: 'created_at',
-  sort_order: 'desc' as 'asc' | 'desc'
+  sort_by: 'name',
+  sort_order: 'asc' as 'asc' | 'desc'
 })
 
 // Filter state
@@ -2114,6 +2085,21 @@ const closeGroupSelector = (event: MouseEvent) => {
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
     showColumnDropdown.value = false
   }
+}
+
+// Each row shows its two everyday actions; the rest live in one "more" menu.
+const keyRowActions = (key: ApiKey): ActionMenuItem[] => [
+  { key: 'ccswitch', label: t('keys.importToCcSwitch'), icon: 'upload', hidden: !canUseClientConfig(key) || !!publicSettings.value?.hide_ccs_import_button },
+  key.status === 'active'
+    ? { key: 'toggle', label: t('keys.disable'), icon: 'ban', tone: 'warning', mutates: true }
+    : { key: 'toggle', label: t('keys.enable'), icon: 'checkCircle', mutates: true },
+  { key: 'delete', label: t('common.delete'), icon: 'trash', tone: 'danger', mutates: true },
+]
+
+const handleKeyRowAction = (key: ApiKey, action: string) => {
+  if (action === 'ccswitch') importToCcswitch(key)
+  else if (action === 'toggle') void toggleKeyStatus(key)
+  else if (action === 'delete') confirmDelete(key)
 }
 
 const confirmDelete = (key: ApiKey) => {

@@ -696,7 +696,7 @@
               <span
                 v-for="code in selectedErrorCodes.sort((a, b) => a - b)"
                 :key="code"
-                class="inline-flex items-center gap-1 rounded-full bg-red-100/[0.15] px-2.5 py-0.5 text-sm font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                class="inline-flex items-center gap-1 rounded-md bg-red-100/[0.15] px-2.5 py-0.5 text-sm font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
               >
                 {{ code }}
                 <button
@@ -1923,8 +1923,24 @@
           </div>
           <Toggle
             v-model="openaiPassthroughEnabled"
+            data-testid="edit-openai-passthrough-toggle"
+            :aria-label="t('admin.accounts.openai.oauthPassthrough')"
           />
         </div>
+        <label v-if="openaiPassthroughEnabled" class="mt-3 flex items-start gap-2">
+          <input
+            v-model="openaiPassthroughModelFilterEnabled"
+            type="checkbox"
+            data-testid="edit-openai-passthrough-model-filter"
+            class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="text-sm">
+            {{ t('admin.accounts.openai.passthroughModelFilter') }}
+            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.passthroughModelFilterDesc') }}
+            </span>
+          </span>
+        </label>
       </div>
 
       <div
@@ -2007,7 +2023,7 @@
               <div class="flex flex-wrap items-center gap-2">
                 <label class="input-label mb-0">{{ t('admin.accounts.openai.codexImageTool') }}</label>
                 <span
-                  class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  class="rounded-md px-2 py-0.5 text-[11px] font-medium"
                   :class="codexImageToolBadgeClass"
                 >
                   {{ codexImageToolBadgeLabel }}
@@ -2027,7 +2043,7 @@
                 :data-testid="`codex-image-tool-${option.value}`"
                 @click="codexImageToolMode = option.value"
                 :class="[
-                  'group flex min-h-[62px] items-start gap-2 rounded-md border px-3 py-2 text-left transition-all',
+                  'group flex min-h-[62px] items-start gap-2 rounded-lg border px-3 py-2 text-left transition-all',
                   codexImageToolMode === option.value
                     ? option.selectedCardClass
                     : 'border-transparent bg-transparent text-slate-600 hover:border-gray-200 hover:surface-hover dark:text-slate-300 dark:hover:border-dark-500 dark:hover:surface-hover'
@@ -3717,6 +3733,7 @@ const openaiPassthroughEnabled = ref(false)
 const openaiAccountUserAgent = ref('')
 const outboundIdentitySelection = ref<IdentitySelection | null>(null)
 const openaiOAuthSessionSharingEnabled = ref(false)
+const openaiPassthroughModelFilterEnabled = ref(false)
 // OpenAI Codex namespace 工具摊平兼容开关（仅 OAuth），缺省关闭即原样保留
 const openaiFlattenNamespacesEnabled = ref(false)
 const openAILongContextBillingEnabled = ref(false)
@@ -3968,7 +3985,7 @@ const normalizeOpenAIResponsesMode = (mode: unknown): OpenAIResponsesMode => {
   return 'auto'
 }
 const isOpenAIModelRestrictionDisabled = computed(() =>
-  props.account?.platform === 'openai' && openaiPassthroughEnabled.value
+  props.account?.platform === 'openai' && openaiPassthroughEnabled.value && !openaiPassthroughModelFilterEnabled.value
 )
 const openAIResponsesStatusKey = computed(() => {
   if (openAIResponsesMode.value === 'force_responses') {
@@ -4132,7 +4149,7 @@ const buildModelRestrictionMapping = () =>
   buildModelMappingObject('combined', allowedModels.value, modelMappings.value)
 
 const applyOpenAIModelMappingCredentials = (credentials: Record<string, unknown>) => {
-  const shouldApplyModelMapping = !openaiPassthroughEnabled.value
+  const shouldApplyModelMapping = !isOpenAIModelRestrictionDisabled.value
 
   if (shouldApplyModelMapping) {
     const modelMapping = buildModelRestrictionMapping()
@@ -4232,6 +4249,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   openaiPassthroughEnabled.value = false
   openaiAccountUserAgent.value = ''
   openaiOAuthSessionSharingEnabled.value = false
+  openaiPassthroughModelFilterEnabled.value = false
   openaiFlattenNamespacesEnabled.value = false
   openAILongContextBillingEnabled.value = false
   editPlanType.value = ''
@@ -4253,6 +4271,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
       : extra?.openai_oauth_passthrough === true
     const sessionPolicy = extra?.openai_oauth_session_policy as Record<string, unknown> | undefined
     openaiOAuthSessionSharingEnabled.value = newAccount.type === 'oauth' && !isSparkShadow.value && sessionPolicy?.enabled === true
+    openaiPassthroughModelFilterEnabled.value = extra?.openai_passthrough_model_filter === true
     openaiFlattenNamespacesEnabled.value =
       newAccount.type === 'oauth' && extra?.openai_responses_flatten_namespaces === true
     const longContextBillingValue = extra?.openai_long_context_billing_enabled
@@ -5306,7 +5325,7 @@ const handleSubmit = async () => {
     if (props.account.type === 'apikey') {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newBaseUrl = editBaseUrl.value.trim() || defaultBaseUrl.value
-      const shouldApplyModelMapping = !(props.account.platform === 'openai' && openaiPassthroughEnabled.value)
+      const shouldApplyModelMapping = !isOpenAIModelRestrictionDisabled.value
 
       // Always update credentials for apikey type to handle model mapping changes
       const newCredentials: Record<string, unknown> = {
@@ -5860,6 +5879,11 @@ const handleSubmit = async () => {
         }
       } else {
         delete newExtra.openai_oauth_session_policy
+      }
+      if (openaiPassthroughEnabled.value && openaiPassthroughModelFilterEnabled.value) {
+        newExtra.openai_passthrough_model_filter = true
+      } else {
+        delete newExtra.openai_passthrough_model_filter
       }
       // 缺省即保留 namespace，不写空值，避免 extra 里堆积默认项
       if (props.account.type === 'oauth' && openaiFlattenNamespacesEnabled.value) {

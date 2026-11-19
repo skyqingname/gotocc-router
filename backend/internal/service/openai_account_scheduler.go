@@ -2919,6 +2919,9 @@ func (s *OpenAIGatewayService) hasOpenAIOAuthSessionPolicyAccessDenial(
 }
 
 func (s *OpenAIGatewayService) listOpenAISessionPolicyDiagnosticCandidates(ctx context.Context) ([]Account, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
 	if diagnosticRepo, ok := s.accountRepo.(OpenAISessionPolicyDiagnosticRepository); ok {
 		return diagnosticRepo.ListOpenAISessionPolicyDiagnosticCandidates(ctx)
 	}

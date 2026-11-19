@@ -171,6 +171,7 @@ func (s *AutoGroupResolver) eligibleGroups(ctx context.Context, key *APIKey) (*A
 	}
 	user := *payer
 	user.UserGroupRPMOverride = nil
+	user.UserGroupRPMOverrideGroupID = 0
 	copyKey.User = &user
 	if err := s.keys.attachResellerCustomer(ctx, &copyKey); err != nil {
 		return nil, nil, err
@@ -312,6 +313,7 @@ func (s *AutoGroupResolver) matchGroup(ctx context.Context, key *APIKey, group *
 		groupID := group.ID
 		copyKey.GroupID, copyKey.Group, copyKey.User = &groupID, &copyGroup, &copyUser
 		copyUser.UserGroupRPMOverride = nil
+		copyUser.UserGroupRPMOverrideGroupID = 0
 		return &AutoRouteDecision{
 			Endpoint: input.Endpoint,
 			Key:      &copyKey, Platform: platform, PublicModel: input.Model,

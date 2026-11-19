@@ -1,6 +1,6 @@
 FROM golang:1.27.4-alpine
 
-ARG VERSION=0.2.19+custom.007
+ARG VERSION=0.2.21+custom.003
 
 WORKDIR /app
 
