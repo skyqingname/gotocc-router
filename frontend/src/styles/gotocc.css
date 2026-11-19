@@ -93,14 +93,25 @@
   }
 }
 
-/* ============ 界面美化第二批：顶栏文字入口 ============
+/* ============ 顶栏入口：动效图标 + 文字 ============
    结构与交互参照 TokenRouter（LGPL-3.0）style.css 的 .header-nav-link，颜色与上面的 .text-link 相同但不加下划线。
-   公告、文档、模型广场、语言从 md 起显示成纯文字：常态为正文色，悬停、键盘聚焦或菜单展开时变主色，任何状态都不铺底色。
-   高度与顶栏其它按钮一样保证 44px 点击区域（console.css）。基础规则包在 :where 里，调用处的 hidden、md:inline-flex 等工具类优先。 */
-:where(.header-nav-link) {
-  @apply inline-flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium;
+   公告、文档、模型广场、语言是侧栏同款动效图标加文字：常态为正文色，悬停、键盘聚焦或菜单展开时变主色并播放图标动效，任何状态都不铺底色。
+   顶栏放不下文字时（.header-nav-compact，由 AppHeader 按顶栏宽度切换）只留图标，名称在悬停提示与读屏名称里。
+   四个入口都至少 44×44 点击区域、图标居中，按钮和链接用同一套内边距与字重（类选择器优先于按钮的浏览器重置）。 */
+.header-nav-link {
+  @apply inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-sm font-medium;
   color: var(--surface-text);
   transition: color var(--motion-fast) var(--motion-ease);
+}
+
+.header-nav-link .gc-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.header-nav-compact .header-nav-label {
+  display: none;
 }
 
 .header-nav-link:is(:hover, :focus-visible, [aria-expanded='true']) {
@@ -213,7 +224,7 @@ html .theme-tour-popover .driver-popover-next-btn:hover {
 }
 
 /* ============ 侧栏图标动效 ============
-   图形与部件见 components/gotocc/navIcons.ts；悬停或键盘聚焦菜单项时播放，参照 Lucide Animated。
+   图形与部件见 components/gotocc/navIcons.ts；悬停或键盘聚焦侧栏菜单项、顶栏入口时播放，全局搜索里页面行成为当前行时播放，参照 Lucide Animated。
    停留型动作（钥匙转动、齿轮旋转、票据撕开、图片展开）用过渡，移开后回弹；一次性动作用关键帧，结束即复位。
    系统开启「减少动态效果」时不播放。 */
 .gc-nav-icon .gc-a,
@@ -282,53 +293,55 @@ html .theme-tour-popover .driver-popover-next-btn:hover {
 .gc-i-list { --gc-draw-ms: 300ms; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .sidebar-link:is(:hover, :focus-visible) .gc-nav-icon .gc-d {
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-nav-icon .gc-d {
     animation: gc-draw var(--gc-draw-ms, 400ms) var(--motion-ease) var(--gc-draw-delay, 0ms) backwards;
   }
 
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-key .gc-a { transform: rotate(-28deg); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-settings .gc-a { transform: rotate(180deg); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-ticket .gc-a0 { transform: translateX(-3px); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-ticket .gc-a1 { transform: translateX(3px) rotate(4deg); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-images .gc-a { transform: translate(1px, -1px); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-images .gc-back { transform: translate(-1px, 1px); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-key .gc-a { transform: rotate(-28deg); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-settings .gc-a { transform: rotate(180deg); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-ticket .gc-a0 { transform: translateX(-3px); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-ticket .gc-a1 { transform: translateX(3px) rotate(4deg); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-images .gc-a { transform: translate(1px, -1px); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-images .gc-back { transform: translate(-1px, 1px); }
 
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a { animation: gc-pop 360ms var(--motion-ease) both; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a1 { animation-delay: 60ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a2 { animation-delay: 120ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-dashboard .gc-a3 { animation-delay: 180ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-user .gc-a { animation: gc-draw 400ms var(--motion-ease) backwards, gc-grow 400ms var(--motion-ease) backwards; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-users .gc-a { animation: gc-slide-in 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms backwards; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-team .gc-side { animation: gc-join 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms backwards; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-canvas .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-canvas .gc-spark { animation: gc-canvas-bling 1100ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-canvas .gc-spark1 { animation-delay: 180ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-store .gc-a { animation: gc-bob 500ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-a { fill: currentColor; animation: gc-float 1000ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sparkles .gc-star { animation: gc-twinkle 1200ms ease-in-out 300ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-gift .gc-a { animation: gc-lid 550ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-folder .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-layers .gc-a0 { animation: gc-lift-5 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-layers .gc-a1 { animation: gc-lift-9 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-credit-card .gc-a { animation: gc-swipe 700ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-wallet .gc-a { animation: gc-hop 550ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-globe .gc-a { animation: gc-spin-x 600ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-server .gc-a0 { animation: gc-swap-down 900ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-server .gc-a1 { animation: gc-swap-up 900ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-bell .gc-a { animation: gc-ring 500ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray { animation: gc-fade-in 300ms var(--motion-ease) backwards; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray1 { animation-delay: 100ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray2 { animation-delay: 200ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray3 { animation-delay: 300ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray4 { animation-delay: 400ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray5 { animation-delay: 500ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray6 { animation-delay: 600ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-sun .gc-ray7 { animation-delay: 700ms; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-moon .gc-a { animation: gc-rock 1000ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-chevrons-left .gc-a { animation: gc-nudge-left 500ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-chevrons-right .gc-a { animation: gc-nudge-right 500ms ease-in-out; }
-  .sidebar-link:is(:hover, :focus-visible) .gc-i-tag .gc-a { animation: gc-swing 550ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-dashboard .gc-a { animation: gc-pop 360ms var(--motion-ease) both; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-dashboard .gc-a1 { animation-delay: 60ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-dashboard .gc-a2 { animation-delay: 120ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-dashboard .gc-a3 { animation-delay: 180ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-user .gc-a { animation: gc-draw 400ms var(--motion-ease) backwards, gc-grow 400ms var(--motion-ease) backwards; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-users .gc-a { animation: gc-slide-in 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 100ms backwards; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-team .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-team .gc-side { animation: gc-join 450ms cubic-bezier(0.34, 1.56, 0.64, 1) 80ms backwards; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-canvas .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-canvas .gc-spark { animation: gc-canvas-bling 1100ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-canvas .gc-spark1 { animation-delay: 180ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-store .gc-a { animation: gc-bob 500ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sparkles .gc-a { fill: currentColor; animation: gc-float 1000ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sparkles .gc-star { animation: gc-twinkle 1200ms ease-in-out 300ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-gift .gc-a { animation: gc-lid 550ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-folder .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-layers .gc-a0 { animation: gc-lift-5 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-layers .gc-a1 { animation: gc-lift-9 600ms cubic-bezier(0.34, 1.4, 0.64, 1); }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-credit-card .gc-a { animation: gc-swipe 700ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-wallet .gc-a { animation: gc-hop 550ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-globe .gc-a { animation: gc-spin-x 600ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-server .gc-a0 { animation: gc-swap-down 900ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-server .gc-a1 { animation: gc-swap-up 900ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-bell .gc-a { animation: gc-ring 500ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray { animation: gc-fade-in 300ms var(--motion-ease) backwards; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray1 { animation-delay: 100ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray2 { animation-delay: 200ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray3 { animation-delay: 300ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray4 { animation-delay: 400ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray5 { animation-delay: 500ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray6 { animation-delay: 600ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-sun .gc-ray7 { animation-delay: 700ms; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-moon .gc-a { animation: gc-rock 1000ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-chevrons-left .gc-a { animation: gc-nudge-left 500ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-chevrons-right .gc-a { animation: gc-nudge-right 500ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-tag .gc-a { animation: gc-swing 550ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-book-open .gc-a { animation: gc-nudge-scale 400ms ease-in-out; }
+  :is(.sidebar-link:is(:hover, :focus-visible), .header-nav-link:is(:hover, :focus-visible), .gc-search-row-active) .gc-i-languages .gc-a { animation: gc-rock 700ms ease-in-out; }
 }
 
 @keyframes gc-draw {

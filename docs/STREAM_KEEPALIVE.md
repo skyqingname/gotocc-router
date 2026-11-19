@@ -16,6 +16,8 @@ non-semantic SSE heartbeats in each phase.
 `gateway.stream_keepalive_interval` defaults to 10 seconds; `0` disables both
 the header-wait and the post-header keepalive. Valid non-zero values are 5–30.
 
+After upstream headers arrive, OpenAI Responses can forward upstream keepalive events during first-output staging. Those bytes are counted separately from semantic output and leave safe account failover available. On the Messages conversion path, building a prelude does not send the upstream headers before the first accepted output. The header-wait timer below stops when the headers arrive.
+
 ## Upstream header wait
 
 Every upstream HTTP attempt of a client streaming request opens a wait when it

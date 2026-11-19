@@ -49,8 +49,8 @@ func gatewayAccountSupportsModelWithoutContext(account *Account, requestedModel 
 		_, ok := ResolveBedrockModelID(account, requestedModel)
 		return ok
 	}
-	// OpenAI 透传模式：仅替换认证，允许所有模型
-	if account.Platform == PlatformOpenAI && account.IsOpenAIPassthroughEnabled() {
+	// 未启用源模型筛选的透传账号接受任意模型。
+	if account.Platform == PlatformOpenAI && account.IsOpenAIPassthroughEnabled() && !account.IsOpenAIPassthroughModelFilterEnabled() {
 		return true
 	}
 	// OAuth/SetupToken 账号使用 Anthropic 标准映射（短ID → 长ID）

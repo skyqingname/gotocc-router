@@ -45,7 +45,7 @@
                   <p class="truncate text-xs font-medium surface-muted">{{ item.label }}</p>
                   <span
                     v-if="item.badge"
-                    class="inline-flex flex-shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                    class="inline-flex flex-shrink-0 items-center rounded-md px-2 py-0.5 text-xs font-medium"
                     :class="item.badgeClass"
                   >
                     {{ item.badge }}
@@ -71,7 +71,7 @@
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.preBlockSyncStatus') }}</h2>
                 <p class="mt-1 text-sm surface-muted">{{ t('admin.riskControl.preBlockSyncHint') }}</p>
               </div>
-              <span class="inline-flex w-fit items-center rounded-full surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
+              <span class="inline-flex w-fit items-center rounded-md surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
                 {{ modeLabel(status?.mode ?? configForm.mode) }}
               </span>
             </div>
@@ -100,7 +100,7 @@
                   {{ t('admin.riskControl.preBlockAPIKeyLoadHint') }}
                 </p>
               </div>
-              <span class="inline-flex w-fit items-center rounded-full surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
+              <span class="inline-flex w-fit items-center rounded-md surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
                 {{ preBlockAPIKeyLoadSummaryText }}
               </span>
             </div>
@@ -217,7 +217,7 @@
                     {{ t('admin.riskControl.workerPoolMeta', { active: status?.active_workers ?? 0, idle: status?.idle_workers ?? configForm.worker_count, total: status?.worker_count ?? configForm.worker_count }) }}
                   </p>
                 </div>
-                <span class="inline-flex items-center rounded-full surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
+                <span class="inline-flex items-center rounded-md surface-inset px-2.5 py-1 text-xs font-medium surface-muted">
                   {{ modeLabel(status?.mode ?? configForm.mode) }}
                 </span>
               </div>
@@ -490,7 +490,7 @@
                       <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center surface-inset text-sm font-semibold surface-muted">{{ index + 1 }}</span>
                       <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ endpoint.name || t('admin.riskControl.endpointPool.unnamed') }}</p>
-                        <span class="mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium" :class="endpointStatusBadgeClass(endpoint)">
+                        <span class="mt-1 inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium" :class="endpointStatusBadgeClass(endpoint)">
                           <span class="console-data-mark h-1.5 w-1.5 rounded-full" :class="endpointStatusDotClass(endpoint)"></span>
                           {{ endpointStatusLabel(endpoint) }}
                         </span>
@@ -699,7 +699,7 @@
                       <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.apiKeyHealth') }}</p>
                       <p class="mt-1 text-xs surface-muted">{{ t('admin.riskControl.apiKeyFreezeRule') }}</p>
                     </div>
-                    <span class="inline-flex shrink-0 items-center whitespace-nowrap rounded-full surface-inset px-2 py-0.5 text-[11px] font-medium leading-5 shadow-sm surface-muted">
+                    <span class="inline-flex shrink-0 items-center whitespace-nowrap rounded-md surface-inset px-2 py-0.5 text-[11px] font-medium leading-5 shadow-sm surface-muted">
                       {{ t('admin.riskControl.apiKeyRows', { count: apiKeyRows.length }) }}
                     </span>
                   </div>
@@ -731,7 +731,7 @@
                             <p class="mt-1 text-xs leading-5 surface-muted">{{ apiKeyStatusMeta(row) }}</p>
                           </div>
                           <div class="flex flex-shrink-0 items-center gap-1.5">
-                            <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium" :class="apiKeyStatusBadgeClass(row.status)">
+                            <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium" :class="apiKeyStatusBadgeClass(row.status)">
                               <span class="console-data-mark h-1.5 w-1.5 rounded-full" :class="apiKeyStatusDotClass(row.status)"></span>
                               {{ apiKeyStatusLabel(row.status) }}
                             </span>
@@ -775,7 +775,7 @@
                           {{ t('admin.riskControl.auditTestHighest', { category: moderationTestResult.highest_category || '-', score: percent(moderationTestResult.highest_score) }) }}
                         </p>
                       </div>
-                      <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium" :class="moderationTestResult.flagged ? 'bg-red-50/[0.15] text-red-700 dark:bg-red-900/20 dark:text-red-300' : 'bg-emerald-50/[0.15] text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'">
+                      <span class="inline-flex rounded-md px-2 py-1 text-xs font-medium" :class="moderationTestResult.flagged ? 'bg-red-50/[0.15] text-red-700 dark:bg-red-900/20 dark:text-red-300' : 'bg-emerald-50/[0.15] text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'">
                         {{ moderationTestResult.flagged ? t('admin.riskControl.auditTestFlagged') : t('admin.riskControl.auditTestPassed') }}
                       </span>
                     </div>
@@ -811,19 +811,19 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.groupScope') }}</h3>
                 <p class="mt-1 text-sm surface-muted">{{ t('admin.riskControl.groupScopeHint') }}</p>
               </div>
-              <div class="inline-flex rounded-lg surface-inset p-1">
+              <div class="segmented-control">
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors surface-control"
-                  :class="configForm.all_groups ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white' : 'surface-muted'"
+                  class="segmented-option"
+                  :aria-pressed="configForm.all_groups"
                   @click="configForm.all_groups = true"
                 >
                   {{ t('admin.riskControl.allGroups') }}
                 </button>
                 <button
                   type="button"
-                  class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors surface-control"
-                  :class="!configForm.all_groups ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white' : 'surface-muted'"
+                  class="segmented-option"
+                  :aria-pressed="!configForm.all_groups"
                   @click="configForm.all_groups = false"
                 >
                   {{ t('admin.riskControl.selectedGroups') }}
@@ -1254,7 +1254,7 @@
         @close="policyHelpOpen = false"
       >
         <div class="space-y-5">
-          <div class="rounded-xl border border-primary-500 surface-inset px-4 py-3">
+          <div class="rounded-lg border border-primary-500 surface-inset px-4 py-3">
             <p class="text-sm surface-muted">{{ t('admin.riskControl.policyHelp.summary') }}</p>
             <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
               {{ t('admin.riskControl.policyHelp.current') }}{{ effectiveTextPolicyDescription }}

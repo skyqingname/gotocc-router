@@ -1,4 +1,7 @@
 {
   "quota_gap_percent": 5,
-  "quota_snapshot_max_age_seconds": 300
+  "quota_snapshot_max_age_seconds": 300,
+  "takeover_header_wait_seconds": 20,
+  "takeover_upstream_idle_seconds": 60,
+  "takeover_total_wait_seconds": 180
 }

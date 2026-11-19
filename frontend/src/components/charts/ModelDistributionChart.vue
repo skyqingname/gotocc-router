@@ -9,34 +9,28 @@
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
           v-if="showSourceToggle"
-          class="inline-flex rounded-lg border border-gray-200 surface-inset p-0.5 dark:border-dark-700"
+          class="segmented-control"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'requested'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'requested'"
             @click="emit('update:source', 'requested')"
           >
             {{ t('usage.requestedModel') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'upstream'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'upstream'"
             @click="emit('update:source', 'upstream')"
           >
             {{ t('usage.upstreamModel') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'mapping'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'mapping'"
             @click="emit('update:source', 'mapping')"
           >
             {{ t('usage.mapping') }}
@@ -44,50 +38,38 @@
         </div>
         <div
           v-if="showMetricToggle"
-          class="inline-flex rounded-lg border border-gray-200 surface-inset p-0.5 dark:border-dark-700"
+          class="segmented-control"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="metric === 'tokens'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="metric === 'tokens'"
             @click="emit('update:metric', 'tokens')"
           >
             {{ t('admin.dashboard.metricTokens') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="metric === 'actual_cost'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="metric === 'actual_cost'"
             @click="emit('update:metric', 'actual_cost')"
           >
             {{ t('admin.dashboard.metricActualCost') }}
           </button>
         </div>
-        <div v-if="enableRankingView" class="inline-flex rounded-lg surface-inset p-1">
+        <div v-if="enableRankingView" class="segmented-control">
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="
-              activeView === 'model_distribution'
-                ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            "
+            class="segmented-option"
+            :aria-pressed="activeView === 'model_distribution'"
             @click="activeView = 'model_distribution'"
           >
             {{ t('admin.dashboard.viewModelDistribution') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="
-              activeView === 'spending_ranking'
-                ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            "
+            class="segmented-option"
+            :aria-pressed="activeView === 'spending_ranking'"
             @click="activeView = 'spending_ranking'"
           >
             {{ t('admin.dashboard.viewSpendingRanking') }}
@@ -101,12 +83,12 @@
     </div>
     <div
       v-else-if="activeView === 'model_distribution' && displayModelStats.length > 0 && chartData"
-      class="flex flex-col items-center gap-4 sm:flex-row sm:gap-6"
+      class="chart-split flex flex-col items-center gap-4 sm:flex-row sm:gap-6"
     >
       <div class="h-48 w-48 shrink-0">
         <Doughnut :data="chartData" :options="doughnutOptions" />
       </div>
-      <div class="record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
+      <div class="chart-records record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
         <table class="record-table record-table-compact w-full text-xs">
           <thead>
             <tr class="surface-muted">
@@ -118,13 +100,13 @@
               <th class="pb-2 text-right">{{ t('admin.dashboard.standard') }}</th>
             </tr>
           </thead>
-          <tbody v-for="model in displayModelStats" :key="model.model" class="record-group">
+          <tbody v-for="model in displayModelStats" :key="model.model">
             <tr
-              class="transition-colors"
+              class="record-row-parent transition-colors"
               :class="enableBreakdown ? 'cursor-pointer hover:surface-hover dark:hover:surface-hover' : ''"
               @click="enableBreakdown && toggleBreakdown('model', model.model)"
             >
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't l tl' : 't b l tl bl'"
+              <td
                 class="max-w-[100px] truncate py-1.5 font-medium"
                 :class="enableBreakdown ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' : 'text-gray-900 dark:text-white'"
                 :title="model.model"
@@ -135,19 +117,19 @@
                   {{ model.model }}
                 </span>
               </td>
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't' : 't b'" class="py-1.5 text-right surface-muted">
+              <td class="py-1.5 text-right surface-muted">
                 {{ formatNumber(model.requests) }}
               </td>
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't' : 't b'" class="py-1.5 text-right surface-muted">
+              <td class="py-1.5 text-right surface-muted">
                 {{ formatTokens(model.total_tokens) }} <span v-if="modelTokenShare(model.total_tokens)" class="surface-muted">({{ modelTokenShare(model.total_tokens) }})</span>
               </td>
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't' : 't b'" class="py-1.5 text-right text-green-600 dark:text-green-400">
+              <td class="py-1.5 text-right text-green-600 dark:text-green-400">
                 {{ withCreditUnit(formatCost(model.actual_cost)) }}
               </td>
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't' : 't b'" v-if="showAccountCost" class="py-1.5 text-right text-orange-500 dark:text-orange-400">
+              <td v-if="showAccountCost" class="py-1.5 text-right text-orange-500 dark:text-orange-400">
                 {{ withCreditUnit(formatCost(model.account_cost)) }}
               </td>
-              <td :data-record-edges="expandedKey === `model-${model.model}` ? 't r tr' : 't b r tr br'" class="py-1.5 text-right surface-muted">
+              <td class="py-1.5 text-right surface-muted">
                 {{ withCreditUnit(formatCost(model.cost)) }}
               </td>
             </tr>
@@ -178,11 +160,11 @@
     >
       {{ t('admin.dashboard.failedToLoad') }}
     </div>
-    <div v-else-if="rankingDisplayItems.length > 0 && rankingChartData" class="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+    <div v-else-if="rankingDisplayItems.length > 0 && rankingChartData" class="chart-split flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
       <div class="h-48 w-48 shrink-0">
         <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
       </div>
-      <div class="record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
+      <div class="chart-records record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
         <table class="record-table record-table-compact w-full text-xs">
           <thead>
             <tr class="surface-muted">

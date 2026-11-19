@@ -319,7 +319,7 @@
                     />
                     <span :class="['font-medium', platformTextClass(group.platform)]">{{ group.name }}</span>
                     <span
-                      :class="['rounded-full px-1 py-0 text-[10px]', platformBadgeLightClass(group.platform)]"
+                      :class="['rounded-md px-1 py-0 text-[10px]', platformBadgeLightClass(group.platform)]"
                     >{{ group.rate_multiplier }}x</span>
                     <span class="text-[10px] surface-muted">{{ group.account_count || 0 }}</span>
                     <span
@@ -1255,18 +1255,10 @@ function formToAPI(): { group_ids: number[], model_pricing: ChannelModelPricing[
     delete featuresConfig.codex_image_generation_bridge
   }
 
-  const bedrockCCCompat: Record<string, boolean> = {}
-  for (const section of form.platforms) {
-    if (!section.enabled) continue
-    if (section.platform === 'anthropic') {
-      bedrockCCCompat[section.platform] = !!section.bedrock_cc_compat
-    }
-  }
-  if (Object.keys(bedrockCCCompat).length > 0) {
-    featuresConfig.bedrock_cc_compat = bedrockCCCompat
-  } else {
-    delete featuresConfig.bedrock_cc_compat
-  }
+  // The backend reads a channel-level boolean; send false explicitly to clear it on update.
+  featuresConfig.bedrock_cc_compat = form.platforms.some(
+    section => section.enabled && section.platform === 'anthropic' && section.bedrock_cc_compat
+  )
 
   return { group_ids: uniqueGroupIds, model_pricing, model_mapping, features_config: featuresConfig }
 }

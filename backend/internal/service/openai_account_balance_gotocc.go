@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"log/slog"
 	"math"
+	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,26 +25,48 @@ func useBalancedOpenAISelection(ctx context.Context, platform, previousResponseI
 	return strings.TrimSpace(previousResponseID) == "" || previousResponseCanMove
 }
 
-// overflowFullStickyAccount serves one request on a same-priority account with a
-// free slot while the session's account is at its concurrency limit. The session
-// binding is preserved, so later requests return to that account and its prompt
-// cache. Without a free same-priority slot the caller keeps the session's wait plan.
+var ErrOpenAIAccountQueueFull = errors.New("account wait queue is full")
+
+type openAIQueueReselectKey struct{}
+
+// WithOpenAIQueueReselection scopes the extra capacity probe to one selection.
+func WithOpenAIQueueReselection(ctx context.Context, id int64) context.Context {
+	if id == 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, openAIQueueReselectKey{}, id)
+}
+
+func queueReselectAccount(ctx context.Context) int64 {
+	id, _ := ctx.Value(openAIQueueReselectKey{}).(int64)
+	return id
+}
+
+// Borrow an immediately acquired slot, retaining the session's original owner.
 func (s *defaultOpenAIAccountScheduler) overflowFullStickyAccount(ctx context.Context, req OpenAIAccountScheduleRequest, sticky *AccountSelectionResult) *AccountSelectionResult {
 	if !req.BalanceSamePriority || sticky.Acquired || sticky.WaitPlan == nil {
 		return nil
 	}
+	if request, ok := ctx.Value(openAIClientRestrictionKey{}).(openAIClientRestrictionRequest); ok && !openAISessionHistoryComplete(request.body) {
+		return nil
+	}
 	overflowReq := req
+	overflowReq.overflowFrom = sticky.Account
+	overflowReq.SubscriptionPriority = false
 	overflowReq.PreserveStickyBinding = true
 	overflowReq.ExcludedIDs = cloneExcludedAccountIDs(req.ExcludedIDs)
 	if overflowReq.ExcludedIDs == nil {
 		overflowReq.ExcludedIDs = make(map[int64]struct{}, 1)
 	}
 	overflowReq.ExcludedIDs[sticky.Account.ID] = struct{}{}
+	if id := queueReselectAccount(ctx); id != 0 {
+		overflowReq.ExcludedIDs[id] = struct{}{}
+	}
 	selection, _, _, _, err := s.selectByLoadBalance(ctx, overflowReq)
 	if err != nil || selection == nil || selection.Account == nil {
 		return nil
 	}
-	if !selection.Acquired || selection.Account.Priority != sticky.Account.Priority {
+	if !selection.Acquired || selection.Account.Priority < sticky.Account.Priority {
 		if selection.ReleaseFunc != nil {
 			selection.ReleaseFunc()
 		}
@@ -106,6 +132,11 @@ func (s *OpenAIGatewayService) balancedOpenAIAccountLoadPlan(req OpenAIAccountSc
 	for _, id := range order {
 		plan.selectionOrder = append(plan.selectionOrder, byID[id])
 	}
+	if req.overflowFrom != nil {
+		sort.SliceStable(plan.selectionOrder, func(i, j int) bool {
+			return plan.selectionOrder[i].account.Priority < plan.selectionOrder[j].account.Priority
+		})
+	}
 	plan.topK = len(order)
 	return plan
 }
@@ -159,4 +190,44 @@ func (s *OpenAIGatewayService) overflowCanonicalOpenAIAccount(ctx context.Contex
 		}
 	}
 	return overflow
+}
+
+// Explicit provider-wide and end-user budgets survive a change of account.
+func openAISharedRateLimit(headers http.Header, body []byte) bool {
+	sharedScope := func(scope string) bool {
+		switch strings.ToLower(strings.TrimSpace(scope)) {
+		case "global", "shared", "user", "organization", "project", "provider", "group":
+			return true
+		}
+		return false
+	}
+	if sharedScope(headers.Get("X-RateLimit-Scope")) {
+		return true
+	}
+	root := gjson.ParseBytes(body)
+	for _, detail := range []gjson.Result{root.Get("response.error"), root.Get("error"), root} {
+		if sharedScope(detail.Get("scope").String()) || sharedScope(detail.Get("metadata.scope").String()) {
+			return true
+		}
+		switch detail.Get("code").String() {
+		case "user_rate_limit_exceeded", "organization_rate_limit_exceeded", "project_rate_limit_exceeded", "global_rate_limit_exceeded":
+			return true
+		}
+	}
+	return false
+}
+
+func (a *Account) PreferNextAccountOn429(e *UpstreamFailoverError) bool {
+	if a == nil || a.Platform != PlatformOpenAI || e == nil || e.StatusCode != http.StatusTooManyRequests ||
+		!e.ShouldRetryNextAccount() || !e.ShouldReportAccountScheduleFailure() {
+		return false
+	}
+	if a.IsPoolMode() {
+		_, retryCountSet := a.Credentials["pool_mode_retry_count"]
+		_, retryCodesSet := a.Credentials["pool_mode_retry_status_codes"]
+		if retryCountSet || retryCodesSet {
+			return false
+		}
+	}
+	return true
 }

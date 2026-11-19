@@ -42,7 +42,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		return nil, routeErr
 	}
 	defer finishRoute()
-	defer func() { err = openAISessionRouteForwardError(ctx, err) }()
+	defer func() { err = openAISessionRouteForwardError(ctx, account, err, result, true) }()
 	stageOpenAICodexTurnStateScope(c, body)
 	initialScope, _ := resolveOpenAIWSExecutionScope(c, body, getAPIKeyIDFromContext(c))
 	ctx = context.WithValue(ctx, codexHTTPWSRequestKey{}, codexHTTPWSRequest{
@@ -480,8 +480,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 	}
 	if strings.TrimSpace(gjson.GetBytes(body, "reasoning.effort").String()) == "minimal" {
-		markPatchSet("reasoning.effort", "none")
-		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Normalized reasoning.effort: minimal -> none (account: %s)", account.Name)
+		effort := "none"
+		if account.IsOpenAIOAuthLike() && (isGPT62ReasoningDescriptor(upstreamModel) || isOpenAIGPT6AstraModel(upstreamModel)) {
+			// These models accept low as their minimum positive reasoning level.
+			effort = "low"
+		}
+		markPatchSet("reasoning.effort", effort)
+		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Normalized reasoning.effort: minimal -> %s (account: %s)", effort, account.Name)
 	}
 	if strings.TrimSpace(gjson.GetBytes(body, "text.format.type").String()) == "json_schema" ||
 		strings.TrimSpace(gjson.GetBytes(body, "response_format.type").String()) == "json_schema" {
@@ -696,10 +701,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	rawTier := requestView.ServiceTier
-	if openAIGroupForcesFast(ctx, account) {
-		rawTier = OpenAIFastTierPriority
-		if requestView.ServiceTier != OpenAIFastTierPriority {
-			markPatchSet("service_tier", OpenAIFastTierPriority)
+	if forcedTier := openAIGroupForcedServiceTier(ctx, account, upstreamModel); forcedTier != "" {
+		rawTier = forcedTier
+		if requestView.ServiceTier != forcedTier {
+			markPatchSet("service_tier", forcedTier)
 		}
 	}
 	if rawTier != "" {

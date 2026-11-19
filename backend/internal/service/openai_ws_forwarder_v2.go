@@ -367,6 +367,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		)
 		return nil, wrapOpenAIWSFallback("write_request", err)
 	}
+	noteOpenAITakeoverSocketActivity(ctx, true)
 	if debugEnabled {
 		logOpenAIWSModeDebug(
 			"write_request_sent account_id=%d conn_id=%s stream=%v payload_bytes=%d previous_response_id=%s",
@@ -567,6 +568,9 @@ readLoop:
 				}
 			}
 			message, readErr = lease.ReadMessageWithContextTimeout(upstreamReadCtx, currentReadTimeout)
+			if len(message) > 0 {
+				noteOpenAITakeoverSocketActivity(ctx, false)
+			}
 			frameReceivedAt = time.Now()
 			if readErr == nil {
 				if documents, repaired := splitOpenAIConcatenatedJSONDocuments(message); repaired {

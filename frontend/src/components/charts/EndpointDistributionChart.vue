@@ -7,34 +7,28 @@
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
           v-if="showSourceToggle"
-          class="inline-flex rounded-lg border border-gray-200 surface-inset p-0.5 dark:border-dark-700"
+          class="segmented-control"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'inbound'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'inbound'"
             @click="emit('update:source', 'inbound')"
           >
             {{ t('usage.inbound') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'upstream'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'upstream'"
             @click="emit('update:source', 'upstream')"
           >
             {{ t('usage.upstream') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="source === 'path'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="source === 'path'"
             @click="emit('update:source', 'path')"
           >
             {{ t('usage.path') }}
@@ -43,24 +37,20 @@
 
         <div
           v-if="showMetricToggle"
-          class="inline-flex rounded-lg border border-gray-200 surface-inset p-0.5 dark:border-dark-700"
+          class="segmented-control"
         >
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="metric === 'tokens'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="metric === 'tokens'"
             @click="emit('update:metric', 'tokens')"
           >
             {{ t('admin.dashboard.metricTokens') }}
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors surface-control"
-            :class="metric === 'actual_cost'
-              ? 'surface-field text-gray-900 shadow-sm dark:surface-field dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            class="segmented-option"
+            :aria-pressed="metric === 'actual_cost'"
             @click="emit('update:metric', 'actual_cost')"
           >
             {{ t('admin.dashboard.metricActualCost') }}
@@ -71,11 +61,11 @@
     <div v-if="loading" class="flex h-48 items-center justify-center">
       <LoadingSpinner />
     </div>
-    <div v-else-if="displayEndpointStats.length > 0 && chartData" class="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+    <div v-else-if="displayEndpointStats.length > 0 && chartData" class="chart-split flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
       <div class="h-48 w-48 shrink-0">
         <Doughnut :data="chartData" :options="doughnutOptions" />
       </div>
-      <div class="record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
+      <div class="chart-records record-table-scroll max-h-48 w-full min-w-0 flex-1 overflow-auto">
         <table class="record-table record-table-compact w-full text-xs">
           <thead>
             <tr class="surface-muted">
@@ -83,32 +73,36 @@
               <th class="pb-2 text-right">{{ t('admin.dashboard.requests') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.tokens') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.actual') }}</th>
+              <th v-if="showAccountCost" class="pb-2 text-right">{{ t('admin.dashboard.accountCost') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.standard') }}</th>
             </tr>
           </thead>
-          <tbody v-for="item in displayEndpointStats" :key="item.endpoint" class="record-group">
+          <tbody v-for="item in displayEndpointStats" :key="item.endpoint">
             <tr
-              class="transition-colors"
+              class="record-row-parent transition-colors"
               :class="enableBreakdown ? 'cursor-pointer hover:surface-hover dark:hover:surface-hover' : ''"
               @click="enableBreakdown && toggleBreakdown(item.endpoint)"
             >
-              <td :data-record-edges="expandedKey === item.endpoint ? 't l tl' : 't b l tl bl'" class="max-w-[180px] truncate py-1.5 font-medium" :class="enableBreakdown ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' : 'text-gray-900 dark:text-white'" :title="item.endpoint">
+              <td class="max-w-[180px] truncate py-1.5 font-medium" :class="enableBreakdown ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300' : 'text-gray-900 dark:text-white'" :title="item.endpoint">
                 <span class="inline-flex items-center gap-1">
                   <svg v-if="enableBreakdown && expandedKey === item.endpoint" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                   <svg v-else-if="enableBreakdown" class="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                   {{ item.endpoint }}
                 </span>
               </td>
-              <td :data-record-edges="expandedKey === item.endpoint ? 't' : 't b'" class="py-1.5 text-right surface-muted">
+              <td class="py-1.5 text-right surface-muted">
                 {{ formatNumber(item.requests) }}
               </td>
-              <td :data-record-edges="expandedKey === item.endpoint ? 't' : 't b'" class="py-1.5 text-right surface-muted">
+              <td class="py-1.5 text-right surface-muted">
                 {{ formatTokens(item.total_tokens) }} <span v-if="endpointTokenShare(item.total_tokens)" class="surface-muted">({{ endpointTokenShare(item.total_tokens) }})</span>
               </td>
-              <td :data-record-edges="expandedKey === item.endpoint ? 't' : 't b'" class="py-1.5 text-right text-green-600 dark:text-green-400">
+              <td class="py-1.5 text-right text-green-600 dark:text-green-400">
                 {{ withCreditUnit(formatCost(item.actual_cost)) }}
               </td>
-              <td :data-record-edges="expandedKey === item.endpoint ? 't r tr' : 't b r tr br'" class="py-1.5 text-right surface-muted">
+              <td v-if="showAccountCost" class="py-1.5 text-right text-orange-500 dark:text-orange-400">
+                {{ withCreditUnit(formatCost(item.account_cost)) }}
+              </td>
+              <td class="py-1.5 text-right surface-muted">
                 {{ withCreditUnit(formatCost(item.cost)) }}
               </td>
             </tr>
@@ -116,7 +110,7 @@
               v-if="expandedKey === item.endpoint"
               :items="breakdownItems"
               :loading="breakdownLoading"
-              :show-account-cost="false"
+              :show-account-cost="showAccountCost"
               :total-tokens="item.total_tokens"
             />
           </tbody>
@@ -163,6 +157,7 @@ const props = withDefaults(
     showMetricToggle?: boolean
     showSourceToggle?: boolean
     enableBreakdown?: boolean
+    showAccountCost?: boolean
     startDate?: string
     endDate?: string
     filters?: Record<string, any>
@@ -176,7 +171,8 @@ const props = withDefaults(
     source: 'inbound',
     showMetricToggle: false,
     showSourceToggle: false,
-    enableBreakdown: true
+    enableBreakdown: true,
+    showAccountCost: false
   }
 )
 
@@ -303,7 +299,8 @@ const formatNumber = (value: number): string => {
   return value.toLocaleString()
 }
 
-const formatCost = (value: number): string => {
+const formatCost = (value: number | undefined | null): string => {
+  if (value == null) return '0.0000'
   if (value >= 1000) {
     return (value / 1000).toFixed(2) + 'K'
   } else if (value >= 1) {

@@ -31,12 +31,16 @@
         <!-- GoToCC 全局搜索 -->
         <GotoCCGlobalSearch v-if="user" />
 
-        <!-- GoToCC 文字入口：公告、文档、模型广场、语言从 md 起是纯文字，间距由各自内边距撑开 -->
-        <div class="flex items-center">
+        <!-- GoToCC 顶栏入口：公告、文档、模型广场、语言是动效图标加文字；顶栏宽度不够放文字时只留图标，间距由各自内边距撑开 -->
+        <div class="flex items-center" :class="{ 'header-nav-compact': !labeledHeader }">
           <GotoCCAnnouncementBell v-if="user" />
-          <a v-if="docUrl && !compactHeader" :href="docUrl" target="_blank" rel="noopener noreferrer" class="header-nav-link">{{ t('nav.docs') }}</a>
-          <router-link v-if="user && modelPlazaEnabled && !compactHeader" :to="{ path: '/model-plaza', query: { embedded: '1' } }" class="header-nav-link">{{ t('nav.modelPlaza') }}</router-link>
-          <GotoCCLocaleMenu v-if="!compactHeader" />
+          <a v-if="docUrl && navEntries" :href="docUrl" target="_blank" rel="noopener noreferrer" class="header-nav-link" :title="t('nav.docs')" :aria-label="t('nav.docs')">
+            <DocsIcon /><span class="header-nav-label">{{ t('nav.docs') }}</span>
+          </a>
+          <router-link v-if="user && modelPlazaEnabled && navEntries" :to="{ path: '/model-plaza', query: { embedded: '1' } }" class="header-nav-link" :title="t('nav.modelPlaza')" :aria-label="t('nav.modelPlaza')">
+            <ModelPlazaIcon /><span class="header-nav-label">{{ t('nav.modelPlaza') }}</span>
+          </router-link>
+          <GotoCCLocaleMenu v-if="navEntries" />
         </div>
 
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
@@ -45,7 +49,7 @@
         <!-- Balance Display -->
         <div
           v-if="user && !compactHeader"
-          class="group relative hidden items-center gap-2 rounded-xl bg-primary-50/[0.15] px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
+          class="group relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
         >
           <svg
             class="h-4 w-4 text-primary-600 dark:text-primary-400"
@@ -65,7 +69,7 @@
           </span>
           <span
             v-if="frozenBalance > 0"
-            class="rounded-full bg-amber-100/[0.15] px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+            class="rounded-md bg-amber-100/[0.15] px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
           >
             {{ balanceFrozenLabel }}
           </span>
@@ -109,6 +113,7 @@ import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMi
 import GotoCCAnnouncementBell from '@/components/gotocc/GotoCCAnnouncementBell.vue'
 import GotoCCLocaleMenu from '@/components/gotocc/GotoCCLocaleMenu.vue'
 import GotoCCGlobalSearch from '@/components/gotocc/search/GotoCCGlobalSearch.vue'
+import { DocsIcon, ModelPlazaIcon } from '@/components/gotocc/navIcons'
 import Icon from '@/components/icons/Icon.vue'
 import GotoCCUserMenu from '@/components/gotocc/GotoCCUserMenu.vue'
 import { sanitizeUrl } from '@/utils/url'
@@ -122,6 +127,9 @@ const appStore = useAppStore()
 const headerRef = ref<HTMLElement | null>(null)
 const { width: headerWidth } = useElementSize(headerRef)
 const compactHeader = computed(() => headerWidth.value < 1000)
+// 顶栏入口：600px 起显示文档、模型广场、语言的图标，够宽时再加文字。
+const navEntries = computed(() => headerWidth.value >= 600)
+const labeledHeader = computed(() => headerWidth.value >= 1100)
 const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()

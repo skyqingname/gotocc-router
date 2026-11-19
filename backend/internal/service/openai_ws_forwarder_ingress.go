@@ -80,7 +80,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return routeErr
 	}
 	defer finishRoute()
-	defer func() { returnErr = openAISessionRouteForwardError(ctx, returnErr) }()
+	defer func() { returnErr = openAISessionRouteForwardError(ctx, account, returnErr, nil, false) }()
 	stageOpenAICodexTurnStateScope(c, firstClientMessage)
 	ctx = WithOutboundIdentityScope(ctx, c)
 	ctx = WithAccountOutboundIdentity(ctx, account)
@@ -1138,6 +1138,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				false,
 			)
 		}
+		noteOpenAITakeoverSocketActivity(ctx, true)
 		if debugEnabled {
 			logOpenAIWSModeDebug(
 				"ingress_ws_turn_request_sent account_id=%d turn=%d conn_id=%s payload_bytes=%d",
@@ -1181,6 +1182,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		}
 		for {
 			upstreamMessage, readErr := lease.ReadMessageWithContextTimeout(ctx, s.openAIWSReadTimeout())
+			if len(upstreamMessage) > 0 {
+				noteOpenAITakeoverSocketActivity(ctx, false)
+			}
 			frameReceivedAt := time.Now()
 			if readErr != nil {
 				lease.MarkBroken()

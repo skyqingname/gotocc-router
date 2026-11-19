@@ -99,6 +99,8 @@
                   @mousemove="activeIndex = section.offset + index"
                 >
                   <ModelIcon v-if="row.item.model" :model="row.item.model" size="20px" class="shrink-0" />
+                  <component :is="row.item.navIcon" v-else-if="row.item.navIcon" class="h-5 w-5 shrink-0 surface-muted" />
+                  <span v-else-if="row.item.iconSvg" class="gc-search-svg h-5 w-5 shrink-0 surface-muted" v-html="sanitizeSvg(row.item.iconSvg)"></span>
                   <Icon v-else-if="row.item.icon" :name="row.item.icon" size="md" class="shrink-0 surface-muted" />
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-medium text-gray-900 dark:text-white">
@@ -138,13 +140,15 @@ import { useDialogFocus } from '@/composables/useDialogFocus'
 import { availableLocales, loadLocaleMessages } from '@/i18n'
 import { useAuthStore } from '@/stores'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { sanitizeSvg } from '@/utils/sanitize'
 import { vSegmented } from '../vSegmented'
 import { highlightSegments, type TextSegment } from './fuzzyMatch'
 import { rankItems, readRecent, recordRecent, useSearchCatalog, type RankedItem, type SearchItem, type SearchKind } from './searchCatalog'
 import config from '../../../../../global-search.json'
 
 // 顶栏全局搜索：点入口、按 Cmd/Ctrl+K 或在输入区以外按「/」打开居中弹窗，按「全部 / 模型 / 页面 / 动作」分段筛选。
-// 没输入时列出最近访问和各类条目；输入后各类分别模糊匹配排序。最近访问按账号存在浏览器本地，只存条目键。
+// 没输入时列出最近访问、各厂商最新上线的模型和其余各类条目；输入后各类分别模糊匹配排序。最近访问按账号存在浏览器本地，只存条目键。
+// 页面行用侧栏同款动效图标，成为当前行（键盘移动或鼠标经过）时播放动效，参照 TokenRouter 的全局搜索。
 // 输入法组合输入期间的按键全部交给输入法，不触发回车、上下键、Esc 和快捷键。
 
 const LISTBOX_ID = 'gc-search-listbox'
@@ -195,8 +199,10 @@ const ariaShortcut = `${isApple ? 'Meta' : 'Control'}+${shortcutKey}`
 const unranked = (item: SearchItem): RankedItem => ({ item, match: null })
 
 // 「全部」每类最多 scope_limits.all 行，单一范围最多 scope_limits.single 行。没输入时「全部」先列最近访问，下面各类不再重复。
+// 没输入时模型一节是各厂商最新上线的几款：「全部」里每家 recommended_models_per_vendor.all 款，「模型」里每家 .single 款，下面接着列其余模型。
 const sections = computed<Omit<Section, 'offset'>[]>(() => {
   const limit = scope.value === 'all' ? config.scope_limits.all : config.scope_limits.single
+  const perVendor = scope.value === 'all' ? config.recommended_models_per_vendor.all : config.recommended_models_per_vendor.single
   const result: Omit<Section, 'offset'>[] = []
   const listed = new Set<string>()
   if (!ranked.value && scope.value === 'all') {
@@ -206,10 +212,20 @@ const sections = computed<Omit<Section, 'offset'>[]>(() => {
     if (recent.length > 0) result.push({ key: 'recent', title: t('gotocc.search.sections.recent'), rows: recent.map(unranked) })
   }
   for (const kind of scope.value === 'all' ? kinds.value : [scope.value]) {
-    const rows = (ranked.value ? ranked.value[kind] : itemsByKind.value[kind].filter((item) => !listed.has(item.key)).map(unranked)).slice(0, limit)
+    const latest = kind === 'model' && !ranked.value
+    const rows = ranked.value
+      ? ranked.value[kind].slice(0, limit)
+      : latest
+        ? catalog.latestByVendor.value.flatMap((list) => list.filter((item) => !listed.has(item.key)).slice(0, perVendor)).map(unranked)
+        : itemsByKind.value[kind].filter((item) => !listed.has(item.key)).map(unranked).slice(0, limit)
     const status = kind === 'model' && (modelStatus.value === 'loading' || modelStatus.value === 'failed') ? modelStatus.value : undefined
-    if (rows.length === 0 && !status) continue
-    result.push({ key: kind, title: t(`gotocc.search.sections.${kind}`), rows, status })
+    if (rows.length > 0 || status) result.push({ key: kind, title: t(latest ? 'gotocc.search.sections.latestModels' : `gotocc.search.sections.${kind}`), rows, status })
+    // 「模型」范围的其余模型独立列出：没有任何带上线日期的模型时推荐为空，其余模型照常显示。
+    if (latest && scope.value === 'model') {
+      rows.forEach((row) => listed.add(row.item.key))
+      const rest = itemsByKind.value.model.filter((item) => !listed.has(item.key)).map(unranked).slice(0, limit)
+      if (rest.length > 0) result.push({ key: 'model-rest', title: t('gotocc.search.sections.model'), rows: rest })
+    }
   }
   return result
 })
@@ -316,6 +332,11 @@ watch(activeIndex, async (index) => {
 </script>
 
 <style scoped>
+.gc-search-svg :deep(svg) {
+  width: 100%;
+  height: 100%;
+}
+
 /* 入口：与顶栏其它按钮同为 44px 高，底色和描边沿用暖色外壳变量，悬停时描边带主色。 */
 .gc-search-trigger {
   @apply h-11 w-44 min-w-0 items-center gap-2 rounded-lg border px-3 text-sm lg:w-52 xl:w-64;

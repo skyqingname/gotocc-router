@@ -16,9 +16,14 @@ only a URL in CC Switch does not enable or configure its usage-query script.
 
 WebSocket admission and all forwarding modes share one client reader. Client
 disconnects cancel pending user/account admission; messages remain ordered
-and pass through the existing per-turn validation and audit. A temporary
-same-priority account overflow retains its original session binding through
-the handler's final admission step.
+and pass through the existing per-turn validation and audit. When the original account is full, an eligible same-priority slot is preferred, followed by lower-priority slots in order. A temporary loan preserves the original session binding through final admission. A full account queue may trigger one immediate-capacity recheck within the existing switch budget. User, team, file-owner and continuation limits still apply.
+
+For locally generated Codex discovery, GPT-6.2 Sol and Astra advertise low,
+medium, high, xhigh and max, defaulting to low. The plain OpenAI model list
+does not declare reasoning levels. On the official OAuth Responses normalization
+path, the legacy positive effort `minimal` maps to `low` for these two models
+and GPT-6 Astra. An explicit `none` retains its meaning and can be rejected
+by an upstream that requires reasoning.
 
 HTTP Responses, Chat Completions and Messages classify a canceled downstream
 request before reporting a session-route failure. Cancellation can close the
@@ -69,6 +74,23 @@ WS turn. Headers, pings and local keepalives do not count. Missing and historica
 observations remain null; token and total duration values never fill that gap.
 
 ## Compatibility and per-turn billing
+
+OpenAI API-key accounts in passthrough mode accept every model by default.
+The account `extra.openai_passthrough_model_filter` switch defaults to `false`.
+When explicitly enabled together with `extra.openai_passthrough`, scheduling
+and available-channel offers apply the source keys of `credentials.model_mapping`
+as model filters. Empty mappings remain unrestricted. Mapping targets do not
+rewrite the passthrough request model. Create, edit and bulk-edit controls persist
+the same switch, and the group model allowlist continues to apply independently.
+
+OpenAI groups can persist `force_openai_ultrafast`, default `false`, alongside
+`force_openai_fast`. For a supported final upstream model, the Ultrafast flag
+selects `ultrafast` before the global tier policy. When both flags are enabled,
+supported models use Ultrafast and other models use Fast. With only the
+Ultrafast flag enabled, other models retain the caller's tier. The supported
+model set and tier multipliers use the shared OpenAI policy in forwarding,
+reservation and settlement. Group duplication and API-key authentication-cache
+snapshots retain both flags.
 
 OAuth requests replaying `web_search_call` history declare a cached-only
 `web_search` tool (`external_web_access=false`) when absent. Standard Responses
@@ -623,6 +645,10 @@ scheduler masters and sibling requests retain their original credential maps.
 On an upstream `429`, the gateway classifies the condition before deciding how
 to schedule:
 
+- Account-scoped rejections prefer another eligible account before output.
+  An explicitly configured API-key pool can still retry its own members.
+  Shared, user, organization and project rate-limit scopes do not authorize
+  rotating the same request through other credentials.
 - `x-codex-active-limit` names the metered family the upstream actually hit. When
   it names a family other than the default `codex` family, that family's window
   and reset time drive the cooldown; the default family's healthy 5h/7d windows
@@ -1334,3 +1360,24 @@ without search before sending the newly requested search turn. Later turns are
 not replayed after semantic output. Metadata, empty reasoning announcements,
 media and terminal aggregates never start strict token timing; first byte and
 first meaningful output remain separate. The obsolete TTFT setting stays removed.
+
+## v0.2.22 compatibility
+
+Codex `additional_tools` declarations retain their IDs when history storage is
+disabled. UUID-shaped `at_` IDs are compacted consistently with matching
+`item_reference` IDs. Other provider IDs retain their spelling. The raw HTTP/WS
+compatibility path patches the same declarations and references.
+
+The OpenAI tool-schema adapter removes unsupported regex constraints from
+`pattern` and `patternProperties` while retaining ordinary patterns. JSON
+Unicode escapes receive the same normalization as their decoded characters.
+Removing a pattern-property key reopens restrictive `additionalProperties` so formerly
+accepted argument keys remain representable. Traversal stays inside schema
+keywords and preserves instance values such as `examples`, `default`, `enum`
+and `const`. These transformations follow ingress audit and retain the shared
+body-size, nesting and edit-count limits.
+
+If a concurrency keepalive already committed SSE response headers, a later
+upstream error uses an SSE error event. Before streaming begins the endpoint
+retains the applicable HTTP error response. The concurrency ping setting is
+documented in [Docker configuration](../../deploy/DOCKER.md#startup-and-database-recovery).

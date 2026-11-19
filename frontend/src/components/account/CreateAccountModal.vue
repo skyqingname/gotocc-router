@@ -76,7 +76,7 @@
             type="button"
             @click="form.platform = 'anthropic'"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'anthropic'
                 ? 'surface-inset text-orange-600 shadow-sm dark:surface-inset dark:text-orange-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -89,7 +89,7 @@
             type="button"
             @click="form.platform = 'openai'"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'openai'
                 ? 'surface-inset text-green-600 shadow-sm dark:surface-inset dark:text-green-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -114,7 +114,7 @@
             type="button"
             @click="form.platform = 'gemini'"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'gemini'
                 ? 'surface-inset text-blue-600 shadow-sm dark:surface-inset dark:text-blue-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -139,7 +139,7 @@
             type="button"
             @click="form.platform = 'antigravity'"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'antigravity'
                 ? 'surface-inset text-purple-600 shadow-sm dark:surface-inset dark:text-purple-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -152,7 +152,7 @@
             type="button"
             @click="form.platform = 'grok'"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'grok'
                 ? 'surface-inset text-zinc-900 shadow-sm dark:surface-inset dark:text-zinc-100'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -165,7 +165,7 @@
             type="button"
             @click="selectTypeSafePlatform()"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all',
               form.platform === 'typesafe'
                 ? 'surface-inset text-sky-700 shadow-sm dark:surface-inset dark:text-sky-300'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -181,7 +181,7 @@
             type="button"
             @click="selectCNPlatform('kimi')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'kimi'
                 ? 'surface-inset text-pink-600 shadow-sm dark:surface-inset dark:text-pink-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -194,7 +194,7 @@
             type="button"
             @click="selectCNPlatform('zhipu')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'zhipu'
                 ? 'surface-inset text-indigo-600 shadow-sm dark:surface-inset dark:text-indigo-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -207,7 +207,7 @@
             type="button"
             @click="selectCNPlatform('deepseek')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'deepseek'
                 ? 'surface-inset text-teal-600 shadow-sm dark:surface-inset dark:text-teal-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -220,7 +220,7 @@
             type="button"
             @click="selectCNPlatform('minimax')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'minimax'
                 ? 'surface-inset text-rose-600 shadow-sm dark:surface-inset dark:text-rose-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -233,7 +233,7 @@
             type="button"
             @click="selectCNPlatform('stepfun')"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'stepfun'
                 ? 'surface-inset text-cyan-600 shadow-sm dark:surface-inset dark:text-cyan-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -251,7 +251,7 @@
             data-testid="platform-button-opencode_go"
             @click="selectOpenCodeGoPlatform()"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === 'opencode_go'
                 ? 'surface-inset text-amber-700 shadow-sm dark:surface-inset dark:text-amber-300'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -272,7 +272,7 @@
             :data-testid="`platform-button-${spec.id}`"
             @click="selectGenericMultiProtocolPlatform(spec.id)"
             :class="[
-              'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-all',
+              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               form.platform === spec.id
                 ? 'surface-inset text-primary-600 shadow-sm dark:surface-inset dark:text-primary-400'
                 : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
@@ -1338,7 +1338,7 @@
               </div>
               <div
                 v-if="vertexClientEmail"
-                class="mt-3 rounded-md border border-sky-200 surface-inset px-3 py-2 text-xs text-sky-900 dark:border-sky-800/50 dark:text-sky-200"
+                class="mt-3 rounded-lg border border-sky-200 surface-inset px-3 py-2 text-xs text-sky-900 dark:border-sky-800/50 dark:text-sky-200"
               >
                 <div class="truncate">Project ID: <span class="font-mono">{{ vertexProjectId }}</span></div>
                 <div class="truncate">Client Email: <span class="font-mono">{{ vertexClientEmail }}</span></div>
@@ -1922,7 +1922,7 @@
               <span
                 v-for="code in selectedErrorCodes.sort((a, b) => a - b)"
                 :key="code"
-                class="inline-flex items-center gap-1 rounded-full bg-red-100/[0.15] px-2.5 py-0.5 text-sm font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                class="inline-flex items-center gap-1 rounded-md bg-red-100/[0.15] px-2.5 py-0.5 text-sm font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
               >
                 {{ code }}
                 <button
@@ -3064,8 +3064,24 @@
           </div>
           <Toggle
             v-model="openaiPassthroughEnabled"
+            data-testid="create-openai-passthrough-toggle"
+            :aria-label="t('admin.accounts.openai.oauthPassthrough')"
           />
         </div>
+        <label v-if="openaiPassthroughEnabled" class="mt-3 flex items-start gap-2">
+          <input
+            v-model="openaiPassthroughModelFilterEnabled"
+            type="checkbox"
+            data-testid="create-openai-passthrough-model-filter"
+            class="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span class="text-sm">
+            {{ t('admin.accounts.openai.passthroughModelFilter') }}
+            <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.openai.passthroughModelFilterDesc') }}
+            </span>
+          </span>
+        </label>
       </div>
 
       <div
@@ -4464,6 +4480,7 @@ const openaiPassthroughEnabled = ref(false)
 const openaiAccountUserAgent = ref('')
 const outboundIdentitySelection = ref<IdentitySelection | null>(null)
 const openaiOAuthSessionSharingEnabled = ref(false)
+const openaiPassthroughModelFilterEnabled = ref(false)
 // OpenAI Codex namespace 工具摊平兼容开关（仅 OAuth），缺省关闭即原样保留
 const openaiFlattenNamespacesEnabled = ref(false)
 const openAILongContextBillingEnabled = ref(false)
@@ -4750,7 +4767,7 @@ const openAIWSModeHintKey = computed(() =>
 )
 
 const isOpenAIModelRestrictionDisabled = computed(() =>
-  form.platform === 'openai' && openaiPassthroughEnabled.value
+  form.platform === 'openai' && openaiPassthroughEnabled.value && !openaiPassthroughModelFilterEnabled.value
 )
 
 const mixedChannelWarningMessageText = computed(() => {
@@ -5022,6 +5039,7 @@ watch(
     }
     if (newPlatform !== 'openai') {
       openaiPassthroughEnabled.value = false
+      openaiPassthroughModelFilterEnabled.value = false
       openaiFlattenNamespacesEnabled.value = false
       openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -5517,6 +5535,7 @@ const resetForm = () => {
   codexCLIConfigTOML.value = ''
   codexCLIDraftTouched.value = false
   openaiOAuthSessionSharingEnabled.value = false
+  openaiPassthroughModelFilterEnabled.value = false
   openaiFlattenNamespacesEnabled.value = false
   openAILongContextBillingEnabled.value = false
   openAILongContextBillingTouched.value = false
@@ -5624,6 +5643,11 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     }
   } else {
     delete extra.openai_oauth_session_policy
+  }
+  if (openaiPassthroughEnabled.value && openaiPassthroughModelFilterEnabled.value) {
+    extra.openai_passthrough_model_filter = true
+  } else {
+    delete extra.openai_passthrough_model_filter
   }
   // 缺省即保留 namespace，不写空值，避免 extra 里堆积默认项
   if (form.type === 'oauth' && openaiFlattenNamespacesEnabled.value) {

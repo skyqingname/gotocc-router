@@ -62,6 +62,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 	}
 	copyUser, copyGroup := *payer, *currentGroup
 	copyUser.UserGroupRPMOverride = nil
+	copyUser.UserGroupRPMOverrideGroupID = 0
 	key.User, key.Group, key.GroupID = &copyUser, &copyGroup, &groupID
 	if err := s.keys.attachResellerCustomer(ctx, key); err != nil {
 		return nil, err
@@ -78,6 +79,7 @@ func (s *AutoGroupResolver) Admit(ctx context.Context, bound *APIKey) (*AutoRout
 		if err != nil {
 			return nil, ErrAutoRouteUnavailable.WithCause(err)
 		}
+		key.User.UserGroupRPMOverrideGroupID = groupID
 		if override != nil {
 			value := *override
 			key.User.UserGroupRPMOverride = &value

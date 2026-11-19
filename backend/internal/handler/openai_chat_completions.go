@@ -174,6 +174,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
+	var fullQueueID int64
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
@@ -193,7 +194,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 		reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
-			c.Request.Context(),
+			service.WithOpenAIQueueReselection(c.Request.Context(), fullQueueID),
 			apiKey.GroupID,
 			"",
 			sessionHash,
@@ -206,6 +207,11 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			true,
 			requestPlatform,
 		)
+		fullQueueID = 0
+		if errors.Is(err, service.ErrOpenAIAccountQueueFull) {
+			h.handleStreamingAwareErrorWithCode(c, http.StatusTooManyRequests, "rate_limit_error", gatewayQueueFullCode, "Too many pending requests, please retry later", streamStarted, false)
+			return
+		}
 		if err != nil {
 			if h.handleOpenAISessionRouteError(c, err, streamStarted) {
 				return
@@ -259,7 +265,12 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
+		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog, switchCount < maxAccountSwitches && account.Platform == service.PlatformOpenAI)
+		if slotResult == openAISlotQueueFull {
+			fullQueueID = account.ID
+			switchCount++
+			continue
+		}
 		if slotResult == openAISlotAcquireProfitVetoed {
 			// 利润终检否决：排除该账号重新选号；否决次数达上限则按无可用账号终止。
 			if !recordOpenAIProfitVeto(failedAccountIDs, account.ID, &profitVetoCount) {

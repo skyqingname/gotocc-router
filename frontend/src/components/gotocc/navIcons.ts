@@ -193,6 +193,24 @@ export const BellIcon = icon('bell', [
   ]],
 ])
 
+// 顶栏「文档」：Lucide book-open，悬停时书本轻弹、书脊重新描出。
+export const DocsIcon = icon('book-open', [
+  ['path', { class: 'gc-a', d: 'M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z' }],
+  drawn('path', { d: 'M12 7v14' }, 0),
+])
+
+// 顶栏语言：Lucide languages，悬停时「文」字摆动、「A」依次描出。
+export const LanguagesIcon = icon('languages', [
+  ['g', { class: 'gc-a' }, [
+    ['path', { d: 'm5 8 6 6' }],
+    ['path', { d: 'm4 14 6-6 2-3' }],
+    ['path', { d: 'M2 5h12' }],
+    ['path', { d: 'M7 2h1' }],
+  ]],
+  drawn('path', { d: 'm22 22-5-10-5 10' }, 0),
+  drawn('path', { d: 'M14 18h6' }, 1),
+])
+
 export const TicketIcon = icon('ticket', [
   ['g', { class: 'gc-a gc-a0' }, [
     ['path', { d: 'M13 5H4a2 2 0 0 0-2 2v2a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h9' }],

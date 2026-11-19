@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/accountbalance"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/apicompat"
 	pkghttputil "github.com/LuckyKuang/sub2api-plus/internal/pkg/httputil"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
@@ -26,6 +27,7 @@ type openAISessionRecovery struct {
 	retry     bool
 	// Exhaustion belongs to the original route generation, not the last
 	// candidate. A failed candidate must neither discard nor broaden it.
+	takeoverUntil  time.Time
 	exhaustedOwner OpenAISessionRoute
 }
 
@@ -50,6 +52,7 @@ func WithOpenAISessionRecovery(ctx context.Context, accountID int64, retry bool)
 	if previous := openAIRouteAttempt(ctx); previous != nil {
 		previous.mu.Lock()
 		if previous.accountID == accountID {
+			recovery.takeoverUntil = previous.takeoverUntil
 			prior, _ := ctx.Value(openAISessionRecoveryKey{}).(openAISessionRecovery)
 			if sameOpenAISessionRouteGeneration(prior.exhaustedOwner, previous.route) {
 				recovery.exhaustedOwner = prior.exhaustedOwner
@@ -73,33 +76,44 @@ func sameOpenAISessionRouteGeneration(a, b OpenAISessionRoute) bool {
 		a.OwnerAccountID == b.OwnerAccountID && a.Generation == b.Generation
 }
 
-func openAISessionRouteForwardError(ctx context.Context, err error) error {
+func openAISessionRouteForwardError(ctx context.Context, account *Account, err error, result *OpenAIForwardResult, httpReplay bool) error {
 	if a := openAIRouteAttempt(ctx); a != nil {
 		a.mu.Lock()
 		defer a.mu.Unlock()
 		if a.renewErr != nil {
 			logOpenAISessionRouteFailure(ctx, a.renewErr, "forward", a.route, a.accountID)
+			if timeout, ok := a.renewErr.(takeoverTimeout); ok {
+				safe := a.replayable && httpReplay
+				if safe && result != nil {
+					r := result
+					safe = !r.ClientDisconnect && r.ImageCount == 0 && r.FirstOutputMs == nil && r.FirstTokenMs == nil && r.Usage == (OpenAIUsage{})
+				}
+				// forwardCtx was canceled by this attempt's timeout. Whether the
+				// client still wants a replay is decided on the ingress context.
+				return takeoverTimedOutError(a.logCtx, timeout, safe)
+			}
 			return a.renewErr
 		}
 		logOpenAISessionRouteFailure(ctx, err, "forward", a.route, a.accountID)
-		var failure *UpstreamFailoverError
-		if a.apiKey && errors.As(err, &failure) && failure.StatusCode == http.StatusTooManyRequests &&
-			failure.ShouldRetryNextAccount() && failure.ShouldReportAccountScheduleFailure() {
-			disposition, _ := classifyOpenAIOAuth429(failure.ResponseHeaders, failure.ResponseBody)
-			if disposition == openAIOAuth429Transient {
-				failure.RetryableOnSameAccount = true
-				failure.SameAccountRetryDelay = openAIOAuth429RetryDelay
-				if reset := parseRetryAfterResetTime(failure.ResponseHeaders, time.Now()); reset != nil {
-					delay := time.Until(*reset)
-					if delay > openAIOAuth429MaxRetryDelay {
-						// A long provider backoff returns a retryable response to
-						// the client; it cannot authorize scanning other owners.
-						failure.RetryableOnSameAccount = false
-						failure.NextAccountAction = NextAccountStop
-					} else if delay > failure.SameAccountRetryDelay {
-						failure.SameAccountRetryDelay = delay
-					}
-				}
+
+	}
+	var failover *UpstreamFailoverError
+	if account != nil && account.Platform == PlatformOpenAI && errors.As(err, &failover) && failover.StatusCode == http.StatusTooManyRequests {
+		body, classificationHeaders := failover.ResponseBody, failover.ResponseHeaders
+		if frame := failover.StreamFailedFrame; frame != nil {
+			body, classificationHeaders = frame.Payload, nil
+		}
+		if openAISharedRateLimit(classificationHeaders, body) {
+			failover.Scope = GatewayFailureScopeProvider
+			failover.NextAccountAction = NextAccountStop
+			failover.RetryableOnSameAccount = false
+		} else if ingress, ok := ctx.Value(openAIClientRestrictionKey{}).(openAIClientRestrictionRequest); ok && failover.StreamFailedFrame != nil && !takeoverRequestReplayable(ingress.body) {
+			failover.NextAccountAction = NextAccountStop
+			failover.RetryableOnSameAccount = false
+		} else if reset := parseRetryAfterResetTime(failover.ResponseHeaders, time.Now()); reset != nil && time.Until(*reset) > openAIOAuth429MaxRetryDelay {
+			if disposition, _ := classifyOpenAIOAuth429(classificationHeaders, body); disposition == openAIOAuth429Transient {
+				failover.NextAccountAction = NextAccountStop
+				failover.RetryableOnSameAccount = false
 			}
 		}
 	}
@@ -127,7 +141,8 @@ type openAISessionRouteAttempt struct {
 	route          OpenAISessionRoute
 	accountID      int64
 	preserveOwner  bool // GoToCC temporary overflow retains the canonical owner.
-	apiKey         bool
+	takeoverUntil  time.Time
+	replayable     bool
 	reason         string
 	leaseID        string
 	committed      bool
@@ -399,21 +414,44 @@ func beginOpenAISessionRouteForward(ctx context.Context, account *Account, timeo
 		return ctx, func() {}, nil
 	}
 	a.forwardStarted = true
-	a.apiKey = account.IsOpenAIApiKey()
 	pending := !a.committed && !a.preserveOwner && a.route.OwnerAccountID != a.accountID
 	a.accepted = make(chan struct{})
 	leaseCtx, cancelLease := context.WithCancelCause(context.Background())
 	a.leaseContext = leaseCtx
 	a.leaseCancel = cancelLease
+	headerWait := time.Duration(accountbalance.TakeoverHeaderWaitSeconds) * time.Second
+	if !a.replayable {
+		// Without a safe next attempt, allow a full upstream idle window for the first reply.
+		headerWait = max(headerWait, accountbalance.TakeoverUpstreamIdleSeconds*time.Second)
+	}
+	totalDeadline := a.takeoverUntil
+	if pending && totalDeadline.IsZero() {
+		totalDeadline = time.Now().Add(accountbalance.TakeoverTotalWaitSeconds * time.Second)
+		a.takeoverUntil = totalDeadline
+	}
 	a.mu.Unlock()
 	if !pending {
 		return ctx, func() { a.close(); cancelLease(context.Canceled) }, nil
 	}
-	if timeout <= 0 {
-		timeout = time.Minute
+	if !time.Now().Before(totalDeadline) {
+		a.close()
+		return ctx, nil, takeoverTimedOutError(ctx, takeoverTimeout("total"), false)
 	}
+	start := time.Now()
+	if configuredDeadline := start.Add(timeout); timeout > 0 && configuredDeadline.Before(totalDeadline) {
+		totalDeadline = configuredDeadline
+	}
+	initial := timeout
+	if initial <= 0 {
+		initial = time.Minute
+	}
+	progress := &takeoverProgress{
+		phase: "dispatch", last: start, initial: initial, headerWait: headerWait, absolute: totalDeadline,
+		changed: make(chan struct{}, 1), accepted: a.accepted,
+	}
+	ctx = context.WithValue(ctx, takeoverProgressKey{}, progress)
 	forwardCtx, cancelForward := context.WithCancelCause(ctx)
-	renewCtx, cancel := context.WithTimeout(ctx, timeout)
+	renewCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	fail := func(err error) {
 		a.mu.Lock()
@@ -428,15 +466,28 @@ func beginOpenAISessionRouteForward(ctx context.Context, account *Account, timeo
 		defer close(done)
 		ticker := time.NewTicker(20 * time.Second)
 		defer ticker.Stop()
+		delay, _ := progress.next()
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
 		for {
 			select {
 			case <-a.accepted:
 				return
 			case <-renewCtx.Done():
-				if errors.Is(renewCtx.Err(), context.DeadlineExceeded) || ctx.Err() != nil {
+				if ctx.Err() != nil {
 					fail(ErrOpenAISessionRouteLeaseLost)
 				}
 				return
+			case <-progress.changed:
+				delay, _ := progress.next()
+				timer.Reset(delay)
+			case <-timer.C:
+				delay, reason := progress.next()
+				if delay <= 0 {
+					fail(reason)
+					return
+				}
+				timer.Reset(delay)
 			case <-ticker.C:
 				a.mu.Lock()
 				if a.committed || a.closed {
@@ -451,7 +502,14 @@ func beginOpenAISessionRouteForward(ctx context.Context, account *Account, timeo
 				release()
 				a.mu.Unlock()
 				if err != nil {
-					fail(err)
+					if renewCtx.Err() != nil {
+						return
+					}
+					if delay, reason := progress.next(); delay <= 0 {
+						fail(reason)
+					} else {
+						fail(err)
+					}
 					return
 				}
 			}
@@ -493,6 +551,17 @@ func validateOpenAISessionContinuation(ctx context.Context, payload []byte) erro
 	if a == nil || !openAISessionTakeoverPending(ctx) {
 		return nil
 	}
+	if openAISessionHistoryComplete(payload) {
+		a.mu.Lock()
+		a.replayable = takeoverRequestReplayable(payload)
+		a.mu.Unlock()
+		return nil
+	}
+	return &UpstreamFailoverError{StatusCode: 400, ClientStatusCode: 400, Stage: GatewayFailureStageInference, Scope: GatewayFailureScopeRequest,
+		NextAccountAction: NextAccountStop, Reason: OpenAIHTTPContinuationUnsupportedReason, ClientMessage: "This continuation cannot be reconstructed on another account; resend complete conversation and tool-call history without previous_response_id or item references."}
+}
+
+func openAISessionHistoryComplete(payload []byte) bool {
 	request := openAIRequestPayloadView(payload)
 	payload = []byte(request.Raw)
 	coverage := AnalyzeToolCallOutputContextCoverageBytes(payload)
@@ -510,12 +579,8 @@ func validateOpenAISessionContinuation(ctx context.Context, payload []byte) erro
 			observeReference(item)
 		}
 	}
-	if request.Get("previous_response_id").String() == "" && !opaque &&
-		(!coverage.HasFunctionCallOutput || coverage.ContextCoversAllCallIDs) && openAISessionMessageToolHistoryComplete(request) {
-		return nil
-	}
-	return &UpstreamFailoverError{StatusCode: 400, ClientStatusCode: 400, Stage: GatewayFailureStageInference, Scope: GatewayFailureScopeRequest,
-		NextAccountAction: NextAccountStop, Reason: OpenAIHTTPContinuationUnsupportedReason, ClientMessage: "This continuation cannot be reconstructed on another account; resend complete conversation and tool-call history without previous_response_id or item references."}
+	return request.Get("previous_response_id").String() == "" && !request.Get("conversation").Exists() && !opaque &&
+		(!coverage.HasFunctionCallOutput || coverage.ContextCoversAllCallIDs) && openAISessionMessageToolHistoryComplete(request)
 }
 
 // Chat and Messages adapters must prove tool dependencies before conversion:
@@ -731,7 +796,7 @@ func (s *OpenAIGatewayService) selectAccountWithCanonicalRoute(ctx context.Conte
 		}
 		return nil, decision, ErrAutoRouteContext
 	}
-	if exists && !recovery.retry {
+	if exists && !recovery.retry && selection.Account.ID == route.OwnerAccountID {
 		if overflow := s.overflowCanonicalOpenAIAccount(ctx, req, selection); overflow != nil {
 			selection = overflow
 			preserveOwner = true
@@ -785,7 +850,7 @@ func (s *OpenAIGatewayService) selectAccountWithCanonicalRoute(ctx context.Conte
 	}
 	decision.SelectedAccountID, decision.SelectedAccountType = selection.Account.ID, selection.Account.Type
 	selection.PreserveStickyBinding = selection.PreserveStickyBinding || preserveOwner
-	a := &openAISessionRouteAttempt{store: store, route: route, accountID: selection.Account.ID, preserveOwner: preserveOwner, reason: reason, logCtx: ctx}
+	a := &openAISessionRouteAttempt{store: store, route: route, accountID: selection.Account.ID, preserveOwner: preserveOwner, reason: reason, logCtx: ctx, takeoverUntil: recovery.takeoverUntil}
 	selection.routeAttempt = a
 	release := selection.ReleaseFunc
 	selection.ReleaseFunc = func() {

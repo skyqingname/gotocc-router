@@ -19,7 +19,7 @@ export default {
       dialogLabel: '全局搜索',
       scopeLabel: '搜索范围',
       scopes: { all: '全部', model: '模型', page: '页面', action: '动作' },
-      sections: { recent: '最近访问', model: '模型', page: '页面', action: '动作' },
+      sections: { recent: '最近访问', model: '模型', latestModels: '各平台最新模型', page: '页面', action: '动作' },
       noResults: '没有找到与“{query}”匹配的结果',
       modelsFailed: '模型列表加载失败，重新打开搜索会再试一次',
       hints: { navigate: '选择', open: '打开', close: '关闭' },

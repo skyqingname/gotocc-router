@@ -113,7 +113,7 @@ func releaseResellerCustomerBalance(ctx context.Context, tx *sql.Tx, cmd *servic
 	return &service.BatchImageBalanceHoldResult{NewBalance: &balance, FrozenBalance: &frozen}, nil
 }
 
-func ProvideResellerUsageBillingRepository(_ *dbent.Client, db *sql.DB, cache service.BillingCache) service.UsageBillingRepository {
+func ProvideResellerUsageBillingRepository(_ *dbent.Client, db *sql.DB, cache service.BillingCache) service.UsageBillingBatchRepository {
 	return &usageBillingRepository{db: db, resellerBalanceCache: cache}
 }
 func ProvideResellerVideoBillingRepository(_ *dbent.Client, db *sql.DB, cache service.BillingCache) service.OpenAIVideoBillingRepository {

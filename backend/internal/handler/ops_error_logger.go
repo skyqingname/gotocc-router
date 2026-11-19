@@ -1279,6 +1279,9 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			}
 		}
 		suppressOpsUpstreamAttributionForLocalModelConfiguration(c, entry)
+		if isLocalTakeoverTimeout(c, 0) {
+			entry.UpstreamStatusCode, entry.UpstreamErrorMessage, entry.UpstreamErrorDetail = nil, nil, nil
+		}
 
 		if apiKey != nil {
 			entry.APIKeyID = &apiKey.ID
@@ -1600,6 +1603,12 @@ func logOpsStreamErrorValue(c *gin.Context, ops *service.OpsService, wireStatus 
 	if streamErr.Turn > 0 && !streamErr.RequestScoped {
 		applyOpsStreamErrorSnapshot(entry, streamErr)
 		entry.TimeToFirstTokenMs = streamErr.TimeToFirstTokenMs
+	}
+	if streamErr.Code == service.OpenAITakeoverTimeoutCode && isLocalTakeoverTimeout(c, streamErr.Turn) {
+		entry.ErrorOwner, entry.ErrorPhase, entry.ErrorSource = "platform", "routing", "gateway"
+		entry.StatusCode = http.StatusServiceUnavailable
+		entry.IsBusinessLimited = false
+		entry.UpstreamStatusCode, entry.UpstreamErrorMessage, entry.UpstreamErrorDetail = nil, nil, nil
 	}
 	if streamErr.SecurityAuditCode != "" {
 		entry.AccountID = nil
@@ -2119,7 +2128,10 @@ func inferResponsesFailedOpsErrorType(code string) string {
 	}
 }
 
-func inferStreamFailureStatus(_ *gin.Context, parsed parsedOpsError) int {
+func inferStreamFailureStatus(c *gin.Context, parsed parsedOpsError) int {
+	if isLocalTakeoverTimeout(c, 0) {
+		return http.StatusServiceUnavailable
+	}
 	if parsed.StatusCode >= 400 && parsed.StatusCode <= 599 {
 		return parsed.StatusCode
 	}
@@ -2285,6 +2297,9 @@ func classifyOpsSeverity(errType string, status int) string {
 }
 
 func classifyOpsErrorLog(c *gin.Context, errType, message, code string, status int) (phase string, isBusinessLimited bool, errorOwner string, errorSource string) {
+	if isLocalTakeoverTimeout(c, 0) {
+		return "routing", false, "platform", "gateway"
+	}
 	if errType == "client_disconnect" {
 		return "network", false, "client", "client_request"
 	}

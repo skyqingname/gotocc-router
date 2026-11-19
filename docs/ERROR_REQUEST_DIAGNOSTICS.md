@@ -76,6 +76,12 @@ or the existing status after stream commitment. The structured event
 failures keep their protocol error and emit `openai.session_route_failed`;
 route-read and owner-lookup wrappers preserve the underlying error.
 
+A candidate that times out before semantic acceptance emits
+`openai_session_route_failed` with the timeout phase. A final
+`session_takeover_timeout` counts as a platform routing 503, including when
+the client received HTTP 200 plus a terminal SSE error. Earlier provider
+attempts remain available in the attempt history.
+
 Correlate `ops_error_logs.client_request_id` with
 `client_disconnect_risk_events.request_id`. When usage lacks an upstream request
 ID, its `request_id` can be `client:<client_request_id>`; searching only the

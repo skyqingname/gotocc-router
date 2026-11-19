@@ -1,20 +1,13 @@
 <!-- Derived from TokenFlux/TokenRouter e74bba115 (v0.7.3) frontend/src/components/announcements/AnnouncementBell.vue, AnnouncementArticle.vue and styles/announcement-markdown.css. Copyright (c) 2026 Wesley Liddick & TokenFlux. LGPL-3.0-or-later. GoToCC adaptation. -->
 <template>
   <div v-if="showAnnouncements">
-    <!-- 窄屏保留铃铛按钮；从 md 起换成文字入口，未读时文字右上角挂同样的红点 -->
-    <button
-      type="button"
-      class="relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:surface-hover surface-control surface-muted md:hidden"
-      :class="{ 'text-primary-600 dark:text-primary-400': unreadCount > 0 }"
-      :aria-label="t('announcements.title')"
-      @click="open = true"
-    >
-      <Icon name="bell" size="md" />
-      <span v-if="unreadCount > 0" class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" aria-hidden="true"></span>
-    </button>
-    <button type="button" class="header-nav-link relative hidden md:inline-flex" @click="open = true">
-      {{ t('announcements.title') }}
-      <span v-if="unreadCount > 0" class="absolute right-1.5 top-2.5 h-2 w-2 rounded-full bg-rose-500" aria-hidden="true"></span>
+    <!-- 顶栏入口：铃铛动效图标加文字（窄顶栏只留铃铛），有未读时铃铛变主色并在右上角挂红点 -->
+    <button type="button" class="header-nav-link" :title="t('announcements.title')" :aria-label="t('announcements.title')" @click="open = true">
+      <span class="relative flex" :class="{ 'text-primary-600 dark:text-primary-400': unreadCount > 0 }">
+        <BellIcon />
+        <span v-if="unreadCount > 0" class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-dark-900" aria-hidden="true"></span>
+      </span>
+      <span class="header-nav-label">{{ t('announcements.title') }}</span>
     </button>
 
     <!-- 列表和详情在同一个固定高度的弹窗里：详情从右侧盖住列表，列表留在下面保留滚动位置 -->
@@ -130,6 +123,7 @@ import { computed, nextTick, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { BellIcon } from '@/components/gotocc/navIcons'
 import Skeleton from '@/components/common/Skeleton.vue'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import { useResellerCommunications } from '@/composables/useResellerCommunications'
@@ -141,7 +135,7 @@ import type { UserAnnouncement } from '@/types'
 import { formatAnnouncementRowDate, renderAnnouncementHtml, summarizeAnnouncement } from './announcementDisplay'
 
 // 顶栏公告：铃铛、列表与详情在同一个弹窗里，交互参照 TokenRouter（LGPL-3.0）。
-// 入口在窄屏是铃铛，从 md 起是文字（.header-nav-link，参照 TokenRouter ab684f817 的文字版公告入口）。
+// 入口是侧栏同款铃铛动效图标加文字（.header-nav-link），顶栏窄时只留铃铛。
 // 未读计数、标记已读与全部已读沿用公告 store 的现有接口；站长客户按公告开关显示，管理员只读协助时「全部已读」不可用。
 // 详情盖在列表上而不是另开弹窗：列表一直挂载、不可交互，返回时滚动位置不变，焦点回到打开的那一行。
 // Esc 先从详情回到列表，再关闭弹窗。
