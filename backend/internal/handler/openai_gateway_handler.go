@@ -804,6 +804,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
+	var fullQueueID int64
 	firstOutputTimeoutSwitchCount := 0
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})
@@ -846,7 +847,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		// Select account supporting the requested model
 		reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
-			c.Request.Context(),
+			service.WithOpenAIQueueReselection(c.Request.Context(), fullQueueID),
 			apiKey.GroupID,
 			previousResponseID,
 			sessionHash,
@@ -859,6 +860,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			!imageIntent,
 			requestPlatform,
 		)
+		fullQueueID = 0
+		if errors.Is(err, service.ErrOpenAIAccountQueueFull) {
+			h.handleStreamingAwareErrorWithCode(c, http.StatusTooManyRequests, "rate_limit_error", gatewayQueueFullCode, "Too many pending requests, please retry later", streamStarted, false)
+			return
+		}
 		if err != nil {
 			if h.handleOpenAISessionRouteError(c, err, streamStarted) {
 				return
@@ -967,7 +973,12 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
+		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog, switchCount < maxAccountSwitches && account.Platform == service.PlatformOpenAI)
+		if slotResult == openAISlotQueueFull {
+			fullQueueID = account.ID
+			switchCount++
+			continue
+		}
 		if slotResult == openAISlotAcquireProfitVetoed {
 			// 利润终检否决：排除该账号重新选号，全池耗尽由下一轮选号报错；
 			// 否决次数达上限则直接终止，避免排队抢槽后才终检的延迟放大。
@@ -1515,6 +1526,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
+	var fullQueueID int64
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
@@ -1539,7 +1551,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		}
 		reqLog.Debug("openai_messages.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
-			c.Request.Context(),
+			service.WithOpenAIQueueReselection(c.Request.Context(), fullQueueID),
 			apiKey.GroupID,
 			"", // no previous_response_id
 			sessionHash,
@@ -1552,6 +1564,11 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			true,
 			requestPlatform,
 		)
+		fullQueueID = 0
+		if errors.Is(err, service.ErrOpenAIAccountQueueFull) {
+			h.anthropicStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+			return
+		}
 		if err != nil {
 			if h.handleOpenAISessionRouteError(c, err, streamStarted) {
 				return
@@ -1606,7 +1623,12 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		_ = scheduleDecision
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
+		accountReleaseFunc, slotResult := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog, switchCount < maxAccountSwitches && account.Platform == service.PlatformOpenAI)
+		if slotResult == openAISlotQueueFull {
+			fullQueueID = account.ID
+			switchCount++
+			continue
+		}
 		if slotResult == openAISlotAcquireProfitVetoed {
 			// 利润终检否决：排除该账号重新选号，全池耗尽由下一轮选号报错；
 			// 否决次数达上限则直接终止，避免排队抢槽后才终检的延迟放大。
@@ -1876,6 +1898,9 @@ func (h *OpenAIGatewayHandler) anthropicStreamingAwareError(c *gin.Context, stat
 
 // handleAnthropicFailoverExhausted maps upstream failover errors to Anthropic format.
 func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, streamStarted bool) {
+	if h.writeTakeoverTimeout(c, failoverErr, streamStarted) {
+		return
+	}
 	if failoverErr != nil {
 		copyFailoverRetryAfter(c, failoverErr.ResponseHeaders)
 	}
@@ -1979,6 +2004,7 @@ type openAISlotAcquireResult int
 
 const (
 	openAISlotAcquireOK openAISlotAcquireResult = iota
+	openAISlotQueueFull
 	// openAISlotAcquireFailed：错误响应已写出，调用方直接 return。
 	openAISlotAcquireFailed
 	// openAISlotAcquireProfitVetoed：槽位获取成功后利润终检否决。槽位已释放、
@@ -2199,8 +2225,9 @@ func (h *OpenAIGatewayHandler) acquireResponsesAccountSlot(
 	reqStream bool,
 	streamStarted *bool,
 	reqLog *zap.Logger,
+	allowQueueReselect ...bool,
 ) (func(), openAISlotAcquireResult) {
-	return h.acquireOpenAIAccountSlot(c, groupID, sessionHash, selection, reqStream, streamStarted, reqLog, nil)
+	return h.acquireOpenAIAccountSlot(c, groupID, sessionHash, selection, reqStream, streamStarted, reqLog, nil, allowQueueReselect...)
 }
 
 type openAISlotErrorWriter func(status int, errType, code, message string)
@@ -2222,6 +2249,15 @@ func openAIWaitSlotRelease(selection *service.AccountSelectionResult, slotReleas
 // optional error writer lets non-Responses endpoints retain their wire format
 // while sharing the same WaitPlan, cancellation, and release semantics.
 func (h *OpenAIGatewayHandler) handleOpenAISessionRouteError(c *gin.Context, err error, streamStarted bool) bool {
+	// A stopped takeover may carry partial usage; let the caller settle the
+	// original result through the same route-error path.
+	var timeout *service.UpstreamFailoverError
+	if errors.As(err, &timeout) && timeout.Reason == service.OpenAITakeoverTimeoutCode && !timeout.ShouldRetryNextAccount() {
+		if handleCanceledOpenAISessionRoute(c, err) {
+			return true
+		}
+		return h.writeTakeoverTimeout(c, timeout, streamStarted || c.Writer.Written())
+	}
 	if !service.IsOpenAISessionRouteError(err) {
 		return false
 	}
@@ -2252,6 +2288,7 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 	streamStarted *bool,
 	reqLog *zap.Logger,
 	writeError openAISlotErrorWriter,
+	allowQueueReselect ...bool,
 ) (func(), openAISlotAcquireResult) {
 	if writeError == nil {
 		writeError = func(status int, errType, code, message string) {
@@ -2322,6 +2359,12 @@ func (h *OpenAIGatewayHandler) acquireOpenAIAccountSlot(
 		streamStarted,
 	)
 	if err != nil {
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+		if len(allowQueueReselect) > 0 && allowQueueReselect[0] && isAccountWaitQueueFull(err) {
+			return nil, openAISlotQueueFull
+		}
 		reqLog.Warn("openai.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		status, errType, code, message := concurrencyErrorResponse(err, "account")
 		writeError(status, errType, code, message)
@@ -2789,6 +2832,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	ctx = service.WithOpenAIGuardianParentAffinity(ctx, c, firstMessage, reqModel)
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
+	var fullQueueID int64
 	profitVetoCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	policyRejectedAccountCount := 0
@@ -2885,7 +2929,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 		reqLog.Debug("openai.websocket_account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
-			ctx,
+			service.WithOpenAIQueueReselection(ctx, fullQueueID),
 			apiKey.GroupID,
 			previousResponseID,
 			sessionHash,
@@ -2898,6 +2942,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			!imageIntent,
 			requestPlatform,
 		)
+		fullQueueID = 0
+		if errors.Is(err, service.ErrOpenAIAccountQueueFull) {
+			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "account is busy, please retry later")
+			return
+		}
 		if err != nil {
 			if service.IsOpenAISessionRouteError(err) {
 				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "session routing is temporarily unavailable; please reconnect")
@@ -3001,6 +3050,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			var unusedStreamStarted bool
 			fastReleaseFunc, err := h.concurrencyHelper.AcquireAccountSlotForWaitPlan(c, account.ID, selection.WaitPlan, false, &unusedStreamStarted)
 			if err != nil {
+				if selection.ReleaseFunc != nil {
+					selection.ReleaseFunc()
+				}
+				if switchCount < maxAccountSwitches && account.Platform == service.PlatformOpenAI && isAccountWaitQueueFull(err) {
+					fullQueueID = account.ID
+					switchCount++
+					continue
+				}
 				status, reason := openAIWSSlotWaitClose(err, "account")
 				closeOpenAIClientWS(wsConn, status, reason)
 				return
@@ -4015,6 +4072,9 @@ func (h *OpenAIGatewayHandler) handleConcurrencyError(c *gin.Context, err error,
 }
 
 func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, streamStarted bool) {
+	if h.writeTakeoverTimeout(c, failoverErr, streamStarted) {
+		return
+	}
 	if failoverErr == nil {
 		h.handleFailoverExhaustedSimple(c, http.StatusBadGateway, streamStarted)
 		return
@@ -4615,7 +4675,10 @@ func closeOpenAIWSFailoverExhausted(c *gin.Context, conn service.OpenAIWSIngress
 		if reason := strings.TrimSpace(string(failoverErr.Reason)); reason != "" {
 			errorCode = reason
 		}
-		if failoverErr.Stage == service.GatewayFailureStageAccountAuth {
+		if failoverErr.Reason == service.OpenAITakeoverTimeoutCode {
+			c.Set(opsLocalTakeoverTimeoutKey, true)
+			intendedStatus, errorType, message, closeStatus = http.StatusServiceUnavailable, "service_unavailable_error", failoverErr.ClientMessage, coderws.StatusTryAgainLater
+		} else if failoverErr.Stage == service.GatewayFailureStageAccountAuth {
 			intendedStatus = http.StatusServiceUnavailable
 			errorType = "api_error"
 			message = service.GrokCredentialUnavailableClientMessage

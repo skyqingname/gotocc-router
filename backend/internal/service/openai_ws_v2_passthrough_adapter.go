@@ -448,6 +448,9 @@ func (c *openAIWSPassthroughFirstOutputFrameConn) ReadFrame(ctx context.Context)
 		select {
 		case result := <-readResultCh:
 			if result.err == nil {
+				if len(result.payload) > 0 {
+					noteOpenAITakeoverSocketActivity(ctx)
+				}
 				c.observeUpstreamActivity(result.msgType, result.payload)
 			}
 			return result.msgType, result.payload, result.err
@@ -490,6 +493,7 @@ func (c *openAIWSPassthroughFirstOutputFrameConn) WriteFrame(ctx context.Context
 		c.disarmDeadline(generation)
 		return err
 	}
+	noteOpenAITakeoverSocketActivity(ctx)
 	return nil
 }
 

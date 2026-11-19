@@ -320,7 +320,11 @@ func doUpstreamRequest(client *http.Client, req *http.Request, drainTimeouts ...
 	}
 	ctx, cancel := pkghttputil.NewUpstreamAttemptContext(req.Context(), drainTimeout)
 	endHeaderWait := service.BeginUpstreamHeaderWait(req.Context())
+	observe := service.ObserveOpenAITakeoverHTTP(req)
 	resp, err := servertiming.Do(brandidentity.WrapClient(client), req.WithContext(ctx))
+	if observe != nil {
+		observe(resp)
+	}
 	endHeaderWait()
 	if err != nil {
 		cancel()

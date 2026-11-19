@@ -73,7 +73,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		return nil, routeErr
 	}
 	defer finishRoute()
-	defer func() { forwardErr = openAISessionRouteForwardError(ctx, forwardErr) }()
+	defer func() { forwardErr = openAISessionRouteForwardError(ctx, account, forwardErr, forwardResult, true) }()
 	ctx = WithOutboundIdentityScope(ctx, c)
 	captureNativeConversationScope(ctx, c, account, body)
 	ctx = WithAccountOutboundIdentity(ctx, account)

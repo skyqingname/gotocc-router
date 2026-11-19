@@ -42,3 +42,8 @@ func concurrencyErrorResponse(err error, slotType string) (int, string, string, 
 
 	return http.StatusServiceUnavailable, "api_error", "", "Service temporarily unavailable, please retry later"
 }
+
+func isAccountWaitQueueFull(err error) bool {
+	var full *WaitQueueFullError
+	return errors.As(err, &full) && full.SlotType == "account"
+}

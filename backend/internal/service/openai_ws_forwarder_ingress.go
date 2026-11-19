@@ -80,7 +80,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		return routeErr
 	}
 	defer finishRoute()
-	defer func() { returnErr = openAISessionRouteForwardError(ctx, returnErr) }()
+	defer func() { returnErr = openAISessionRouteForwardError(ctx, account, returnErr, nil, false) }()
 	stageOpenAICodexTurnStateScope(c, firstClientMessage)
 	ctx = WithOutboundIdentityScope(ctx, c)
 	ctx = WithAccountOutboundIdentity(ctx, account)

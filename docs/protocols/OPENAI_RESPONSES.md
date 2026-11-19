@@ -16,9 +16,14 @@ only a URL in CC Switch does not enable or configure its usage-query script.
 
 WebSocket admission and all forwarding modes share one client reader. Client
 disconnects cancel pending user/account admission; messages remain ordered
-and pass through the existing per-turn validation and audit. A temporary
-same-priority account overflow retains its original session binding through
-the handler's final admission step.
+and pass through the existing per-turn validation and audit. When the original account is full, an eligible same-priority slot is preferred, followed by lower-priority slots in order. A temporary loan preserves the original session binding through final admission. A full account queue may trigger one immediate-capacity recheck within the existing switch budget. User, team, file-owner and continuation limits still apply.
+
+For locally generated Codex discovery, GPT-6.2 Sol and Astra advertise low,
+medium, high, xhigh and max, defaulting to low. The plain OpenAI model list
+does not declare reasoning levels. On the official OAuth Responses normalization
+path, the legacy positive effort `minimal` maps to `low` for these two models
+and GPT-6 Astra. An explicit `none` retains its meaning and can be rejected
+by an upstream that requires reasoning.
 
 HTTP Responses, Chat Completions and Messages classify a canceled downstream
 request before reporting a session-route failure. Cancellation can close the
@@ -640,6 +645,10 @@ scheduler masters and sibling requests retain their original credential maps.
 On an upstream `429`, the gateway classifies the condition before deciding how
 to schedule:
 
+- Account-scoped rejections prefer another eligible account before output.
+  An explicitly configured API-key pool can still retry its own members.
+  Shared, user, organization and project rate-limit scopes do not authorize
+  rotating the same request through other credentials.
 - `x-codex-active-limit` names the metered family the upstream actually hit. When
   it names a family other than the default `codex` family, that family's window
   and reset time drive the cooldown; the default family's healthy 5h/7d windows

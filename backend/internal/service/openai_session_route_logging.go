@@ -13,7 +13,10 @@ import (
 // SQL/transport errors can contain credentials or user data; never log err.Error.
 func logOpenAISessionRouteFailure(ctx context.Context, err error, stage string, route OpenAISessionRoute, candidateID int64) {
 	var code string
+	var timeout takeoverTimeout
 	switch {
+	case errors.As(err, &timeout):
+		code = "takeover_" + string(timeout) + "_timeout"
 	case errors.Is(err, ErrOpenAISessionRouteStoreUnavailable):
 		code = "route_store_unavailable"
 	case errors.Is(err, ErrOpenAISessionRouteLeaseLost):

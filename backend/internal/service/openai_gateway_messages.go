@@ -44,7 +44,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		return nil, routeErr
 	}
 	defer finishRoute()
-	defer func() { firstByteResultErr = openAISessionRouteForwardError(ctx, firstByteResultErr) }()
+	defer func() {
+		firstByteResultErr = openAISessionRouteForwardError(ctx, account, firstByteResultErr, forwardResult, true)
+	}()
 	ctx = WithOutboundIdentityScope(ctx, c)
 	captureNativeConversationScope(ctx, c, account, body)
 	ctx = WithAccountOutboundIdentity(ctx, account)

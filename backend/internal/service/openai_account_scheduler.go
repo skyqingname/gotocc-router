@@ -78,6 +78,7 @@ type OpenAIAccountScheduleRequest struct {
 	StickyWeighted          bool
 	SubscriptionPriority    bool
 	BalanceSamePriority     bool
+	overflowFrom            *Account // Only same and lower priority tiers are eligible for a temporary loan.
 	PreserveStickyBinding   bool
 	// DisableStickyEscape keeps task-owner lookups on their account even when
 	// generic sticky health or concurrency heuristics would prefer another.
@@ -1621,6 +1622,9 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	loadReq := make([]AccountWithConcurrency, 0, len(accounts))
 	for i := range accounts {
 		account := &accounts[i]
+		if req.overflowFrom != nil && (account.Priority < req.overflowFrom.Priority || s.service.checkOpenAIClientRestriction(ctx, account) != nil) {
+			continue
+		}
 		if req.ExcludedIDs != nil {
 			if _, excluded := req.ExcludedIDs[account.ID]; excluded {
 				filterStats.exclude("excluded")
@@ -2370,10 +2374,32 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	previousResponseCanMove bool,
 	useUpstreamTokenCost bool,
 	platformOverride ...string,
-) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
+) (chosen *AccountSelectionResult, decision OpenAIAccountScheduleDecision, err error) {
 	platform := PlatformOpenAI
 	if len(platformOverride) > 0 {
 		platform = platformOverride[0]
+	}
+	if fullID := queueReselectAccount(ctx); fullID != 0 {
+		if _, fixed := ctx.Value(providerFilesOwnerContextKey{}).(providerFilesOwnerConstraint); fixed ||
+			(previousResponseID != "" && !previousResponseCanMove) || IsCodexCLITask(ctx) {
+			return nil, decision, ErrOpenAIAccountQueueFull
+		}
+		if preserveOpenAIGuardianParentBinding(ctx, sessionHash) || (previousResponseID == "" && s.resolveOpenAIGuardianParentAccountID(ctx, groupID) > 0) {
+			return nil, decision, ErrOpenAIAccountQueueFull
+		}
+		if route, ok := AutoRouteDecisionFromContext(ctx); ok && route.RequiredAccountID > 0 {
+			return nil, decision, ErrOpenAIAccountQueueFull
+		}
+		// Recheck admission once against fresh capacity. Never enter another wait
+		// queue or convert an authorization/storage failure to a capacity error.
+		defer func() {
+			if errors.Is(err, ErrNoAvailableAccounts) || (err == nil && (chosen == nil || !chosen.Acquired)) {
+				if chosen != nil && chosen.ReleaseFunc != nil {
+					chosen.ReleaseFunc()
+				}
+				chosen, err = nil, ErrOpenAIAccountQueueFull
+			}
+		}()
 	}
 	if constraint, ok := ctx.Value(providerFilesOwnerContextKey{}).(providerFilesOwnerConstraint); ok {
 		if _, excluded := excludedIDs[constraint.AccountID]; excluded {
@@ -2470,6 +2496,12 @@ func (s *OpenAIGatewayService) selectAccountWithSchedulerUncoordinated(
 	requiredImageCapability OpenAIImagesCapability, requireCompact bool, platform string, previousResponseCanMove, useUpstreamTokenCost bool,
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
 	effectiveExcludedIDs := cloneExcludedAccountIDs(excludedIDs)
+	if id := queueReselectAccount(ctx); id != 0 {
+		if effectiveExcludedIDs == nil {
+			effectiveExcludedIDs = make(map[int64]struct{})
+		}
+		effectiveExcludedIDs[id] = struct{}{}
+	}
 	var sharedResponseAccessErr error
 	autoRoute, auto := AutoRouteDecisionFromContext(ctx)
 	if auto {

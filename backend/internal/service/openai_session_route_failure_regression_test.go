@@ -180,7 +180,7 @@ func TestCodexMigrationDeadlineCancelsDetachedTransportRegression(t *testing.T) 
 	defer release()
 	select {
 	case <-detached.Done():
-		require.ErrorIs(t, context.Cause(detached), ErrOpenAISessionRouteLeaseLost)
+		require.ErrorIs(t, context.Cause(detached), takeoverTimeout("total"))
 	case <-time.After(time.Second):
 		t.Fatal("lease loss did not cancel detached transport")
 	}

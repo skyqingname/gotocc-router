@@ -510,7 +510,7 @@ func newConfiguredCodexModelDescriptor(modelID string) configuredCodexModelDescr
 		descriptor.ServiceTiers = configuredCodexServiceTiersForModel(modelID)
 		if isOpenAICodexReasoningGPTModel(modelID) {
 			defaultReasoningLevel := "medium"
-			if getNormalizedCodexModel(modelID) == "gpt-5.6-sol" || isOpenAIGPT6AstraModel(modelID) || openai.IsGPT61SolModelSpelling(modelID) {
+			if getNormalizedCodexModel(modelID) == "gpt-5.6-sol" || isOpenAIGPT6AstraModel(modelID) || isGPT62ReasoningDescriptor(modelID) || openai.IsGPT61SolModelSpelling(modelID) {
 				defaultReasoningLevel = "low"
 			}
 			descriptor.DefaultReasoningLevel = &defaultReasoningLevel
@@ -663,7 +663,7 @@ func configuredCodexGPTReasoningLevels(modelID string) []configuredCodexReasonin
 		{Effort: "xhigh", Description: "Extra-high reasoning depth for difficult tasks"},
 	}
 	normalized := getNormalizedCodexModel(modelID)
-	if isOpenAIGPT6Model(modelID) || isOpenAIGPT56Model(modelID) {
+	if isOpenAIGPT6Model(modelID) || isGPT62ReasoningDescriptor(modelID) || isOpenAIGPT56Model(modelID) {
 		levels = append(levels, configuredCodexReasoningLevel{
 			Effort:      "max",
 			Description: "Maximum reasoning depth for complex tasks",
@@ -686,9 +686,17 @@ func isOpenAICodexGPTModel(modelID string) bool {
 	return strings.HasPrefix(normalized, "gpt-")
 }
 
+func isGPT62ReasoningDescriptor(modelID string) bool {
+	switch canonicalizeOpenAIModelAliasSpelling(modelID) {
+	case "gpt-6.2-sol", "gpt-6.2-astra":
+		return true
+	}
+	return false
+}
+
 func isOpenAICodexReasoningGPTModel(modelID string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(modelID)
-	return isOpenAIGPT6Model(normalized) || strings.HasPrefix(normalized, "gpt-5")
+	return isGPT62ReasoningDescriptor(normalized) || isOpenAIGPT6Model(normalized) || strings.HasPrefix(normalized, "gpt-5")
 }
 
 func isOpenAICodexImageInputModel(modelID string) bool {

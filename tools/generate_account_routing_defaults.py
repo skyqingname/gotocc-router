@@ -10,4 +10,7 @@ target.write_text(
     'package accountbalance\n\n'
     f'const QuotaGapPercent = {config["quota_gap_percent"]}\n'
     f'const QuotaSnapshotMaxAgeSeconds = {config["quota_snapshot_max_age_seconds"]}\n'
+    f'const TakeoverHeaderWaitSeconds = {config["takeover_header_wait_seconds"]}\n'
+    f'const TakeoverUpstreamIdleSeconds = {config["takeover_upstream_idle_seconds"]}\n'
+    f'const TakeoverTotalWaitSeconds = {config["takeover_total_wait_seconds"]}\n'
 )

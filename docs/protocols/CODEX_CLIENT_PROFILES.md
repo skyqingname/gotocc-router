@@ -207,7 +207,7 @@ During WS passthrough migration, classify upstream failures before testing
 candidate acceptance. A `cyber_policy` rejection retains its risk-control mark,
 usage evidence and client event, with no retryable routing error, credential
 penalty or owner commit. Ordinary credential failures retain their account
-health effects; pre-output rate limits retain bounded same-account recovery.
+health effects. For an account-local 429 before output, an eligible alternative takes precedence over the default same-account retry. Explicit pool retry settings still apply, and declared shared limits retain their backoff.
 An unavailable shadow credential owner can make the shadow ineligible, but a
 failed parent query cannot establish unavailability. Query failures stop
 selection, including candidate filtering, post-acquisition rechecks and wait
@@ -216,14 +216,23 @@ PostgreSQL is read directly for ownership: stale Redis fills cannot authorize a
 send. Route-store failures stop admission or result delivery. An ordinary sticky
 bind cannot change a committed owner.
 
-The migration lease lasts one minute and renews every twenty seconds until
-acceptance, bounded by the existing first-output timeout (one minute when no
-timeout is configured). Cancellation, expiry and failed renewal fence detached
-usage-draining requests too. Route errors return a retryable
-`session_route_unavailable` HTTP 503 or a WS reconnect result; they do not count
-as account health failures. Measured upstream usage on a rejected commit stays
-attributed to that candidate as incomplete usage, without automatically
-replaying the request. This does not promise exactly-once upstream execution.
+The one-minute migration lease renews every twenty seconds until acceptance.
+The HTTP generation attempt may wait 20 seconds for headers. After successful
+headers, each read from upstream refreshes a 60-second idle deadline. A
+connected WebSocket uses upstream frame activity. Downstream heartbeats do
+not refresh either timer. The total pending takeover budget is 180 seconds
+across candidates; an explicitly shorter first-output limit still applies.
+These three thresholds come from `account-routing-defaults.json`.
+Only semantic acceptance or a verified successful terminal commits the owner.
+
+An idle or header timeout can select another candidate within the switch
+budget for a complete foreground request before any semantic output or
+observed billable result. Provider-side tools and opaque continuations retain
+their original execution boundary. A terminal local timeout is
+`session_takeover_timeout` (platform routing 503); if the HTTP stream is already
+open, the protocol carries the failure in-band. Store and lease failures keep
+`session_route_unavailable`. Actual upstream usage stays with its execution
+account. Cancellation and lease loss also fence detached usage-draining IO.
 
 A concurrent request that encounters an active migration lease retains the
 retryable routing error; it cannot send through the old owner or independently

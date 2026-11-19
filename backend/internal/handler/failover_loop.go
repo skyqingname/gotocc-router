@@ -111,7 +111,7 @@ func sameAccountRetryDeadlineAllows(failoverErr *service.UpstreamFailoverError) 
 // effectiveSameAccountRetryLimit applies an error-specific cap without
 // overriding an explicit account setting of zero (which disables retries).
 func effectiveSameAccountRetryLimit(failoverErr *service.UpstreamFailoverError, account *service.Account) int {
-	if account == nil {
+	if account == nil || account.PreferNextAccountOn429(failoverErr) {
 		return 0
 	}
 	limit := account.GetPoolModeRetryCount()

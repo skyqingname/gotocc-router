@@ -3,3 +3,6 @@ package accountbalance
 
 const QuotaGapPercent = 5
 const QuotaSnapshotMaxAgeSeconds = 300
+const TakeoverHeaderWaitSeconds = 20
+const TakeoverUpstreamIdleSeconds = 60
+const TakeoverTotalWaitSeconds = 180
