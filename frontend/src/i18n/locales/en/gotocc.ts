@@ -19,7 +19,7 @@ export default {
       dialogLabel: 'Global search',
       scopeLabel: 'Search scope',
       scopes: { all: 'All', model: 'Models', page: 'Pages', action: 'Actions' },
-      sections: { recent: 'Recent', model: 'Models', page: 'Pages', action: 'Actions' },
+      sections: { recent: 'Recent', model: 'Models', latestModels: 'Latest models', page: 'Pages', action: 'Actions' },
       noResults: 'No results for "{query}"',
       modelsFailed: 'Models could not be loaded. Reopen search to try again.',
       hints: { navigate: 'Select', open: 'Open', close: 'Close' },

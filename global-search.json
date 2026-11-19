@@ -6,6 +6,10 @@
     "all": 6,
     "single": 100
   },
+  "recommended_models_per_vendor": {
+    "all": 1,
+    "single": 2
+  },
   "loading_rows": 3,
   "recent_storage_prefix": "gotocc_global_search_recent_"
 }
