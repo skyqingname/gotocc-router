@@ -309,7 +309,9 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
     const byVendor = new Map<string, PlazaModel[]>()
     for (const model of uniqueModels.value) {
       if (!model.info?.release_date) continue
-      byVendor.set(model.info.vendor, [...(byVendor.get(model.info.vendor) ?? []), model])
+      const list = byVendor.get(model.info.vendor)
+      if (list) list.push(model)
+      else byVendor.set(model.info.vendor, [model])
     }
     const newestFirst = (left: PlazaModel, right: PlazaModel) =>
       right.info!.release_date.localeCompare(left.info!.release_date) || left.name.length - right.name.length

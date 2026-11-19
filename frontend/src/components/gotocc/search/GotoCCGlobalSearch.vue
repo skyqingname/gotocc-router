@@ -219,8 +219,8 @@ const sections = computed<Omit<Section, 'offset'>[]>(() => {
         ? catalog.latestByVendor.value.flatMap((list) => list.filter((item) => !listed.has(item.key)).slice(0, perVendor)).map(unranked)
         : itemsByKind.value[kind].filter((item) => !listed.has(item.key)).map(unranked).slice(0, limit)
     const status = kind === 'model' && (modelStatus.value === 'loading' || modelStatus.value === 'failed') ? modelStatus.value : undefined
-    if (rows.length === 0 && !status) continue
-    result.push({ key: kind, title: t(latest ? 'gotocc.search.sections.latestModels' : `gotocc.search.sections.${kind}`), rows, status })
+    if (rows.length > 0 || status) result.push({ key: kind, title: t(latest ? 'gotocc.search.sections.latestModels' : `gotocc.search.sections.${kind}`), rows, status })
+    // 「模型」范围的其余模型独立列出：没有任何带上线日期的模型时推荐为空，其余模型照常显示。
     if (latest && scope.value === 'model') {
       rows.forEach((row) => listed.add(row.item.key))
       const rest = itemsByKind.value.model.filter((item) => !listed.has(item.key)).map(unranked).slice(0, limit)
