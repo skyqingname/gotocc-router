@@ -89,6 +89,10 @@ keep the administrator live empty-state icon and complete message readable above
 the fixed footer, using a compact horizontal layout. User usage scrolls as one page at every width, so
 the records take over the screen as the page moves up. One toolbar card holds the
 charts/list view tabs and the time range; granularity shows only with the charts.
+Distribution cards keep their detail tables in a bounded scroll box (about five rows)
+inside the card; when the doughnut and a 26rem table do not fit side by side, the
+table wraps below the doughnut, and name columns truncate with the full name in the
+tooltip. Chart grids use two columns from 1536px and one column below that.
 The records card puts the live/history/error tabs and the history auto-refresh
 control on one row, followed by the filters with their actions on the same wrap.
 The table and its pagination follow as separate surfaces with 16px gaps instead of

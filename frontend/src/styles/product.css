@@ -72,11 +72,20 @@
     height: auto; max-height: none; min-height: 0; overflow: visible; flex: 0 0 auto;
   }
   .app-layout-user:not(.app-layout-workspace) :is(.workspace-table-card, .workspace-scroll) { overflow: visible; overscroll-behavior-y: auto; }
-  .app-layout-user:not(.app-layout-workspace) :is(.workspace-table-viewport, .table-wrapper, .record-table-scroll) {
+  /* 图表卡里的明细表（.chart-records）留在饼图旁自己的限高滚动框里，不跟着整页展开。 */
+  .app-layout-user:not(.app-layout-workspace) :is(.workspace-table-viewport, .table-wrapper, .record-table-scroll):not(.chart-records) {
     height: auto !important; max-height: none !important; min-height: 0; min-width: 0;
     flex: 0 0 auto; overflow: auto; overscroll-behavior-y: auto; scrollbar-gutter: auto;
   }
+  /* 半宽图表卡放不下「饼图 + 26rem 明细表」时，明细表换到饼图下方占满整行，可见约五行。 */
+  .app-layout-user:not(.app-layout-workspace) .chart-split { flex-wrap: wrap; justify-content: center; }
+  .app-layout-user:not(.app-layout-workspace) .chart-records { --record-table-max-height: 17rem; }
+  .app-layout-user:not(.app-layout-workspace) .chart-split > :is(.chart-records, .static-table-frame) { flex: 1 1 26rem; }
 }
+
+/* 图表明细表的名称列按组件原意截断（完整名称在悬停提示里），其余数字列保持原宽。 */
+.app-layout-user .chart-records table.record-table td:first-child { max-width: 12rem; overflow: hidden; }
+.app-layout-user .chart-records table.record-table td:first-child > span { display: block; overflow: hidden; text-overflow: ellipsis; }
 
 /* User lists keep their native content widths. Composite values use separate
    lines; row actions retain the shared wrapping button layout. DataTable uses
