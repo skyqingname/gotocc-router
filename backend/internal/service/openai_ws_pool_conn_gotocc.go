@@ -181,11 +181,7 @@ func (l *openAIWSConnLease) WriteJSONWithContextTimeout(ctx context.Context, val
 	if err != nil {
 		return err
 	}
-	err = conn.writeJSONWithTimeout(ctx, value, timeout)
-	if err == nil {
-		noteOpenAITakeoverSocketActivity(ctx)
-	}
-	return err
+	return conn.writeJSONWithTimeout(ctx, value, timeout)
 }
 
 func (l *openAIWSConnLease) WriteJSONContext(ctx context.Context, value any) error {
@@ -217,11 +213,7 @@ func (l *openAIWSConnLease) ReadMessageWithContextTimeout(ctx context.Context, t
 	if err != nil {
 		return nil, err
 	}
-	data, err := conn.readMessageWithContextTimeout(ctx, timeout)
-	if len(data) > 0 {
-		noteOpenAITakeoverSocketActivity(ctx)
-	}
-	return data, err
+	return conn.readMessageWithContextTimeout(ctx, timeout)
 }
 
 func (l *openAIWSConnLease) PingWithTimeout(timeout time.Duration) error {

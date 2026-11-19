@@ -1566,7 +1566,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		)
 		fullQueueID = 0
 		if errors.Is(err, service.ErrOpenAIAccountQueueFull) {
-			h.anthropicStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+			h.handleStreamingAwareErrorWithCode(c, http.StatusTooManyRequests, "rate_limit_error", gatewayQueueFullCode, "Too many pending requests, please retry later", streamStarted, false)
 			return
 		}
 		if err != nil {
@@ -2266,13 +2266,7 @@ func (h *OpenAIGatewayHandler) handleOpenAISessionRouteError(c *gin.Context, err
 	}
 	requestLogger(c, "handler.openai_gateway.session_route").Warn("openai.session_route_failed", zap.Error(err))
 	if GetInboundEndpoint(c) == EndpointMessages {
-		payload := gin.H{"type": "error", "error": gin.H{"type": "api_error", "code": "session_route_unavailable", "message": "Session routing is temporarily unavailable; retry this request."}}
-		if streamStarted {
-			c.SSEvent("error", payload)
-			c.Writer.Flush()
-		} else {
-			c.JSON(http.StatusServiceUnavailable, payload)
-		}
+		writeAnthropicCodedError(c, http.StatusServiceUnavailable, "api_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.", streamStarted)
 		return true
 	}
 	h.handleStreamingAwareErrorWithCode(c, http.StatusServiceUnavailable, "server_error", "session_route_unavailable", "Session routing is temporarily unavailable; retry this request.", streamStarted, false)
@@ -4334,6 +4328,13 @@ func (h *OpenAIGatewayHandler) handleStreamingAwareErrorWithCode(
 	if service.StopOpenAICompactSSEKeepaliveCommitted(c) {
 		streamStarted = true
 	}
+	if code == gatewayQueueFullCode && GetInboundEndpoint(c) == EndpointMessages {
+		if streamStarted {
+			service.MarkOpsStreamError(c, errType, message, status)
+		}
+		writeAnthropicCodedError(c, status, errType, code, message, streamStarted)
+		return
+	}
 	if streamStarted {
 		if countTowardsSLA {
 			service.MarkOpsStreamFailure(c, errType, code, message, status)
@@ -4676,7 +4677,7 @@ func closeOpenAIWSFailoverExhausted(c *gin.Context, conn service.OpenAIWSIngress
 			errorCode = reason
 		}
 		if failoverErr.Reason == service.OpenAITakeoverTimeoutCode {
-			c.Set(opsLocalTakeoverTimeoutKey, true)
+			c.Set(opsLocalTakeoverTimeoutKey, c.GetInt(service.OpsStreamTurnKey))
 			intendedStatus, errorType, message, closeStatus = http.StatusServiceUnavailable, "service_unavailable_error", failoverErr.ClientMessage, coderws.StatusTryAgainLater
 		} else if failoverErr.Stage == service.GatewayFailureStageAccountAuth {
 			intendedStatus = http.StatusServiceUnavailable

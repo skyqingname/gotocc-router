@@ -217,11 +217,13 @@ send. Route-store failures stop admission or result delivery. An ordinary sticky
 bind cannot change a committed owner.
 
 The one-minute migration lease renews every twenty seconds until acceptance.
-The HTTP generation attempt may wait 20 seconds for headers. After successful
-headers, each read from upstream refreshes a 60-second idle deadline. A
-connected WebSocket uses upstream frame activity. Downstream heartbeats do
-not refresh either timer. The total pending takeover budget is 180 seconds
-across candidates; an explicitly shorter first-output limit still applies.
+A replayable HTTP request waits up to 20 seconds for headers. A request
+that must stay on its execution account gets the longer of the header and
+idle windows (60 seconds by default). After successful headers, each upstream
+read refreshes the 60-second idle window. On a connected WebSocket the
+generation write starts that window and subsequent upstream frames refresh it.
+The total pending takeover budget is 180 seconds across candidates. An
+explicitly shorter first-output limit still applies.
 These three thresholds come from `account-routing-defaults.json`.
 Only semantic acceptance or a verified successful terminal commits the owner.
 

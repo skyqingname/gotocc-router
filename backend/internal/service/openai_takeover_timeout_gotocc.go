@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/accountbalance"
+	"github.com/tidwall/gjson"
 )
 
 // A migration is accepted only by the existing protocol parser. These clocks
@@ -21,16 +22,17 @@ type takeoverTimeout string
 func (t takeoverTimeout) Error() string { return "session takeover timed out: " + string(t) }
 
 type takeoverProgress struct {
-	mu       sync.Mutex
-	phase    string
-	last     time.Time
-	absolute time.Time
-	initial  time.Duration
-	changed  chan struct{}
-	accepted <-chan struct{}
+	mu         sync.Mutex
+	phase      string
+	last       time.Time
+	absolute   time.Time
+	initial    time.Duration
+	headerWait time.Duration
+	changed    chan struct{}
+	accepted   <-chan struct{}
 }
 
-func (p *takeoverProgress) advance(phase string) {
+func (p *takeoverProgress) advance(phase string, startOnly bool) {
 	select {
 	case <-p.accepted:
 		return
@@ -38,7 +40,9 @@ func (p *takeoverProgress) advance(phase string) {
 	}
 	p.mu.Lock()
 	changed := p.phase != phase
-	p.phase, p.last = phase, time.Now()
+	if changed || !startOnly {
+		p.phase, p.last = phase, time.Now()
+	}
 	p.mu.Unlock()
 	if changed {
 		select {
@@ -54,7 +58,7 @@ func (p *takeoverProgress) next() (time.Duration, takeoverTimeout) {
 	window := p.initial
 	switch p.phase {
 	case "headers":
-		window = accountbalance.TakeoverHeaderWaitSeconds * time.Second
+		window = p.headerWait
 	case "body":
 		window = accountbalance.TakeoverUpstreamIdleSeconds * time.Second
 	}
@@ -80,12 +84,12 @@ func ObserveOpenAITakeoverHTTP(req *http.Request) func(*http.Response) {
 	if !strings.HasSuffix(path, "/responses") && !strings.HasSuffix(path, "/messages") && !strings.HasSuffix(path, "/chat/completions") {
 		return nil
 	}
-	p.advance("headers")
+	p.advance("headers", false)
 	return func(resp *http.Response) {
 		if resp == nil || resp.StatusCode < 200 || resp.StatusCode >= 300 || resp.Body == nil {
 			return
 		}
-		p.advance("body")
+		p.advance("body", false)
 		resp.Body = &takeoverProgressBody{ReadCloser: resp.Body, p: p}
 	}
 }
@@ -98,7 +102,7 @@ type takeoverProgressBody struct {
 func (b *takeoverProgressBody) Read(buf []byte) (int, error) {
 	n, err := b.ReadCloser.Read(buf)
 	if n > 0 {
-		b.p.advance("body")
+		b.p.advance("body", false)
 	}
 	return n, err
 }
@@ -111,7 +115,38 @@ func takeoverRequestReplayable(body []byte) bool {
 	if !req.IsObject() || req.Get("background").Bool() || req.Get("conversation").Exists() {
 		return false
 	}
-	for _, tool := range req.Get("tools").Array() {
+	if req.Get("web_search_options").Exists() || gjsonArrayHasElements(req.Get("mcp_servers")) {
+		return false
+	}
+	tools := req.Get("tools")
+	if !takeoverClientToolsOnly(tools) {
+		return false
+	}
+	hasTools := gjsonArrayHasElements(tools)
+	hasSearchHistory := false
+	for _, item := range req.Get("input").Array() {
+		switch strings.TrimSpace(item.Get("type").String()) {
+		case openAIAdditionalToolsItemType:
+			additional := item.Get("tools")
+			if !takeoverClientToolsOnly(additional) {
+				return false
+			}
+			hasTools = hasTools || gjsonArrayHasElements(additional)
+		case openAIWebSearchCallItemType:
+			hasSearchHistory = true
+		}
+	}
+	// OAuth adds a hosted search tool for this history. The no-tools
+	// compaction case pins tool_choice to none during normalization.
+	choice := req.Get("tool_choice")
+	return !hasSearchHistory || choice.String() == "none" || (!hasTools && shouldPinOpenAIWebSearchHistoryToolChoice(choice.Value()))
+}
+
+func takeoverClientToolsOnly(tools gjson.Result) bool {
+	if tools.Exists() && tools.Type != gjson.Null && !tools.IsArray() {
+		return false
+	}
+	for _, tool := range tools.Array() {
 		switch tool.Get("type").String() {
 		case "function", "custom":
 		case "":
@@ -138,10 +173,13 @@ func takeoverTimedOutError(ctx context.Context, cause takeoverTimeout, replay bo
 	}
 }
 
-// A connected WebSocket has already completed its handshake. Only successful
-// writes of a request or reads from its upstream socket count as progress.
-func noteOpenAITakeoverSocketActivity(ctx context.Context) {
+// A generation write starts the WS idle clock once. Only upstream reads
+// refresh it after that. Pool prewarm and client control frames are excluded.
+func noteOpenAITakeoverSocketActivity(ctx context.Context, requestSent bool) {
+	if ctx == nil {
+		return
+	}
 	if p, _ := ctx.Value(takeoverProgressKey{}).(*takeoverProgress); p != nil {
-		p.advance("body")
+		p.advance("body", requestSent)
 	}
 }

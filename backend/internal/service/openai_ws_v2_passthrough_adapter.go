@@ -449,7 +449,7 @@ func (c *openAIWSPassthroughFirstOutputFrameConn) ReadFrame(ctx context.Context)
 		case result := <-readResultCh:
 			if result.err == nil {
 				if len(result.payload) > 0 {
-					noteOpenAITakeoverSocketActivity(ctx)
+					noteOpenAITakeoverSocketActivity(ctx, false)
 				}
 				c.observeUpstreamActivity(result.msgType, result.payload)
 			}
@@ -486,14 +486,17 @@ func (c *openAIWSPassthroughFirstOutputFrameConn) WriteFrame(ctx context.Context
 		return errOpenAIWSConnClosed
 	}
 	generation := uint64(0)
-	if msgType == coderws.MessageText && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "response.create" {
+	isCreate := (msgType == coderws.MessageText || msgType == coderws.MessageBinary) && strings.TrimSpace(gjson.GetBytes(payload, "type").String()) == "response.create"
+	if isCreate && msgType == coderws.MessageText {
 		generation = c.armDeadline(payload)
 	}
 	if err := c.inner.WriteFrame(ctx, msgType, payload); err != nil {
 		c.disarmDeadline(generation)
 		return err
 	}
-	noteOpenAITakeoverSocketActivity(ctx)
+	if isCreate {
+		noteOpenAITakeoverSocketActivity(ctx, true)
+	}
 	return nil
 }
 

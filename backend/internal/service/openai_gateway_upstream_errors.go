@@ -570,6 +570,12 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 	shouldDisable bool,
 	retryableOnSameAccount bool,
 ) *UpstreamFailoverError {
+	if account != nil && account.Platform == PlatformOpenAI && statusCode == http.StatusTooManyRequests && openAISharedRateLimit(classificationHeaders, responseBody) {
+		failure := newOpenAIUpstreamFailoverError(statusCode, responseHeaders, responseBody, upstreamMsg, false)
+		failure.Scope = GatewayFailureScopeProvider
+		failure.NextAccountAction = NextAccountStop
+		return failure
+	}
 	oauth429Retry := s.shouldRetryOpenAIOAuth429OnSameAccountWithResponse(account, statusCode, shouldDisable, classificationHeaders, responseBody)
 	failoverErr := newOpenAIUpstreamFailoverError(
 		statusCode,
@@ -578,7 +584,11 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 		upstreamMsg,
 		retryableOnSameAccount || oauth429Retry,
 	)
-	if oauth429Retry {
+	// A retry deadline takes precedence over a zero pool count in the handler.
+	// Resolve the account-switch policy before granting that deadline.
+	if account.PreferNextAccountOn429(failoverErr) {
+		failoverErr.RetryableOnSameAccount = false
+	} else if oauth429Retry {
 		failoverErr.SameAccountRetryDeadline = s.openAIOAuth429RetryDeadline(account)
 		failoverErr.SameAccountRetryDelay = openAIOAuth429SameAccountRetryDelay(responseHeaders, failoverErr.SameAccountRetryDeadline)
 	}

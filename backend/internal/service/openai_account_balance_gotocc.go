@@ -194,15 +194,25 @@ func (s *OpenAIGatewayService) overflowCanonicalOpenAIAccount(ctx context.Contex
 
 // Explicit provider-wide and end-user budgets survive a change of account.
 func openAISharedRateLimit(headers http.Header, body []byte) bool {
-	for _, scope := range []string{headers.Get("X-RateLimit-Scope"), gjson.GetBytes(body, "error.scope").String(), gjson.GetBytes(body, "error.metadata.scope").String()} {
+	sharedScope := func(scope string) bool {
 		switch strings.ToLower(strings.TrimSpace(scope)) {
 		case "global", "shared", "user", "organization", "project", "provider", "group":
 			return true
 		}
+		return false
 	}
-	switch gjson.GetBytes(body, "error.code").String() {
-	case "user_rate_limit_exceeded", "organization_rate_limit_exceeded", "project_rate_limit_exceeded", "global_rate_limit_exceeded":
+	if sharedScope(headers.Get("X-RateLimit-Scope")) {
 		return true
+	}
+	root := gjson.ParseBytes(body)
+	for _, detail := range []gjson.Result{root.Get("response.error"), root.Get("error"), root} {
+		if sharedScope(detail.Get("scope").String()) || sharedScope(detail.Get("metadata.scope").String()) {
+			return true
+		}
+		switch detail.Get("code").String() {
+		case "user_rate_limit_exceeded", "organization_rate_limit_exceeded", "project_rate_limit_exceeded", "global_rate_limit_exceeded":
+			return true
+		}
 	}
 	return false
 }

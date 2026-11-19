@@ -199,6 +199,9 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	if account != nil && account.Platform == PlatformOpenAI && openAIInputTerminalCode(statusCode, responseBody) != "" {
 		return false
 	}
+	if account != nil && account.Platform == PlatformOpenAI && statusCode == http.StatusTooManyRequests && openAISharedRateLimit(headers, responseBody) {
+		return false
+	}
 	// Capacity shedding describes this request, not account health. Keep the
 	// account healthy; Plus returns the response without retry or failover.
 	if account != nil && account.Platform == PlatformOpenAI && isOpenAIHTTPCapacityShed(statusCode, "", responseBody) {

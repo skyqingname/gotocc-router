@@ -99,15 +99,19 @@ func openAISessionRouteForwardError(ctx context.Context, account *Account, err e
 	}
 	var failover *UpstreamFailoverError
 	if account != nil && account.Platform == PlatformOpenAI && errors.As(err, &failover) && failover.StatusCode == http.StatusTooManyRequests {
-		if ingress, ok := ctx.Value(openAIClientRestrictionKey{}).(openAIClientRestrictionRequest); ok && failover.StreamFailedFrame != nil && !takeoverRequestReplayable(ingress.body) {
-			failover.NextAccountAction = NextAccountStop
-			failover.RetryableOnSameAccount = false
-		} else if openAISharedRateLimit(failover.ResponseHeaders, failover.ResponseBody) {
+		body, classificationHeaders := failover.ResponseBody, failover.ResponseHeaders
+		if frame := failover.StreamFailedFrame; frame != nil {
+			body, classificationHeaders = frame.Payload, nil
+		}
+		if openAISharedRateLimit(classificationHeaders, body) {
 			failover.Scope = GatewayFailureScopeProvider
 			failover.NextAccountAction = NextAccountStop
 			failover.RetryableOnSameAccount = false
+		} else if ingress, ok := ctx.Value(openAIClientRestrictionKey{}).(openAIClientRestrictionRequest); ok && failover.StreamFailedFrame != nil && !takeoverRequestReplayable(ingress.body) {
+			failover.NextAccountAction = NextAccountStop
+			failover.RetryableOnSameAccount = false
 		} else if reset := parseRetryAfterResetTime(failover.ResponseHeaders, time.Now()); reset != nil && time.Until(*reset) > openAIOAuth429MaxRetryDelay {
-			if disposition, _ := classifyOpenAIOAuth429(failover.ResponseHeaders, failover.ResponseBody); disposition == openAIOAuth429Transient {
+			if disposition, _ := classifyOpenAIOAuth429(classificationHeaders, body); disposition == openAIOAuth429Transient {
 				failover.NextAccountAction = NextAccountStop
 				failover.RetryableOnSameAccount = false
 			}
@@ -415,6 +419,11 @@ func beginOpenAISessionRouteForward(ctx context.Context, account *Account, timeo
 	leaseCtx, cancelLease := context.WithCancelCause(context.Background())
 	a.leaseContext = leaseCtx
 	a.leaseCancel = cancelLease
+	headerWait := time.Duration(accountbalance.TakeoverHeaderWaitSeconds) * time.Second
+	if !a.replayable {
+		// Without a safe next attempt, allow a full upstream idle window for the first reply.
+		headerWait = max(headerWait, accountbalance.TakeoverUpstreamIdleSeconds*time.Second)
+	}
 	totalDeadline := a.takeoverUntil
 	if pending && totalDeadline.IsZero() {
 		totalDeadline = time.Now().Add(accountbalance.TakeoverTotalWaitSeconds * time.Second)
@@ -437,7 +446,7 @@ func beginOpenAISessionRouteForward(ctx context.Context, account *Account, timeo
 		initial = time.Minute
 	}
 	progress := &takeoverProgress{
-		phase: "dispatch", last: start, initial: initial, absolute: totalDeadline,
+		phase: "dispatch", last: start, initial: initial, headerWait: headerWait, absolute: totalDeadline,
 		changed: make(chan struct{}, 1), accepted: a.accepted,
 	}
 	ctx = context.WithValue(ctx, takeoverProgressKey{}, progress)
