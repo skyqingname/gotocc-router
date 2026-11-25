@@ -144,7 +144,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		imageTaskJSONError(c, http.StatusBadRequest, "invalid_request_error", "streaming image requests cannot be submitted as asynchronous tasks")
 		return
 	}
-	if err := validateAsyncImageEditUploadLimits(c.Request.URL.Path, c.GetHeader("Content-Type"), body, h.openAI.cfg.AsyncImage.EditMaxInputImages); err != nil {
+	if err := validateAsyncImageEditUploadLimits(c.Request.URL.Path, c.GetHeader("Content-Type"), platform, body, h.openAI.cfg.AsyncImage.EditMaxInputImages); err != nil {
 		status := http.StatusBadRequest
 		var uploadTooLarge *service.OpenAIImageUploadTooLargeError
 		if errors.Is(err, errAsyncImageEditMultipartTooLarge) || errors.As(err, &uploadTooLarge) {
@@ -474,7 +474,7 @@ func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, bod
 // validateAsyncImageEditUploadLimits keeps detached multipart edit requests
 // within a bounded memory envelope. The same body is held by the submit
 // request, copied into the background context, and parsed before forwarding.
-func validateAsyncImageEditUploadLimits(path, contentType string, body []byte, maxInputImages int) error {
+func validateAsyncImageEditUploadLimits(path, contentType, platform string, body []byte, maxInputImages int) error {
 	if !strings.Contains(path, "/images/edits/") || !isMultipartImagesContentType(contentType) {
 		return nil
 	}
@@ -491,6 +491,9 @@ func validateAsyncImageEditUploadLimits(path, contentType string, body []byte, m
 	}
 
 	reader := multipart.NewReader(bytes.NewReader(body), boundary)
+	if platform == service.PlatformGrok {
+		maxInputImages = service.GrokMediaMaxEditSourceImages
+	}
 	inputImages := 0
 	masks := 0
 	var firstImageSize *asyncImageUploadSize
@@ -523,6 +526,9 @@ func validateAsyncImageEditUploadLimits(path, contentType string, body []byte, m
 			}
 			inputImages++
 			if inputImages > maxInputImages {
+				if platform == service.PlatformGrok {
+					return fmt.Errorf("a maximum of %d source images is supported for image edits", maxInputImages)
+				}
 				return fmt.Errorf("%w (at most %d input images)", errAsyncImageEditTooManyInputImages, maxInputImages)
 			}
 			if firstImageSize == nil {

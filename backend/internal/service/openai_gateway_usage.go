@@ -213,7 +213,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 
 	// OpenAI input_tokens 是总输入，包含缓存读取和缓存写入明细。
 	// 将三类 token 拆成互斥桶，避免缓存写入同时按普通输入和 cache_write 重复计费。
-	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens - result.Usage.CacheCreationInputTokens
+	creationTokens := result.Usage.cacheCreationTotal()
+	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens - creationTokens
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
@@ -224,7 +225,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageInputTokens:       max(result.Usage.ImageInputTokens-result.Usage.ImageCacheReadTokens, 0),
 		ImageCacheReadTokens:   result.Usage.ImageCacheReadTokens,
 		OutputTokens:           result.Usage.OutputTokens,
-		CacheCreationTokens:    result.Usage.CacheCreationInputTokens,
+		CacheCreationTokens:    creationTokens,
+		CacheCreation5mTokens:  result.Usage.CacheCreation5mInputTokens,
+		CacheCreation1hTokens:  result.Usage.CacheCreation1hInputTokens,
 		CacheCreation30mTokens: result.Usage.CacheCreation30mInputTokens,
 		CacheCreation12hTokens: result.Usage.CacheCreation12hInputTokens,
 		CacheReadTokens:        result.Usage.CacheReadInputTokens,
@@ -496,7 +499,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		UpstreamEndpoint:         optionalTrimmedStringPtr(input.UpstreamEndpoint),
 		InputTokens:              actualInputTokens,
 		OutputTokens:             result.Usage.OutputTokens,
-		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheCreationTokens:      result.Usage.cacheCreationTotal(),
+		CacheCreation5mTokens:    result.Usage.CacheCreation5mInputTokens,
+		CacheCreation1hTokens:    result.Usage.CacheCreation1hInputTokens,
 		CacheCreation30mTokens:   result.Usage.CacheCreation30mInputTokens,
 		CacheCreation12hTokens:   result.Usage.CacheCreation12hInputTokens,
 		CacheReadTokens:          result.Usage.CacheReadInputTokens,
@@ -602,14 +607,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		billingMode := string(BillingModeToken)
 		usageLog.BillingMode = &billingMode
 	}
-	// 添加 UserAgent
-	if input.UserAgent != "" {
-		usageLog.UserAgent = &input.UserAgent
+	// 添加 UserAgent / IPAddress。取副本地址：指向 input 字段会让整个 input（含 Result
+	// 及其引用的请求体）随异步写入的 usageLog 一直存活。
+	if userAgent := input.UserAgent; userAgent != "" {
+		usageLog.UserAgent = &userAgent
 	}
-
-	// 添加 IPAddress
-	if input.IPAddress != "" {
-		usageLog.IPAddress = &input.IPAddress
+	if ipAddress := input.IPAddress; ipAddress != "" {
+		usageLog.IPAddress = &ipAddress
 	}
 
 	// 添加 SessionID（客户端显式会话标识；缺失/无效时保持 nil）
@@ -726,7 +730,7 @@ func openAISubscriptionLongContextExempt(account *Account, result *OpenAIForward
 	if model == "" {
 		model = result.Model
 	}
-	return openai.IsGPT61SolModelSpelling(model) || openai.IsGPT61TerraModelSpelling(model)
+	return openai.GPT62ModelID(model) != "" || openai.IsGPT61SolModelSpelling(model) || openai.IsGPT61TerraModelSpelling(model)
 }
 
 func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(

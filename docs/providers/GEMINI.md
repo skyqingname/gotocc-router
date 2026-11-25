@@ -158,3 +158,12 @@ and long-decode support are not added by this refresh. Existing group/channel
 prices keep precedence. Provider-specific aliases and availability are not
 inferred from the family name. Sources: [model](https://aistudio.google.com/docs/models/gemini-4-hydrogen),
 [pricing](https://aistudio.google.com/docs/pricing#gemini-4-hydrogen).
+
+## Tool history and Antigravity quota compatibility
+
+Native Gemini conversion separates trailing content from the final
+tool-result turn so the upstream receives the tool results in their own
+content message. Antigravity streaming retains upstream SSE comments.
+Antigravity quota observations use the same forward endpoint as the
+selected account, and an unclassified 429 can cool at most one account
+during a logical request.

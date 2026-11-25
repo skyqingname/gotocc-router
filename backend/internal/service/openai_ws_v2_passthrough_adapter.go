@@ -14,6 +14,7 @@ import (
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/apicompat"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/logger"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/openai"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/requestmodel"
 	openaiwsv2 "github.com/LuckyKuang/sub2api-plus/internal/service/openai_ws_v2"
 	coderws "github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,18 @@ type openAIWSPolicyEnforcingFrameConn struct {
 	inner   openaiwsv2.FrameConn
 	filter  func(msgType coderws.MessageType, payload []byte) ([]byte, *OpenAIFastBlockedError, error)
 	onBlock func(blocked *OpenAIFastBlockedError)
+}
+
+type openAIWSDeclaredLimitFrameConn struct {
+	openaiwsv2.FrameConn
+	limit int
+}
+
+func (c *openAIWSDeclaredLimitFrameConn) WriteFrame(ctx context.Context, msgType coderws.MessageType, payload []byte) error {
+	if len(payload) > c.limit {
+		return newOpenAIWSDeclaredLimitClientClose(&openAIWSDeclaredLimitExceededError{limit: c.limit, length: len(payload)})
+	}
+	return c.FrameConn.WriteFrame(ctx, msgType, payload)
 }
 
 func readNextOpenAIWSPassthroughResponseCreate(
@@ -1007,6 +1020,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	if wire, ok := upstreamConn.(*coderOpenAIWSClientConn); ok {
 		upstreamFrameConn = &openAIWSObservedFrameConn{FrameConn: upstreamFrameConn, headers: wire.outboundHeaders, observation: &usageMeta.outbound}
 	}
+	if limit, ok := parseOpenAIWSDeclaredMaxMessageBytes(handshakeHeaders); ok {
+		openAIWSDeclaredLimits.remember(openAIWSDeclaredLimitAccountKey(account), limit)
+		upstreamFrameConn = &openAIWSDeclaredLimitFrameConn{FrameConn: upstreamFrameConn, limit: limit}
+	}
 	relayUpstreamFrameConn := &openAIWSPassthroughFirstOutputFrameConn{
 		inner:             upstreamFrameConn,
 		activeReadTimeout: s.openAIWSPassthroughIdleTimeout(),
@@ -1070,6 +1087,12 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		filter: func(msgType coderws.MessageType, payload []byte) (out []byte, blocked *OpenAIFastBlockedError, filterErr error) {
 			if msgType != coderws.MessageText && msgType != coderws.MessageBinary {
 				return payload, nil, nil
+			}
+			// passthrough 原样转发 session.update 等所有客户端事件；任何帧内的重复
+			// 字段都会让网关（gjson 取首个、sjson 只改首个）与上游读到不同的值
+			// （GHSA-p3r4-jcm3-2hph），在读取任何字段之前拒绝。
+			if field, conflict := requestmodel.ConflictingField("application/json", payload); conflict {
+				return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, fmt.Sprintf("websocket request payload declares field %.64q more than once", field), nil)
 			}
 			auditPayload := payload
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())

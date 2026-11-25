@@ -15,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 )
 
 // RegisterGatewayRoutes 注册 API 网关路由（Claude/OpenAI/Gemini 兼容）
@@ -33,6 +32,21 @@ func RegisterGatewayRoutes(
 	bodyMemoryBudget := pkghttputil.NewBodyMemoryBudget(cfg.Gateway.RequestBodyMemoryBudgetBytes)
 	bodyLimit := middleware.RequestBodyLimit(cfg.Gateway.MaxBodySize, bodyMemoryBudget)
 	textBodyLimit := middleware.RequestBodyLimit(cfg.Gateway.TextMaxBodySize, bodyMemoryBudget)
+	// 分组链上的中间件（白名单、字段歧义检查、合成路由）会在 handler 之前读完
+	// 请求体，路由级的上限来不及生效；纯文本入口的上限必须在分组层按路由选择。
+	textBodyRoutes := map[string]bool{
+		"/v1/systemone":                   true,
+		"/v1/alpha/search":                true,
+		"/v1/embeddings":                  true,
+		"/backend-api/codex/alpha/search": true,
+	}
+	groupBodyLimit := func(c *gin.Context) {
+		if textBodyRoutes[c.FullPath()] {
+			textBodyLimit(c)
+			return
+		}
+		bodyLimit(c)
+	}
 	clientRequestID := middleware.ClientRequestID()
 	opsErrorLogger := handler.GatewayOpsErrorLoggerMiddleware(opsService, settingService)
 	endpointNorm := handler.InboundEndpointMiddleware()
@@ -46,6 +60,10 @@ func RegisterGatewayRoutes(
 	// 分组级模型白名单准入：在 apiKeyAuth 之后、compositeTarget 之前，
 	// 保证校验发生在合成路由改写与调度之前，且只看客户端书写的模型名。
 	groupModelAllowlist := middleware.GroupModelAllowlist()
+
+	// 重复字段可能让计费值和转发值分叉，即使原始值相同，后续改写也可能只改其中一项。
+	// 所有分组均在白名单准入之后、合成路由改写之前执行此检查。
+	rejectConflictingFields := middleware.RejectConflictingRequestFields()
 
 	isOpenAIResponsesCompatibleGatewayPlatform := func(c *gin.Context) bool {
 		// openai、grok 与多协议 API Key 供应商经 OpenAI 网关转发（平台清单）。
@@ -216,13 +234,14 @@ func RegisterGatewayRoutes(
 	gateway := r.Group("/v1")
 	gateway.Use(canonicalCCSwitchUsageAlias)
 	gateway.Use(canonicalVideoGenerationAlias)
-	gateway.Use(bodyLimit)
+	gateway.Use(groupBodyLimit)
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
 	gateway.Use(h.Reseller.PricingContext)
 	gateway.Use(groupModelAllowlist)
+	gateway.Use(rejectConflictingFields)
 	gateway.Use(compositeTarget)
 	gateway.Use(requireGroupAnthropic)
 	{
@@ -239,8 +258,8 @@ func RegisterGatewayRoutes(
 			}
 			h.Gateway.Messages(c)
 		})
-		// System One carries only JSON text, so it uses the text body limit.
-		gateway.POST("/systemone", textBodyLimit, h.Gateway.SystemOne)
+		// System One carries only JSON text; groupBodyLimit applies the text body limit.
+		gateway.POST("/systemone", h.Gateway.SystemOne)
 		// /v1/messages/count_tokens: OpenAI bridges upstream, Grok estimates
 		// locally, and Anthropic-compatible platforms retain their existing path.
 		gateway.POST("/messages/count_tokens", countTokensHandler)
@@ -270,7 +289,7 @@ func RegisterGatewayRoutes(
 			}
 			h.Gateway.Responses(c)
 		}))
-		gateway.POST("/alpha/search", textBodyLimit, h.OpenAIGateway.AlphaSearch)
+		gateway.POST("/alpha/search", h.OpenAIGateway.AlphaSearch)
 		gateway.GET("/responses", func(c *gin.Context) {
 			h.OpenAIGateway.ResponsesWebSocket(c)
 		})
@@ -282,7 +301,7 @@ func RegisterGatewayRoutes(
 			}
 			h.Gateway.ChatCompletions(c)
 		})
-		gateway.POST("/embeddings", textBodyLimit, func(c *gin.Context) {
+		gateway.POST("/embeddings", func(c *gin.Context) {
 			if !isOpenAIOnlyEndpointGatewayPlatform(c) {
 				service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
 				c.JSON(http.StatusNotFound, gin.H{
@@ -395,6 +414,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	gemini.Use(h.Reseller.PricingContext)
 	gemini.Use(groupModelAllowlist)
+	gemini.Use(rejectConflictingFields)
 	gemini.Use(compositeGeminiTarget)
 	gemini.Use(requireGroupGoogle)
 	{
@@ -421,7 +441,7 @@ func RegisterGatewayRoutes(
 	// 根路径别名共用中间件链：白名单准入在 apiKeyAuth 之后、compositeTarget
 	// 之前，避免逐条路由手工维护链导致漏挂。
 	rootRoute := func(method, path string, limit gin.HandlerFunc, handler gin.HandlerFunc) {
-		r.Handle(method, path, canonicalVideoGenerationAlias, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic, handler)
+		r.Handle(method, path, canonicalVideoGenerationAlias, limit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, rejectConflictingFields, compositeTarget, requireGroupAnthropic, handler)
 	}
 	for _, prefix := range []string{"/api/v3", "/v3", "/v1", ""} {
 		rootRoute(http.MethodPost, prefix+"/contents/generations/tasks", bodyLimit, h.OpenAIGateway.SeedanceTasks)
@@ -440,13 +460,13 @@ func RegisterGatewayRoutes(
 	// Local subscription quota view, never an upstream ChatGPT proxy.
 	r.GET("/backend-api/wham/usage", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.CodexLocalGroupQuotaUsage)
 	codexDirect := r.Group("/backend-api/codex")
-	codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, compositeTarget, requireGroupAnthropic)
+	codexDirect.Use(groupBodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), h.Reseller.PricingContext, groupModelAllowlist, rejectConflictingFields, compositeTarget, requireGroupAnthropic)
 	{
 		codexDirect.POST("/realtime/calls", h.OpenAIGateway.Live)
 		codexDirect.GET("/:call_id", h.OpenAIGateway.LiveSideband)
 		codexDirect.POST("/responses", responsesHandler)
 		codexDirect.POST("/responses/*subpath", guardResponsesSubpath(responsesHandler))
-		codexDirect.POST("/alpha/search", textBodyLimit, h.OpenAIGateway.AlphaSearch)
+		codexDirect.POST("/alpha/search", h.OpenAIGateway.AlphaSearch)
 		codexDirect.GET("/responses", func(c *gin.Context) {
 			h.OpenAIGateway.ResponsesWebSocket(c)
 		})
@@ -562,6 +582,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
 	antigravityV1.Use(h.Reseller.PricingContext)
 	antigravityV1.Use(groupModelAllowlist)
+	antigravityV1.Use(rejectConflictingFields)
 	antigravityV1.Use(requireGroupAnthropic)
 	{
 		antigravityV1.POST("/messages", h.Gateway.Messages)
@@ -579,6 +600,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	antigravityV1Beta.Use(h.Reseller.PricingContext)
 	antigravityV1Beta.Use(groupModelAllowlist)
+	antigravityV1Beta.Use(rejectConflictingFields)
 	antigravityV1Beta.Use(requireGroupGoogle)
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
@@ -739,9 +761,7 @@ func compositeTargetPlatformMiddleware(resolver *service.CompositeRouteResolver)
 				c.Request = c.Request.WithContext(service.WithCompositeRouteDecision(c.Request.Context(), decision))
 				if upstreamModel := strings.TrimSpace(decision.UpstreamModel); upstreamModel != "" && upstreamModel != model && gjson.ValidBytes(body) {
 					if _, modelPath := requestmodel.JSONModelPathForRoute(routePath, body); modelPath != "" {
-						if rewritten, rewriteErr := sjson.SetBytes(body, modelPath, upstreamModel); rewriteErr == nil {
-							body = rewritten
-						}
+						body = service.RewriteCompositeRequestModel(body, modelPath, upstreamModel)
 					}
 				}
 			}

@@ -6,6 +6,22 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
+The integration candidate starts from owned main `880dcfeeae459753e33272e0d6af7b925eb6160a`
+(`skyqingname/gotocc-router@v0.2.22+custom.001`, fixed package commit
+`f6cceec5cd81f1353d8a38ed782a65f4b755a11b`) and incorporates the complete
+`LuckyKuang/sub2api-plus@v0.2.24+custom.001` release, peeled commit
+`01321e120fe3a46fd5055c4494f1bd920a11be93` (including `v0.2.23+custom.001` /
+`af401db0512a2473b703d5f5c56208352abf5a4d`). Its official baselines are
+`Wei-Shaw/sub2api@v0.2.23` (`5af9afb588c4b014b3df9db7d4073af1f8ae01b6`) and
+`Wei-Shaw/sub2api@v0.2.24` (`5c2982a81b46e2142d0143d2f83c1ce9c4da1d24`).
+The owned `VERSION` remains `0.2.22+custom.001` pending acceptance and release.
+Plus migration 316 is imported as **344** (`344_channel_pricing_ultrafast_multiplier.sql`);
+existing SQL files through 343 stay byte-for-byte unchanged. GoToCC retains its
+session overflow/takeover routing, team/reseller funding snapshots, Claude
+advisor usage/billing, response token-detail presence, configurable async image
+edit limits, peak DeepSeek and explicit model price cards, and owned release
+channel.
+
 GoToCC `skyqingname/gotocc-router@v0.2.22+custom.001` integrates the complete fixed Plus release
 `LuckyKuang/sub2api-plus@v0.2.22+custom.001`, peeled commit
 `1476c0f43dc35ce023e265e9e947bde1ee107a35`. Its official baseline is
@@ -164,9 +180,9 @@ These identifiers describe the current planned source revision. Its tag and
 image are not published; the mapping status below governs publication.
 
 ```text
-Git/GitHub: v0.2.22+custom.001
-Application: 0.2.22+custom.001
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.22-custom.001
+Git/GitHub: v0.2.24+custom.001
+Application: 0.2.24+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.24-custom.001
 ```
 
 ## Release Mapping
@@ -266,6 +282,8 @@ GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.22-custom.001
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.001` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.001 |
 | `LuckyKuang/sub2api-plus@v0.2.21+custom.002` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | upstream published; adopted by GoToCC 0.2.21+custom.002 and 0.2.21+custom.003 |
 | `LuckyKuang/sub2api-plus@v0.2.22+custom.001` | `v0.2.22` | `b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b` | upstream published; adopted by GoToCC 0.2.22+custom.001 |
+| `LuckyKuang/sub2api-plus@v0.2.23+custom.001` | `v0.2.23` | `5af9afb588c4b014b3df9db7d4073af1f8ae01b6` | upstream published; included in 2026-11-25 candidate |
+| `LuckyKuang/sub2api-plus@v0.2.24+custom.001` | `v0.2.24` | `5c2982a81b46e2142d0143d2f83c1ce9c4da1d24` | upstream published; adopted by 2026-11-25 candidate |
 
 `v0.2.15+custom.003` records the integrated official main snapshot in the
 Official Commit column. Its tagged official baseline remains
