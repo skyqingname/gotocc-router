@@ -139,7 +139,7 @@
               <label class="input-label">{{ t('usage.compactionFilter') }}</label>
               <Select v-model="filters.native_compaction_v2" :options="compactionOptions" @change="applyFilters" />
             </div>
-            <div v-if="subscriptionFeatureEnabled" class="w-full sm:w-auto sm:min-w-[200px]">
+            <div v-if="subscriptionFeatureEnabled" class="filter-field">
               <label class="input-label">{{ t('admin.usage.billingType') }}</label>
               <Select v-model="filters.billing_type" :options="billingTypeOptions" @change="applyFilters" />
             </div>
@@ -166,7 +166,7 @@
                 :title="t('admin.users.columnSettings')"
               >
                 <Icon name="grid" size="sm" />
-                <span class="hidden md:inline">{{ t('admin.users.columnSettings') }}</span>
+                <span class="hidden sm:inline">{{ t('admin.users.columnSettings') }}</span>
               </button>
               <Teleport to="body">
               <div
@@ -228,9 +228,10 @@
         />
       </div>
 
-      <LiveRequestsPanel v-else-if="activeTab === 'live'" mode="user" />
+      <LiveRequestsPanel v-else-if="activeTab === 'live'" native-table mode="user" />
       <UserErrorRequestsTable
         v-else-if="errorViewEnabled"
+        native-table
         :rows="errorRows"
         :total="errorTotal"
         :loading="errorLoading"
@@ -1128,14 +1129,22 @@ function showLatestRecords() {
 .usage-page, .usage-records { display: flex; flex-direction: column; gap: var(--shell-zone-gap); }
 .usage-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 6px 12px 6px 6px; }
 .usage-toolbar-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+.usage-toolbar-range > .filter-pair { width: auto; justify-content: flex-start; }
 .usage-records-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px 6px 6px; }
 .usage-history-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-@media (min-width: 1024px) {
-  .usage-filter-fields { display: grid; flex: 1 1 100%; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
-  .usage-filter-fields > * { width: auto; min-width: 0; }
+.usage-filter-fields {
+  display: grid;
+  flex: 1 1 36rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 136px), 1fr));
+  gap: var(--filter-gap);
 }
+.usage-filter-fields > * { width: auto; min-width: 0; }
+.usage-filter-fields :where(.input, .select-trigger, .date-picker-trigger) { width: 100%; }
 @media (max-width: 1023px) {
   .usage-toolbar, .usage-records-bar { padding-right: 6px; }
+}
+@media (max-width: 639px) {
   .usage-toolbar-range { width: 100%; padding: 0 6px 6px; }
+  .usage-toolbar-range > .filter-pair { width: 100%; justify-content: space-between; }
 }
 </style>

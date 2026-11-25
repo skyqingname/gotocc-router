@@ -97,7 +97,7 @@
   min-width: 0; width: auto; max-width: none;
   padding: 10px 6px; vertical-align: middle;
   text-align: left !important; white-space: nowrap;
-  overflow-wrap: normal; word-break: normal; clip-path: none !important;
+  overflow-wrap: normal; word-break: normal;
   font-size: 12px;
 }
 .app-layout-user table:is(.record-table, .static-table-header-table) th { line-height: 1.5; letter-spacing: 0; }
@@ -117,10 +117,55 @@
 .app-layout-user table:is(.record-table, .static-table-header-table) :is(th, td:not([data-field="actions"])) .flex { flex-wrap: nowrap; }
 .app-layout-user table.record-table [data-field="group"] button { margin: 0; white-space: nowrap; flex-wrap: nowrap; }
 .app-layout-user table.record-table td[data-field="actions"] { white-space: normal; }
+.app-layout-user :not(.record-table-native, [data-static-table-body-viewport].record-table-native, .static-table-frame:has(.record-table-native) .static-table-header-rail) > table:is(.record-table, .static-table-header-table) :is(th, td) {
+  clip-path: none !important;
+}
 .app-layout-user table.record-table td[data-field="tokens"] > .flex > .space-y-1 > .flex { flex-direction: column; align-items: flex-start; gap: 4px; }
 .app-layout-user table.record-table td[data-field="created_at"] > span { display: block; max-width: 82px; white-space: normal; }
 .app-layout-user table.record-table td[data-field="endpoint"] .break-all { white-space: normal; overflow-wrap: anywhere; }
 .app-layout-user table.record-table td[data-field="endpoint"] { white-space: normal; max-width: 200px; }
+
+/* Native horizontal record tables (such as user usage across scaled, rotated and
+   irregular viewports) preserve intrinsic column widths and scroll sideways
+   instead of squeezing cells into tall vertical stacks. */
+.app-layout-user .record-table-native table.record-table {
+  width: 100%;
+  min-width: max-content !important;
+}
+.app-layout-user .error-compact .record-table-native table.record-table {
+  table-layout: fixed !important;
+  min-width: max(100%, var(--error-table-width, 0px)) !important;
+}
+.app-layout-user .record-table-native table.record-table td[data-field="tokens"] > .flex > .space-y-1 > .flex {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.app-layout-user .record-table-native table.record-table td[data-field="endpoint"],
+.app-layout-user .record-table-native table.record-table td[data-field="endpoint"] .break-all {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.app-layout-user .record-table-native table.record-table td[data-field="created_at"] > span {
+  min-width: 84px;
+  max-width: 92px;
+  white-space: normal;
+  word-break: keep-all;
+}
+.app-layout-user .record-table-native table.record-table .truncate {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app-layout-user .record-table-native table.record-table [data-field="api_key"] > span,
+.app-layout-user .record-table-native table.record-table [data-field="user"] [data-test="usage-user-email"] {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .app-layout-user .user-record-cards .user-record-fields {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 16px;

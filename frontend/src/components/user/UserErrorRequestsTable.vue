@@ -5,6 +5,7 @@
       <IpGeoBatchToolbar :class="{ 'workspace-fixed': workspace }" :ips="rows.map((r) => r.client_ip)" @failed="emit('ipGeoBatchFailed')" />
 
       <DataTable
+        :native-table="nativeTable"
         :class="{ 'workspace-table-viewport': workspace }"
         :columns="columns"
         :data="rows"
@@ -152,6 +153,7 @@ const props = defineProps<{
   page: number
   pageSize: number
   workspace?: boolean
+  nativeTable?: boolean
   /** 列设置:仅显示这些 key 的列;不传则全显(key 须与 allColumns 一致) */
   visibleColumnKeys?: string[]
 }>()
@@ -218,5 +220,5 @@ const statusClass = statusCodeBadgeClass
 .error-compact :deep([data-field="status"]) { width: 90px; }
 .error-compact :deep([data-field="message"]) { width: 240px; }
 .error-compact :deep(td [class*="max-w-"]) { max-width: 100%; }
-@media (max-width: 767px) { .error-compact :deep([data-field]) { width: auto; padding-inline: 0; } }
+@media (max-width: 767px) { .error-compact :deep(.record-cards [data-field]) { width: auto; padding-inline: 0; } }
 </style>

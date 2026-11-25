@@ -94,9 +94,12 @@ inside the card; when the doughnut and a 26rem table do not fit side by side, th
 table wraps below the doughnut, and name columns truncate with the full name in the
 tooltip. Chart grids use two columns from 1536px and one column below that.
 The records card puts the live/history/error tabs and the history auto-refresh
-control on one row, followed by the filters with their actions on the same wrap.
+control on one row, followed by a responsive multi-column filter grid with its
+actions on the same wrap across scaled, portrait and narrow viewports.
 The table and its pagination follow as separate surfaces with 16px gaps instead of
-cards nested in cards; changing page scrolls the first row into view.
+cards nested in cards; live, history and error lists keep horizontal table rows
+with sideways scrolling inside the table card rather than stacked record cards,
+and changing page scrolls the first row into view.
 The user live view paginates its real recent observation window (at most 200 rows),
 20 per page. Filters and exports still cover the complete observation window.
 User history places reasoning and the three-state
@@ -689,7 +692,9 @@ existing fixed controls and independent table scroll.
 User table headers and values align left and columns use content-based widths.
 Headers, model names and group labels remain on one line. Composite values such
 as token details or date/time may use separate lines; action buttons retain their
-shared appearance and wrap within the operation column. User DataTable lists
+shared appearance and wrap within the operation column. Unless a list opts into `nativeTable` (such as user usage records, which keep
+one horizontal row per record and scroll sideways across scaled, portrait and
+narrow viewports, pinning the leading column from 768px up), user DataTable lists
 disable pinned columns and use their existing record cards when the selected
 columns cannot fit, keeping every selected field accessible without sideways
 scrolling. Card fields use as many columns as their available width allows;
