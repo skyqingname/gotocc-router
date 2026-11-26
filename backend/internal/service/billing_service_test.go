@@ -30,10 +30,6 @@ func captureStdLog(t *testing.T) *bytes.Buffer {
 	return &buf
 }
 
-func newTestBillingService() *BillingService {
-	return NewBillingService(&config.Config{}, nil)
-}
-
 func newTestBillingServiceWithOpenAILadderCatalog(t *testing.T) *BillingService {
 	t.Helper()
 	return NewBillingService(&config.Config{}, newStubPricingServiceFromJSON(t, openAILadderCatalogJSON))
@@ -2538,4 +2534,24 @@ func TestGPT6CacheWriteMissingAndNullStillDerivePremium(t *testing.T) {
 			require.InDelta(t, 0.0025, cost.CacheCreationCost, 1e-12)
 		}
 	}
+}
+
+// GLM-5.4 mirrors the reviewed GLM-5.3 card while the pay-as-you-go API price is
+// unpublished, so the channel reference and request settlement agree. The legacy
+// glm-5 substring card must never price it as an older SKU.
+func TestGetModelPricing_GLM54MirrorsGLM53WithoutLegacyGLM5Price(t *testing.T) {
+	svc := newTestBillingService()
+
+	glm54, err := svc.GetModelPricing("glm-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, glm54)
+
+	glm53, err := svc.GetModelPricing("glm-5.3")
+	require.NoError(t, err)
+	require.NotNil(t, glm53)
+
+	require.InDelta(t, glm53.InputPricePerToken, glm54.InputPricePerToken, 1e-12)
+	require.InDelta(t, glm53.OutputPricePerToken, glm54.OutputPricePerToken, 1e-12)
+	require.InDelta(t, glm53.CacheReadPricePerToken, glm54.CacheReadPricePerToken, 1e-12)
+	require.NotEqual(t, 1e-6, glm54.InputPricePerToken, "legacy glm-5 card must not price glm-5.4")
 }

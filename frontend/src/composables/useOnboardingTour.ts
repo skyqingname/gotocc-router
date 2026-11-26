@@ -8,8 +8,13 @@ import { useRouter } from 'vue-router'
 import { getAdminSteps, getTeamSteps, getUserSteps, type RoutedDriveStep } from '@/components/Guide/steps'
 
 export interface OnboardingOptions {
-  storageKey?: string
-  autoStart?: boolean
+  // Getters are resolved when the tour starts or completes, so a portal whose
+  // ownership resolves after mount uses the final guide and completion key.
+  storageKey?: string | (() => string)
+  autoStart?: boolean | (() => boolean)
+  // The current chrome decides the tour. An administrator browsing the user
+  // portal gets the personal guide, not management steps for absent menus.
+  variant?: 'admin' | 'user' | (() => 'admin' | 'user')
 }
 
 export function useOnboardingTour(options: OnboardingOptions) {
@@ -60,8 +65,12 @@ export function useOnboardingTour(options: OnboardingOptions) {
   let autoStartTimer: ReturnType<typeof setTimeout> | null = null
   let globalKeyboardHandler: ((e: KeyboardEvent) => void) | null = null
 
+  const resolveOption = <T,>(value: T | (() => T) | undefined): T | undefined => (
+    typeof value === 'function' ? (value as () => T)() : value
+  )
+
   const getStorageKey = () => {
-    const baseKey = options.storageKey ?? 'onboarding_tour'
+    const baseKey = resolveOption(options.storageKey) ?? 'onboarding_tour'
     const userId = userStore.user?.id ?? 'guest'
     const role = userStore.user?.role ?? 'user'
     return `${baseKey}_${userId}_${role}_${storageVersion}`
@@ -101,7 +110,8 @@ export function useOnboardingTour(options: OnboardingOptions) {
 
   const startTour = async (startIndex = 0, flow: 'default' | 'team' = 'default', teamOptions?: TeamGuideOptions) => {
     // 动态获取当前用户角色和步骤
-    const isAdmin = userStore.user?.role === 'admin'
+    const variant = resolveOption(options.variant)
+    const isAdmin = variant ? variant === 'admin' : userStore.user?.role === 'admin'
     const isSimpleMode = userStore.isSimpleMode
     const steps: RoutedDriveStep[] = flow === 'team'
       ? getTeamSteps(t, teamOptions?.isOwner ?? false, teamOptions?.hasTeam ?? false)
@@ -588,8 +598,11 @@ export function useOnboardingTour(options: OnboardingOptions) {
       return
     }
 
-    if (!options.autoStart || hasSeen()) return
+    if (!resolveOption(options.autoStart) || hasSeen()) return
     autoStartTimer = setTimeout(() => {
+      // Ownership may still be unknown when the timer fires; never start the
+      // wrong portal's guide.
+      if (!resolveOption(options.autoStart) || hasSeen() || onboardingStore.isDriverActive()) return
       void startTour()
     }, TIMING.AUTO_START_DELAY_MS)
   })

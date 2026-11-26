@@ -23,6 +23,8 @@ export type OpsUpstreamErrorEvent = {
   kind?: string
   message?: string
   detail?: string
+  /** 本次尝试实际发给上游的身份上报请求头（请求头覆写变量生成），键为小写头名 */
+  reported_headers?: Record<string, string>
 }
 
 export interface OpsDashboardOverview {
@@ -950,6 +952,12 @@ export interface OpsErrorLog {
   request_type?: number | null
   user_agent?: string
 
+  gateway_status_code?: number | null
+  upstream_status_code?: number | null
+  upstream_error_message?: string
+  is_business_limited?: boolean
+  duration_ms?: number | null
+  routing_diagnostics?: OpsRoutingDiagnostics
 }
 
 export interface OpsRoutingDiagnostics {

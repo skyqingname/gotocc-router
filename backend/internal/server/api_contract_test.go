@@ -617,6 +617,7 @@ func TestAPIContracts(t *testing.T) {
 								"request_id": "req_123",
 								"model": "claude-3",
 								"request_fast_enabled": null,
+								"billing_service_tier": null,
 								"request_type": "stream",
 								"native_compaction_v2": false,
 								"openai_ws_mode": false,
@@ -1016,7 +1017,7 @@ func TestAPIContracts(t *testing.T) {
 					"openai_error_messages_normalized":                     false,
 					"openai_codex_ws_deployment_allowed":       false,
 					"openai_codex_client_version":             "",
-					"openai_codex_client_version_effective": "0.167.0",
+					"openai_codex_client_version_effective": "0.170.0",
 					"openai_codex_client_version_source": "compiled",
 					"claude_code_client_version":              "",
 					"claude_code_client_version_synced":        "",
@@ -1374,7 +1375,7 @@ func TestAPIContracts(t *testing.T) {
 					"openai_error_messages_normalized":                     false,
 					"openai_codex_ws_deployment_allowed":       false,
 					"openai_codex_client_version":             "",
-					"openai_codex_client_version_effective": "0.167.0",
+					"openai_codex_client_version_effective": "0.170.0",
 					"openai_codex_client_version_source": "compiled",
 					"claude_code_client_version":              "",
 					"claude_code_client_version_synced":        "",
@@ -1639,7 +1640,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService, nil, nil, nil, nil)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)

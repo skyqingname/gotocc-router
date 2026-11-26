@@ -682,6 +682,55 @@ type ClaudeUsage struct {
 	ImageOutputTokens        int                  `json:"image_output_tokens,omitempty"`
 	AudioOutputTokens        int                  `json:"audio_output_tokens,omitempty"`
 	AdvisorIterations        []ClaudeAdvisorUsage `json:"-"`
+
+	// cacheCreationInputTokensFromDetails 表示聚合量是由 5m/1h 明细推导出来的，
+	// 之后上游显式声明的聚合量应当替换它。
+	cacheCreationInputTokensFromDetails bool
+	// promptTotalTokens / promptTotalPresent 记住上游声明的 prompt 总量
+	// （input + cache read + cache write）。兼容供应商只在部分帧里报总量，
+	// 记住它才能让后续只更新缓存的帧仍然重算未缓存的输入。
+	promptTotalTokens  int
+	promptTotalPresent bool
+}
+
+// mergeCacheCreation keeps a positive declared total authoritative across TTL
+// updates. When the provider only reports classes, their latest sum is the total.
+func (usage *ClaudeUsage) mergeCacheCreation(aggregate int, fiveMinutes, oneHour *int) {
+	if aggregate > 0 {
+		usage.CacheCreationInputTokens = aggregate
+		usage.cacheCreationInputTokensFromDetails = false
+	}
+	if fiveMinutes != nil {
+		usage.CacheCreation5mTokens = max(*fiveMinutes, 0)
+	}
+	if oneHour != nil {
+		usage.CacheCreation1hTokens = max(*oneHour, 0)
+	}
+	if (fiveMinutes != nil || oneHour != nil) &&
+		(usage.CacheCreationInputTokens <= 0 || usage.cacheCreationInputTokensFromDetails) {
+		usage.CacheCreationInputTokens = usage.CacheCreation5mTokens + usage.CacheCreation1hTokens
+		usage.cacheCreationInputTokensFromDetails = true
+	}
+}
+
+// hasReportedTokens 报告上游是否声明过任何 token 计数。缓冲路径用它判断
+// 是否该用累积 usage 覆盖已组装的响应，避免把"什么都没报"当成"报了 0"。
+func (usage ClaudeUsage) hasReportedTokens() bool {
+	return usage.InputTokens > 0 || usage.OutputTokens > 0 ||
+		usage.CacheReadInputTokens > 0 || usage.cacheCreationTotal() > 0
+}
+
+// cacheCreationTotal 返回唯一的缓存写入量：上游显式声明过的正数聚合量优先，
+// 其次是 5m/1h 明细之和，最后才回落到可能为 0 的聚合字段。
+// 只报明细的兼容供应商不会被计成 0 写入，也不会让过期的 0 明细盖掉真实聚合量。
+func (usage ClaudeUsage) cacheCreationTotal() int {
+	if usage.CacheCreationInputTokens > 0 {
+		return usage.CacheCreationInputTokens
+	}
+	if details := max(usage.CacheCreation5mTokens, 0) + max(usage.CacheCreation1hTokens, 0); details > 0 {
+		return details
+	}
+	return max(usage.CacheCreationInputTokens, 0)
 }
 
 // ForwardResult 转发结果
@@ -930,6 +979,7 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	pluginManager         *PluginManager
 }
 
 // NewGatewayService creates a new GatewayService
@@ -1513,7 +1563,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 	if err := applyGrokRequestMetadataForRequest(upstreamReq, nil, account, body, ""); err != nil {
 		return nil, err
 	}
-	account.ApplyHeaderOverrides(upstreamReq.Header)
+	account.ApplyHeaderOverrides(upstreamReq.Context(), upstreamReq.Header)
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -1628,6 +1678,25 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		}
 
 		mapping := acc.GetModelMapping()
+		if acc.Platform == PlatformZhipu {
+			// Coding-plan credentials prove the plan's catalog even without a
+			// mapping; a live model snapshot is narrower and authoritative.
+			if snapshot := acc.GetUpstreamModelMetadataSnapshot(); snapshot != nil {
+				for id := range snapshot.Models {
+					if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, id) {
+						continue
+					}
+					modelSet[id] = struct{}{}
+				}
+			} else if acc.IsZhipuCodingPlanCredential() {
+				for _, id := range FilterStaticCatalogModels(&acc, cnmodels.DefaultModelIDs(PlatformZhipu)) {
+					if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, id) {
+						continue
+					}
+					modelSet[id] = struct{}{}
+				}
+			}
+		}
 		if acc.Platform == PlatformStepFun && len(mapping) == 0 {
 			// Live discovery narrows the client catalog to this account's models.
 			// Without a snapshot use the maintained candidates, never Claude defaults.
@@ -1663,8 +1732,9 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	}
 	// Without configured or discovered candidates, let the handler use defaults.
 	if len(modelSet) == 0 {
-		// Non-nil empty is authoritative: Start has no proven public models.
-		if startPlanOnly {
+		// Non-nil empty is authoritative: Start and Zhipu have no proven
+		// public models. Never resurrect another platform's defaults.
+		if startPlanOnly || platform == PlatformZhipu {
 			return []string{}
 		}
 		// No account declares a model: keep the group's own platform catalog

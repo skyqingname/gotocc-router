@@ -95,7 +95,7 @@
     ref="tableWrapperRef"
     v-bind="$attrs"
     class="table-wrapper table-container record-table-scroll"
-    :class="{ 'data-table-fit-probe': probingTable && !showDesktopTable, 'actions-expanded': actionsExpanded }"
+    :class="{ 'record-table-native': nativeTable, 'data-table-fit-probe': probingTable && !showDesktopTable, 'actions-expanded': actionsExpanded }"
     :style="probingTable && !showDesktopTable ? tableProbeStyle : undefined"
     :aria-hidden="probingTable && !showDesktopTable ? true : undefined"
     :inert="probingTable && !showDesktopTable || undefined"
@@ -109,9 +109,9 @@
             v-if="selectable"
             scope="col"
             class="sticky-header-cell w-11 min-w-11 px-3 py-3 text-center"
-            :class="{ 'sticky-col sticky-col-left': stickyFirstColumn && !userTableLayout }"
-            :data-sticky="stickyFirstColumn && !userTableLayout ? 'left' : undefined"
-            :style="stickyFirstColumn && !userTableLayout ? { left: '0px' } : undefined"
+            :class="{ 'sticky-col sticky-col-left': canPinSelectColumn }"
+            :data-sticky="canPinSelectColumn ? 'left' : undefined"
+            :style="canPinSelectColumn ? { left: '0px' } : undefined"
           >
             <input
               type="checkbox"
@@ -237,8 +237,8 @@
             <td
               v-if="selectable"
               class="w-11 min-w-11 px-3 py-4 text-center"
-              :class="{ 'sticky-col sticky-col-left': stickyFirstColumn && !userTableLayout }"
-              :style="stickyFirstColumn && !userTableLayout ? { left: '0px' } : undefined"
+              :class="{ 'sticky-col sticky-col-left': canPinSelectColumn }"
+              :style="canPinSelectColumn ? { left: '0px' } : undefined"
             >
               <input
                 type="checkbox"
@@ -307,14 +307,76 @@ const emit = defineEmits<{
   selectionChange: [keys: Array<string | number>]
 }>()
 
+interface Props {
+  columns: Column[]
+  data: any[]
+  loading?: boolean
+  stickyFirstColumn?: boolean
+  stickyActionsColumn?: boolean
+  expandableActions?: boolean
+  actionsCount?: number // 操作按钮总数，用于判断是否需要展开功能
+  rowKey?: string | ((row: any) => string | number)
+  /**
+   * Default sort configuration (only applied when there is no persisted sort state)
+   */
+  defaultSortKey?: string
+  defaultSortOrder?: 'asc' | 'desc'
+  /**
+   * Persist sort state (key + order) to localStorage using this key.
+   * If provided, DataTable will load the stored sort state on mount.
+   */
+  sortStorageKey?: string
+  /**
+   * Enable server-side sorting mode. When true, clicking sort headers
+   * will emit 'sort' events instead of performing client-side sorting.
+   */
+  serverSideSort?: boolean
+  /** Emit 'rowClick' on row/card click and show pointer cursor (interactive cells should @click.stop) */
+  clickableRows?: boolean
+  activeRowKey?: string | number | null
+  /** Estimated row height in px for the virtualizer (default 56) */
+  estimateRowHeight?: number
+  /** Number of rows to render beyond the visible area (default 5) */
+  overscan?: number
+  /**
+   * Only virtualize when the row count exceeds this threshold (default 100).
+   * Smaller lists render in full, avoiding the scroll-compensation jank caused by
+   * estimated-vs-actual row heights when rows have variable height.
+   */
+  virtualizeThreshold?: number
+  /** Enable controlled row selection. Stable row keys are strongly recommended. */
+  selectable?: boolean
+  /** Selected row keys. Keys outside the current data page are preserved. */
+  selectedKeys?: Array<string | number>
+  /** Accessible label for a row selection checkbox. */
+  selectionLabel?: string | ((row: any) => string)
+  /** Keep horizontal table rows with sideways scroll across scaled, portrait and narrow viewports. */
+  nativeTable?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false,
+  stickyFirstColumn: true,
+  stickyActionsColumn: true,
+  expandableActions: true,
+  defaultSortOrder: 'asc',
+  serverSideSort: false,
+  selectable: false,
+  selectedKeys: () => [],
+  nativeTable: false
+})
+
 // 表格容器引用
 const tableWrapperRef = ref<HTMLElement | null>(null)
 const cardsWrapperRef = ref<HTMLElement | null>(null)
 const userTableLayout = inject(USER_TABLE_LAYOUT_KEY, computed(() => false))
+const effectiveUserCardFit = computed(() => userTableLayout.value && !props.nativeTable)
 const tableDoesNotFit = ref(false)
 const probingTable = ref(false)
 const probeWidth = ref(0)
-const showDesktopTable = computed(() => isDesktopViewport.value && (!userTableLayout.value || !tableDoesNotFit.value))
+const showDesktopTable = computed(() =>
+  props.nativeTable || (isDesktopViewport.value && (!effectiveUserCardFit.value || !tableDoesNotFit.value))
+)
 const tableProbeStyle = computed(() => ({
   position: 'absolute' as const,
   visibility: 'hidden' as const,
@@ -332,7 +394,7 @@ const actionsColumnNeedsExpanding = ref(false)
 // Cache the overflowing table's required width. A card has no overflowing table
 // to measure, so testing only its scrollWidth would oscillate between layouts.
 const measureUserTable = () => {
-  if (!userTableLayout.value || !isDesktopViewport.value) return
+  if (!effectiveUserCardFit.value || !isDesktopViewport.value) return
   const wrapper = tableWrapperRef.value
   const table = wrapper?.querySelector<HTMLTableElement>('table.record-table')
   if (!wrapper || !table || wrapper.clientWidth <= 0) return
@@ -343,7 +405,7 @@ const measureUserTable = () => {
 
 const observeUserTableContainer = () => {
   fitResizeObserver?.disconnect()
-  if (!userTableLayout.value || typeof ResizeObserver === 'undefined') return
+  if (!effectiveUserCardFit.value || typeof ResizeObserver === 'undefined') return
   const root = cardsWrapperRef.value ?? tableWrapperRef.value
   if (!root?.parentElement) return
   fitResizeObserver ??= new ResizeObserver(() => {
@@ -356,7 +418,7 @@ const observeUserTableContainer = () => {
 }
 
 const refreshUserTableFit = async () => {
-  if (!userTableLayout.value || !isDesktopViewport.value || fitMeasurementPending || unmounted) return
+  if (!effectiveUserCardFit.value || !isDesktopViewport.value || fitMeasurementPending || unmounted) return
   fitMeasurementPending = true
   try {
     if (!showDesktopTable.value) {
@@ -523,61 +585,6 @@ onUnmounted(() => {
   desktopViewportMediaQuery = null
 })
 
-interface Props {
-  columns: Column[]
-  data: any[]
-  loading?: boolean
-  stickyFirstColumn?: boolean
-  stickyActionsColumn?: boolean
-  expandableActions?: boolean
-  actionsCount?: number // 操作按钮总数，用于判断是否需要展开功能
-  rowKey?: string | ((row: any) => string | number)
-  /**
-   * Default sort configuration (only applied when there is no persisted sort state)
-   */
-  defaultSortKey?: string
-  defaultSortOrder?: 'asc' | 'desc'
-  /**
-   * Persist sort state (key + order) to localStorage using this key.
-   * If provided, DataTable will load the stored sort state on mount.
-   */
-  sortStorageKey?: string
-  /**
-   * Enable server-side sorting mode. When true, clicking sort headers
-   * will emit 'sort' events instead of performing client-side sorting.
-   */
-  serverSideSort?: boolean
-  /** Emit 'rowClick' on row/card click and show pointer cursor (interactive cells should @click.stop) */
-  clickableRows?: boolean
-  activeRowKey?: string | number | null
-  /** Estimated row height in px for the virtualizer (default 56) */
-  estimateRowHeight?: number
-  /** Number of rows to render beyond the visible area (default 5) */
-  overscan?: number
-  /**
-   * Only virtualize when the row count exceeds this threshold (default 100).
-   * Smaller lists render in full, avoiding the scroll-compensation jank caused by
-   * estimated-vs-actual row heights when rows have variable height.
-   */
-  virtualizeThreshold?: number
-  /** Enable controlled row selection. Stable row keys are strongly recommended. */
-  selectable?: boolean
-  /** Selected row keys. Keys outside the current data page are preserved. */
-  selectedKeys?: Array<string | number>
-  /** Accessible label for a row selection checkbox. */
-  selectionLabel?: string | ((row: any) => string)
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-  stickyFirstColumn: true,
-  stickyActionsColumn: true,
-  expandableActions: true,
-  defaultSortOrder: 'asc',
-  serverSideSort: false,
-  selectable: false,
-  selectedKeys: () => []
-})
 
 function handleRowClick(event: MouseEvent, row: unknown) {
   if (!props.clickableRows || (event.target as Element | null)?.closest('button, a, input, select, textarea, [role="button"]')) return
@@ -751,18 +758,23 @@ watch(
   { immediate: true, flush: 'post' }
 )
 
-watch([cardsWrapperRef, tableWrapperRef, userTableLayout], () => observeUserTableContainer(), { flush: 'post' })
+const canPinColumns = computed(() =>
+  (!userTableLayout.value || props.nativeTable) && (!props.nativeTable || isDesktopViewport.value)
+)
+const canPinSelectColumn = computed(() => props.stickyFirstColumn && canPinColumns.value)
+
+watch([cardsWrapperRef, tableWrapperRef, effectiveUserCardFit], () => observeUserTableContainer(), { flush: 'post' })
 
 // API polling often replaces arrays without changing their contents. Reuse the
 // last measurement in that case; changed rows, labels or selected columns probe
 // again even while cards are visible, so stale width estimates cannot persist.
 const userFitContent = computed(() => {
-  if (!userTableLayout.value) return ''
+  if (!effectiveUserCardFit.value) return ''
   try { return JSON.stringify(props.data) }
   catch { return props.data }
 })
 watch(
-  [userFitContent, columnsSignature, () => props.selectable, userTableLayout, isDesktopViewport],
+  [userFitContent, columnsSignature, () => props.selectable, effectiveUserCardFit, isDesktopViewport],
   async () => { await nextTick(); await refreshUserTableFit() },
   { flush: 'post' }
 )
@@ -770,7 +782,7 @@ watch(
 // 数据/列变化时重新检查操作布局和固定列偏移。
 // 注意：不能监听 actionsExpanded，因为 checkActionsColumnWidth 会临时修改它，会导致无限循环
 watch(
-  [() => props.data.length, columnsSignature, () => props.selectable, () => props.stickyFirstColumn, () => props.stickyActionsColumn],
+  [() => props.data.length, columnsSignature, () => props.selectable, () => props.stickyFirstColumn, () => props.stickyActionsColumn, canPinColumns],
   async () => {
     await nextTick()
     checkActionsColumnWidth()
@@ -977,7 +989,7 @@ const hasSelectColumn = computed(() => {
 const stickyOffsets = ref<Record<string, number>>({})
 
 const getStickyColumnSide = (column: Column, index: number): 'left' | 'right' | undefined => {
-  if (userTableLayout.value) return undefined
+  if (!canPinColumns.value) return undefined
   if (column.sticky !== undefined) return column.sticky || undefined
   if (props.stickyFirstColumn && (index === 0 || (hasSelectColumn.value && index === 1))) return 'left'
   if (props.stickyActionsColumn && column.key === 'actions') return 'right'
@@ -1089,6 +1101,7 @@ defineExpose({
   position: relative;
   overflow-x: auto;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
   min-height: 0;
   isolation: isolate;

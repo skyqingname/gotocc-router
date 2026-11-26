@@ -15,13 +15,14 @@ func (fields tokenDetailPresence) count(name string, value int) *int {
 }
 
 type tokenDetailsJSON struct {
-	CachedTokens             *int `json:"cached_tokens,omitempty"`
-	AudioTokens              *int `json:"audio_tokens,omitempty"`
-	CacheCreationTokens      *int `json:"cache_creation_tokens,omitempty"`
-	CacheWriteTokens         *int `json:"cache_write_tokens,omitempty"`
-	ReasoningTokens          *int `json:"reasoning_tokens,omitempty"`
-	AcceptedPredictionTokens *int `json:"accepted_prediction_tokens,omitempty"`
-	RejectedPredictionTokens *int `json:"rejected_prediction_tokens,omitempty"`
+	CachedTokens             *int            `json:"cached_tokens,omitempty"`
+	AudioTokens              *int            `json:"audio_tokens,omitempty"`
+	CacheCreationTokens      *int            `json:"cache_creation_tokens,omitempty"`
+	CacheWriteTokens         *int            `json:"cache_write_tokens,omitempty"`
+	CacheWriteTokensDetails  json.RawMessage `json:"cache_write_tokens_details,omitempty"`
+	ReasoningTokens          *int            `json:"reasoning_tokens,omitempty"`
+	AcceptedPredictionTokens *int            `json:"accepted_prediction_tokens,omitempty"`
+	RejectedPredictionTokens *int            `json:"rejected_prediction_tokens,omitempty"`
 }
 
 func decodeTokenDetails(data []byte, target any) (tokenDetailPresence, error) {
@@ -47,10 +48,11 @@ func (d *ResponsesInputTokensDetails) UnmarshalJSON(data []byte) error {
 
 func (d ResponsesInputTokensDetails) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tokenDetailsJSON{
-		CachedTokens:        d.presentFields.count("cached_tokens", d.CachedTokens),
-		AudioTokens:         d.presentFields.count("audio_tokens", d.AudioTokens),
-		CacheCreationTokens: d.presentFields.count("cache_creation_tokens", d.CacheCreationTokens),
-		CacheWriteTokens:    d.presentFields.count("cache_write_tokens", d.CacheWriteTokens),
+		CachedTokens:            d.presentFields.count("cached_tokens", d.CachedTokens),
+		AudioTokens:             d.presentFields.count("audio_tokens", d.AudioTokens),
+		CacheCreationTokens:     d.presentFields.count("cache_creation_tokens", d.CacheCreationTokens),
+		CacheWriteTokens:        d.presentFields.count("cache_write_tokens", d.CacheWriteTokens),
+		CacheWriteTokensDetails: d.CacheWriteTokensDetails,
 	})
 }
 
@@ -84,15 +86,22 @@ func (d *ChatTokenDetails) UnmarshalJSON(data []byte) error {
 	}
 	*d = ChatTokenDetails(value)
 	d.presentFields = fields
+	d.cacheWriteTokensPresent = fields["cache_write_tokens"] != nil
 	return nil
 }
 
 func (d ChatTokenDetails) MarshalJSON() ([]byte, error) {
+	cacheWriteTokens := d.presentFields.count("cache_write_tokens", d.CacheWriteTokens)
+	if cacheWriteTokens == nil && d.cacheWriteTokensPresent {
+		value := d.CacheWriteTokens
+		cacheWriteTokens = &value
+	}
 	return json.Marshal(tokenDetailsJSON{
 		CachedTokens:             d.presentFields.count("cached_tokens", d.CachedTokens),
 		AudioTokens:              d.presentFields.count("audio_tokens", d.AudioTokens),
 		CacheCreationTokens:      d.presentFields.count("cache_creation_tokens", d.CacheCreationTokens),
-		CacheWriteTokens:         d.presentFields.count("cache_write_tokens", d.CacheWriteTokens),
+		CacheWriteTokens:         cacheWriteTokens,
+		CacheWriteTokensDetails:  d.CacheWriteTokensDetails,
 		ReasoningTokens:          d.presentFields.count("reasoning_tokens", d.ReasoningTokens),
 		AcceptedPredictionTokens: d.presentFields.count("accepted_prediction_tokens", d.AcceptedPredictionTokens),
 		RejectedPredictionTokens: d.presentFields.count("rejected_prediction_tokens", d.RejectedPredictionTokens),

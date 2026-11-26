@@ -86,6 +86,13 @@ All concrete platforms in the shared registry have an independent entry:
 | `cline` | `deepseek-v4.1-flash` |
 
 These defaults name existing price cards and introduce no new price numbers.
+`glm-5.4` carries a compiled same-model card copied from the reviewed `glm-5.3`
+card ($1.40 input / $4.40 output / $0.26 cache read per MTok) because BigModel
+has not published a pay-as-you-go price for it; channel reference and request
+settlement therefore agree. Replace that card when the official price lands.
+The configured platform fallback still covers models without any same-model
+card, and the legacy `glm-5` family match remains deliberately excluded. No
+price may be derived from a Coding Plan quota multiplier.
 Saved explicit model choices and disabled entries remain overrides after a
 default update; resetting the setting with `{}` adopts the current defaults.
 `composite` is not a concrete supplier: its request uses the resolved target
@@ -330,6 +337,23 @@ observed counters through settlement and durable logs. Native WS keeps each
 turn's counters separate and sums them only for the session aggregate. Replacing
 an aggregate with unknown/invalid duration details clears any earlier duration
 classification; it never borrows another event's or turn's split.
+
+Anthropic cache writes are billed from the 5m/1h meters, and the aggregate is the
+authority on how many tokens were actually written. A provider that reports only
+the aggregate, or a partial breakdown, leaves tokens unclassified; those are
+charged in the 5m class at the 5m rate. A reported 1h detail therefore never
+implies that the remainder is also 1h, and a 3k detail next to an 11k aggregate
+still bills all 11k instead of leaving 8k free. Contradictory details are capped
+at the aggregate first, keeping their reported ratio, so the two meters never sum
+past the declared total. Account statistics and the generated price-evidence
+check use the same allocation, which keeps a card with `cache_write_1h_price`
+from silently under-billing a flat aggregate.
+
+Routing an Anthropic-native upstream through the OpenAI gateway keeps that split
+too: the OpenAI usage object carries `cache_creation_5m_input_tokens` and
+`cache_creation_1h_input_tokens` next to the aggregate, and settlement prices each class
+with its own rate. Without it every write on that route collapsed into the
+aggregate and was priced as the cheaper 5m class.
 Reference fill, user/model-plaza display,
 context tiers and frozen settlement carry the same 12h price. The release pricing resource records
 the API's 1050000 context window, 922000 maximum input and 128000 maximum output.
@@ -657,6 +681,25 @@ window; it does not inherit the GPT-6 long-context threshold. Opus 5.5 retains
 its Fast/priority 2x pricing. Explicit channel prices, context intervals and
 tier multipliers retain their existing precedence over model defaults.
 
+### Ultrafast channel multiplier
+
+`ultrafast_multiplier` on a channel model card prices the OpenAI ultrafast
+service tier independently of Fast/priority. Resolution order for a request whose
+service tier is `ultrafast` is: the channel value when set, then the model-owned
+default, then the generic 2x service-tier factor. The model default is 6x, except
+GPT-6.2 before March 1, 2027 Pacific (08:00 UTC), which is charged 3x and resolved
+at the request instant so a delayed settlement cannot pick up the later rate. The
+column is `NULL`-by-default and constrained to positive values; official migration
+252 is Plus migration 316.
+
+The multiplier only changes cost for the ultrafast tier. Fast/priority keep
+`fast_multiplier`, Flex keeps `flex_multiplier`, and an unset column never turns
+ultrafast into a cheaper tier. Capability is unchanged: the tier still requires a
+model that supports ultrafast and the group's `force_openai_ultrafast` policy, so
+a configured multiplier cannot enable ultrafast for an unsupported model. The
+admin API accepts and returns the field as `ultrafast_multiplier` on
+`model_pricing[]`.
+
 Explicit `cache_creation_input_token_cost: 0` stays zero. Derived cache-write
 rules only apply when the catalog field is absent, and the derived value is
 never presented as an operator override.
@@ -697,6 +740,25 @@ bound-group selector and opens that group's same model-factor editor; it never
 writes one customer factor into all bound groups. Account cost-statistics cards
 do not expose or apply these customer selling-factor controls.
 
+### OpenAI Fast/default settlement
+
+OpenAI OAuth, setup-token and API-key credentials use one retail rule: when the
+final prepared outbound body carries `priority` or `fast` and the upstream
+response declares `default`, the request is billed with the Fast card. This
+applies to official direct connections and compatible relays; the outbound
+observation, not the response echo, decides the request side. Only that
+combination changes. An explicit `flex` declaration still lowers the bill, a
+policy-filtered Fast request is billed at the actual sent tier (Standard when no
+tier remains), and a response cannot raise an untiered request or an API-key
+Ultra Fast request. OAuth Ultra Fast keeps its existing behavior. Free Fast keeps
+the Fast original cost and charges Standard, unchanged by this rule. Historical
+usage rows retain their stored amount and tier.
+
+Both administrator and user cost details display the normalized billable tier
+(`fast`, `standard`, `flex` or `ultrafast`) recorded at settlement. A missing or
+unrecognized historical value is omitted; it is never inferred from the model,
+the request Fast flag, the amount or the current group configuration.
+
 ## Inflight balance reservations
 
 When `billing.inflight_reservation.enabled` is enabled, admission estimates the
@@ -714,7 +776,7 @@ Group-forced OpenAI Ultrafast reservations follow the final channel/account
 wire model: supported Astra/Sol models use Ultrafast before the global tier
 policy; unsupported models retain the client tier or the independent Fast
 override. Preselection keeps the highest reachable charge, while reconciliation
-uses only the selected account. Free Fast discounts priority only.
+uses only the selected account. Free Fast discounts Fast/priority only.
 
 After selecting and revalidating the account, supported synchronous inference
 handlers reconcile the estimate before forwarding. The selected account's actual
@@ -952,3 +1014,11 @@ malformed filter flag retains the default. The opt-in applies to both the
 current and legacy passthrough flags with their existing precedence. The
 catalog projects only those three flags alongside model mappings and never
 loads complete account credentials or extra metadata.
+
+## Search usage counters
+
+For Grok native Responses and its Chat/Messages bridges, the configured
+per-search-call price uses the provider's successful search-call counts
+when the terminal response supplies them. When those counters are
+unavailable, deduplicated search output items provide the compatibility
+count. See [Grok search usage](providers/GROK.md#image-edit-inputs-and-search-usage).

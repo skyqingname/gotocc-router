@@ -34,7 +34,7 @@ func openAIEncryptedContentDigest(encrypted string) string {
 // encrypted_content 也不收摘要，避免记入永远剥不掉的摘要后每轮空转解码。
 func openAIEncryptedLineageItemType(itemType string) bool {
 	switch strings.TrimSpace(itemType) {
-	case "reasoning", "compaction", "compaction_summary":
+	case "reasoning", "compaction", "compaction_summary", "function_call_output", "custom_tool_call_output":
 		return true
 	default:
 		return false
@@ -53,12 +53,25 @@ func collectOpenAIEncryptedContentDigestsRaw(payload []byte) []string {
 	}
 	var digests []string
 	appendItem := func(item gjson.Result) {
-		if !openAIEncryptedLineageItemType(item.Get("type").String()) {
+		itemType := strings.TrimSpace(item.Get("type").String())
+		if !openAIEncryptedLineageItemType(itemType) {
 			return
 		}
 		encrypted := item.Get("encrypted_content")
 		if encrypted.Type == gjson.String && encrypted.String() != "" {
 			digests = append(digests, openAIEncryptedContentDigest(encrypted.String()))
+		}
+		if itemType == "function_call_output" || itemType == "custom_tool_call_output" {
+			output := item.Get("output")
+			if output.IsArray() {
+				output.ForEach(func(_, block gjson.Result) bool {
+					enc := block.Get("encrypted_content")
+					if enc.Type == gjson.String && enc.String() != "" {
+						digests = append(digests, openAIEncryptedContentDigest(enc.String()))
+					}
+					return true
+				})
+			}
 		}
 	}
 	if input.IsArray() {
@@ -92,11 +105,29 @@ func stripOpenAIInvalidEncryptedContentItems(reqBody map[string]any, invalid map
 		if !ok {
 			return item, false, true
 		}
-		encrypted, ok := inputItem["encrypted_content"].(string)
-		if !ok || encrypted == "" {
-			return item, false, true
+		matched := false
+		if encrypted, ok := inputItem["encrypted_content"].(string); ok && encrypted != "" {
+			if _, hit := invalid[openAIEncryptedContentDigest(encrypted)]; hit {
+				matched = true
+			}
 		}
-		if _, hit := invalid[openAIEncryptedContentDigest(encrypted)]; !hit {
+		if !matched {
+			if outputBlocks, ok := inputItem["output"].([]any); ok {
+				for _, rawBlock := range outputBlocks {
+					blockMap, ok := rawBlock.(map[string]any)
+					if !ok {
+						continue
+					}
+					if enc, ok := blockMap["encrypted_content"].(string); ok && enc != "" {
+						if _, hit := invalid[openAIEncryptedContentDigest(enc)]; hit {
+							matched = true
+							break
+						}
+					}
+				}
+			}
+		}
+		if !matched {
 			return item, false, true
 		}
 		return sanitizeEncryptedReasoningInputItem(item)

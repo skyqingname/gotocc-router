@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -301,6 +302,11 @@ func buildOpenAIImagesStreamCompletedPayload(
 		payload, _ = sjson.SetBytes(payload, "model", img.Model)
 	}
 	if len(usageRaw) > 0 && gjson.ValidBytes(usageRaw) {
+		// Upstream JSON may be pretty-printed; a newline would split the SSE data line.
+		var compact bytes.Buffer
+		if json.Compact(&compact, usageRaw) == nil {
+			usageRaw = compact.Bytes()
+		}
 		payload, _ = sjson.SetRawBytes(payload, "usage", usageRaw)
 	}
 	return payload
@@ -809,19 +815,19 @@ func openAIImagesIncompleteUpstreamError(response gjson.Result) *OpenAIImagesUps
 	reason := strings.TrimSpace(response.Get("incomplete_details.reason").String())
 	statusCode := http.StatusBadGateway // 默认可重试（生成未完成）
 	errType := "incomplete_error"
+	code := "service_error"
 	if strings.Contains(strings.ToLower(reason), "content_filter") ||
 		strings.Contains(strings.ToLower(reason), "moderation") {
 		statusCode = http.StatusBadRequest // 内容过滤，重试无意义
 		errType = "image_generation_user_error"
+		code = "content_policy_violation"
 	}
+	// The provider's free-text reason is never part of the public task error.
 	message := "Upstream did not complete image generation"
-	if reason != "" {
-		message = fmt.Sprintf("Upstream image generation incomplete: %s", reason)
-	}
 	return &OpenAIImagesUpstreamError{
 		StatusCode:        statusCode,
 		ErrorType:         errType,
-		Code:              "response_incomplete",
+		Code:              code,
 		Message:           sanitizeUpstreamErrorMessage(message),
 		UpstreamRequestID: strings.TrimSpace(response.Get("id").String()),
 	}

@@ -80,6 +80,13 @@ type OpsErrorLog struct {
 	// 关联 api_key 名称（LEFT JOIN api_keys 取得；软删只覆盖 key 列，name 保留，故已删 key 仍有原名）。
 	APIKeyName    string `json:"api_key_name,omitempty"`
 	APIKeyDeleted bool   `json:"api_key_deleted,omitempty"`
+
+	GatewayStatusCode    *int                   `json:"gateway_status_code,omitempty"`
+	UpstreamStatusCode   *int                   `json:"upstream_status_code,omitempty"`
+	UpstreamErrorMessage string                 `json:"upstream_error_message,omitempty"`
+	IsBusinessLimited    bool                   `json:"is_business_limited"`
+	DurationMs           *int64                 `json:"duration_ms,omitempty"`
+	RoutingDiagnostics   *OpsRoutingDiagnostics `json:"routing_diagnostics,omitempty"`
 }
 
 type OpsErrorLogDetail struct {

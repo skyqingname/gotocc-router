@@ -63,7 +63,11 @@ func classifySelectionFailureError(err error, fallback noAccountErrorClassificat
 	if fallback.ModelNotFound {
 		return fallback
 	}
-	match := selectionModelRateLimitedPattern.FindStringSubmatch(strings.ToLower(err.Error()))
+	errLower := strings.ToLower(err.Error())
+	if strings.Contains(errLower, "excluded=") || strings.Contains(errLower, "concurrency_full=") || strings.Contains(errLower, "temp_unschedulable=") {
+		return fallback
+	}
+	match := selectionModelRateLimitedPattern.FindStringSubmatch(errLower)
 	if len(match) != 2 {
 		return fallback
 	}

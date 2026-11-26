@@ -11,6 +11,7 @@ import {
 } from '@/components/gotocc/navIcons'
 import { vendorLabel } from '@/components/gotocc/plaza/vendors'
 import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
+import { usePortalArea } from '@/composables/usePortalArea'
 import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useResellerCustomer } from '@/composables/useResellerCustomer'
 import { useTheme } from '@/composables/useTheme'
@@ -208,10 +209,16 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   }
 
   // 侧栏的分支：管理员本人看管理菜单加个人区（简易模式没有个人区）；普通用户在未开启后端模式或管理员只读协助时看用户菜单。
+  const portalArea = usePortalArea()
   const supportTargetId = computed(() => parseAdminSupportTargetId(route.params.user_id))
   const isAdminSupportMode = computed(() => supportTargetId.value !== null && supportTargetId.value !== authStore.user?.id)
   const visibleRules = computed<PageRule[]>(() => {
-    if (authStore.isAdmin && !adminSupportContext.value) return [...adminPages(), ...(authStore.isSimpleMode ? [] : selfPages(true))]
+    if (authStore.isAdmin && !adminSupportContext.value) {
+      if (authStore.isSimpleMode) return adminPages()
+      return portalArea.value === 'admin'
+        ? [...adminPages(), ...selfPages(true)]
+        : [...selfPages(true), ...adminPages()]
+    }
     if (!appStore.backendModeEnabled || isAdminSupportMode.value) return selfPages(false)
     return []
   })

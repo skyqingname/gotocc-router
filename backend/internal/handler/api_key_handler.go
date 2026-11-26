@@ -26,6 +26,7 @@ type APIKeyHandler struct {
 	modelPlazaService *service.ModelPlazaService
 	compositeResolver *service.CompositeRouteResolver
 	openaiGateway     *service.OpenAIGatewayService
+	autoGroupResolver *service.AutoGroupResolver
 }
 
 // NewAPIKeyHandler creates a new APIKeyHandler

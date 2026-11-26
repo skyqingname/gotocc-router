@@ -413,7 +413,7 @@ func TestForwardAsAnthropic_ForceChatCompletionsNonFailover400UsesSharedErrorHan
 	require.Equal(t, http.StatusBadRequest, rec.Code)
 	require.Equal(t, "error", gjson.Get(rec.Body.String(), "type").String())
 	require.Equal(t, "invalid_request_error", gjson.Get(rec.Body.String(), "error.type").String())
-	require.Equal(t, "invalid roles", gjson.Get(rec.Body.String(), "error.message").String())
+	require.Equal(t, "本次请求未被接受，请检查请求内容。", gjson.Get(rec.Body.String(), "error.message").String())
 
 	statusVal, ok := c.Get(OpsUpstreamStatusCodeKey)
 	require.True(t, ok, "shared handler must record the upstream status for ops")
@@ -515,7 +515,7 @@ func TestForwardAsAnthropic_ResponsesSupportedAccountStillUsesResponsesEndpoint(
 	require.False(t, gjson.GetBytes(upstream.lastBody, "messages").Exists())
 	require.Equal(t, DefaultOpenAICodexUserAgent, upstream.lastReq.Header.Get("User-Agent"))
 	require.Equal(t, "codex_cli_rs", upstream.lastReq.Header.Get("originator"))
-	require.Equal(t, "0.167.0", upstream.lastReq.Header.Get("version"))
+	require.Equal(t, "0.170.0", upstream.lastReq.Header.Get("version"))
 	require.Empty(t, upstream.lastReq.Header.Get("OpenAI-Beta"))
 	require.Equal(t, "ok", gjson.Get(rec.Body.String(), "content.0.text").String())
 }

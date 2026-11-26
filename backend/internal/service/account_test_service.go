@@ -363,7 +363,7 @@ func createTestPayload(modelID string) (map[string]any, error) {
 		return nil, err
 	}
 
-	return map[string]any{
+	payload := map[string]any{
 		"model": modelID,
 		"messages": []map[string]any{
 			{
@@ -391,10 +391,13 @@ func createTestPayload(modelID string) (map[string]any, error) {
 		"metadata": map[string]string{
 			"user_id": sessionID,
 		},
-		"max_tokens":  1024,
-		"temperature": 1,
-		"stream":      true,
-	}, nil
+		"max_tokens": 1024,
+		"stream":     true,
+	}
+	if !claude.RejectsTemperature(modelID) {
+		payload["temperature"] = 1
+	}
+	return payload, nil
 }
 
 // TestAccountConnection tests an account's connection by sending a test request
@@ -655,7 +658,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	}
 
 	// 账号级请求头覆写：测试请求与真实转发保持一致的最终头
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverrides(req.Context(), req.Header)
 
 	// Get proxy URL
 	proxyURL := ""
@@ -753,6 +756,28 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	return s.processClaudeStream(c, resp.Body)
 }
 
+func buildBedrockTestPayload(modelID string) map[string]any {
+	payload := map[string]any{
+		"anthropic_version": "bedrock-2023-05-31",
+		"messages": []map[string]any{
+			{
+				"role": "user",
+				"content": []map[string]any{
+					{
+						"type": "text",
+						"text": "hi",
+					},
+				},
+			},
+		},
+		"max_tokens": 256,
+	}
+	if !claude.RejectsTemperature(modelID) {
+		payload["temperature"] = 1
+	}
+	return payload
+}
+
 // testBedrockAccountConnection tests a Bedrock (SigV4 or API Key) account using non-streaming invoke
 func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx context.Context, account *Account, testModelID string) error {
 	region := bedrockRuntimeRegion(account)
@@ -770,22 +795,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	c.Writer.Flush()
 
 	// Create a minimal Bedrock-compatible payload (no stream, no cache_control)
-	bedrockPayload := map[string]any{
-		"anthropic_version": "bedrock-2023-05-31",
-		"messages": []map[string]any{
-			{
-				"role": "user",
-				"content": []map[string]any{
-					{
-						"type": "text",
-						"text": "hi",
-					},
-				},
-			},
-		},
-		"max_tokens":  256,
-		"temperature": 1,
-	}
+	bedrockPayload := buildBedrockTestPayload(testModelID)
 	applyAccountFingerprintMessages(ctx, bedrockPayload)
 	bedrockBody, _ := json.Marshal(bedrockPayload)
 
@@ -1214,7 +1224,7 @@ func (s *AccountTestService) applyGrokTestRequestHeaders(req *http.Request, acco
 	if account.IsGrokOAuth() && req.URL != nil && isGrokCLIProxyTarget(req.URL.String()) {
 		applyGrokCLIHeaders(req.Header)
 	}
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverrides(req.Context(), req.Header)
 }
 
 func (s *AccountTestService) observeGrokTestResponse(ctx context.Context, account *Account, resp *http.Response) {
@@ -1871,7 +1881,7 @@ func (s *AccountTestService) testGrokSTT(c *gin.Context, ctx context.Context, ac
 	if account.IsGrokOAuth() {
 		applyGrokCLIHeaders(req.Header)
 	}
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverrides(req.Context(), req.Header)
 
 	resp, err := s.httpUpstream.Do(prepareAccountOutboundRequest(req, account), proxyURL, account.ID, account.Concurrency)
 	if err != nil {
@@ -1944,7 +1954,7 @@ func (s *AccountTestService) testGrokRealtime(c *gin.Context, ctx context.Contex
 	if account.IsGrokOAuth() {
 		applyGrokCLIHeaders(headers)
 	}
-	account.ApplyHeaderOverrides(headers)
+	account.ApplyHeaderOverrides(ctx, headers)
 	ApplyAccountOutboundIdentity(ctx, account, &http.Request{URL: u, Header: headers})
 
 	dialer := s.grokWSDialer

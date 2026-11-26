@@ -92,6 +92,16 @@ model set and tier multipliers use the shared OpenAI policy in forwarding,
 reservation and settlement. Group duplication and API-key authentication-cache
 snapshots retain both flags.
 
+OpenAI Fast/default settlement uses the final outbound tier. A request whose last
+prepared body carries `priority` or `fast` is billed at the Fast card when the
+upstream response declares `default`; this covers OAuth, setup-token and API-key
+credentials, including official direct and compatible relay connections. The rule
+applies only to that combination. An explicit `flex` declaration still
+downgrades, a policy-filtered Fast request is billed at the tier actually sent,
+and a response cannot raise an untiered request or an API-key Ultra Fast request.
+Request, response and billing diagnostics remain separate, and historical usage
+rows keep the amounts and tier stored at settlement.
+
 OAuth requests replaying `web_search_call` history declare a cached-only
 `web_search` tool (`external_web_access=false`) when absent. Standard Responses
 uses `tools`; Responses Lite uses an `additional_tools` input item and preserves
@@ -494,9 +504,11 @@ may park only the already mapped model when its status and error fields match;
 output text, request metadata, and model names cannot trigger that rule. The
 no-retry rule applies whether or not a model cooldown matches.
 
-When the error is forwarded, `server_is_overloaded` / `slow_down` are rewritten
-to `server_error` so Codex CLI does not treat them as a fatal session-ending
-code. The original message is preserved. Rate-limit codes are not rewritten.
+When forwarding these capacity events, Plus uses `server_error` for both
+`server_is_overloaded` and `slow_down`, preserving the original message.
+The pinned Codex SSE parser classifies the original `slow_down` as a rate
+limit and `server_is_overloaded` as overload. Plus keeps
+`rate_limit_exceeded` intact. [Codex SSE error parser](https://github.com/openai/codex/blob/29eb79e9866b3262a777fdf8195c1b9e63684c91/codex-rs/codex-api/src/sse/responses_error.rs#L82-L98)
 Codex WebSocket HTTP-bridge and native WS turns deliver that rewritten event
 on the current connection instead of switching accounts or closing with a
 generic proxy failure.
@@ -1073,10 +1085,13 @@ without a terminal declaration do not establish a response tier.
 Migration 284 adds nullable snapshots without backfilling: historical NULL values
 mean **Not recorded**, a newly captured empty request means **Unspecified**, and
 an empty response means **Not returned** (no unambiguous declaration). The
-existing billable `service_tier` and cost calculations remain unchanged and are
-not used to infer either diagnostic value. A `default` response alone does not
-prove that Fast was disabled, especially through Codex OAuth or compatible
-providers with their own reporting behavior.
+billable `service_tier` follows the Fast/default settlement rule above: a final
+outbound Fast tier is billed as Fast when the response echoes `default`, while
+an explicit `flex` response or a filtered Fast request is billed at the actual
+sent tier. Diagnostic request and response fields are never rewritten from the
+billable value, and a `default` response alone does not prove that Fast was
+disabled, especially through Codex OAuth or compatible providers with their own
+reporting behavior.
 
 Anthropic Messages conversion applies the same OpenAI Fast policy whether the
 selected OpenAI account uses Responses or Chat Completions. The exact
@@ -1092,9 +1107,15 @@ nullable boolean `request_fast_enabled` describes the recorded final request:
 trimmed, case-insensitive `priority`/`fast` mean true, `default`/`auto`/`flex` mean
 false, and missing, empty or unrecognized values mean null. It is derived only
 from `requested_service_tier`, never the upstream response, billable tier, model,
-cost or current configuration. The user table places this state and reasoning
-effort below the requested model; raw tiers remain absent from user column
-settings, cost tooltips and exports. This display does not change pricing.
+cost or current configuration. The user and administrator cost tooltips also
+show the nullable `billing_service_tier`, normalized from the stored billable
+tier to `fast`, `standard`, `flex` or `ultrafast`; null means a historical record,
+captured absence or unrecognized value and is omitted instead of being inferred.
+Free Fast keeps the Fast raw card and charges Standard, so the field remains
+`fast` while the original and actual amounts differ. The user table places the
+request Fast state and reasoning effort below the requested model; raw tiers
+remain absent from user column settings and exports. This display does not
+change pricing.
 
 
 ## Codex transport and active probe timing
@@ -1247,58 +1268,37 @@ collected usage and any existing upstream error.
 
 ## Downstream session error wording
 
-The independent administrator setting `openai_error_messages_normalized`
-(“统一会话错误文案”) defaults to `false` and is persisted in system settings.
-It applies to OpenAI OAuth and API Key owners, native sends and official Codex
-CLI outbound bridging. It does not depend on safety buffering suppression.
-When enabled, only `message` in a recognized protocol error carrier is changed:
+OpenAI-owned calls (OAuth, setup-token, API Key and custom API-key addresses) are
+always classified at the failure source and return platform-generated text.
+`openai_error_messages_normalized` is now the "use custom messages" mode; it
+does not enable classification. On first start and with custom mode off, every
+entry uses its built-in default. With custom mode on, saved overrides apply and
+all other entries keep their defaults. The complete 76-key catalog, defaults,
+groups, admin API and conflict semantics are owned by
+[the public error contract](CODEX_PUBLIC_ERRORS.md).
 
-| Exact error code | Downstream message |
-| --- | --- |
-| `upstream_response_interrupted` | 响应已中断，请输入「继续」重新提交。 |
-| `upstream_unavailable` | 响应已中断，请输入「继续」重新提交。 |
-| `session_account_lost` | 当前会话可能无法恢复，请新开会话继续。 |
+The downstream projection rebuilds every confirmed failure from the platform-
+generated `type`, `code` and `message`, bounded correlation fields and the
+protocol's terminal shape. Only the approved platform-level `param` values
+(`model`, `input`, `tools`, `instructions`, `previous_response_id`,
+`service_tier`, `stream`, `messages`, `system`) survive. It drops upstream
+`detail`, `innererror`, nested field paths, extensions, URLs, account or plan
+text and diagnostic headers (`WWW-Authenticate`, `Location`,
+proxy/debug/tracing headers); `Retry-After` remains. HTTP status is normalized
+to the catalog row (B01–B05/B08 → 503, B06/B09/B13 → 429, B07 → 503,
+C03/C05 → 502); retry and failover, billing, usage and security audit keep
+their original behavior. Local authentication, balance, quota, audit and
+assistance errors keep their local contracts.
+WebSocket close reasons use the same effective text and are truncated on UTF-8
+boundaries. User error history rebuilds the same safe projection; administrator
+Ops retains its original diagnostics.
 
-Recognized carriers are HTTP JSON `error`, SSE/WS `type: error` (nested `error`
-or root code/message), and `response.failed` (`response.error` or root `error`).
-Matching is exact and case-sensitive; missing/non-string messages, unknown
-codes/events, ordinary content, tools and opaque nested objects pass through.
-Non-OpenAI responses retain their original bytes and write boundaries.
-When an existing HTTP sanitizer, administrator error rule, exhausted failover,
-or WS-to-HTTP rejection rebuilds an error without a code, its final failure's
-recognized source code still selects the message. Only that code is retained
-as internal display metadata; the private upstream body is not restored, and
-no code is added to the sanitized downstream envelope. Explicit downstream
-codes take precedence, except a generic terminal code explicitly marked as
-locally synthesized while rendering this same final failure. Stream failover
-retains its source code on the attempt's error, even if its stored response body
-is sanitized earlier. Recovered/retried attempts cannot supply this metadata
-to later errors, and the HTTP bridge clears it for each WebSocket turn.
-This also covers a non-streaming request receiving an SSE failure upstream and
-remote compact failures after a keepalive has committed HTTP 200: the existing
-JSON error or `response.failed` terminal retains its shape and code.
-An exhausted uncommitted SSE attempt returns a JSON error with JSON content
-type; headers prepared by an abandoned attempt cannot label it as SSE.
-HTTP status, error code/type, terminal failure, retry/failover policy and usage
-processing retain existing behavior. The existing Responses failure sanitizer
-may omit wire usage and other response details; internal billing usage is still
-collected before downstream projection. This switch does not synthesize success,
-automatically retry a request, or promise that submitting “继续” restores a session.
-
-HTTP projection sits beneath ops capture, including handler errors emitted after
-`Forward` returns. WS projection runs after upstream observers at the final client
-frame write. Admin error records keep original diagnostics; historical rows are
-not rewritten. Accepted fragmented JSON/SSE is staged per event using the existing
-anonymous spool, with EOF cleanup and transport failure propagation.
-Eligible HTTP writers remove fixed `Content-Length` before an early header
-commit, including while disabled, because a later live toggle can change the
-byte length. HTTP framing then owns the actual length; error bodies are never
-truncated or rejected because of a stale upstream length.
-Current-instance settings are read at event release, so ON/OFF affects subsequent
-unsent errors during an ongoing generation. Already delivered messages cannot be
-changed. Both downstream settings share the existing invalidation channel and
-one-second reconciliation worker. Replica changes are eventually consistent;
-read failures retain each last valid setting, and failed writes do not change it.
+The three previously handled codes remain in the catalog: A12
+`session_account_lost`, C03 `upstream_response_interrupted` and C04
+`upstream_unavailable`. C03 and C04 no longer share one sentence. Non-OpenAI
+providers are untouched. Admin text is plain single-line text of 1-500 Unicode
+code points; blank, control-character, unknown-key and stale-revision writes are
+rejected with 400 or 409.
 
 ## v0.2.20 protocol corrections
 
@@ -1381,3 +1381,119 @@ If a concurrency keepalive already committed SSE response headers, a later
 upstream error uses an SSE error event. Before streaming begins the endpoint
 retains the applicable HTTP error response. The concurrency ping setting is
 documented in [Docker configuration](../../deploy/DOCKER.md#startup-and-database-recovery).
+
+## v0.2.23 cache-creation accounting
+
+Anthropic's `cache_creation` breakdown decides the TTL classes a write is billed
+at, while the flat `cache_creation_input_tokens` is the provider's own total.
+`ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens` are read as pointers,
+so an explicit zero means "no write in this class" rather than "field omitted".
+
+Both quantities resolve into one total, in this order: a positive flat total, then
+the breakdown sum, then zero. A positive total wins because a stale breakdown can
+report zero classes while the aggregate still carries the write; the breakdown
+only becomes the source when the total is missing or zero, which is how
+compatible providers that report the split alone stay billable. Billing caps a
+contradictory breakdown at that total instead of trusting the classes. The
+buffered converter, the streaming state machine and the service usage merge all
+resolve the same total, so the uncached input bucket
+(`prompt_tokens - cache_read - cache_creation`) cannot drift.
+
+`cache_write_tokens` and `cache_creation_tokens` remain two spellings of one
+quantity. A declared `cache_write_tokens` now wins even when its value is zero or
+negative: presence is preserved through JSON round trips, a negative value clamps
+to zero, and the older alias is not counted on top. Clients that omit the field
+keep the previous fallback to `cache_creation_tokens`. The resolved total is also
+what `input_tokens_details` advertises, so a zero write leaves no uncounted
+alias in the detail block. See [channel pricing](../CHANNEL_PRICING.md) for the
+price side of the TTL classes.
+
+### Compatible snapshot semantics
+
+Anthropic-compatible providers replay the whole usage object. A later
+`message_delta` therefore often repeats `cache_read_input_tokens` and
+`cache_creation_input_tokens` as zeros after `message_start` already reported real
+values. Treating those repetitions as authoritative silently erased the write and
+under-billed the request, so a zero now only applies when the current value is
+also zero; a positive value always wins. The same rule governs the compat prompt
+normalization path, the passthrough SSE reader and the Antigravity extractor.
+
+The generic SSE reader, passthrough SSE reader and Anthropic bridges track whether
+the total came from a positive aggregate or the TTL breakdown. A TTL-only update
+recomputes a derived total. Once the provider sends a positive aggregate, later
+TTL fields update the classes while that aggregate continues to govern the total.
+These readers also retain `message_start.output_tokens` if a later frame repeats
+zero. The Antigravity forwarder carries both parsed TTL classes into settlement.
+See `gateway_cache_snapshot_semantics_test.go`.
+
+For Responses-to-Messages conversion, a terminal frame's `response.usage` governs
+the client message and settlement. The frame's top-level `usage` provides the
+fallback when the nested field is absent.
+
+### Prompt total reconciliation
+
+A compatible provider reports `prompt_tokens` as the total of Anthropic's three
+buckets, then keeps refining only the cache buckets in later frames. The gateway
+remembers that total on the usage object, so a frame that carries nothing but
+`cache_read_input_tokens` still recomputes the uncached bucket as
+`prompt_tokens - cache_read - cache_write`. Without it a cache-only update grew the
+cache bucket while the uncached bucket kept its old value, and the three buckets
+stopped summing to the provider's own total.
+
+A reported `prompt_cache_miss_tokens` is authoritative and wins outright; it also
+invalidates the remembered total, because hit and miss describe the same quantity
+in different shapes and mixing them double counts. The reconciliation runs in the
+SSE patch merge, the Anthropic usage merge and the compat prompt normalization, and
+`message_start` and `message_delta` both feed it. See
+`anthropic_prompt_total_reconcile_test.go`.
+
+Buffered conversions (Responses, Chat Completions, and both native-Anthropic
+bridges) now rebuild the client response from the merged usage instead of a
+stripped structure. Previously those paths copied only input, output, cache-read
+and the flat cache-write fields, so a response whose writes arrived as a 5m/1h
+breakdown reported `cache_creation_input_tokens: 0` to the client while the
+request was billed for the writes. A stream that reported only cache buckets also
+counts as reported usage, so the guard no longer discards it as "nothing to say".
+
+## Upstream request and response compatibility
+
+Repeated JSON members fail basic validation (HTTP 400 or Responses WebSocket
+policy close). JSON Schema and custom tool-argument key spaces preserve
+distinct case-sensitive names. Arbitrary `metadata` keys also remain
+case-sensitive, so `tag` and `Tag` may coexist. The reserved `metadata.user_id`
+field still rejects case-folded aliases such as `user_id` plus `USER_ID`,
+because typed Antigravity binding and gateway session extraction must agree.
+Exact duplicate metadata keys, including equivalent JSON escapes, remain
+invalid. Requests with unique unknown fields retain the existing audit and
+forwarding rules.
+See [security audit coverage](../SECURITY_AUDIT_CONTENT_COVERAGE.md).
+
+Codex external IDE context, unnamed context, and proposed plan chunks use
+the same shared post-audit adapter as browser context. The
+`configuration_update` item can record the last explicitly requested
+reasoning effort for the turn while the top-level request remains stable.
+When a compatible upstream ends an SSE response with empty output, buffered
+Chat and Messages can reconstruct completed items from prior stream events.
+Text, refusal and reasoning parts retain suffixes and later parts supplied
+only by completed text or part events, using each part's own index. Repeated
+completed snapshots do not duplicate content; populated item and terminal
+output remain authoritative, and hosted items retain their ordering.
+Messages streaming also recovers a later done-only text part when its nonempty
+`item_id` and `output_index` match an earlier message item declaration. Parts
+remain distinct by `content_index`, including when their text is identical.
+Repeated done snapshots do not duplicate text. Without that identity anchor,
+unfamiliar indices retain the existing duplicate guard; conflicting item IDs
+cannot replace a declared message's output-index binding.
+
+A tool-level Alpha Search 403 can trigger request failover without affecting
+account scheduling. A verified account or workspace access rejection retains
+its account-level handling. OAuth refresh persists a successful token
+rotation with a bounded exact-owner write even if optional enrichment
+runs out of time. WHAM usage and reset token acquisition also completes
+that local write, retaining its complete credential-owner, identity and proxy
+CAS checks. The original canceled caller context still governs quota HTTP
+requests; persisting the new refresh token does not resume a canceled operation.
+After a successful quota rotation CAS, bounded local cleanup invalidates the
+old access-token cache and rereads the committed owner even if the caller was
+canceled. Cleanup failure terminates token acquisition without retrying the
+issuer; a later request cannot be handed a stale cached token as the new grant.

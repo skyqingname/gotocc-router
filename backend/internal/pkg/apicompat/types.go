@@ -84,6 +84,9 @@ type AnthropicContentBlock struct {
 	ToolUseID string          `json:"tool_use_id,omitempty"`
 	Content   json.RawMessage `json:"content,omitempty"` // string or []AnthropicContentBlock
 	IsError   bool            `json:"is_error,omitempty"`
+
+	// type=tool_reference (inside a ToolSearch tool_result)
+	ToolName string `json:"tool_name,omitempty"`
 }
 
 func (b AnthropicContentBlock) MarshalJSON() ([]byte, error) {
@@ -126,6 +129,8 @@ type AnthropicTool struct {
 	Description  string                 `json:"description,omitempty"`
 	InputSchema  json.RawMessage        `json:"input_schema,omitempty"` // JSON Schema object
 	CacheControl *AnthropicCacheControl `json:"cache_control,omitempty"`
+	// DeferLoading marks a tool Claude Code reveals through ToolSearch.
+	DeferLoading bool `json:"defer_loading,omitempty"`
 }
 
 // AnthropicCacheControl 对应 Anthropic API 的 cache_control 字段。
@@ -170,12 +175,24 @@ type AnthropicPromptTokensDetails struct {
 	CachedTokens int `json:"cached_tokens,omitempty"`
 }
 
+// AnthropicCacheCreation is Anthropic's cache-write breakdown. The 5-minute and
+// 1-hour classes are priced differently, so the split must never be flattened
+// into cache_creation_input_tokens before billing sees it. A pointer field is
+// authoritative even when it is zero: `{"ephemeral_1h_input_tokens":0}` means
+// "no 1h write", not "field omitted".
+type AnthropicCacheCreation struct {
+	Ephemeral5mInputTokens *int `json:"ephemeral_5m_input_tokens,omitempty"`
+	Ephemeral1hInputTokens *int `json:"ephemeral_1h_input_tokens,omitempty"`
+}
+
 // AnthropicUsage holds token counts in Anthropic format.
 type AnthropicUsage struct {
 	InputTokens              int `json:"input_tokens"`
 	OutputTokens             int `json:"output_tokens"`
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+	// CacheCreation carries the TTL breakdown when the provider reports it.
+	CacheCreation *AnthropicCacheCreation `json:"cache_creation,omitempty"`
 	// Anthropic-compatible providers can also expose their native OpenAI-style
 	// total/cache fields. Preserve them so callers can normalize provider totals
 	// into Anthropic's mutually-exclusive billing buckets.
@@ -256,6 +273,10 @@ type ResponsesRequest struct {
 	ServiceTier        string              `json:"service_tier,omitempty"`
 	PromptCacheKey     string              `json:"prompt_cache_key,omitempty"`
 	PreviousResponseID string              `json:"previous_response_id,omitempty"`
+	// Stop 在 Chat Completions 里是原生字段，Responses 协议本身没有。这里保留原样
+	// （string 或 []string），仅在降级到 Chat Completions 时透传，避免客户端设的
+	// 停止序列在转换层被静默丢弃。
+	Stop json.RawMessage `json:"stop,omitempty"`
 }
 
 // ResponsesReasoning configures reasoning effort in the Responses API.
@@ -341,6 +362,8 @@ type ResponsesTool struct {
 	Description string          `json:"description,omitempty"`
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 	Strict      *bool           `json:"strict,omitempty"`
+	// type=tool_search: "client" means the caller executes the search.
+	Execution string `json:"execution,omitempty"`
 
 	// type=namespace 的子工具列表（tools 与 children 二选一，语义相同）。
 	Tools    []ResponsesTool `json:"tools,omitempty"`
@@ -501,6 +524,10 @@ func (o *ResponsesOutput) UnmarshalJSON(data []byte) error {
 type WebSearchAction struct {
 	Type  string `json:"type,omitempty"`  // "search"
 	Query string `json:"query,omitempty"` // primary search query
+	// URL and Sources stay raw: a strictly typed value of an unexpected shape
+	// would fail decoding the whole terminal event that carries this call.
+	URL     json.RawMessage `json:"url,omitempty"` // open_page / find_in_page target
+	Sources json.RawMessage `json:"sources,omitempty"`
 }
 
 // ResponsesSummary is a summary text block inside a reasoning output.
@@ -519,6 +546,10 @@ type ResponsesUsage struct {
 	// Optional detailed breakdown
 	InputTokensDetails  *ResponsesInputTokensDetails  `json:"input_tokens_details,omitempty"`
 	OutputTokensDetails *ResponsesOutputTokensDetails `json:"output_tokens_details,omitempty"`
+
+	// ServerSideToolUsageDetails is xAI's per-class success count object,
+	// kept raw so Grok search counting can read it from a decoded response.
+	ServerSideToolUsageDetails json.RawMessage `json:"server_side_tool_usage_details,omitempty"`
 }
 
 func (u *ResponsesUsage) UnmarshalJSON(data []byte) error {
@@ -928,6 +959,24 @@ type ChatTokenDetails struct {
 	AcceptedPredictionTokens int             `json:"accepted_prediction_tokens,omitempty"`
 	RejectedPredictionTokens int             `json:"rejected_prediction_tokens,omitempty"`
 	presentFields            tokenDetailPresence
+	// cacheWriteTokensPresent records that cache_write_tokens was present on the
+	// wire, even when its value is zero or negative. Presence is part of the
+	// contract: it overrides the older cache_creation_tokens spelling.
+	cacheWriteTokensPresent bool
+}
+
+// cacheCreationInputTokens resolves the single cache-write quantity from its two
+// spellings. cache_write_tokens wins whenever it was declared, including when it
+// is zero or negative: a provider that reports an explicit zero means "no write",
+// and falling back to cache_creation_tokens would double count the same tokens.
+func (details *ChatTokenDetails) cacheCreationInputTokens() int {
+	if details == nil {
+		return 0
+	}
+	if details.cacheWriteTokensPresent || details.presentFields["cache_write_tokens"] != nil || details.CacheWriteTokens > 0 {
+		return max(details.CacheWriteTokens, 0)
+	}
+	return max(details.CacheCreationTokens, 0)
 }
 
 // ChatCompletionsChunk is a single streaming chunk from POST /v1/chat/completions.

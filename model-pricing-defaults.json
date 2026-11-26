@@ -432,11 +432,11 @@
     },
     "gpt-6.2-sol": {
       "verified_on": "2026-11-18",
-      "note": "Standard short-context rates; Fast (priority) is 2x and Batch is 0.5x as published. Long context over 272K input: input and cache x2, output x1.5. Not expressed by this card: 12h cache writes ($5/M, billed at the 30m write rate), Ultrafast (3x Standard through 2027-02-28, 6x from 2027-03-01 Pacific; billed at the Fast rate), background completion-window discounts and the gpt-6.2-astra-law configuration. GPT-6.2 is not in the official Flex table."
+      "note": "Standard short-context rates; Fast (priority) is 2x and Batch is 0.5x as published. Long context over 272K input: input and cache x2, output x1.5. Ultrafast uses the request-instant model multiplier (3x Standard through 2027-02-28, 6x from 2027-03-01) unless overridden per channel. Not expressed by this card: 12h cache writes ($5/M, billed at the 30m write rate unless configured), background completion-window discounts and the gpt-6.2-astra-law configuration. GPT-6.2 is not in the official Flex table."
     },
     "gpt-6.2-astra": {
       "verified_on": "2026-11-18",
-      "note": "Standard short-context rates; Fast (priority) is 2x and Batch is 0.5x as published. Long context over 272K input: input and cache x2, output x1.5. Not expressed by this card: 12h cache writes ($20/M, billed at the 30m write rate), Ultrafast (3x Standard through 2027-02-28, 6x from 2027-03-01 Pacific; billed at the Fast rate), background completion-window discounts and the gpt-6.2-astra-law configuration. GPT-6.2 is not in the official Flex table."
+      "note": "Standard short-context rates; Fast (priority) is 2x and Batch is 0.5x as published. Long context over 272K input: input and cache x2, output x1.5. Ultrafast uses the request-instant model multiplier (3x Standard through 2027-02-28, 6x from 2027-03-01) unless overridden per channel. Not expressed by this card: 12h cache writes ($20/M, billed at the 30m write rate unless configured), background completion-window discounts and the gpt-6.2-astra-law configuration. GPT-6.2 is not in the official Flex table."
     }
   }
 }

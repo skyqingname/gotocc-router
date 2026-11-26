@@ -2,31 +2,31 @@
 package service
 
 const (
-	BillingCreditUnit        = "credits"
-	BillingCreditSymbol      = "$"
-	deepseekFlashInputPrice  = 0.000002
+	BillingCreditUnit = "credits"
+	BillingCreditSymbol = "$"
+	deepseekFlashInputPrice = 0.000002
 	deepseekFlashOutputPrice = 0.000008
-	deepseekFlashCacheRead   = 4e-8
-	deepseekProInputPrice    = 0.000009
-	deepseekProOutputPrice   = 0.000027
-	deepseekProCacheRead     = 3e-7
+	deepseekFlashCacheRead = 4E-8
+	deepseekProInputPrice = 0.000009
+	deepseekProOutputPrice = 0.000027
+	deepseekProCacheRead = 3E-7
 )
 
 var officialCreditPrices = map[string]ModelPricing{
 	"kimi-k2": {
-		InputPricePerToken:     0.000004,
-		OutputPricePerToken:    0.000016,
+		InputPricePerToken: 0.000004,
+		OutputPricePerToken: 0.000016,
 		CacheReadPricePerToken: 0.000001,
 	},
 	"kimi-k2-thinking": {
-		InputPricePerToken:     0.000004,
-		OutputPricePerToken:    0.000016,
+		InputPricePerToken: 0.000004,
+		OutputPricePerToken: 0.000016,
 		CacheReadPricePerToken: 0.000001,
 	},
 	"doubao-embedding-vision": {
-		InputPricePerToken:      7e-7,
+		InputPricePerToken: 7E-7,
 		ImageInputPricePerToken: 0.0000018,
-		OutputPricePerToken:     0,
+		OutputPricePerToken: 0,
 	},
 }
 

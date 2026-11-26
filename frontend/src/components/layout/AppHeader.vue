@@ -26,7 +26,7 @@
       </div>
       </slot>
 
-      <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
+      <!-- Right: shared tools everywhere; personal widgets only in the user portal. -->
       <div class="flex shrink-0 items-center gap-1 sm:gap-3">
         <!-- GoToCC 全局搜索 -->
         <GotoCCGlobalSearch v-if="user" />
@@ -44,11 +44,11 @@
         </div>
 
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
-        <SubscriptionProgressMini v-if="user && subscriptionFeatureEnabled && !compactHeader" />
+        <SubscriptionProgressMini v-if="user && isUserPortal && subscriptionFeatureEnabled && !compactHeader" />
 
         <!-- Balance Display -->
         <div
-          v-if="user && !compactHeader"
+          v-if="user && isUserPortal && !compactHeader"
           class="group relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
         >
           <svg
@@ -102,6 +102,7 @@
 
 <script setup lang="ts">
 import { withCreditUnit } from '@/utils/credits'
+import { usePortalArea } from '@/composables/usePortalArea'
 import { useUserView } from '@/composables/useUserView'
 import { ref, computed } from 'vue'
 import { useElementSize } from '@vueuse/core'
@@ -135,6 +136,9 @@ const authStore = useAuthStore()
 const adminSettingsStore = useAdminSettingsStore()
 
 const view = useUserView()
+const portalArea = usePortalArea()
+const isAdminPortal = computed(() => authStore.isAdmin && portalArea.value === 'admin')
+const isUserPortal = computed(() => portalArea.value === 'user')
 const user = computed(() => view.user)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
@@ -159,8 +163,11 @@ const pageTitle = computed(() => {
   if (route.name === 'CustomPage' || route.meta.adminSupportResource === 'custom') {
     const id = route.params.id as string
     const publicItems = appStore.cachedPublicSettings?.custom_menu_items ?? []
-    const menuItem = publicItems.find((item) => item.id === id)
-      ?? (authStore.isAdmin ? adminSettingsStore.customMenuItems.find((item) => item.id === id) : undefined)
+    const userItem = publicItems.find((item) => item.id === id && item.visibility !== 'admin')
+    const adminItem = isAdminPortal.value
+      ? adminSettingsStore.customMenuItems.find((item) => item.id === id && item.visibility === 'admin')
+      : undefined
+    const menuItem = userItem ?? adminItem
     if (menuItem?.label) return menuItem.label
   }
   const titleKey = routeMetaKeys.value.titleKey

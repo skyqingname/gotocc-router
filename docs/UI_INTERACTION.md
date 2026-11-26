@@ -94,9 +94,12 @@ inside the card; when the doughnut and a 26rem table do not fit side by side, th
 table wraps below the doughnut, and name columns truncate with the full name in the
 tooltip. Chart grids use two columns from 1536px and one column below that.
 The records card puts the live/history/error tabs and the history auto-refresh
-control on one row, followed by the filters with their actions on the same wrap.
+control on one row, followed by a responsive multi-column filter grid with its
+actions on the same wrap across scaled, portrait and narrow viewports.
 The table and its pagination follow as separate surfaces with 16px gaps instead of
-cards nested in cards; changing page scrolls the first row into view.
+cards nested in cards; live, history and error lists keep horizontal table rows
+with sideways scrolling inside the table card rather than stacked record cards,
+and changing page scrolls the first row into view.
 The user live view paginates its real recent observation window (at most 200 rows),
 20 per page. Filters and exports still cover the complete observation window.
 User history places reasoning and the three-state
@@ -485,8 +488,14 @@ after cleanup.
 Initial loads use skeletons; background refresh preserves rows/charts.
 Account refresh keeps the existing table and quotas visible while marking the
 region busy and suppressing overlapping row actions. Initial cost reads remain
-lazy and retain the selected aggregate-key scope. Settings use a floating save
-dock with reserved content space, responsive placement and existing permissions;
+lazy and retain the selected aggregate-key scope.
+Only the latest account-usage read for the current account and quota snapshot may
+update the cell or its cache, report an error, or settle its busy state. Passive
+reads and active probes share this ordering; switching accounts discards the
+previous account's displayed quota and pending results.
+An active probe also supersedes outstanding list-batch results for that account.
+Settings use a floating save dock with reserved content space, responsive
+placement and existing permissions;
 the dock does not restore the removed TTFT setting.
 `useAutoRefresh` coalesces pending work, pauses while hidden/offline, resumes once,
 honors seconds/date `Retry-After`, and uses jittered exponential backoff capped
@@ -683,7 +692,9 @@ existing fixed controls and independent table scroll.
 User table headers and values align left and columns use content-based widths.
 Headers, model names and group labels remain on one line. Composite values such
 as token details or date/time may use separate lines; action buttons retain their
-shared appearance and wrap within the operation column. User DataTable lists
+shared appearance and wrap within the operation column. Unless a list opts into `nativeTable` (such as user usage records, which keep
+one horizontal row per record and scroll sideways across scaled, portrait and
+narrow viewports, pinning the leading column from 768px up), user DataTable lists
 disable pinned columns and use their existing record cards when the selected
 columns cannot fit, keeping every selected field accessible without sideways
 scrolling. Card fields use as many columns as their available width allows;
@@ -699,3 +710,9 @@ active palette, including when switching between administration and user views. 
 images, visible control edges, and semantic status colors still apply. The
 authentication brand and footer sit on the canvas around one form card; default,
 compact, and custom home modes keep their original precedence and destinations.
+
+## Account operations
+
+Bulk OpenAI account edits can opt in to writing the passthrough model filter
+independently. The model plaza copy action copies the clicked model's exact
+ID. Manual token refresh uses a frequency hint in the account actions.

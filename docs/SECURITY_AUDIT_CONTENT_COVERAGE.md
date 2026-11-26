@@ -513,6 +513,42 @@ post-audit HTTP/WS adapter. `upstream022_audit_contract_test.go` covers the lite
 projection, anchored-output exclusion, OAuth/API-key HTTP/WS blocking before
 side effects and unknown-item pass-through for all three names.
 
+The same shared projection recognizes `agent.ide_context`,
+`agent.untrusted_content` and `agent.proposed_plan`. It keeps IDE text,
+an unnamed context source's string (including an empty string), and
+whitespace-bearing nonempty plan chunks. Null or non-string output and
+anchored tool output retain their existing attribution. Both engines audit
+the projected user text before any HTTP or Responses WS forwarding.
+
+A Kimi Chat system message with named function declarations in `tools` and
+an absent `content` is tool-definition context. A present null or empty
+`tools` list also leaves the preceding current user message or tool result
+current: the bridge removes these no-op declarations. An absent `tools`,
+explicit `content: null`, content-bearing system message, or malformed tool
+list does not match this rule; explicit null content remains present content
+and is rejected by the bridge. Definitions may be promoted only after ingress
+audit. `chat_tool_declaration_test.go` covers canonical classification, and
+`upstream024_audit_contract_test.go` exercises both real audit engines for
+named/null/empty lists with unknown siblings, across OAuth/API Key candidates
+configured for native Chat, Responses or Messages. Blocking precedes billing,
+credential selection, concurrency and sending. The actual Responses/Messages
+wire cases and explicit-null content rejection are covered by
+`openai_gateway_kimi_dynamic_tools_test.go`.
+
+Gateway duplicate-member checks are basic validation. The HTTP gateway
+rejects repeated JSON members and scalar multipart fields before Composite
+rewrite. Responses WS validates frames before resolving their turn policies.
+JSON Schema and tool-argument key spaces keep distinct case-sensitive keys.
+Arbitrary metadata keys retain the same map semantics; only reserved
+`metadata.user_id` aliases are case-folded to keep typed binding and session
+extraction unambiguous. Exact duplicate keys remain invalid.
+The model allowlist retains its existing response when it rejects an HTTP
+request or the initial Responses WS frame first. Unknown unique input and
+unknown sibling fields retain the canonical extraction behavior. Streaming
+provider file uploads keep their own bounded multipart validation. Grok
+async image edits validate multipart upload limits before auditing the
+accepted request and before task creation.
+
 Prompt-audit enqueue wakes local workers only after durable enqueue succeeds.
 Workers retain database claims, lease expiry, retry polling and cross-replica
 idempotency; wakeups never run selection or forwarding before the ingress gate.
@@ -920,7 +956,11 @@ from the original HTTP request or WS turn before these outbound adaptations.
 Unknown metadata/options/items remain pass-through; recognized sibling content
 remains auditable. OAuth Zstd encoding happens at the final HTTP/plugin send
 boundary, after ingress decoding and audit, with no new endpoint or ingress path.
-Models residency adds an outbound declaration only. Real-payload regressions
+Plugin request instructions are an outbound-only adaptation applied after ingress
+audit and before final compression/signing; they add no inbound content. Transport
+plugins receive the same already-audited request and can change only the sender;
+their bytes are not re-ingested by the host audit. Models residency adds an
+outbound declaration only. Real-payload regressions
 cover plain/Lite HTTP and WS shapes, canonical content in both engines, and the
 existing blocked/allowed stage-order gates for both credential types.
 
@@ -1167,25 +1207,29 @@ observes client rendering without changing ingress audit or client binaries.
 
 ### Downstream session error wording projection
 
-`openai_error_messages_normalized` changes only messages for three exact error
-codes at the final OpenAI HTTP/SSE/WS output boundary. It introduces no request
-extraction, tool-field, endpoint, identity, account-selection or ingress audit
-changes. Both audit engines consume the same original canonical request and
-retain their existing admission/side-effect ordering. Errors remain failures;
-other providers, unknown events, user content and policy codes pass through.
-HTTP ops capture is inside the final projection boundary, and WS observers see
-original frames, so diagnostic persistence remains original. The independently
+OpenAI-owned calls always project the public error catalog at the final
+HTTP/SSE/WS output boundary; custom mode only selects saved overrides over the
+built-in defaults. The projection introduces no request extraction, tool-field,
+endpoint, identity, account-selection or ingress audit changes. Both audit
+engines consume the same original canonical request and retain their existing
+admission/side-effect ordering. Errors remain failures; other providers, unknown
+events, user content and policy codes pass through. HTTP ops capture is inside
+the final projection boundary, and WS observers see original frames, so
+diagnostic persistence remains original. Diagnostic response headers are
+removed before commit; Retry-After remains. User error history rebuilds the
+public body, while administrator Ops keeps the original record. The independently
 derived `TestOpenAIErrorMessages*` regressions cover precise protocol carriers,
-forbidden field changes, ON/OFF at final release, account/outbound/socket matrices,
+forbidden field changes, default/custom release, account/outbound/socket matrices,
 settings persistence and reconciliation. Handler
 `TestOpenAIErrorMessagesPreserveOpsDiagnostics` observes actual queued original
 error records and downstream replacement, including handler-produced SSE and EOF.
 The dedicated official CLI consumer matrix provides client display evidence.
-Sanitized final errors retain only an exact recognized source code as display
-metadata; retry candidates cannot set it, and each HTTP-bridged WS turn clears
-it. Regressions exercise actual account recovery versus exhaustion, unknown
-final failures, HTTP/WS rejection sanitization and raw ops capture. Real HTTP
-socket checks also cover fixed-length headers committed before live toggles.
+Sanitized final errors retain only an exact recognized source code or trusted
+status fallback as display metadata; retry candidates cannot set it, and each
+HTTP-bridged WS turn clears it. Regressions exercise actual account recovery
+versus exhaustion, unknown final failures, HTTP/WS rejection sanitization and raw
+ops capture. Real HTTP socket checks also cover fixed-length headers committed
+before the final error write.
 These changes stay after request admission and do not alter either audit engine.
 `TestOpenAIErrorMessagesNonStreamingFailure` covers native/passthrough SSE-to-JSON
 rejections and compact failures after keepalive; the original terminal/error
@@ -1217,7 +1261,7 @@ empty input, and `TestOfficialCodexGIFBothRealAuditsPrecedeImageSideEffects`
 covers real moderation and Prompt Audit rejection on OAuth/API-key image
 requests before account reads, slots, billing, transport or task effects.
 
-The reviewed managed executable is now `0.167.0`, matching the compiled default
+The reviewed managed executable is now `0.170.0`, matching the compiled default
 outbound identity. Its unchanged `responses-api-proxy` source forwards the
 already-admitted body through the private nonce relay; installation/update
 cannot admit traffic, change credential owners, or bypass either audit engine.

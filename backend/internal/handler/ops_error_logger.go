@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -2300,7 +2301,7 @@ func classifyOpsErrorLog(c *gin.Context, errType, message, code string, status i
 	if isLocalTakeoverTimeout(c, 0) {
 		return "routing", false, "platform", "gateway"
 	}
-	if errType == "client_disconnect" {
+	if errType == "client_disconnect" || status == statusClientClosedRequest {
 		return "network", false, "client", "client_request"
 	}
 	// HTTP failures use the current trusted event; WS failures use their
@@ -2356,10 +2357,22 @@ func classifyOpsErrorLog(c *gin.Context, errType, message, code string, status i
 		phase = "routing"
 	}
 	msg := strings.ToLower(message)
+	if !localModelConfiguration && !routingCapacityLimited && !clientBusinessLimited {
+		if isOpsClientAuthError(code, msg) {
+			phase = "auth"
+		} else if isOpsLocalBusinessLimitError(code, msg) {
+			phase = "request"
+		} else if phase == "internal" && (strings.Contains(msg, "upstream stream") || strings.Contains(msg, "upstream http/2") || strings.Contains(msg, "upstream connection")) {
+			phase = "upstream"
+		}
+	}
 	effectiveUpstreamError := upstreamError && !localModelConfiguration
 	localClientAuthError := !effectiveUpstreamError && phase == "auth" && isOpsClientAuthError(code, msg)
 	localBusinessLimited := !effectiveUpstreamError && classifyOpsIsBusinessLimited(errType, phase, code, status, message, localClientAuthError)
 	isBusinessLimited = localModelConfiguration || routingCapacityLimited || (clientBusinessLimited && !effectiveUpstreamError) || localBusinessLimited
+	if isBusinessLimited && !routingCapacityLimited && !effectiveUpstreamError && (phase == "routing" || phase == "internal") {
+		phase = "request"
+	}
 	errorOwner = classifyOpsErrorOwner(phase, message)
 	errorSource = classifyOpsErrorSource(phase, message)
 	return phase, isBusinessLimited, errorOwner, errorSource
@@ -2393,7 +2406,15 @@ func isOpsClientAuthError(code string, msg string) bool {
 		opsCodeUserNotFound,
 		opsCodeUserInactive,
 		opsCodeGroupDeleted,
-		opsCodeGroupDisabled:
+		opsCodeGroupDisabled,
+		"TEAM_MEMBERSHIP_REQUIRED",
+		"TEAM_SUSPENDED",
+		"TEAM_FEATURE_DISABLED",
+		"TEAM_ACTOR_INACTIVE",
+		"TEAM_BILLING_OWNER_INACTIVE",
+		"TEAM_FUNDING_SOURCE_MISMATCH",
+		"AUTO_ROUTE_NO_ACCESS",
+		"AUTO_ROUTING_UNSUPPORTED_RUN_MODE":
 		return true
 	}
 	return strings.Contains(msg, "invalid api key") ||
@@ -2413,7 +2434,12 @@ func isOpsLocalBusinessLimitError(code string, msg string) bool {
 		opsCodeSubscriptionNotFound,
 		opsCodeSubscriptionInvalid,
 		opsCodeAPIKeyQuotaExhausted,
-		opsCodeAPIKeyQueryDeprecated:
+		opsCodeAPIKeyQueryDeprecated,
+		"TEAM_BALANCE_INSUFFICIENT",
+		"TEAM_MEMBER_DAILY_LIMIT_EXCEEDED",
+		"TEAM_MEMBER_WEEKLY_LIMIT_EXCEEDED",
+		"TEAM_MEMBER_MONTHLY_LIMIT_EXCEEDED",
+		"AUTO_ROUTE_MODEL_NOT_FOUND":
 		return true
 	}
 	return strings.Contains(msg, "api key in query parameter is deprecated") ||
@@ -2627,4 +2653,38 @@ func shouldSkipOpsClientClosed(c *gin.Context, ops *service.OpsService, status i
 // 统一落一条 status=403 的错误请求，故中间件跳过自身落库，避免双写。
 func shouldSkipOpsErrorLogForCyber(c *gin.Context) bool {
 	return service.GetOpsCyberPolicy(c) != nil
+}
+
+func enrichOpsHumanReadableMessage(entry *service.OpsInsertErrorLogInput) {
+	if entry == nil {
+		return
+	}
+	msg := strings.TrimSpace(entry.ErrorMessage)
+	if entry.StatusCode == statusClientClosedRequest || entry.ErrorType == "client_disconnect" {
+		if msg == "" || strings.EqualFold(msg, "client closed request") || strings.EqualFold(msg, "context canceled") {
+			stage := "网关选号或入站准备阶段"
+			if entry.AccountID != nil && *entry.AccountID > 0 {
+				if entry.TimeToFirstTokenMs != nil && *entry.TimeToFirstTokenMs > 0 {
+					stage = fmt.Sprintf("流式输出中途（首字耗时 %dms，上游账号 #%d）", *entry.TimeToFirstTokenMs, *entry.AccountID)
+				} else {
+					stage = fmt.Sprintf("等待上游账号 #%d 首包响应期间", *entry.AccountID)
+				}
+			}
+			elapsed := ""
+			if entry.ResponseLatencyMs != nil && *entry.ResponseLatencyMs > 0 {
+				elapsed = fmt.Sprintf("，总耗时 %.1fs", float64(*entry.ResponseLatencyMs)/1000.0)
+			} else if entry.UpstreamLatencyMs != nil && *entry.UpstreamLatencyMs > 0 {
+				elapsed = fmt.Sprintf("，已等待 %.1fs", float64(*entry.UpstreamLatencyMs)/1000.0)
+			}
+			entry.ErrorMessage = fmt.Sprintf("用户问题：客户端主动断开连接（发生于%s%s）", stage, elapsed)
+		}
+		return
+	}
+	if msg == "" && entry.UpstreamErrorMessage != nil && strings.TrimSpace(*entry.UpstreamErrorMessage) != "" {
+		entry.ErrorMessage = strings.TrimSpace(*entry.UpstreamErrorMessage)
+		return
+	}
+	if msg == "" && entry.UpstreamErrorDetail != nil && strings.TrimSpace(*entry.UpstreamErrorDetail) != "" {
+		entry.ErrorMessage = truncateString(strings.TrimSpace(*entry.UpstreamErrorDetail), 240)
+	}
 }

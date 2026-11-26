@@ -98,6 +98,24 @@ func (k *APIKey) IsAutoRouting() bool {
 	return k != nil && k.RoutingMode == APIKeyRoutingAuto
 }
 
+// EffectiveActorUserID returns the authenticated member ID for team keys and
+// falls back to the key owner for personal keys.
+func (k *APIKey) EffectiveActorUserID() int64 {
+	if k == nil {
+		return 0
+	}
+	if k.ActorUser != nil && k.ActorUser.ID > 0 {
+		return k.ActorUser.ID
+	}
+	if k.UserID > 0 {
+		return k.UserID
+	}
+	if k.User != nil {
+		return k.User.ID
+	}
+	return 0
+}
+
 func (k *APIKey) IsActive() bool {
 	return k.Status == StatusActive && !k.TeamOwnerDisabled
 }

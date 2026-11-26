@@ -966,9 +966,6 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return true
 		}
 		recoverInvalidEncryptedContent := func(attempt int) bool {
-			if IsAutoRoutingRequest(ctx) {
-				return false
-			}
 			if wsInvalidEncryptedContentRecoveryTried {
 				return false
 			}
@@ -993,7 +990,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			previousResponseID := openAIWSPayloadString(wsReqBody, "previous_response_id")
 			hasFunctionCallOutput := HasFunctionCallOutput(wsReqBody)
-			if previousResponseID != "" && !hasFunctionCallOutput {
+			droppedPrev := previousResponseID != "" && !hasFunctionCallOutput && !IsAutoRoutingRequest(ctx)
+			if droppedPrev {
 				delete(wsReqBody, "previous_response_id")
 			}
 			wsInvalidEncryptedContentRecoveryTried = true
@@ -1005,7 +1003,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				truncateOpenAIWSLogValue(previousResponseID, openAIWSIDValueMaxLen),
 				normalizeOpenAIWSLogValue(ClassifyOpenAIPreviousResponseIDKind(previousResponseID)),
 				hasFunctionCallOutput,
-				previousResponseID != "" && !hasFunctionCallOutput,
+				droppedPrev,
 			)
 			return true
 		}
@@ -1171,6 +1169,16 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			})
 			logOpenAIWSModeInfo(
 				"fallback_to_http account_id=%d reason=%s",
+				account.ID,
+				normalizeOpenAIWSLogValue(wsLastFailureReason),
+			)
+		} else if !clientBytesWritten && isOpenAIWSDeclaredLimitFallbackReason(wsLastFailureReason) {
+			// 上游声明的单帧上限只针对本次 payload，不是传输级故障：当前请求
+			// 静默改走 HTTP，且不进入 fallback cooling，避免把整个账号的 WS
+			// 传输降级 30s。缓存已在建连时记录，后续超限轮次不会再试 WS。
+			s.recordOpenAIWSDeclaredLimitFallback()
+			logOpenAIWSModeInfo(
+				"fallback_to_http account_id=%d reason=%s cooling=false",
 				account.ID,
 				normalizeOpenAIWSLogValue(wsLastFailureReason),
 			)
@@ -1782,7 +1790,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	applyOpenCodeUpstreamUserAgent(account, targetURL, req.Header)
 
 	// 账号级请求头覆写（仅 openai api_key 账号启用时生效；OAuth 路径 no-op）
-	credentialAccount.ApplyHeaderOverrides(req.Header)
+	credentialAccount.ApplyHeaderOverrides(req.Context(), req.Header)
 	if err := s.alignOpenAIUpstreamSessionIdentityFromBody(c, account, req.Header, body); err != nil {
 		return nil, err
 	}

@@ -1613,6 +1613,10 @@ func (s *OpenAIGatewayService) buildGrokResponsesRequest(ctx context.Context, c 
 	if err != nil {
 		return nil, err
 	}
+	// Instructions are part of the final JSON and must precede the negotiated
+	// request compression below.
+	body = s.applyPluginInstructionsToBody(body, account, APIProtocolResponses)
+	ctx = withPluginInstructionsApplied(ctx)
 	targetURL, err := buildGrokResponsesURL(account, cfg, settings...)
 	if err != nil {
 		return nil, err
@@ -1632,7 +1636,7 @@ func (s *OpenAIGatewayService) buildGrokResponsesRequest(ctx context.Context, c 
 	}
 	// 账号级请求头覆写最后应用，使配置值优先于上面的内置默认头；
 	// 打到官方 CLI 网关时身份头仍由共享传输层最终强制。
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverrides(req.Context(), req.Header)
 	// Accept is a request-owned operation declaration: it follows the streaming
 	// state of the final body and survives account header overrides, so a stored
 	// relay header cannot make the gateway declare SSE for a plain JSON call or

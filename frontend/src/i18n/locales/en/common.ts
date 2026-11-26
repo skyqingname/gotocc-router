@@ -196,6 +196,8 @@ export default {
     reusableInvitationCodes: 'Invitation Codes',
     settings: 'Settings',
     myAccount: 'My Account',
+    userPortal: 'User Portal',
+    backToAdmin: 'Back to Admin',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
     systemTheme: 'System',

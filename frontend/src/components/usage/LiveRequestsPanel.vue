@@ -30,8 +30,8 @@
     <button v-if="pending" type="button" class="btn btn-secondary" :class="{ 'workspace-fixed': workspace }" @click="showLatest">{{ t('inspection.newRecords') }}</button>
     </div>
     <div :class="mode === 'user' || workspace ? ['card overflow-hidden', workspace ? 'workspace-table-card workspace-shell' : ''] : ''">
-    <div v-if="desktop" :class="workspace ? 'workspace-body !gap-0' : 'overflow-x-auto'">
-      <DataTable ref="dataTable" :class="{ 'workspace-table-viewport': workspace }" :columns="columns" :data="displayedRows" :loading="!snapshot && refresh.fetching.value">
+    <div v-if="desktop || nativeTable" :class="workspace ? 'workspace-body !gap-0' : 'overflow-x-auto'">
+      <DataTable ref="dataTable" :native-table="nativeTable" :class="{ 'workspace-table-viewport': workspace }" :columns="columns" :data="displayedRows" :loading="!snapshot && refresh.fetching.value">
         <template v-if="mode === 'admin' && workspace" #empty>
           <div class="live-admin-empty flex flex-col items-center" data-test="live-empty-state">
             <Icon name="inbox" size="xl" class="live-admin-empty-icon mb-4 h-12 w-12 surface-muted" data-test="live-empty-icon" />
@@ -107,7 +107,7 @@ import RefreshControl from '@/components/common/RefreshControl.vue'
 import LiveRequestResult from './LiveRequestResult.vue'
 import LiveRequestMetrics from './LiveRequestMetrics.vue'
 import LiveRequestTokens from './LiveRequestTokens.vue'
-const props = defineProps<{ mode: 'user' | 'admin'; workspace?: boolean }>()
+const props = defineProps<{ mode: 'user' | 'admin'; workspace?: boolean; nativeTable?: boolean }>()
 const { t } = useI18n()
 const auth = useAuthStore()
 const desktop = useMediaQuery('(min-width: 768px)')
@@ -176,7 +176,7 @@ watch(() => filteredRows.value.length, total => {
   page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value)))
 })
 watch([page, pageSize], () => {
-  const viewport = desktop.value ? dataTable.value?.scrollViewportEl : mobileViewport.value
+  const viewport = (desktop.value || props.nativeTable) ? dataTable.value?.scrollViewportEl : mobileViewport.value
   if (viewport) viewport.scrollTop = 0
 }, { flush: 'post' })
 const options = (label: string, values: string[]) => [{ value: '', label }, ...Array.from(new Set(values.filter(Boolean))).sort().map(value => ({ value, label: value }))]

@@ -125,6 +125,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		}
 		if !isAPIKeyNonConsumingRequest(c.Request.Method, c.Request.URL.Path) {
 			if err := apiKeyService.CheckTeamMemberLimits(apiKey); err != nil {
+					service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
 				abortWithGoogleError(c, 429, err.Error())
 				return
 			}
@@ -145,6 +146,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		if !aggregateOK {
 			return
 		}
+		// 请求头覆写变量（{{user_id}} 等）的取值来源，与 APIKeyAuth 保持一致。
+		c.Request = c.Request.WithContext(service.WithHeaderOverrideRequestScope(
+			c.Request.Context(), apiKey.EffectiveActorUserID(), apiKey.ID, apiKey.GroupID))
 		if apiKey.IsAggregate() {
 			defer func() {
 				if c.Writer.Status() < 400 && c.Writer.Status() != http.StatusSwitchingProtocols {

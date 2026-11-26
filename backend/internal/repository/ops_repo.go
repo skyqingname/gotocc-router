@@ -270,7 +270,7 @@ SELECT
   COALESCE(e.client_request_id, ''),
   COALESCE(e.request_id, ''),
   COALESCE(e.async_task_id, ''),
-  COALESCE(e.error_message, ''),
+  COALESCE(NULLIF(BTRIM(e.error_message), ''), NULLIF(BTRIM(e.upstream_error_message), ''), NULLIF(BTRIM(e.upstream_error_detail), ''), ''),
   e.user_id,
   COALESCE(u.email, ''),
   e.api_key_id,
@@ -288,7 +288,13 @@ SELECT
   COALESCE(e.user_agent, ''),
   e.request_type,
   COALESCE(ak.name, ''),
-  ak.deleted_at
+  ak.deleted_at,
+  e.status_code,
+  e.upstream_status_code,
+  COALESCE(e.upstream_error_message, ''),
+  COALESCE(e.is_business_limited, false),
+  COALESCE(e.response_latency_ms, e.upstream_latency_ms, e.routing_latency_ms, e.auth_latency_ms),
+  e.routing_diagnostics
 FROM ops_error_logs e
 LEFT JOIN accounts a ON e.account_id = a.id
 LEFT JOIN groups g ON e.group_id = g.id
@@ -323,6 +329,12 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		var requestType sql.NullInt64
 		var apiKeyName string
 		var apiKeyDeletedAt sql.NullTime
+		var gatewayStatusCode sql.NullInt64
+		var upstreamStatusCode sql.NullInt64
+		var upstreamErrorMessage string
+		var isBusinessLimited bool
+		var durationMs sql.NullInt64
+		var routingDiagnosticsRaw []byte
 		if err := rows.Scan(
 			&item.ID,
 			&item.CreatedAt,
@@ -361,6 +373,12 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&requestType,
 			&apiKeyName,
 			&apiKeyDeletedAt,
+			&gatewayStatusCode,
+			&upstreamStatusCode,
+			&upstreamErrorMessage,
+			&isBusinessLimited,
+			&durationMs,
+			&routingDiagnosticsRaw,
 		); err != nil {
 			return nil, err
 		}
@@ -403,6 +421,26 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		}
 		item.APIKeyName = apiKeyName
 		item.APIKeyDeleted = apiKeyDeletedAt.Valid
+		if gatewayStatusCode.Valid {
+			v := int(gatewayStatusCode.Int64)
+			item.GatewayStatusCode = &v
+		}
+		if upstreamStatusCode.Valid {
+			v := int(upstreamStatusCode.Int64)
+			item.UpstreamStatusCode = &v
+		}
+		item.UpstreamErrorMessage = upstreamErrorMessage
+		item.IsBusinessLimited = isBusinessLimited
+		if durationMs.Valid {
+			v := durationMs.Int64
+			item.DurationMs = &v
+		}
+		if len(routingDiagnosticsRaw) > 0 {
+			var diag service.OpsRoutingDiagnostics
+			if json.Unmarshal(routingDiagnosticsRaw, &diag) == nil {
+				item.RoutingDiagnostics = &diag
+			}
+		}
 		out = append(out, &item)
 	}
 	if err := rows.Err(); err != nil {

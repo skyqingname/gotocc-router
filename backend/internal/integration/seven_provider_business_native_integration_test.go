@@ -221,7 +221,7 @@ func TestSevenProviderNativeStreamingToolsPersistRedisAffinityAndPostgresDebits(
 		provider sevenBusinessProvider
 		native   sevenNativeScenario
 	}{
-		{sevenBusinessProvider{"openai", "codex", "0.167.0", "codex_cli_rs/0.167.0 (Ubuntu 24.04; x86_64) xterm-256color", map[string]string{"Originator": "codex_cli_rs", "Version": "0.167.0"}},
+		{sevenBusinessProvider{"openai", "codex", "0.170.0", "codex_cli_rs/0.170.0 (Ubuntu 24.04; x86_64) xterm-256color", map[string]string{"Originator": "codex_cli_rs", "Version": "0.170.0"}},
 			sevenNativeScenario{protocol: "responses", ingress: "/v1/responses", host: "chatgpt.com", path: "/backend-api/codex/responses", model: "gpt-5.4", authorization: "Authorization"}},
 		{sevenBusinessProvider{"grok", "grok", "1.0.45", "grok-shell/1.0.45 (linux; x86_64)", map[string]string{"X-Grok-Client-Identifier": "grok-shell", "X-Grok-Client-Version": "1.0.45", "X-Xai-Token-Auth": "xai-grok-cli"}},
 			sevenNativeScenario{protocol: "responses", ingress: "/v1/responses", host: "cli-chat-proxy.grok.com", path: "/v1/responses", model: "grok-4.5", authorization: "Authorization"}},
@@ -496,8 +496,18 @@ func (n *sevenNativeScenario) assertWire(t *testing.T, owner string, turn int, w
 			require.Equal(t, n.callID(), items[2].Get("call_id").String())
 			require.Equal(t, "ready", items[2].Get("output").String())
 		case "anthropic":
-			require.Equal(t, "lookup", items[1].Get("content.0.name").String())
-			require.JSONEq(t, `{"query":"status"}`, items[1].Get("content.0.input").Raw)
+			assistantContent := items[1].Get("content").Array()
+			if n.host == "api.deepseek.com" {
+				require.Len(t, assistantContent, 2)
+				require.JSONEq(t, `{"type":"thinking","thinking":" "}`, assistantContent[0].Raw)
+				assistantContent = assistantContent[1:]
+			}
+			require.Len(t, assistantContent, 1)
+			toolUse := assistantContent[0]
+			require.Equal(t, "tool_use", toolUse.Get("type").String())
+			require.Equal(t, "call_business", toolUse.Get("id").String())
+			require.Equal(t, "lookup", toolUse.Get("name").String())
+			require.JSONEq(t, `{"query":"status"}`, toolUse.Get("input").Raw)
 			require.Equal(t, "tool_result", items[2].Get("content.0.type").String())
 			require.Equal(t, "call_business", items[2].Get("content.0.tool_use_id").String())
 			require.Equal(t, "ready", items[2].Get("content.0.content").String())

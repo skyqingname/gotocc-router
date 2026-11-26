@@ -19,6 +19,7 @@
     </div>
     <div class="min-w-0" :class="{ 'workspace-body !gap-0': workspace }">
       <DataTable
+        :native-table="nativeTable"
         :class="{ 'workspace-table-viewport': workspace }"
         :columns="columns"
         :data="data"
@@ -62,7 +63,10 @@
         </template>
 
         <template #cell-api_key="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">{{ row.api_key?.name || '-' }}</span>
+          <span
+            class="inline-block max-w-[180px] truncate align-bottom text-sm text-gray-900 dark:text-white"
+            :title="row.api_key?.name || undefined"
+          >{{ row.api_key?.name || '-' }}</span>
         </template>
 
         <template #cell-account="{ row }">
@@ -173,11 +177,11 @@
 
         <template #cell-endpoint="{ row }">
           <div class="max-w-[320px] space-y-1 text-xs">
-            <div class="break-all surface-muted">
+            <div class="break-all surface-muted" :title="row.inbound_endpoint?.trim() || undefined">
               <span class="font-medium surface-muted">{{ t('usage.inbound') }}:</span>
               <span class="ml-1">{{ row.inbound_endpoint?.trim() || '-' }}</span>
             </div>
-            <div v-if="showUpstreamEndpoint" class="break-all surface-muted">
+            <div v-if="showUpstreamEndpoint" class="break-all surface-muted" :title="row.upstream_endpoint?.trim() || undefined">
               <span class="font-medium surface-muted">{{ t('usage.upstream') }}:</span>
               <span class="ml-1">{{ row.upstream_endpoint?.trim() || '-' }}</span>
             </div>
@@ -658,6 +662,14 @@
             </div>
           </div>
           <!-- Rate and Summary -->
+          <div
+            v-if="tooltipData && formatBillingServiceTier(tooltipData.billing_service_tier, t)"
+            data-testid="billing-service-tier"
+            class="flex items-center justify-between gap-6"
+          >
+            <span class="surface-muted">{{ t('usage.billingServiceTier') }}</span>
+            <span class="font-semibold text-cyan-300">{{ formatBillingServiceTier(tooltipData.billing_service_tier, t) }}</span>
+          </div>
           <div class="flex items-center justify-between gap-6">
             <span class="surface-muted">{{ t('usage.rate') }}</span>
             <span class="font-semibold text-blue-400">{{ formatMultiplier(tooltipData?.rate_multiplier ?? 1) }}x</span>
@@ -704,7 +716,7 @@ import { formatDateTime, formatReasoningEffort, reasoningEffortValuesEqual } fro
 import { formatCacheTokens, formatMultiplier } from '@/utils/formatters'
 import { formatTokenPricePerMillion } from '@/utils/usagePricing'
 import { formatTokenShare, sumTokenBuckets } from '@/utils/tokenShare'
-import { formatRequestedServiceTier, formatResponseServiceTier } from '@/utils/usageServiceTier'
+import { formatBillingServiceTier, formatRequestedServiceTier, formatResponseServiceTier } from '@/utils/usageServiceTier'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
 import {
   LATENCY_BAR_CLASSES,
@@ -1111,4 +1123,5 @@ const hideLatencyTooltip = () => {
 
 <style scoped>
 .usage-model-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+:deep(.record-table-native) .usage-model-metadata { flex-wrap: nowrap; white-space: nowrap; }
 </style>

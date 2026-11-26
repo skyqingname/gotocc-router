@@ -1,5 +1,84 @@
 # Seven-provider business regression matrix
 
+## v0.2.25 import requirements
+
+- OpenAI. `TestAnthropicUpstreamBuildersReportIdentity` drives the production
+  Anthropic forward and API-key passthrough builders from a middleware-created
+  scope and verifies the expanded headers, the removal of forged client headers
+  and the no-scope drop. `TestOpenAIWSHandshakeCompatibilitySeparatesReportedIdentity`
+  proves that two users never reuse one pooled handshake and that identity-less
+  prewarms are not reused for a user. Ops capture is pinned by
+  `TestAppendOpsUpstreamErrorCapturesReportedHeaders`, which also proves static
+  override values never enter the log; `TestHeaderOverrideReportedHeadersRedactLiterals`
+  covers mixed templates and `TestHeaderOverrideRequestIDIsClientControlledAndSanitized`
+  covers client-supplied request IDs. Passthrough client errors keep the audited
+  catalog while redacting the configured base-URL host and API key
+  (`TestSanitizeOpenAIPassthroughClientErrorTextRedactsAccountSecrets`), bound
+  `type`/`code`/`param` to scalars
+  (`TestOpenAIPassthroughClientErrorFieldRejectsNonScalarsAndOversizedValues`),
+  and return `invalid_encrypted_content` through the catalog
+  (`TestIsOpenAIInvalidEncryptedContentError`,
+  `TestWriteOpenAIUpstreamClientErrorKeepsEnvelopeScalar`).
+- xAI. Grok API-key and OAuth accounts keep their existing override eligibility;
+  only API-key accounts resolve variables, so OAuth subscription traffic never
+  receives gateway user identity. Grok media, audio and quota builders pass the
+  request context unchanged.
+- DeepSeek and Kimi. Shared header-override and passthrough paths run the same
+  cases; their protocol adapters and canonical ingress audit order are unchanged.
+  The admin save path rejects variable templates for every non-API-key type,
+  including a type-only update that carries no credentials.
+- MiniMax, StepFun and Zhipu. Shared ingress, override and error paths run the
+  existing identity, proxy, failover, streaming and settlement cases. The import
+  establishes no new live-provider entitlement.
+- Rejected cluster. The upstream-group synchronization and billing-probe commits
+  are excluded because Plus retired that capability; the gate must continue to
+  show no `/v1/sub2api/billing` route and no probe write-back into
+  `accounts.rate_multiplier`.
+
+## v0.2.24 import requirements
+
+- OpenAI. The rotation tests cover a completed OAuth rotation followed by a
+  cancellation or enrichment deadline, exact-owner CAS, a concurrent
+  reauthorization and provider containment on failed persistence. Alpha
+  Search tests distinguish search-tool permission from account-access
+  state. Responses WS tests reject duplicate members before sending each
+  invalid frame. `TestOpenAIQuotaRefreshCompletedRotationSurvivesCancellation`
+  and `TestOpenAIQuotaRefreshLateRotationStillFencesOwner` extend the bounded
+  rotation write to WHAM's complete-owner CAS. QueryUsage, ResetCredit and
+  targeted reset retain caller cancellation and send no quota HTTP after that
+  write (`TestOpenAIQuotaRefreshPersistenceDoesNotResumeCanceledOperation`).
+  Incomplete credentials or a failed issuer never authorize detached writes
+  (`TestOpenAIQuotaRefreshIncompleteRotationCannotBypassCancellation`).
+  Completed quota rotations also invalidate stale access-token caches before
+  returning; cancellation cannot strand the next ordinary request on the old
+  cache, and cleanup failures cannot repeat issuer calls.
+  `TestBufferedCompat_PreservesCompletedPartText` preserves completed text,
+  refusal and reasoning parts across buffered Chat/Messages conversion.
+  Messages streaming also restores done-only parts anchored to a declared
+  message ID and output index; mismatched/missing identities, reused indices
+  and repeated completions retain their duplicate protections.
+- xAI. `TestGrokSearchCountFromUsageAcrossEndpoints` covers native Responses
+  JSON/SSE and buffered/streaming Chat and Messages. The upstream success
+  total, including explicit zero, controls the existing search-call meter.
+  Grok edit regressions cover the five-image boundary and local HTTP 400.
+- DeepSeek and Kimi. Native Messages thinking-history repair is scoped to
+  the official DeepSeek endpoint with thinking enabled.
+  `TestKimiChatDynamicToolsAcrossProtocols` covers Kimi conversion and leaves
+  native Chat declarations in place. The shared audit gate covers Kimi
+  trailing system tool declarations, including empty/null lists, and Codex
+  external context. Both real audit engines block before side effects for
+  OAuth/API Key candidates across configured Chat, Responses and Messages.
+- MiniMax, StepFun and Zhipu. The shared ingress and translation code runs
+  the existing OAuth/API Key identity, proxy, failover, streaming and
+  settlement cases. The import does not establish new live-provider
+  entitlements.
+
+Shared request validation preserves arbitrary case-sensitive metadata keys
+and rejects reserved `user_id` aliases and exact duplicates
+(`TestConflictingFieldMetadataUsesMapKeySemantics`). Console regressions cover
+stale passive reads, active probes and batches across account/snapshot changes;
+old completions cannot replace current usage, errors, cache entries or busy state.
+
 ## v0.2.21 import requirements
 
 These regressions supplement the existing business inventory. The unit gate pins
@@ -146,7 +225,7 @@ to the validated source tree.
 | Local CLI proxy cannot choose another credential owner or destination, replay a provider write, or retain resources after cancellation | `codexcli/TestCodexBridgePreservesResponsesBytesOwnerAndStatusWithoutReplay`, `TestCodexBridgeRejectsUnverifiedRuntimeBeforeReadingRequest`, `TestCodexBridgeRejectsTamperedProxyPayloadBeforeProviderWrite`, `TestCodexBridgeCancellationClosesProviderContextAndDoesNotReplay`, `TestCodexBridgeTransportErrorRetainsCauseWithoutDiagnostics`, `TestCodexBridgePreservesOtherTrustedMethodsAndDestinations`: injected-process request/response and terminal-status assertions, one-use nonce/payload checks, zero unauthorised provider writes, cancellation and cleanup. These fixtures do not establish official binary behavior; `TestCodexBridgeOfficialBinaryWire` and the real-binary harness below supply that independent evidence. |
 | Bridge switches preserve session affinity and route WebSocket ingress through the existing HTTP adapter | `service/TestCodexCLIBridgeSwitchPreservesConversationOwnerAndDisablesDirectWS`: global changes retain authorization-scoped owner, route generation and migration lease; selected bridge or unavailable permission cannot use direct upstream WebSocket. Existing HTTP/WebSocket history-replay, per-turn audit, migration and credential-owner regressions remain required. |
 | Codex safety buffering display suppression follows the live global setting at downstream release | `service/TestCodexSafetyBufferingHTTPHotSwitchAfterStaging`, `TestCodexSafetyBufferingGatewayAccountAndCLIMatrix`, `TestCodexSafetyBufferingWSBridgeAccountAndCLIMatrix`, and `TestCodexSafetyBufferingWSPassthroughHotSwitch`: OAuth/API Key, staged SSE, text/binary WebSocket frames and multiple turns retain sibling metadata, usage and completion while subsequent notices follow changes without replay. `TestCodexSafetyBufferingBusiness*` requires pure-event/frame removal, no 4 MiB bypass, unknown-content retention, on/off/on release and transport failure without raw fallback. `TestCodexSafetyBufferingOfficialCLIWire` and `TestCodexSafetyBufferingOfficialCLIInteractive` require the independently verified pinned CLI binary; the latter observes real TUI notice/actions off, silence on, normal completion and no replay for both credential types and outbound modes. Ordinary unit runs explicitly skip these without the dedicated artifact environment. These synthetic upstream fixtures do not establish live-account or desktop UI acceptance. |
-| OpenAI session error wording follows an independent default-off live switch | `service/TestOpenAIErrorMessagesProtocolContract`, `TestOpenAIErrorMessagesLiveHTTPBoundary`, `TestOpenAIErrorMessagesSettingsPersistenceAndReplicas`, `TestOpenAIErrorMessagesGatewayAccountAndCLIMatrix`, `TestOpenAIErrorMessagesWSPassthroughHotSwitch`, `TestOpenAIErrorMessagesWSHTTPBridgeMatrix`, `TestOpenAIErrorMessagesSanitizedHTTP`, `TestOpenAIErrorMessagesRuleOutput`, `TestOpenAIErrorMessagesCommittedContentLength`, `TestOpenAIErrorMessagesWSHTTPRejection`; `handler/TestOpenAIErrorMessagesPreserveOpsDiagnostics`, `TestOpenAIErrorMessagesFailoverExhausted`, `TestOpenAIErrorMessagesRealAccountFailover`; `admin/TestUpdateSettingsOpenAIErrorMessagesToggleAndPartialUpdate`; SettingsView switch save/load. Exact three-code messages, original status/type/terminal/internal usage and ops diagnostics, other-provider/content pass-through, ON/OFF at release, OAuth/API Key and native/CLI outbound, WS text/binary. Sanitized HTTP and WS bridge errors retain source-code matching; only the final failed account controls wording; recovery and unknown failures do not inherit it. Real HTTP sockets prove complete bodies after early fixed-length header commits and live toggles. Dedicated `TestOpenAIErrorMessagesOfficialCLI` observes all three messages OFF/ON in the verified pinned downstream CLI and real outbound bridge without replay; ordinary unit skips are not consumer evidence. |
+| OpenAI public error catalog is always applied; custom mode only overrides | `service/TestCodexPublicErrorCatalogShape`, `TestCodexPublicErrorMessageProjection`, `TestCodexPublicErrorSettingsRevisionAndOverrides`, `TestCodexUserErrorHistoryUsesPublicText`, `TestOpenAIErrorMessagesProtocolContract`, `TestOpenAIErrorMessagesLiveHTTPBoundary`, `TestOpenAIErrorMessagesSettingsPersistenceAndReplicas`, `TestOpenAIErrorMessagesGatewayAccountAndCLIMatrix`, `TestOpenAIErrorMessagesWSPassthroughHotSwitch`, `TestOpenAIErrorMessagesWSHTTPBridgeMatrix`, `TestOpenAIErrorMessagesSanitizedHTTP`, `TestOpenAIErrorMessagesRuleOutput`, `TestOpenAIErrorMessagesCommittedContentLength`, `TestOpenAIErrorMessagesWSHTTPRejection`; `handler/TestOpenAIErrorMessagesPreserveOpsDiagnostics`, `TestOpenAIErrorMessagesFailoverExhausted`, `TestOpenAIErrorMessagesRealAccountFailover`; `handler/admin/TestCodexPublicErrorMessagesAdminContract`; SettingsView catalog panel. 76 stable keys with default/custom/effective text, revision compare-and-set and 400/409 validation, OAuth/API Key and native/CLI outbound, WS text/binary, diagnostic header stripping and user-history projection; other-provider/content pass-through; only the final failed account controls wording. Dedicated `TestOpenAIErrorMessagesOfficialCLI` observes the platform default in the verified pinned downstream CLI and real outbound bridge without replay. |
 | Display settings survive partial saves and propagate to existing streams across replicas | `service/TestCodexSafetyBufferingSettingDefaultPersistenceAndFailures`, `TestCodexSafetyBufferingOlderRefreshCannotOverwriteSave`, `TestCodexSafetyBufferingReplicasReconcileMissedNotifications`, `TestCodexSafetyBufferingSaveSurvivesBroadcastFailure`, and `handler/admin/TestUpdateSettingsCodexSafetyBufferingToggleAndPartialUpdate`: default off, atomic local save, missed-notification recovery, last-valid-value retention, no stale overwrite from unrelated saves, and malformed-value rejection. SettingsView and locale suites cover independent switch load/save and aligned translations. |
 | Existing native sockets obey bridge enablement before the next upstream turn | `service/TestCodexCLIBridgeEnableDrainsNativePool`, `TestCodexCLIBridgeEnableStopsNativePassthroughNextTurn`: accepted work may finish; subsequent reuse, dial, prewarm or passthrough writes cannot bypass the bridge. |
 | Submitted bridge read failures cannot turn into account replay | `service/TestCodexCLIBridgeSubmittedReadFailureNeverFailsOver`: real Responses, passthrough, Chat, Messages and WS HTTP adapters preserve the submitted bridge error and do not temporarily unschedule its owner. `codexcli/TestCodexBridgeProxyExitBeforeProviderEOFIsTerminal` covers official-hop process exit before and after first bytes with resource cleanup. |
@@ -536,6 +615,7 @@ keyring to a real deployment.
 | --- | --- | --- |
 | Asynchronous image storage | `handler/TestAsyncImageContainerWorkflowWithMinIO`, `repository/TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate` | A separate disposable MinIO/PostgreSQL run applies the complete migrations and executes both tests without skipping. Production S3 permissions probes clean up their objects; image submission, upload, signed download and persisted history retain their asserted state. Image generation is an isolated responder, so this does not prove live provider image access. |
 | Signed plugin installation and real process transport | `service/TestLocalSignedPluginRuntimeIntegration` | The production installer rejects an untrusted ephemeral publisher, then verifies its real Ed25519 signature and executable hash after explicit trust configuration. The installed test executable starts as a separate OS process through production go-plugin handshake and gRPC. Five mandatory scenarios assert config/HTTP round trips and passive health, pre-send refusal with no upstream request, delivered failure without account replay, upload-read failure/body cleanup, and cancellation reaching child HTTP with lease release. Drain stops the child and refuses new requests. |
+| Declarative request instructions and multi-platform transport selection | `service/TestPluginManifestV2RequestOnly`, `TestPluginRequestInstructionConfigPrecedenceAndValidation`, `TestPluginRequestInstructionsMatchOwnerAndRollout`, `TestApplyPluginRequestInstructions`, `TestPluginPackageInstallerInstallsRequestOnlyPackage`, `TestPluginManifestV2MultiTransport`, `TestPluginTransportRouteMatchingAndConflicts`; `frontend/src/views/admin/__tests__/PluginsView.spec.ts` | Pure request packages install and enable without starting a process; precedence, rollout, Chat/Responses/Messages/Gemini injection, manifest-only package install and v2 multi-transport scope routing/conflict are covered. The host JSON editor saves request rules through the existing encrypted config API. These are unit/component checks; native Gemini/Antigravity send points and real external transport packages are not claimed as passed. |
 
 The maintained storage gate is
 `python3 tools/check_seven_provider_coverage.py --profile storage`. It pins two
