@@ -740,6 +740,20 @@ Existing invalid identity candidates fall through atomically in the documented
 source order; version overrides and environment versions cannot reintroduce the
 token. The compiled identities below are unchanged. Ordinary optional headers
 are filtered at the final transport boundary, after cookies and SDK defaults.
+
+Account header overrides may carry `{{user_id}}`, `{{api_key_id}}`, `{{group_id}}`
+and `{{request_id}}`. Variable expansion is not an identity source and cannot
+select or rewrite an identity declaration: `outboundidentity.IsIdentityHeader`
+and the override blocked-name list still reject those header names on save and at
+runtime, only API-key accounts resolve variables, OAuth and setup-token accounts
+drop a variable-bearing override entirely, an unresolved variable drops the whole
+header while still deleting a forged client copy, and a client-supplied
+`request_id` is reduced to `[A-Za-z0-9._-]` before interpolation. Headers produced
+by variables are not shared across users: model-list and manifest requests resolve
+with no inbound scope, WS handshakes resolve in connection scope without
+`request_id`, and the WS pool keys connections by the reported identity. Ops error
+events record only variable-generated values, with literal template text redacted.
+
 Credentials (Authorization, proxy authorization, cookies and API keys),
 or User-Agent containing the token stop the request before
 network dispatch with a static error that does not echo their values. Earlier
@@ -751,7 +765,9 @@ with prohibited declarations is rejected without modifying its signed headers;
 clean signatures are preserved byte for byte. `X-Grok-Client-Tool-Cache` has no gateway control semantics or special filter;
 explicit extras follow general policy, including signature preservation. Shared clients and independent HTTP/req clients apply the
 same check to redirected attempts; plugin forwarding checks before opening its
-forward stream. GLM off-peak task IDs use the official `offpeak-<UUID>` shape.
+forward stream. Multi-platform transport bindings reuse the same prepared
+request, so the plugin sees the owner's selected identity headers and cannot
+select a different source; it must preserve them at send time. GLM off-peak task IDs use the official `offpeak-<UUID>` shape.
 
 ## Selection and persistence
 

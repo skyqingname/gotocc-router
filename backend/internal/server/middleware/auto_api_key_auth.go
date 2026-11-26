@@ -83,7 +83,9 @@ func BindAPIKeyContext(c *gin.Context, key *service.APIKey, subscription *servic
 	} else {
 		c.Set(string(ContextKeySubscription), subscription)
 	}
-	c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.UserID, key.User.ID))
+	ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, key.User.ID)
+	ctx = service.WithHeaderOverrideRequestScope(ctx, key.User.ID, key.ID, key.GroupID)
+	c.Request = c.Request.WithContext(ctx)
 	setGroupContext(c, key.Group)
 	SetOpsFallbackAPIKey(c, key)
 }

@@ -369,3 +369,42 @@ func TestPlatformPricingFallback_SettingsFailureCannotBecomeAnInventedFreeCard(t
 	_, err = ExportBillingPricingSnapshot(ctx, "gpt-6.1-terra-unpublished-sku")
 	require.Error(t, err)
 }
+
+func TestPlatformPricingFallback_ZhipuGLM54UsesSameModelCardWithoutFallback(t *testing.T) {
+	billing := platformFallbackTestBilling(nil)
+	price, err := billing.GetModelPricingForPlatform(context.Background(), PlatformZhipu, "glm-5.4")
+	require.NoError(t, err)
+	requirePlatformFallbackRates(t, price, 1.4e-6, 4.4e-6)
+	// GLM-5.4 carries its own reviewed card (mirrored from GLM-5.3), so the
+	// platform fallback SKU is not consulted and no fallback is recorded.
+	require.Empty(t, price.FallbackModel)
+	require.Empty(t, price.FallbackPlatform)
+
+	// Disabling the platform fallback must not remove a same-model card, and the
+	// legacy glm-5 family card must still not price GLM-5.4.
+	billing.pricingFallbackModels = func(context.Context) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	price, err = billing.GetModelPricingForPlatform(context.Background(), PlatformZhipu, "glm-5.4")
+	require.NoError(t, err)
+	requirePlatformFallbackRates(t, price, 1.4e-6, 4.4e-6)
+	require.Empty(t, price.FallbackModel)
+}
+
+func TestPlatformPricingFallback_ZhipuGLM54ExplicitPriceWins(t *testing.T) {
+	catalog := newStubPricingServiceFromJSON(t, `{
+		"glm-5.4": {"litellm_provider":"zhipu", "input_cost_per_token":0.000002, "output_cost_per_token":0.000006},
+		"glm-5.4-free": {"litellm_provider":"zhipu", "input_cost_per_token":0, "output_cost_per_token":0}
+	}`)
+	billing := platformFallbackTestBilling(catalog)
+
+	price, err := billing.GetModelPricingForPlatform(context.Background(), PlatformZhipu, "glm-5.4")
+	require.NoError(t, err)
+	requirePlatformFallbackRates(t, price, 2e-6, 6e-6)
+	require.Empty(t, price.FallbackModel)
+
+	price, err = billing.GetModelPricingForPlatform(context.Background(), PlatformZhipu, "glm-5.4-free")
+	require.NoError(t, err)
+	requirePlatformFallbackRates(t, price, 0, 0)
+	require.Empty(t, price.FallbackModel)
+}

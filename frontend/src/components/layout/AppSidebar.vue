@@ -37,7 +37,7 @@
     <div class="sidebar-panel shell-surface">
     <!-- Navigation -->
     <nav ref="sidebarNavRef" class="sidebar-nav scrollbar-hide">
-      <!-- Admin View: Admin menu first, then personal menu -->
+      <!-- Admin console: management menu only -->
       <template v-if="isAdmin">
         <!-- Admin Section -->
         <div class="sidebar-section">
@@ -107,34 +107,12 @@
           </template>
         </div>
 
-        <!-- Personal Section for Admin (hidden in simple mode) -->
-        <div v-if="!authStore.isSimpleMode" class="sidebar-section">
-          <div class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
-            <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
-          </div>
-
-          <component
-            v-for="item in personalNavItems"
-            :key="item.path"
-            :is="item.external ? 'a' : RouterLink"
-            v-bind="item.external ? { href: item.path, target: '_blank', rel: 'noopener noreferrer' } : { to: item.path }"
-            class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': !item.external && isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
-            :title="sidebarCollapsed ? item.label : undefined"
-            :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : item.path === '/usage' ? 'sidebar-usage' : undefined"
-            @click="handleMenuItemClick(item.path)"
-          >
-            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
-            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </component>
-        </div>
       </template>
 
-      <!-- Regular User View -->
-      <template v-else-if="!appStore.backendModeEnabled || isAdminSupportMode">
+      <!-- Personal / assistance view (also used by administrators in the user portal) -->
+      <template v-else>
         <div class="sidebar-section">
-          <div v-if="isAdminSupportMode" class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
+          <div v-if="isAdminUserPortal" class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
             <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
           </div>
           <component
@@ -158,6 +136,34 @@
 
     <!-- Bottom Section -->
     <div class="sidebar-footer mt-auto border-t border-gray-100 p-3 dark:border-dark-800">
+      <!-- The portal switch sits directly above the theme toggle. -->
+      <button
+        v-if="isAdmin"
+        id="sidebar-user-portal"
+        type="button"
+        @click="enterUserPortal"
+        class="sidebar-link mb-2 w-full surface-control"
+        :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+        :title="sidebarCollapsed ? t('nav.userPortal') : undefined"
+        :aria-label="t('nav.userPortal')"
+      >
+        <Icon name="user" size="md" class="flex-shrink-0" />
+        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ t('nav.userPortal') }}</span>
+      </button>
+      <button
+        v-else-if="isAdminUserPortal"
+        id="sidebar-back-to-admin"
+        type="button"
+        @click="exitToAdmin"
+        class="sidebar-link mb-2 w-full surface-control"
+        :class="{ 'sidebar-link-collapsed': sidebarCollapsed }"
+        :title="sidebarCollapsed ? t('nav.backToAdmin') : undefined"
+        :aria-label="t('nav.backToAdmin')"
+      >
+        <Icon name="arrowLeft" size="md" class="flex-shrink-0" />
+        <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ t('nav.backToAdmin') }}</span>
+      </button>
+
       <!-- Theme Toggle -->
       <button
         @click="toggleTheme"
@@ -221,11 +227,18 @@ import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag, getChannelMonitorMode } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import Icon from '@/components/icons/Icon.vue'
 import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
-import { parseAdminSupportTargetId } from '@/utils/adminSupport'
-
-import { adminSupportContext } from '@/utils/adminSupportContext'
+import { useImageTaskModes } from '@/composables/useImageTaskModes'
+import { usePortalArea } from '@/composables/usePortalArea'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
+import {
+  adminSupportContext,
+  beginSupportTransition,
+  endSupportTransition,
+  setAdminSupportContext
+} from '@/utils/adminSupportContext'
+import { ADMIN_PORTAL_HOME, USER_PORTAL_HOME } from '@/utils/portalArea'
 import navigationLinks from '../../../../navigation-links.json'
 
 interface NavItem {
@@ -279,7 +292,9 @@ watch(() => authStore.user?.id, () => { void resellerAccess.load(true).catch(() 
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
 const { canUseAsyncImage, refreshAsyncImageAccess } = useAsyncImageAccess()
+const { refreshImageTaskModes } = useImageTaskModes()
 
+const portalArea = usePortalArea()
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const sidebarCollapsed = computed(() => isDesktop.value && appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
@@ -287,12 +302,19 @@ const mobileVisible = computed(() => !isDesktop.value && mobileOpen.value)
 const sidebarRef = ref<HTMLElement | null>(null)
 useDialogFocus(() => mobileVisible.value, sidebarRef, closeMobile)
 watch(isDesktop, desktop => { if (desktop) closeMobile() })
-watch(() => route.fullPath, closeMobile)
-const isAdmin = computed(() => authStore.isAdmin && !adminSupportContext.value)
+const isAdmin = computed(() => authStore.isAdmin && portalArea.value === 'admin')
+const isAdminUserPortal = computed(() => authStore.isAdmin && portalArea.value === 'user')
+watch(() => route.fullPath, () => {
+  closeMobile()
+  void refreshImageTaskModes()
+  if (!isAdmin.value) {
+    void refreshAsyncImageAccess()
+  }
+})
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const { isDark, toggleTheme } = useTheme()
 
-const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
+const homePath = computed(() => (isAdmin.value ? ADMIN_PORTAL_HOME : USER_PORTAL_HOME))
 
 // Per-group expand/collapse overrides. A group with no entry follows the
 // automatic behavior (expanded while the active route is one of its children);
@@ -351,13 +373,14 @@ const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagAsyncImageAccess = () => canUseAsyncImage.value
 const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
 
-// buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
-// 两种个人菜单均包含 /dashboard；全站统计使用独立的 /admin/dashboard。
+// buildSelfNavItems 构造用户端的个人导航项。
 //
 // 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildSelfNavItems(): NavItem[] {
-  const items: NavItem[] = [{ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon }]
+  const items: NavItem[] = [
+    { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+  ]
   items.push(
     // 带 embedded=1 在后台布局内打开，与页眉入口一致。
     { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, featureFlag: flagModelPlaza },
@@ -394,23 +417,12 @@ function finalizeNav(items: NavItem[]): NavItem[] {
   return authStore.isSimpleMode ? visible.filter(item => !item.hideInSimpleMode) : visible
 }
 
-// User navigation items (for regular users)
+// User navigation items (regular users and administrators in the user portal).
 const userNavItems = computed((): NavItem[] => {
   const items = finalizeNav(buildSelfNavItems())
   const id = adminSupportContext.value?.userId
   return id ? items.map(item => item.external ? item : ({ ...item, path: supportPathForPersonalPath(id, item.path) || item.path })) : items
 })
-
-const supportTargetId = computed(() => {
-  return parseAdminSupportTargetId(route.params.user_id)
-})
-
-const isAdminSupportMode = computed(() => {
-  return supportTargetId.value !== null && supportTargetId.value !== authStore.user?.id
-})
-
-const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems()).map(item =>
-  item.path === '/dashboard' ? { ...item, label: t('nav.personalDashboard') } : item))
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {
@@ -497,11 +509,9 @@ const adminNavItems = computed((): NavItem[] => {
 
   const visible = applyFeatureFlags(baseItems)
 
-  // 简单模式下，在系统设置前插入 API密钥
+  // 简易模式只保留可用的后台业务；个人密钥和 MCP 属于用户端。
   if (authStore.isSimpleMode) {
     const filtered = visible.filter(item => !item.hideInSimpleMode)
-    filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
-    if (flagMCP()) filtered.push({ path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon })
     filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
     for (const cm of customMenuItemsForAdmin.value) {
       filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
@@ -522,6 +532,25 @@ function toggleSidebar() {
 
 function closeMobile() {
   appStore.setMobileOpen(false)
+}
+
+// The console entry always starts from the administrator's own dashboard, even
+// after a previous assistance session. Clearing the target here also drops any
+// stale context that could redirect the personal route back to another account.
+function enterUserPortal() {
+  closeMobile()
+  setAdminSupportContext(null)
+  void router.push(USER_PORTAL_HOME)
+}
+
+async function exitToAdmin() {
+  closeMobile()
+  beginSupportTransition()
+  try {
+    await router.push(ADMIN_PORTAL_HOME)
+  } finally {
+    endSupportTransition()
+  }
 }
 
 function handleMenuItemClick(itemPath: string) {
@@ -590,7 +619,7 @@ function handleGroupClick(item: NavItem) {
 
 // Fetch admin settings (for feature-gated nav items like Ops).
 watch(
-  isAdmin,
+  () => authStore.isAdmin,
   (v) => {
     if (v) {
       adminSettingsStore.fetch()
@@ -600,10 +629,11 @@ watch(
 )
 
 onMounted(() => {
+  void refreshImageTaskModes()
   if (!isAdmin.value) {
     void refreshAsyncImageAccess()
   }
-  if (isAdmin.value) {
+  if (authStore.isAdmin) {
     adminSettingsStore.fetch()
   }
   // Restore sidebar scroll position after route change re-mounts the component

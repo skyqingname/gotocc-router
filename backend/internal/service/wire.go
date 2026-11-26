@@ -337,9 +337,14 @@ func ProvidePluginManager(
 	hostInfo PluginHostInfo,
 	kvStore PluginKVStore,
 	openAIGatewayService *OpenAIGatewayService,
+	gatewayService *GatewayService,
+	geminiMessagesCompatService *GeminiMessagesCompatService,
 ) *PluginManager {
 	manager := NewPluginManager(repo, encryptor, cfg, hostInfo, kvStore)
 	manager.SetAccountDirectory(openAIGatewayService)
+	openAIGatewayService.SetPluginManager(manager)
+	gatewayService.SetPluginManager(manager)
+	geminiMessagesCompatService.SetPluginManager(manager)
 	return manager
 }
 

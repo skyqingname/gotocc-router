@@ -979,6 +979,7 @@ type GatewayService struct {
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	pluginManager         *PluginManager
 }
 
 // NewGatewayService creates a new GatewayService
@@ -1562,7 +1563,7 @@ func (s *GatewayService) DoGrokNativeResponsesJSON(ctx context.Context, account 
 	if err := applyGrokRequestMetadataForRequest(upstreamReq, nil, account, body, ""); err != nil {
 		return nil, err
 	}
-	account.ApplyHeaderOverrides(upstreamReq.Header)
+	account.ApplyHeaderOverrides(upstreamReq.Context(), upstreamReq.Header)
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -1677,6 +1678,25 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		}
 
 		mapping := acc.GetModelMapping()
+		if acc.Platform == PlatformZhipu {
+			// Coding-plan credentials prove the plan's catalog even without a
+			// mapping; a live model snapshot is narrower and authoritative.
+			if snapshot := acc.GetUpstreamModelMetadataSnapshot(); snapshot != nil {
+				for id := range snapshot.Models {
+					if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, id) {
+						continue
+					}
+					modelSet[id] = struct{}{}
+				}
+			} else if acc.IsZhipuCodingPlanCredential() {
+				for _, id := range FilterStaticCatalogModels(&acc, cnmodels.DefaultModelIDs(PlatformZhipu)) {
+					if platform != "" && acc.Platform != platform && !mixedListingModelAllowed(platform, id) {
+						continue
+					}
+					modelSet[id] = struct{}{}
+				}
+			}
+		}
 		if acc.Platform == PlatformStepFun && len(mapping) == 0 {
 			// Live discovery narrows the client catalog to this account's models.
 			// Without a snapshot use the maintained candidates, never Claude defaults.
@@ -1712,8 +1732,9 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	}
 	// Without configured or discovered candidates, let the handler use defaults.
 	if len(modelSet) == 0 {
-		// Non-nil empty is authoritative: Start has no proven public models.
-		if startPlanOnly {
+		// Non-nil empty is authoritative: Start and Zhipu have no proven
+		// public models. Never resurrect another platform's defaults.
+		if startPlanOnly || platform == PlatformZhipu {
 			return []string{}
 		}
 		// No account declares a model: keep the group's own platform catalog

@@ -86,6 +86,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 	// passback-required third-party upstreams such as GLM/Kimi/DeepSeek,
 	// which reject server_tool_use with 400). input.RequestModel 已是映射后的模型 ID。
 	input.Body = FilterWebSearchHistoryBlocks(input.Body, input.RequestModel)
+	input.Body = s.applyPluginInstructionsToBody(input.Body, account, APIProtocolAnthropic)
 	if input.Parsed != nil {
 		// 透传分支也会改写实际 wire body，成功 usage hash 依赖这里同步当前 body。
 		if err := input.Parsed.ReplaceBody(input.Body); err != nil {
@@ -110,7 +111,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthroughWithInput(
 			input.Body = input.Parsed.Body.Bytes()
 		}
 
-		resp, err = s.httpUpstream.DoWithTLS(prepareAccountOutboundRequest(upstreamReq, account), proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))
+		resp, _, err = s.sendGatewayUpstream(upstreamReq, proxyURL, account, s.tlsFPProfileService.ResolveTLSProfile(account))
 		if err != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
@@ -376,7 +377,7 @@ func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(
 	}
 
 	// 账号级请求头覆写（最终生效，覆盖上面所有来源的同名头）
-	account.ApplyHeaderOverrides(req.Header)
+	account.ApplyHeaderOverrides(req.Context(), req.Header)
 	filterSonnet55ToolsetBetaHeader(req.Header, body, gjson.GetBytes(body, "model").String())
 
 	return req, body, nil

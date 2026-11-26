@@ -143,13 +143,14 @@ func normalizeOpenAIWSBetaFeatures(headers http.Header) string {
 	return strings.Join(normalized, ",")
 }
 
-func normalizeOpenAIWSHandshakeCompatibility(headers http.Header) openAIWSHandshakeCompatibilityKey {
+func normalizeOpenAIWSHandshakeCompatibility(account *Account, headers http.Header) openAIWSHandshakeCompatibilityKey {
 	key := openAIWSHandshakeCompatibilityKey{
-		betaFeatures:    normalizeOpenAIWSBetaFeatures(headers),
-		sessionIdentity: normalizeOpenAIWSSessionIdentity(headers),
-		userAgent:       firstOpenAIWSHeaderValue(headers, "User-Agent"),
-		originator:      firstOpenAIWSHeaderValue(headers, "Originator"),
-		version:         firstOpenAIWSHeaderValue(headers, "Version"),
+		betaFeatures:     normalizeOpenAIWSBetaFeatures(headers),
+		reportedIdentity: account.headerOverrideReportedIdentity(headers),
+		sessionIdentity:  normalizeOpenAIWSSessionIdentity(headers),
+		userAgent:        firstOpenAIWSHeaderValue(headers, "User-Agent"),
+		originator:       firstOpenAIWSHeaderValue(headers, "Originator"),
+		version:          firstOpenAIWSHeaderValue(headers, "Version"),
 	}
 	// Compare stable values from the final handshake. In off/device mode the
 	// remaining values are client-owned, but a pooled connection still cannot
@@ -268,7 +269,7 @@ func stringsTrim(value string) string {
 }
 
 func (req openAIWSAcquireRequest) handshakeCompatibility() openAIWSHandshakeCompatibilityKey {
-	key := normalizeOpenAIWSHandshakeCompatibility(req.Headers)
+	key := normalizeOpenAIWSHandshakeCompatibility(req.Account, req.Headers)
 	key.credentialGeneration = req.credentialGeneration
 	return key
 }

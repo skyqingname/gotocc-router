@@ -145,6 +145,9 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		if !aggregateOK {
 			return
 		}
+		// 请求头覆写变量（{{user_id}} 等）的取值来源，与 APIKeyAuth 保持一致。
+		c.Request = c.Request.WithContext(service.WithHeaderOverrideRequestScope(
+			c.Request.Context(), apiKey.User.ID, apiKey.ID, apiKey.GroupID))
 		if apiKey.IsAggregate() {
 			defer func() {
 				if c.Writer.Status() < 400 && c.Writer.Status() != http.StatusSwitchingProtocols {

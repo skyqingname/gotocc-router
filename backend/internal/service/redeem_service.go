@@ -604,6 +604,14 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 		return nil, err
 	}
 
+	// 在事务内回读已核销的记录，确保响应与核销、权益发放一起提交。
+	// 提交后再查询会让已到账的兑换因一次读取失败而向用户报错。
+	redeemCode, err = s.redeemRepo.GetByID(txCtx, redeemCode.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get updated redeem code: %w", err)
+	}
+	redeemCode.CashbackAmount = cashbackAmount
+
 	// 提交事务
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit transaction: %w", err)
@@ -612,12 +620,6 @@ func (s *RedeemService) redeem(ctx context.Context, userID int64, code string, r
 	// 事务提交成功后失效缓存
 	s.invalidateRedeemCaches(ctx, userID, redeemCode)
 
-	// 重新获取更新后的兑换码
-	redeemCode, err = s.redeemRepo.GetByID(ctx, redeemCode.ID)
-	if err != nil {
-		return nil, fmt.Errorf("get updated redeem code: %w", err)
-	}
-	redeemCode.CashbackAmount = cashbackAmount
 
 	return redeemCode, nil
 }

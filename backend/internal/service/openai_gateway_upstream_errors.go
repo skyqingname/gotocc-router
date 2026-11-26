@@ -811,7 +811,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		"upstream_error",
 		"Upstream request failed",
 	); matched {
-		SetOpenAIErrorMessageSource(c, body)
+		SetOpenAIErrorMessageSource(c, resp.StatusCode, body)
 		MarkResponseCommitted(c)
 		c.JSON(status, gin.H{
 			"error": gin.H{
@@ -843,7 +843,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 			Detail:             upstreamDetail,
 		})
 		MarkResponseCommitted(c)
-		SetOpenAIErrorMessageSource(c, body)
+		MarkLocalOpenAIError(c)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": gin.H{
 				"type":    "upstream_error",
@@ -942,8 +942,14 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	if isOpenAIContextWindowError(upstreamMsg, body) && upstreamMsg != "" {
 		errMsg = upstreamMsg
 	}
-
-	SetOpenAIErrorMessageSource(c, body)
+	if key, publicStatus, ok := classifyOpenAIFinalFailure(account, resp.StatusCode, upstreamMsg, body); ok {
+		statusCode = publicStatus
+		SetCodexPublicErrorFinal(c, key, publicStatus)
+		if definition, ok := codexPublicErrorByKey(key); ok {
+			errType = definition.ErrorType
+			errMsg = definition.DefaultMessage
+		}
+	}
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
 			"type":    errType,
@@ -1057,6 +1063,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 			Detail:             upstreamDetail,
 		})
 		MarkResponseCommitted(c)
+		MarkLocalOpenAIError(c)
 		writeError(c, http.StatusInternalServerError, "api_error", "Upstream gateway error")
 		if upstreamMsg == "" {
 			return nil, fmt.Errorf("upstream error: %d (not in custom error codes)", resp.StatusCode)
@@ -1100,6 +1107,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 
 	// Map status code to error type and write response
 	errType := "api_error"
+	statusCode := resp.StatusCode
 	switch {
 	case resp.StatusCode == 400:
 		errType = "invalid_request_error"
@@ -1110,9 +1118,33 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	case resp.StatusCode >= 500:
 		errType = "api_error"
 	}
+	if account != nil && account.Platform == PlatformOpenAI {
+		key, publicStatus := ClassifyCodexPublicFailure(resp.StatusCode, body)
+		statusCode = publicStatus
+		SetCodexPublicErrorFinal(c, key, publicStatus)
+		if definition, ok := codexPublicErrorByKey(key); ok {
+			errType = definition.ErrorType
+			upstreamMsg = definition.DefaultMessage
+		}
+	}
 
-	writeError(c, resp.StatusCode, errType, upstreamMsg)
+	writeError(c, statusCode, errType, upstreamMsg)
 	return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
+}
+
+// classifyOpenAIFinalFailure applies the public catalog to a final failure for
+// an OpenAI-owned account. A context-window message is trusted evidence even
+// when the provider omitted a code.
+func classifyOpenAIFinalFailure(account *Account, status int, message string, body []byte) (string, int, bool) {
+	if account == nil || account.Platform != PlatformOpenAI {
+		return "", status, false
+	}
+	if isOpenAIContextWindowError(message, body) && strings.TrimSpace(message) != "" {
+		key, publicStatus := ClassifyCodexPublicFailureKey(status, "context_length_exceeded")
+		return key, publicStatus, true
+	}
+	key, publicStatus := ClassifyCodexPublicFailure(status, body)
+	return key, publicStatus, true
 }
 
 func isOpenAICapacityShedMessage(text string) bool {
