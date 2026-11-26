@@ -217,6 +217,7 @@ export default {
       scopeSingle: '分组：{name}',
       scopeAll: '全部已授权的按量分组',
       scopeCustom: '自定义分组（{count} 个）',
+      scopeAuto: '智能路由（自动匹配可用分组）',
       scopeUngrouped: '未绑定分组',
       model: '文本模型',
       modelPlaceholder: '选择模型',

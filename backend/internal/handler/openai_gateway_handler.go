@@ -900,7 +900,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 				}
-				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, requestPlatform)
+				cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, forwardModel, reqModel, requestPlatform)
 				cls = classifySelectionFailureError(err, cls)
 				if !cls.ModelNotFound {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -918,7 +918,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			return
 		}
 		if selection == nil || selection.Account == nil {
-			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel, requestPlatform)
+			cls := classifyNoAccountErrorFromGin(c, h.gatewayService, apiKey, forwardModel, reqModel, requestPlatform)
 			if !cls.ModelNotFound {
 				markOpsRoutingCapacityLimited(c)
 			}
@@ -1079,6 +1079,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			})
 		}
 		if err != nil {
+			if errors.Is(err, service.ErrOpenAISessionRouteNotAccepted) &&
+				!streamStarted && !c.Writer.Written() &&
+				openAIRequestAllowsFailoverReplay(c) &&
+				(result == nil || (result.Usage.InputTokens == 0 && result.Usage.OutputTokens == 0 && result.ImageCount == 0)) &&
+				len(failedAccountIDs) < 2 {
+				reqLog.Warn("openai.session_takeover_candidate_retry",
+					zap.Int64("account_id", account.ID),
+					zap.Int("excluded_count", len(failedAccountIDs)+1),
+				)
+				failedAccountIDs[account.ID] = struct{}{}
+				continue
+			}
 			if h.handleOpenAISessionRouteError(c, err, streamStarted) {
 				submitResponsesUsage(result)
 				return
@@ -4467,7 +4479,6 @@ func (h *OpenAIGatewayHandler) ensureOpenAIStreamReadErrorResponse(c *gin.Contex
 
 // ensureForwardErrorResponse 在 Forward 返回错误但尚未写响应时补写统一错误响应。
 func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, streamStarted bool) bool {
-	fmt.Printf("DBG_ENSURE platform=%q streamStarted=%v\n", c.GetString(string(ctxkey.Platform)), streamStarted)
 	if c == nil || c.Writer == nil {
 		return false
 	}

@@ -1024,6 +1024,7 @@ func buildForbiddenErrorMessage(prefix string, upstreamMsg string, responseBody 
 // 不应将其视为账号级故障；其他真实 403 继续按平台策略处理。
 func (s *RateLimitService) handle403(ctx context.Context, account *Account, upstreamMsg string, responseBody []byte) (shouldDisable bool) {
 	if isCloudflareBotBlockResponse(responseBody) {
+		s.maybeCooldownRepeatedEdge403(ctx, account, "Upstream Cloudflare 403 block")
 		slog.Warn(
 			"403_cloudflare_bot_block_skips_account_penalty",
 			"account_id", account.ID,
@@ -1083,6 +1084,7 @@ func (s *RateLimitService) handleOpenAI403(ctx context.Context, account *Account
 	// 只换号、不写账号错误状态。这里只跳过账号处罚，不改变 failover 行为——
 	// 换个走不同代理的账号仍有可能成功。
 	if isHTMLResponse(responseBody) {
+		s.maybeCooldownRepeatedEdge403(ctx, account, "Upstream HTML/WAF 403 block")
 		slog.Warn(
 			"openai_403_html_body_skips_account_penalty",
 			"account_id", account.ID,
@@ -3193,4 +3195,40 @@ func (s *RateLimitService) set429RateLimit(ctx context.Context, account *Account
 		return false
 	}
 	return true
+}
+
+var edge403BurstTracker sync.Map // map[int64]*edge403Window
+
+type edge403Window struct {
+	mu        sync.Mutex
+	windowEnd time.Time
+	count     int
+}
+
+func (s *RateLimitService) maybeCooldownRepeatedEdge403(ctx context.Context, account *Account, reason string) {
+	if s == nil || s.accountRepo == nil || account == nil || account.ID <= 0 {
+		return
+	}
+	now := time.Now()
+	val, _ := edge403BurstTracker.LoadOrStore(account.ID, &edge403Window{})
+	w := val.(*edge403Window)
+	w.mu.Lock()
+	if now.After(w.windowEnd) {
+		w.windowEnd = now.Add(2 * time.Minute)
+		w.count = 0
+	}
+	w.count++
+	hits := w.count
+	if hits >= 5 {
+		w.count = 0
+		w.windowEnd = now.Add(2 * time.Minute)
+	}
+	w.mu.Unlock()
+	if hits >= 5 {
+		until := now.Add(3 * time.Minute)
+		s.notifyAccountSchedulingBlocked(account, until, "edge_403_temp")
+		if err := s.accountRepo.SetTempUnschedulable(ctx, account.ID, until, reason); err != nil {
+			slog.Warn("edge_403_set_temp_unschedulable_failed", "account_id", account.ID, "error", err)
+		}
+	}
 }

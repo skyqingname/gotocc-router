@@ -952,6 +952,12 @@ export interface OpsErrorLog {
   request_type?: number | null
   user_agent?: string
 
+  gateway_status_code?: number | null
+  upstream_status_code?: number | null
+  upstream_error_message?: string
+  is_business_limited?: boolean
+  duration_ms?: number | null
+  routing_diagnostics?: OpsRoutingDiagnostics
 }
 
 export interface OpsRoutingDiagnostics {

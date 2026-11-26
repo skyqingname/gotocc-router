@@ -115,10 +115,10 @@ func (m *PluginManager) reconcileMultiTransport(ctx context.Context, installatio
 		}
 	}
 	m.mu.Unlock()
+	m.publishMultiTransportRoutes(installations)
 	for _, runtime := range stale {
 		runtime.drain(10 * time.Second)
 	}
-	m.publishMultiTransportRoutes(installations)
 }
 
 func (m *PluginManager) publishMultiTransportRoutes(installations []*PluginInstallation) {

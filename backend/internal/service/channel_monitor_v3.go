@@ -7,6 +7,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
 type ChannelMonitorV3Service struct {
@@ -22,6 +24,7 @@ type ChannelMonitorV3Service struct {
 	kick        chan struct{}
 	cacheMu     sync.Mutex
 	cache       map[string]channelMonitorV3CacheEntry
+	loadGroup   singleflight.Group
 }
 
 type channelMonitorV3CacheEntry struct {
@@ -130,26 +133,47 @@ func (s *ChannelMonitorV3Service) Snapshot(ctx context.Context, window time.Dura
 		runtime = s.settings.GetChannelMonitorRuntime(ctx)
 	}
 	key := fmt.Sprintf("%d:%s:%v", window, platform, runtime)
+	const cacheTTL = 30 * time.Second
 	s.cacheMu.Lock()
-	defer s.cacheMu.Unlock()
-	if cached, ok := s.cache[key]; ok && now.Before(cached.at.Add(10*time.Second)) {
-		return cached.snapshot, nil
+	if cached, ok := s.cache[key]; ok && now.Before(cached.at.Add(cacheTTL)) {
+		snap := cached.snapshot
+		s.cacheMu.Unlock()
+		return snap, nil
 	}
-	data, err := s.repo.Read(ctx, now, window, platform)
+	s.cacheMu.Unlock()
+
+	val, err, _ := s.loadGroup.Do(key, func() (any, error) {
+		readNow := s.now().UTC()
+		s.cacheMu.Lock()
+		if cached, ok := s.cache[key]; ok && readNow.Before(cached.at.Add(cacheTTL)) {
+			snap := cached.snapshot
+		s.cacheMu.Unlock()
+			return snap, nil
+		}
+		s.cacheMu.Unlock()
+
+		data, readErr := s.repo.Read(ctx, readNow, window, platform)
+		if readErr != nil {
+			return nil, readErr
+		}
+		snapshot := BuildChannelMonitorV3Snapshot(data, data.Config, readNow, window, platform)
+		s.cacheMu.Lock()
+		if s.cache == nil || len(s.cache) >= 64 {
+			s.cache = map[string]channelMonitorV3CacheEntry{}
+		}
+		for k, cached := range s.cache {
+			if !readNow.Before(cached.at.Add(cacheTTL)) {
+				delete(s.cache, k)
+			}
+		}
+		s.cache[key] = channelMonitorV3CacheEntry{at: readNow, snapshot: snapshot}
+		s.cacheMu.Unlock()
+		return snapshot, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	snapshot := BuildChannelMonitorV3Snapshot(data, data.Config, now, window, platform)
-	if s.cache == nil || len(s.cache) >= 64 {
-		s.cache = map[string]channelMonitorV3CacheEntry{}
-	}
-	for key, cached := range s.cache {
-		if !now.Before(cached.at.Add(10 * time.Second)) {
-			delete(s.cache, key)
-		}
-	}
-	s.cache[key] = channelMonitorV3CacheEntry{at: now, snapshot: snapshot}
-	return snapshot, nil
+	return val.(*ChannelMonitorV3Snapshot), nil
 }
 
 func BuildChannelMonitorV3Snapshot(data *ChannelMonitorV3Data, cfg ChannelMonitorV3Config, now time.Time, window time.Duration, filter string) *ChannelMonitorV3Snapshot {

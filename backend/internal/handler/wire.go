@@ -215,7 +215,7 @@ func ProvideOpenAIGatewayHandler(
 	providerFilesService *service.ProviderFilesService,
 	unfinishedTasks *service.GatewayUnfinishedTaskService,
 ) *OpenAIGatewayHandler {
-	gatewayService.SetPluginManager(pluginManager)
+	_ = pluginManager
 	h := NewOpenAIGatewayHandler(gatewayService, concurrencyService, billingCacheService, apiKeyService,
 		usageRecordWorkerPool, errorPassthroughService, contentModerationService, opsService, cfg)
 	h.compositeResolver = compositeResolver
@@ -307,6 +307,9 @@ func ProvideHandlers(
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
 ) *Handlers {
+	if apiKeyHandler != nil && gatewayHandler != nil {
+		apiKeyHandler.autoGroupResolver = gatewayHandler.autoGroupResolver
+	}
 	return &Handlers{
 		Agent:            agentHandler,
 		Reseller:         resellerHandler,

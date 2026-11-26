@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -20,7 +19,7 @@ func prepareOpenAIEncryptedRecoveryBody(body []byte) ([]byte, error) {
 		return nil, nil
 	}
 	var decoded map[string]any
-	if err := json.Unmarshal(body, &decoded); err != nil {
+	if err := decodeOpenAIJSONUseNumber(body, &decoded); err != nil {
 		return nil, err
 	}
 	if !trimOpenAIEncryptedReasoningItems(decoded) {

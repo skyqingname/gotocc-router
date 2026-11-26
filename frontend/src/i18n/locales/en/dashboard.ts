@@ -217,6 +217,7 @@ export default {
       scopeSingle: 'Group: {name}',
       scopeAll: 'All authorized pay-as-you-go groups',
       scopeCustom: 'Custom groups ({count})',
+      scopeAuto: 'Smart routing (auto-matched groups)',
       scopeUngrouped: 'No group assigned',
       model: 'Text model',
       modelPlaceholder: 'Choose a model',

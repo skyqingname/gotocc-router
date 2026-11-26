@@ -6,6 +6,7 @@ import (
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/response"
 	middleware2 "github.com/LuckyKuang/sub2api-plus/internal/server/middleware"
+	"github.com/LuckyKuang/sub2api-plus/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,6 +28,30 @@ func (h *APIKeyHandler) GetAggregateNativeAccess(c *gin.Context) {
 	}
 	if key.UserID != subject.UserID {
 		response.NotFound(c, "API key not found")
+		return
+	}
+	if key.IsAutoRouting() {
+		if h.autoGroupResolver == nil {
+			response.ErrorFrom(c, service.ErrAutoRouteUnavailable)
+			return
+		}
+		models, err := h.autoGroupResolver.AutoNativeModels(c.Request.Context(), key)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		seen := map[string]bool{}
+		for _, model := range models {
+			for _, endpoint := range model.Endpoints {
+				seen[endpoint] = true
+			}
+		}
+		endpoints := []string{}
+		for endpoint := range seen {
+			endpoints = append(endpoints, endpoint)
+		}
+		sort.Strings(endpoints)
+		response.Success(c, gin.H{"models": models, "endpoints": endpoints, "conversion_endpoints": []string{}})
 		return
 	}
 	if !key.IsAggregate() {

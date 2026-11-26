@@ -273,6 +273,12 @@ func (w *codexSafetyBufferingHTTPWriter) prepareHeaders() {
 	}
 }
 
+func (w *codexSafetyBufferingHTTPWriter) WriteHeader(code int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.ResponseWriter.WriteHeader(code)
+}
+
 func (w *codexSafetyBufferingHTTPWriter) WriteHeaderNow() {
 	w.mu.Lock()
 	defer w.mu.Unlock()

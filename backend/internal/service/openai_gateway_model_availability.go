@@ -63,7 +63,15 @@ func (s *OpenAIGatewayService) DiagnoseModelAvailabilityForPlatform(
 		// (openai_account_scheduler.isAccountRequestCompatible): empty
 		// model_mapping accepts everything; otherwise the explicit / wildcard
 		// mapping must match.
-		if accounts[i].IsModelSupported(requestedModel) {
+		supported := accounts[i].IsModelSupported(requestedModel)
+		if platform == PlatformOpenAI {
+			supported = openAIAccountSupportsRequestedModel(ctx, &accounts[i], requestedModel, false)
+			if supported && queryGroupID != nil && s.needsUpstreamChannelRestrictionCheck(ctx, queryGroupID) &&
+				s.isUpstreamModelRestrictedByChannel(ctx, *queryGroupID, &accounts[i], requestedModel, false) {
+				supported = false
+			}
+		}
+		if supported {
 			diag.HasModelSupport = true
 			return diag
 		}

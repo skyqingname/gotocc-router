@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"fmt"
 	"net/http"
 	"strings"
@@ -382,17 +383,29 @@ func commitOpenAISessionTakeoverJSON(ctx context.Context, payload []byte) error 
 		success := finish == "stop" || finish == "length" || finish == "tool_calls" || finish == "function_call"
 		chatAccepted = chatAccepted || semantic || (success && (response.Get("usage.prompt_tokens").Int() > 0 || response.Get("usage.completion_tokens").Int() > 0))
 	}
-	valid := gjson.ValidBytes(payload) && !response.Get("error").Exists() &&
+	errorField := response.Get("error")
+	noError := !errorField.Exists() || errorField.Type == gjson.Null
+	valid := gjson.ValidBytes(payload) && noError &&
 		status != "failed" && status != "incomplete" && status != "cancelled" &&
 		(apicompat.ObserveResponsesOutput([]byte(`{"type":"response.completed","response":`+response.Raw+`}`)).MeaningfulOutput || chatAccepted ||
 			(status == "completed" && (response.Get("usage.input_tokens").Int() > 0 || response.Get("usage.output_tokens").Int() > 0)))
 	if valid {
 		return a.commit(ctx)
 	}
+	if gjson.ValidBytes(payload) && noError && status == "incomplete" && strings.TrimSpace(response.Get("id").String()) != "" {
+		return nil
+	}
 	a.mu.Lock()
 	pending := !a.committed && a.route.OwnerAccountID != a.accountID
 	a.mu.Unlock()
 	if pending {
+		slog.WarnContext(ctx, "openai_session_takeover_json_rejected",
+			"account_id", a.accountID,
+			"owner_account_id", a.route.OwnerAccountID,
+			"status", status,
+			"has_error", !noError,
+			"output_items", len(response.Get("output").Array()),
+		)
 		return ErrOpenAISessionRouteNotAccepted
 	}
 	return nil

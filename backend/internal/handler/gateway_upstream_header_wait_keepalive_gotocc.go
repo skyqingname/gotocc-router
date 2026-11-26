@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"context"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -144,9 +146,19 @@ func (k *upstreamHeaderWaitKeepalive) endWait() {
 
 // stop 在请求结束时调用。请求侧只设了错误状态码而没有写正文时，补写对应的流内终止事件；
 // 之后不再有心跳，也不再访问 gin.Context。
+func (k *upstreamHeaderWaitKeepalive) isClientClosedLocked() bool {
+	if k.wantStatus == statusClientClosedRequest {
+		return true
+	}
+	if k.c != nil && k.c.Request != nil && errors.Is(k.c.Request.Context().Err(), context.Canceled) {
+		return true
+	}
+	return false
+}
+
 func (k *upstreamHeaderWaitKeepalive) stop() {
 	k.mu.Lock()
-	pending := k.hiddenLocked() && k.wantStatus >= http.StatusBadRequest
+	pending := k.hiddenLocked() && k.wantStatus >= http.StatusBadRequest && !k.isClientClosedLocked()
 	status := k.wantStatus
 	k.stopped = true
 	k.closeWindowLocked()
@@ -256,6 +268,8 @@ func (k *upstreamHeaderWaitKeepalive) requestWrite() (requestWriteAction, int) {
 	switch {
 	case k.errorSent:
 		return requestWriteDrop, 0
+	case k.hiddenLocked() && k.isClientClosedLocked():
+		return requestWriteDrop, 0
 	case k.hiddenLocked() && k.wantStatus >= http.StatusBadRequest:
 		return requestWriteConvert, k.wantStatus
 	default:
@@ -273,6 +287,9 @@ func (k *upstreamHeaderWaitKeepalive) recordRequestWrite(written int) {
 // writeStreamError 把请求侧的错误响应改写成入站协议的流内终止事件写出，并按请求侧想回的
 // 状态码记入运维日志；调用方持有 writeMu。
 func (k *upstreamHeaderWaitKeepalive) writeStreamError(status int, body []byte) error {
+	if !hasOpsUpstreamErrorContext(k.c) {
+		service.MarkLocalOpenAIError(k.c)
+	}
 	errType, code, message := parseStreamErrorBody(status, body)
 	written, err := k.writer.WriteString(k.streamErrorFrame(errType, code, message))
 	if err == nil {
@@ -393,11 +410,22 @@ type upstreamHeaderWaitWriter struct {
 func (w *upstreamHeaderWaitWriter) Header() http.Header {
 	k := w.k
 	k.mu.Lock()
-	defer k.mu.Unlock()
-	if k.header != nil {
-		return k.header
+	if k.hiddenLocked() && k.header != nil {
+		h := k.header
+		k.mu.Unlock()
+		return h
 	}
 	k.closeWindowLocked()
+	k.mu.Unlock()
+	k.writeMu.Lock()
+	k.writeMu.Unlock() //nolint:staticcheck // 等待进行中的心跳完成响应头读写与克隆
+	k.mu.Lock()
+	if k.hiddenLocked() && k.header != nil {
+		h := k.header
+		k.mu.Unlock()
+		return h
+	}
+	k.mu.Unlock()
 	return w.ResponseWriter.Header()
 }
 

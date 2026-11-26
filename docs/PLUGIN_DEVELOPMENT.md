@@ -221,7 +221,7 @@ UI 是插件包内的静态页面，不需要修改 Sub2API 前端源码。宿�
 - 运行时拥有除 `request_instructions` 之外的所有字段；宿主在把配置交给插件校验或应用前会移除该节。
 - 宿主拥有 `request_instructions`，其结构与纯请求包相同：`default_text`、`platform_overrides`、`account_overrides`。宿主在保存前校验该节，并与运行时字段一起持久化。
 - 启用混合包会同时启用已声明的传输和指令绑定；配置保存成功后，新请求立即使用新的指令文本，传输继续使用同一份持久化配置。
-- 迁移 `317_plugin_bindings_transport_exclusive.sql` 只让传输能力占用每个 `capability + platform + account_type` 的唯一槽位；多个纯指令包可以在同一范围共存，并按稳定的插件 ID/绑定顺序拼接。
+- 迁移 `345_plugin_bindings_transport_exclusive.sql` 只让传输能力占用每个 `capability + platform + account_type` 的唯一槽位；多个纯指令包可以在同一范围共存，并按稳定的插件 ID/绑定顺序拼接。
 
 ## 7. 生成密钥并签名
 

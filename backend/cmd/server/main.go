@@ -159,15 +159,8 @@ func runMainServer() {
 			log.Printf("Plugin manager started in degraded state: %v", err)
 		}
 	}
-	if app.PromptAudit != nil {
-		if err := app.PromptAudit.Start(context.Background()); err != nil {
-			// Startup continues so unrelated APIs stay up. Fail-closed (unavailable)
-			// applies only when a persisted blocking policy was observed; without
-			// blocking intent, Prompt Audit stays ModeOff so the gateway remains
-			// usable and administrators can still disable the feature (#4560).
-			log.Printf("Prompt Audit started in degraded state: %v", err)
-		}
-	}
+	// LC-014: Prompt Audit background workers remain retired; read-only history endpoints still work.
+	_ = app.PromptAudit
 
 	// 启动服务器
 	go func() {

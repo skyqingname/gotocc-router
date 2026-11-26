@@ -75,11 +75,29 @@ const { replayTour, startTour, startTeamTour, hasSeen } = useOnboardingTour({
 
 const onboardingStore = useOnboardingStore()
 
+let guideStartTimer: number | null = null
+let layoutUnmounted = false
+
+function clearGuideStartTimer() {
+  if (guideStartTimer !== null) {
+    window.clearTimeout(guideStartTimer)
+    guideStartTimer = null
+  }
+}
+
+onBeforeUnmount(() => {
+  layoutUnmounted = true
+  clearGuideStartTimer()
+})
+
 function autoStartResolvedGuide() {
-  if (adminSupportContext.value || !portalResolved.value || hasSeen()) return
+  clearGuideStartTimer()
+  if (layoutUnmounted || adminSupportContext.value || !portalResolved.value || hasSeen()) return
   if (authStore.user?.role !== 'admin') return
   if (onboardingStore.isDriverActive()) return
-  window.setTimeout(() => {
+  guideStartTimer = window.setTimeout(() => {
+    guideStartTimer = null
+    if (layoutUnmounted || adminSupportContext.value || !portalResolved.value) return
     if (onboardingStore.isDriverActive() || hasSeen()) return
     void startTour()
   }, 300)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -225,6 +226,58 @@ func (s *AutoGroupResolver) GetRoutingCapabilities(ctx context.Context, authenti
 	capabilities.BatchImageSubmit = len(batch) > 0
 	sort.Strings(capabilities.Protocols)
 	return capabilities, nil
+}
+
+func (s *AutoGroupResolver) AutoNativeModels(ctx context.Context, authenticated *APIKey) ([]AggregateNativeModel, error) {
+	state, err := s.loadCatalogState(ctx, authenticated, AutoRouteRequest{Endpoint: CompositeRouteEndpointResponses})
+	if err != nil {
+		return nil, err
+	}
+	probes := []struct {
+		endpoint   string
+		publicPath string
+	}{
+		{endpoint: CompositeRouteEndpointResponses, publicPath: "/v1/responses"},
+		{endpoint: CompositeRouteEndpointChatCompletions, publicPath: "/v1/chat/completions"},
+		{endpoint: CompositeRouteEndpointMessages, publicPath: "/v1/messages"},
+		{endpoint: CompositeRouteEndpointGemini, publicPath: "/v1beta"},
+	}
+	offers := make(map[string]*AggregateNativeModel)
+	for _, probe := range probes {
+		models, err := s.listModelsFromState(ctx, state, AutoRouteRequest{Endpoint: probe.endpoint})
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range models {
+			k := m.Platform + "\x00" + m.ID
+			offer, exists := offers[k]
+			if !exists {
+				offer = &AggregateNativeModel{
+					Name:                m.ID,
+					Platform:            m.Platform,
+					Endpoints:           []string{},
+					ConversionEndpoints: []string{},
+					GroupIDs:            []int64{},
+				}
+				offers[k] = offer
+			}
+			if !slices.Contains(offer.Endpoints, probe.publicPath) {
+				offer.Endpoints = append(offer.Endpoints, probe.publicPath)
+			}
+		}
+	}
+	out := make([]AggregateNativeModel, 0, len(offers))
+	for _, offer := range offers {
+		sort.Strings(offer.Endpoints)
+		out = append(out, *offer)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Platform != out[j].Platform {
+			return out[i].Platform < out[j].Platform
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
 }
 
 func (s *AutoGroupResolver) loadCatalogState(ctx context.Context, authenticated *APIKey, input AutoRouteRequest) (*autoRouteCatalogState, error) {

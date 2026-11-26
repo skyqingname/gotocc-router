@@ -9,13 +9,13 @@ publication status. Release naming and procedures live in
 The integration candidate starts from owned main `880dcfeeae459753e33272e0d6af7b925eb6160a`
 (`skyqingname/gotocc-router@v0.2.22+custom.001`, fixed package commit
 `f6cceec5cd81f1353d8a38ed782a65f4b755a11b`) and incorporates the complete
-`LuckyKuang/sub2api-plus@v0.2.24+custom.001` release, peeled commit
-`01321e120fe3a46fd5055c4494f1bd920a11be93` (including `v0.2.23+custom.001` /
-`af401db0512a2473b703d5f5c56208352abf5a4d`). Its official baselines are
-`Wei-Shaw/sub2api@v0.2.23` (`5af9afb588c4b014b3df9db7d4073af1f8ae01b6`) and
-`Wei-Shaw/sub2api@v0.2.24` (`5c2982a81b46e2142d0143d2f83c1ce9c4da1d24`).
+`LuckyKuang/sub2api-plus@v0.2.25+custom.001` release, peeled commit
+`95efe37e1e4eba9393b040a3886636a3afbb018d` (including `v0.2.24+custom.002`,
+`v0.2.24+custom.001` / `01321e120fe3a46fd5055c4494f1bd920a11be93`, and
+`v0.2.23+custom.001` / `af401db0512a2473b703d5f5c56208352abf5a4d`).
 The owned `VERSION` remains `0.2.22+custom.001` pending acceptance and release.
-Plus migration 316 is imported as **344** (`344_channel_pricing_ultrafast_multiplier.sql`);
+Plus migrations 316 and 317 are imported as **344** (`344_channel_pricing_ultrafast_multiplier.sql`)
+and **345** (`345_plugin_bindings_transport_exclusive.sql`);
 existing SQL files through 343 stay byte-for-byte unchanged. GoToCC retains its
 session overflow/takeover routing, team/reseller funding snapshots, Claude
 advisor usage/billing, response token-detail presence, configurable async image

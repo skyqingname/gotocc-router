@@ -169,6 +169,7 @@ const { t } = useI18n()
 
 const isReadOnly = computed(() => adminSupportContext.value !== null)
 const mode = computed(() => props.apiKey?.group_binding_mode || 'single')
+const isAutoRouting = computed(() => props.apiKey?.routing_mode === 'auto')
 const isAggregate = computed(() => mode.value === 'all' || mode.value === 'custom')
 const isComposite = computed(() => props.apiKey?.group?.platform === 'composite')
 const conversionRequested = computed(() => isComposite.value && !!props.apiKey?.conversion_enabled)
@@ -177,7 +178,7 @@ const conversionEndpoint = computed(() => {
   return conversionRequested.value && isSupportedTestEndpoint(endpoint) ? endpoint : ''
 })
 const pathPrefix = computed(() => {
-  if (isAggregate.value || isComposite.value) return ''
+  if (isAutoRouting.value || isAggregate.value || isComposite.value) return ''
   return props.apiKey?.group?.platform === 'antigravity' ? '/antigravity' : ''
 })
 
@@ -185,6 +186,9 @@ const statusText = computed(() => props.apiKey ? t(`keys.status.${props.apiKey.s
 const scopeText = computed(() => {
   const key = props.apiKey
   if (!key) return ''
+  if (isAutoRouting.value) {
+    return t('keys.testModal.scopeAuto')
+  }
   if (isAggregate.value) {
     return mode.value === 'all'
       ? t('keys.testModal.scopeAll')
@@ -203,7 +207,7 @@ const blockedReason = computed<BlockedReason | ''>(() => {
   if (key.status === 'quota_exhausted') return 'quota'
   if (key.expires_at && Number.isFinite(Date.parse(key.expires_at)) && Date.parse(key.expires_at) <= Date.now()) return 'expired'
   if (key.quota > 0 && key.quota_used >= key.quota) return 'quota'
-  if (!isAggregate.value && key.group_id == null) return 'ungrouped'
+  if (!isAutoRouting.value && !isAggregate.value && key.group_id == null) return 'ungrouped'
   if (!isAggregate.value && key.group?.claude_code_only) return 'dedicatedClient'
   if (conversionRequested.value && !conversionEndpoint.value) return 'conversionEndpoint'
   return ''

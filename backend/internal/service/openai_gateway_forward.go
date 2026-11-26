@@ -966,9 +966,6 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return true
 		}
 		recoverInvalidEncryptedContent := func(attempt int) bool {
-			if IsAutoRoutingRequest(ctx) {
-				return false
-			}
 			if wsInvalidEncryptedContentRecoveryTried {
 				return false
 			}
@@ -993,7 +990,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			previousResponseID := openAIWSPayloadString(wsReqBody, "previous_response_id")
 			hasFunctionCallOutput := HasFunctionCallOutput(wsReqBody)
-			if previousResponseID != "" && !hasFunctionCallOutput {
+			droppedPrev := previousResponseID != "" && !hasFunctionCallOutput && !IsAutoRoutingRequest(ctx)
+			if droppedPrev {
 				delete(wsReqBody, "previous_response_id")
 			}
 			wsInvalidEncryptedContentRecoveryTried = true
@@ -1005,7 +1003,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				truncateOpenAIWSLogValue(previousResponseID, openAIWSIDValueMaxLen),
 				normalizeOpenAIWSLogValue(ClassifyOpenAIPreviousResponseIDKind(previousResponseID)),
 				hasFunctionCallOutput,
-				previousResponseID != "" && !hasFunctionCallOutput,
+				droppedPrev,
 			)
 			return true
 		}

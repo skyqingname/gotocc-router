@@ -57,5 +57,5 @@ func (s *OpenAIGatewayService) responsesWSForceHTTPBridge(ctx context.Context, a
 
 func (s *OpenAIGatewayService) responsesWSUncachedForceHTTPBridge(ctx context.Context, account *Account) bool {
 	return s == nil || !s.codexUpstreamWSAllowed(ctx, account) || (account != nil && account.Platform == PlatformGrok) ||
-		(s.pluginManager != nil && s.pluginManager.ShouldRouteOpenAIOAuth(account))
+		(s.pluginManager != nil && s.pluginManager.ShouldRouteTransport(account))
 }

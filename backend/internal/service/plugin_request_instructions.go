@@ -430,7 +430,7 @@ func (s *AccountTestService) applyPluginRequestInstructions(request *http.Reques
 }
 
 func applyPluginRequestInstructionsWithManager(manager *PluginManager, request *http.Request, account *Account) (*http.Request, error) {
-	if manager == nil || request == nil || account == nil || request.Body == nil {
+	if manager == nil || request == nil || account == nil || request.Body == nil || pluginInstructionsApplied(request.Context()) {
 		return request, nil
 	}
 	text := manager.RequestInstructionsForAccount(account)
@@ -456,14 +456,15 @@ func applyPluginRequestInstructionsWithManager(manager *PluginManager, request *
 	_ = original.Close()
 	protocol := pluginRequestProtocol(request, body)
 	modified, changed := ApplyPluginRequestInstructions(body, protocol, text)
+	*request = *request.WithContext(withPluginInstructionsApplied(request.Context()))
 	if !changed {
-		request.Body = io.NopCloser(strings.NewReader(string(body)))
+		request.Body = io.NopCloser(bytes.NewReader(body))
 		return request, nil
 	}
-	request.Body = io.NopCloser(strings.NewReader(string(modified)))
+	request.Body = io.NopCloser(bytes.NewReader(modified))
 	request.ContentLength = int64(len(modified))
 	request.GetBody = func() (io.ReadCloser, error) {
-		return io.NopCloser(strings.NewReader(string(modified))), nil
+		return io.NopCloser(bytes.NewReader(modified)), nil
 	}
 	return request, nil
 }

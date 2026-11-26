@@ -106,10 +106,6 @@ func (s *AccountTestService) doOpenAIAccountTestUpstream(request *http.Request, 
 		return nil, err
 	}
 	*request = *request.WithContext(WithAccountOutboundIdentity(request.Context(), account))
-	request, err = s.applyPluginRequestInstructions(request, account)
-	if err != nil {
-		return nil, err
-	}
 	response, responseErr := s.projectTokens.RoundTrip(request, account, func(req *http.Request) (*http.Response, error) {
 		return s.cnOAuthService.roundTripNativeOAuth(req, account, func(native *http.Request) (*http.Response, error) {
 			response, err := s.doOpenAIAccountTestUpstreamPrepared(native, proxyURL, account, useTLSFallback)

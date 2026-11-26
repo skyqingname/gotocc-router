@@ -84,7 +84,7 @@ func BindAPIKeyContext(c *gin.Context, key *service.APIKey, subscription *servic
 		c.Set(string(ContextKeySubscription), subscription)
 	}
 	ctx := context.WithValue(c.Request.Context(), ctxkey.UserID, key.User.ID)
-	ctx = service.WithHeaderOverrideRequestScope(ctx, key.User.ID, key.ID, key.GroupID)
+	ctx = service.WithHeaderOverrideRequestScope(ctx, key.EffectiveActorUserID(), key.ID, key.GroupID)
 	c.Request = c.Request.WithContext(ctx)
 	setGroupContext(c, key.Group)
 	SetOpsFallbackAPIKey(c, key)
@@ -107,6 +107,14 @@ func WriteAutoRoutingError(c *gin.Context, err error) {
 }
 
 func writeAutoAuthError(c *gin.Context, status int, reason, message string, google bool) {
+	if status < http.StatusInternalServerError && reason != "AUTO_ROUTE_UNAVAILABLE" {
+		if reason == "AUTO_ROUTE_MODEL_NOT_FOUND" {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalModelConfiguration)
+		} else {
+			service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalPolicyDenied)
+		}
+		service.MarkLocalOpenAIError(c)
+	}
 	if google {
 		abortWithGoogleError(c, status, message)
 		return

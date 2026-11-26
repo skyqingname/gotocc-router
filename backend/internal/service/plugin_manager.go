@@ -327,7 +327,6 @@ func (m *PluginManager) reconcileOnce(ctx context.Context) error {
 		m.publishUnavailableRoute(0, 100, "插件启用状态暂时无法读取")
 		return fmt.Errorf("读取插件启用状态: %w", err)
 	}
-	m.transportAuthority.Store(true)
 	m.cleanupStaleLocalInstallations(installations)
 	m.publishRequestRules(installations)
 	m.reconcileMultiTransport(ctx, installations)

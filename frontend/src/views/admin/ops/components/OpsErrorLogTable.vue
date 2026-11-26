@@ -26,9 +26,11 @@
         </template>
 
         <template #cell-type="{ row }">
-          <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="getTypeBadge(row).className">
-            {{ getTypeBadge(row).label }}
-          </span>
+          <div class="flex flex-col items-start gap-0.5">
+            <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold" :class="rowDiagnosis(row).badgeClass">
+              {{ rowDiagnosis(row).ownerLabel }} · {{ rowDiagnosis(row).subLabel }}
+            </span>
+          </div>
         </template>
 
         <template #cell-endpoint="{ row }">
@@ -117,9 +119,17 @@
         </template>
 
         <template #cell-status="{ row }">
-          <div class="flex items-center gap-1.5">
-            <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="getStatusClass(row.status_code)">
-              {{ row.status_code }}
+          <div class="flex flex-wrap items-center gap-1.5">
+            <template v-if="rowDiagnosis(row).gatewayStatus && rowDiagnosis(row).upstreamStatus && rowDiagnosis(row).gatewayStatus !== rowDiagnosis(row).upstreamStatus">
+              <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium" :class="getStatusClass(rowDiagnosis(row).gatewayStatus!)">
+                {{ isZhLocale ? '网关' : 'GW' }} {{ rowDiagnosis(row).gatewayStatus }}
+              </span>
+              <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium" :class="getStatusClass(rowDiagnosis(row).upstreamStatus!)">
+                {{ isZhLocale ? '上游' : 'UP' }} {{ rowDiagnosis(row).upstreamStatus }}
+              </span>
+            </template>
+            <span v-else class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium" :class="getStatusClass(row.status_code)">
+              {{ row.status_code === 499 ? (isZhLocale ? '499 断连' : '499 Closed') : row.status_code }}
             </span>
             <span
               v-if="row.severity"
@@ -133,12 +143,20 @@
         </template>
 
         <template #cell-message="{ row }">
-          <span
-            v-if="row.message"
-            class="block max-w-[280px] truncate text-sm surface-muted"
-            :title="row.message"
-          >{{ formatSmartMessage(row.message) || '-' }}</span>
-          <span v-else class="text-sm surface-muted">-</span>
+          <div
+            class="max-w-[420px] space-y-0.5 py-0.5"
+            :title="[rowDiagnosis(row).headline, rowDiagnosis(row).filterHint, rowDiagnosis(row).detail].filter(Boolean).join('\n')"
+          >
+            <div class="truncate text-xs font-medium text-gray-900 dark:text-gray-100">
+              {{ rowDiagnosis(row).headline }}
+            </div>
+            <div v-if="rowDiagnosis(row).filterHint" class="truncate text-[11px] text-amber-700 dark:text-amber-300">
+              {{ rowDiagnosis(row).filterHint }}
+            </div>
+            <div v-if="rowDiagnosis(row).detail" class="truncate font-mono text-[11px] surface-muted">
+              {{ formatSmartMessage(rowDiagnosis(row).detail) }}
+            </div>
+          </div>
         </template>
 
         <template #cell-user_agent="{ row }">
@@ -208,10 +226,15 @@ import { useAppStore } from '@/stores'
 import type { OpsErrorLog } from '@/api/admin/ops'
 import type { Column } from '@/components/common/types'
 import { getSeverityClass, formatDateTime } from '../utils/opsFormatters'
+import { diagnoseOpsError } from '../utils/opsErrorDiagnosis'
 import { mapErrorCategory } from '@/utils/errorCategory'
 import { mapErrorSortKey, statusCodeBadgeClass } from '@/utils/errorBadges'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const isZhLocale = computed(() => String(locale.value || 'zh').startsWith('zh'))
+function rowDiagnosis(row: OpsErrorLog) {
+  return diagnoseOpsError(row, isZhLocale.value)
+}
 const appStore = useAppStore()
 const copiedUserAgent = ref<string | null>(null)
 
@@ -269,12 +292,6 @@ const columns = computed<Column[]>(() => {
 const compactWidths: Record<string, number> = { created_at: 124, user: 140, account: 140, model: 160, category: 100, status: 120, message: 240 }
 const compactTableWidth = computed(() => columns.value.reduce((width, column) => width + (compactWidths[column.key] ?? 160), 0))
 
-function isUpstreamRow(log: OpsErrorLog): boolean {
-  const phase = String(log.phase || '').toLowerCase()
-  const owner = String(log.error_owner || '').toLowerCase()
-  return phase === 'upstream' && owner === 'provider'
-}
-
 function hasModelMapping(log: OpsErrorLog): boolean {
   const requested = String(log.requested_model || '').trim()
   const upstream = String(log.upstream_model || '').trim()
@@ -296,34 +313,6 @@ function formatRequestType(type: number | null | undefined): string {
     case 3: return t('admin.ops.errorLog.requestTypeWs')
     default: return ''
   }
-}
-
-// 徽章配色对齐用量明细(UsageTable)的 bg-X-100/text-X-800 体系
-function getTypeBadge(log: OpsErrorLog): { label: string; className: string } {
-  const phase = String(log.phase || '').toLowerCase()
-  const owner = String(log.error_owner || '').toLowerCase()
-
-  if (isUpstreamRow(log)) {
-    return { label: t('admin.ops.errorLog.typeUpstream'), className: 'bg-red-100/[0.15] text-red-800 dark:bg-red-900/25 dark:text-red-200' }
-  }
-  if (phase === 'request' && owner === 'client') {
-    return { label: t('admin.ops.errorLog.typeRequest'), className: 'bg-amber-100/[0.15] text-amber-800 dark:bg-amber-900/25 dark:text-amber-200' }
-  }
-  if (phase === 'auth' && owner === 'client') {
-    return { label: t('admin.ops.errorLog.typeAuth'), className: 'bg-blue-100/[0.15] text-blue-800 dark:bg-blue-900/25 dark:text-blue-200' }
-  }
-  if (phase === 'account_auth') {
-    return { label: t('admin.ops.errorLog.typeAccountAuth'), className: 'bg-orange-100/[0.15] text-orange-800 dark:bg-orange-900/25 dark:text-orange-200' }
-  }
-  if (phase === 'routing' && owner === 'platform') {
-    return { label: t('admin.ops.errorLog.typeRouting'), className: 'bg-purple-100/[0.15] text-purple-800 dark:bg-purple-900/25 dark:text-purple-200' }
-  }
-  if (phase === 'internal' && owner === 'platform') {
-    return { label: t('admin.ops.errorLog.typeInternal'), className: 'surface-inset text-gray-800 dark:surface-inset dark:text-gray-200' }
-  }
-
-  const fallback = phase || owner || t('common.unknown')
-  return { label: fallback, className: 'surface-inset text-gray-800 dark:surface-inset dark:text-gray-200' }
 }
 
 interface Props {

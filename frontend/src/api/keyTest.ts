@@ -84,6 +84,9 @@ export function isSupportedTestEndpoint(endpoint: string): boolean {
 }
 
 export function accessPathForKey(key: ApiKey): string | null {
+  if (key.routing_mode === 'auto') {
+    return `/keys/${key.id}/native-access`
+  }
   const mode = key.group_binding_mode || 'single'
   if (mode === 'all' || mode === 'custom') {
     return `/keys/${key.id}/native-access`

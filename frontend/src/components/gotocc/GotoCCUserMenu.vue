@@ -30,8 +30,8 @@
             <Icon name="cog" size="sm" class="shrink-0 text-gray-400 dark:text-dark-400" />
           </RouterLink>
 
-          <!-- 窄屏顶栏不显示余额，放在账户卡下方。 -->
-          <div class="flex items-baseline justify-between gap-3 px-2.5 pb-1 pt-2 sm:hidden">
+          <!-- 窄屏顶栏不显示余额，放在账户卡下方（管理端门户不混排个人余额）。 -->
+          <div v-if="!isAdminPortal" class="flex items-baseline justify-between gap-3 px-2.5 pb-1 pt-2 sm:hidden">
             <span class="text-xs text-gray-500 dark:text-dark-400">{{ t('common.availableBalance') }}</span>
             <span class="text-right">
               <span class="block text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{{ formatMoney(availableBalance) }}</span>
@@ -42,13 +42,26 @@
           </div>
         </div>
 
-        <!-- 导航分组的显示条件与侧栏一致：功能开关、简易模式、管理员只读协助的路径映射。 -->
-        <div v-for="group in navGroups" :key="group.key" class="menu-section">
-          <RouterLink v-for="item in group.items" :key="item.path" :to="item.to" class="menu-item" @click="open = false">
-            <Icon :name="item.icon" size="md" class="shrink-0" />
-            {{ item.label }}
-          </RouterLink>
+        <div v-if="authStore.isAdmin && !authStore.isSimpleMode" class="menu-section">
+          <button v-if="isAdminPortal" type="button" class="menu-item" @click="switchToUserPortal">
+            <Icon name="home" size="md" class="shrink-0" />
+            {{ t('nav.userPortal') }}
+          </button>
+          <button v-else type="button" class="menu-item" @click="switchToAdminPortal">
+            <Icon name="cog" size="md" class="shrink-0" />
+            {{ t('nav.backToAdmin') }}
+          </button>
         </div>
+
+        <!-- 导航分组的显示条件与侧栏一致：功能开关、简易模式、管理员只读协助的路径映射。 -->
+        <template v-if="!isAdminPortal">
+          <div v-for="group in navGroups" :key="group.key" class="menu-section">
+            <RouterLink v-for="item in group.items" :key="item.path" :to="item.to" class="menu-item" @click="open = false">
+              <Icon :name="item.icon" size="md" class="shrink-0" />
+              {{ item.label }}
+            </RouterLink>
+          </div>
+        </template>
 
         <div v-if="view.isAdmin && (appStore.releaseRepository || showOnboarding)" class="menu-section">
           <a
@@ -129,7 +142,9 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import { useUserView } from '@/composables/useUserView'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
-import { adminSupportContext } from '@/utils/adminSupportContext'
+import { adminSupportContext, beginSupportTransition, endSupportTransition, setAdminSupportContext } from '@/utils/adminSupportContext'
+import { usePortalArea } from '@/composables/usePortalArea'
+import { ADMIN_PORTAL_HOME, USER_PORTAL_HOME } from '@/utils/portalArea'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
@@ -142,6 +157,8 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const view = useUserView()
+const portalArea = usePortalArea()
+const isAdminPortal = computed(() => portalArea.value === 'admin')
 const { themeMode, setThemeMode } = useTheme()
 
 const open = ref(false)
@@ -223,6 +240,22 @@ const themeOptions = computed<Array<{ mode: ThemeMode; icon: MenuIcon | null; la
 
 function formatMoney(value: number): string {
   return withCreditUnit(value.toFixed(2))
+}
+
+function switchToUserPortal() {
+  open.value = false
+  setAdminSupportContext(null)
+  void router.push(USER_PORTAL_HOME)
+}
+
+async function switchToAdminPortal() {
+  open.value = false
+  beginSupportTransition()
+  try {
+    await router.push(ADMIN_PORTAL_HOME)
+  } finally {
+    endSupportTransition()
+  }
 }
 
 function replayGuide() {

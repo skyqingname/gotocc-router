@@ -441,6 +441,8 @@ func sanitizeEncryptedReasoningInputItem(item any) (next any, changed bool, keep
 			return nil, true, false
 		}
 		return item, false, true
+	case "function_call_output", "custom_tool_call_output":
+		return sanitizeEncryptedToolOutputItem(inputItem)
 	case "reasoning":
 	default:
 		return item, false, true
@@ -464,6 +466,60 @@ func sanitizeEncryptedReasoningInputItem(item any) (next any, changed bool, keep
 		return nil, true, false
 	}
 	return inputItem, true, true
+}
+
+func sanitizeEncryptedToolOutputItem(inputItem map[string]any) (next any, changed bool, keep bool) {
+	_, hasTopEncrypted := inputItem["encrypted_content"]
+	rawOutput, hasOutput := inputItem["output"]
+	if !hasOutput {
+		return inputItem, false, true
+	}
+	switch out := rawOutput.(type) {
+	case string:
+		if !hasTopEncrypted || strings.TrimSpace(out) == "" {
+			return inputItem, false, true
+		}
+		delete(inputItem, "encrypted_content")
+		return inputItem, true, true
+	case []any:
+		keptBlocks := make([]any, 0, len(out))
+		removedBlock := false
+		for _, rawBlock := range out {
+			blockMap, ok := rawBlock.(map[string]any)
+			if !ok {
+				keptBlocks = append(keptBlocks, rawBlock)
+				continue
+			}
+			blockType, _ := blockMap["type"].(string)
+			_, blockHasEnc := blockMap["encrypted_content"]
+			if strings.TrimSpace(blockType) == "encrypted_content" || (blockHasEnc && len(blockMap) <= 2 && blockMap["text"] == nil) {
+				removedBlock = true
+				continue
+			}
+			if blockHasEnc {
+				cloned := make(map[string]any, len(blockMap))
+				for k, v := range blockMap {
+					if k != "encrypted_content" {
+						cloned[k] = v
+					}
+				}
+				keptBlocks = append(keptBlocks, cloned)
+				removedBlock = true
+				continue
+			}
+			keptBlocks = append(keptBlocks, rawBlock)
+		}
+		if len(keptBlocks) == 0 || (!hasTopEncrypted && !removedBlock) {
+			return inputItem, false, true
+		}
+		if hasTopEncrypted {
+			delete(inputItem, "encrypted_content")
+		}
+		inputItem["output"] = keptBlocks
+		return inputItem, true, true
+	default:
+		return inputItem, false, true
+	}
 }
 
 // SanitizeOpenAICrossModeFailoverReasoning derives a failover attempt body from
