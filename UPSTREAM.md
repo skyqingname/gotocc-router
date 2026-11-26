@@ -6,14 +6,16 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
-The integration candidate starts from owned main `880dcfeeae459753e33272e0d6af7b925eb6160a`
-(`skyqingname/gotocc-router@v0.2.22+custom.001`, fixed package commit
-`f6cceec5cd81f1353d8a38ed782a65f4b755a11b`) and incorporates the complete
+GoToCC `skyqingname/gotocc-router@v0.2.25+custom.001` starts from owned main
+`880dcfeeae459753e33272e0d6af7b925eb6160a` (`skyqingname/gotocc-router@v0.2.22+custom.001`,
+fixed package commit `f6cceec5cd81f1353d8a38ed782a65f4b755a11b`) and incorporates the complete
 `LuckyKuang/sub2api-plus@v0.2.25+custom.001` release, peeled commit
-`95efe37e1e4eba9393b040a3886636a3afbb018d` (including `v0.2.24+custom.002`,
+`95efe37e1e4eba9393b040a3886636a3afbb018d` (official baseline `Wei-Shaw/sub2api@v0.2.25` /
+`348997267d756eab5729bb6b78a275a15d18796a`, including `v0.2.24+custom.002`,
 `v0.2.24+custom.001` / `01321e120fe3a46fd5055c4494f1bd920a11be93`, and
 `v0.2.23+custom.001` / `af401db0512a2473b703d5f5c56208352abf5a4d`).
-The owned `VERSION` remains `0.2.22+custom.001` pending acceptance and release.
+Publication was authorized on 2026-11-26; the owned GitHub Release is the authority for
+completed publication.
 Plus migrations 316 and 317 are imported as **344** (`344_channel_pricing_ultrafast_multiplier.sql`)
 and **345** (`345_plugin_bindings_transport_exclusive.sql`);
 existing SQL files through 343 stay byte-for-byte unchanged. GoToCC retains its
@@ -180,9 +182,9 @@ These identifiers describe the current planned source revision. Its tag and
 image are not published; the mapping status below governs publication.
 
 ```text
-Git/GitHub: v0.2.24+custom.001
-Application: 0.2.24+custom.001
-GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.24-custom.001
+Git/GitHub: v0.2.25+custom.001
+Application: 0.2.25+custom.001
+GHCR: ghcr.io/luckykuang/sub2api-plus:v0.2.25-custom.001
 ```
 
 ## Release Mapping
@@ -391,3 +393,5 @@ published tags and artifacts are immutable.
 | `skyqingname/gotocc-router@v0.2.21+custom.003` | `v0.2.21` | `10ba8f9b4dc2e6023d4a9879ab77b21841babd10` | fixed Plus `b5b13fd907`; stream keepalive before the first upstream byte, second interface batch, GPT-6.2 Sol/Astra prices and 72 fingerprint identities, user usage page scrolling, #70 and #65; publication authorized 2026-11-18; see owned GitHub Release |
 
 | `skyqingname/gotocc-router@v0.2.22+custom.001` | `v0.2.22` | `b0fa9f3e6eeab1968a53e1289b69daa4bb40ca2b` | fixed Plus `1476c0f43`; overflow to lower-priority accounts, immediate switch on account-level 429, progress-aware session takeover, usage chart tables, header icon entries and latest models per vendor in search; publication authorized 2026-11-19; see owned GitHub Release |
+
+| `skyqingname/gotocc-router@v0.2.25+custom.001` | `v0.2.25` | `348997267d756eab5729bb6b78a275a15d18796a` | fixed Plus `95efe37e1` (with `v0.2.23+custom.001` and `v0.2.24+custom.001/.002`); migrations 344 and 345, session-takeover JSON null-error fix, deterministic 404 for unsupported group models, client-disconnect keepalive fix, encrypted tool-output recovery, team actor header scope, auto-key native test catalog, three-way admin ops error diagnostics, and multi-viewport usage table layout; publication authorized 2026-11-26; see owned GitHub Release |
