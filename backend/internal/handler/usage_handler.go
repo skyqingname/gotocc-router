@@ -219,6 +219,7 @@ func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) 
 			UserID:             subject.UserID,
 			APIKeyID:           apiKeyID,
 			GroupID:            groupID,
+			RequestID:          strings.TrimSpace(c.Query("request_id")),
 			Model:              strings.TrimSpace(c.Query("model")),
 			ModelFilterSource:  usagestats.ModelSourceRequested,
 			RequestType:        requestType,
@@ -326,6 +327,9 @@ func (h *UsageHandler) ListErrors(c *gin.Context) {
 	}
 
 	filter.Model = strings.TrimSpace(c.Query("model"))
+	// The request number users see is the client request ID (X-Client-Request-ID);
+	// usage rows store it as "client:<id>", so a value copied from there also matches.
+	filter.ClientRequestID = strings.TrimPrefix(strings.TrimSpace(c.Query("request_id")), "client:")
 
 	if k := strings.TrimSpace(c.Query("api_key_id")); k != "" {
 		n, err := strconv.ParseInt(k, 10, 64)

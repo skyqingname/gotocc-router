@@ -98,6 +98,9 @@ export interface User {
   allowed_groups: number[] | null // Allowed group IDs (null = all non-exclusive groups)
   balance_notify_enabled: boolean
   balance_notify_threshold: number | null
+  /** 'percentage' 时阈值是累计充值的百分比（后端 balance_notify_service.resolveBalanceThreshold）。 */
+  balance_notify_threshold_type: 'fixed' | 'percentage'
+  total_recharged: number
   balance_notify_extra_emails: NotifyEmailEntry[]
   subscriptions?: UserSubscription[] // User's active subscriptions
   last_active_at?: string | null
@@ -2293,6 +2296,8 @@ export interface ExtendSubscriptionRequest {
 
 export interface UserErrorRequest {
   id: number
+  /** Client request ID, the X-Client-Request-ID header the caller received. */
+  request_id: string
   created_at: string
   model: string
   inbound_endpoint: string
@@ -2325,6 +2330,7 @@ export interface UserErrorListParams {
   status_code?: number
   category?: string
   api_key_id?: number
+  request_id?: string
   // 服务端排序,列白名单见后端 opsErrorLogsOrderBy(created_at/model/status_code)
   sort_by?: string
   sort_order?: 'asc' | 'desc'
@@ -2334,6 +2340,7 @@ export interface UsageQueryParams {
   snapshot_max_id?: number | 'new'
   page?: number
   page_size?: number
+  request_id?: string
   api_key_id?: number
   user_id?: number
   account_id?: number

@@ -7,10 +7,11 @@ import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
 import {
   BatchImageIcon, BellIcon, CanvasIcon, ChannelIcon, ChartIcon, CogIcon, CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon,
   GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, OrderIcon, OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon,
-  ResellerIcon, ServerIcon, ShieldIcon, SignalIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
+  ResellerIcon, RocketIcon, ServerIcon, ShieldIcon, SignalIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
 } from '@/components/gotocc/navIcons'
 import { vendorLabel } from '@/components/gotocc/plaza/vendors'
 import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
+import { useOnboardingProgress } from '@/composables/useOnboardingProgress'
 import { usePortalArea } from '@/composables/usePortalArea'
 import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useResellerCustomer } from '@/composables/useResellerCustomer'
@@ -104,6 +105,7 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   const resellerAccess = useResellerAccess()
   const { canUseAsyncImage } = useAsyncImageAccess()
   const { isDark, toggleTheme } = useTheme()
+  const onboarding = useOnboardingProgress()
   const routes = new Map(router.getRoutes().map((record) => [record.path, record]))
 
   const flag = (definition: FeatureFlagDefinition) => () => isFeatureFlagEnabled(definition)
@@ -122,6 +124,7 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
       .sort((a, b) => a.sort_order - b.sort_order)
     return [
       { path: '/dashboard', icon: DashboardIcon, titleKey: personal ? 'nav.personalDashboard' : undefined },
+      { path: '/getting-started', icon: RocketIcon },
       { path: '/model-plaza?embedded=1', icon: ModelPlazaIcon, when: flag(FeatureFlags.modelPlaza) },
       { path: '/keys', icon: KeyIcon },
       { path: '/team', icon: TeamIcon, hideInSimpleMode: true, when: teamEnabled },
@@ -259,6 +262,16 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
       run,
     })
     return [
+      // 新手导览：重新打开设置引导并进入「开始使用」；密钥页导览：在密钥页从头讲一遍。
+      ...(visible.has('/getting-started')
+        ? [
+            action('guide', texts((code) => t('consoleGuide.menu.guide', {}, { locale: code })), 'document', () => {
+              onboarding.reopen()
+              return router.push('/getting-started')
+            }),
+            action('keys-tour', texts((code) => t('consoleGuide.menu.keysTour', {}, { locale: code })), 'key', () => router.push({ path: '/keys', query: { tour: '1' } })),
+          ]
+        : []),
       ...(visible.has('/keys') ? [action('create-key', texts((code) => t('dashboard.createApiKey', {}, { locale: code })), 'key', () => router.push('/keys'))] : []),
       ...(visible.has('/purchase')
         ? [action('purchase', texts((code) => t('gotocc.search.actions.goTo', { page: t(purchaseKey, {}, { locale: code }) }, { locale: code })), 'creditCard', () => router.push('/purchase'))]

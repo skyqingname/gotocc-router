@@ -35,6 +35,7 @@
       <ProfilePasswordForm class="workspace-shell" />
 
       <ProfileBalanceNotifyCard
+        id="balance-notify"
         class="workspace-shell"
         v-if="user && balanceLowNotifyEnabled"
         :enabled="user.balance_notify_enabled ?? true"
@@ -51,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -64,6 +66,7 @@ import { isWeChatWebOAuthEnabled } from '@/api/auth'
 import { useAppStore } from '@/stores/app'
 import { useUserView as useAuthStore } from '@/composables/useUserView'
 
+const route = useRoute()
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
@@ -94,6 +97,10 @@ onMounted(async () => {
       contactInfo.value = settings.contact_info || ''
       balanceLowNotifyEnabled.value = settings.balance_low_notify_enabled ?? false
       systemDefaultThreshold.value = settings.balance_low_notify_threshold ?? 0
+      // 从控制台余额提醒条「设置邮件提醒」进来时滚到余额提醒卡片。
+      if (balanceLowNotifyEnabled.value && route.hash === '#balance-notify') {
+        void nextTick(() => document.getElementById('balance-notify')!.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+      }
       linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled ?? false
       dingtalkOAuthEnabled.value = settings.dingtalk_oauth_enabled ?? false
       wechatOAuthEnabled.value = isWeChatWebOAuthEnabled(settings)

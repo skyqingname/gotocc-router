@@ -15,7 +15,18 @@
 
     <!-- Detail content -->
     <div v-else-if="detail" class="space-y-4 text-sm">
+      <!-- 白话原因与下一步建议，归因与管理端共用（utils/userErrorAdvice.ts）。 -->
+      <div class="detail-advice gc-reveal" :data-blame="advice!.blame" data-test="error-detail-advice">
+        <span class="detail-advice-badge">{{ t(`consoleGuide.errorAdvice.blame.${advice!.blame}`) }}</span>
+        <p class="detail-advice-reason">{{ t(`consoleGuide.errorAdvice.reason.${advice!.key}`) }}</p>
+        <p class="detail-advice-next">{{ t(`consoleGuide.errorAdvice.next.${advice!.key}`) }}</p>
+      </div>
       <div class="grid grid-cols-2 gap-x-6 gap-y-3">
+        <!-- Request ID -->
+        <div v-if="detail.request_id" class="col-span-2">
+          <span class="font-medium surface-muted">{{ t('consoleGuide.usage.requestId') }}</span>
+          <p class="mt-0.5 break-all font-mono text-gray-900 dark:text-dark-100">{{ detail.request_id }}</p>
+        </div>
         <!-- Time -->
         <div>
           <span class="font-medium surface-muted">{{ t('usage.errors.time') }}</span>
@@ -76,13 +87,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DetailContentHost from '@/components/common/DetailContentHost.vue'
 import { adminSupportContext } from '@/utils/adminSupportContext'
 import { getMyErrorDetail } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
 import type { UserErrorRequestDetail } from '@/types'
+import { adviseUserError } from '@/utils/userErrorAdvice'
 
 const props = defineProps<{
   embedded?: boolean
@@ -99,6 +111,7 @@ const { t } = useI18n()
 const loading = ref(false)
 const loadError = ref(false)
 const detail = ref<UserErrorRequestDetail | null>(null)
+const advice = computed(() => (detail.value ? adviseUserError(detail.value) : null))
 let generation = 0
 onBeforeUnmount(() => { generation++ })
 
@@ -137,3 +150,16 @@ function statusClass(code: number) {
   return 'badge-gray'
 }
 </script>
+
+<style scoped>
+.detail-advice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border-radius: var(--surface-radius-card); background: var(--surface-soft); }
+.detail-advice-badge { padding: 1px 8px; border-radius: var(--surface-radius-tag); font-size: 12px; font-weight: 600; }
+.detail-advice[data-blame='user'] .detail-advice-badge { background: rgb(59 130 246 / 14%); color: theme('colors.blue.700'); }
+.detail-advice[data-blame='upstream'] .detail-advice-badge { background: rgb(239 68 68 / 13%); color: theme('colors.red.700'); }
+.detail-advice[data-blame='gateway'] .detail-advice-badge { background: rgb(139 92 246 / 15%); color: theme('colors.violet.700'); }
+.dark .detail-advice[data-blame='user'] .detail-advice-badge { color: theme('colors.blue.300'); }
+.dark .detail-advice[data-blame='upstream'] .detail-advice-badge { color: theme('colors.red.300'); }
+.dark .detail-advice[data-blame='gateway'] .detail-advice-badge { color: theme('colors.violet.300'); }
+.detail-advice-reason { font-size: 14px; font-weight: 600; color: var(--surface-text); }
+.detail-advice-next { font-size: 13px; color: var(--surface-muted); }
+</style>

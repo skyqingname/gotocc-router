@@ -18,6 +18,31 @@
         @sort="onSort"
         @rowClick="(row) => openDetail(row.id)"
       >
+        <template #cell-request_id="{ row }">
+          <div v-if="row.request_id" class="flex min-w-0 items-center gap-1" @click.stop>
+            <span class="truncate font-mono text-xs surface-muted" :title="row.request_id">{{ row.request_id }}</span>
+            <button
+              type="button"
+              class="flex-none rounded p-0.5 transition-colors hover:surface-hover surface-control surface-muted"
+              :class="copiedRequestId === row.request_id && 'text-emerald-500'"
+              :aria-label="t('consoleGuide.usage.copyRequestId')"
+              data-test="error-request-id-copy"
+              @click="copyRequestId(row.request_id)"
+            >
+              <Icon :name="copiedRequestId === row.request_id ? 'check' : 'copy'" size="xs" />
+            </button>
+          </div>
+          <span v-else class="text-sm surface-muted">-</span>
+        </template>
+
+        <template #cell-advice="{ row }">
+          <div class="error-advice" :data-blame="advice(row).blame" data-test="error-advice">
+            <span class="error-advice-badge">{{ t(`consoleGuide.errorAdvice.blame.${advice(row).blame}`) }}</span>
+            <span class="error-advice-reason">{{ t(`consoleGuide.errorAdvice.reason.${advice(row).key}`) }}</span>
+            <span class="error-advice-next">{{ t(`consoleGuide.errorAdvice.next.${advice(row).key}`) }}</span>
+          </div>
+        </template>
+
         <template #cell-model="{ row }">
           <span v-if="row.model" class="text-sm font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
           <span v-else class="text-sm surface-muted">-</span>
@@ -135,7 +160,10 @@ import Pagination from '@/components/common/Pagination.vue'
 import UserErrorDetailModal from '@/components/user/UserErrorDetailModal.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
+import Icon from '@/components/icons/Icon.vue'
+import { useClipboard } from '@/composables/useClipboard'
 import { formatDateTime } from '@/utils/format'
+import { adviseUserError, type UserErrorAdvice } from '@/utils/userErrorAdvice'
 import {
   mapErrorSortKey,
   numericRequestTypeKind,
@@ -173,6 +201,8 @@ const { t } = useI18n()
 
 const allColumns = computed<Column[]>(() => [
   { key: 'created_at', label: t('usage.errors.time'), sortable: true },
+  { key: 'advice', label: t('consoleGuide.errorAdvice.column') },
+  { key: 'request_id', label: t('consoleGuide.usage.requestId') },
   { key: 'key_name', label: t('usage.errors.keyName') },
   { key: 'model', label: t('usage.errors.model'), sortable: true },
   { key: 'endpoint', label: t('usage.errors.endpoint') },
@@ -191,7 +221,7 @@ const columns = computed<Column[]>(() =>
     ? allColumns.value.filter((c) => props.visibleColumnKeys!.includes(c.key))
     : allColumns.value
 )
-const compactWidths: Record<string, number> = { created_at: 124, key_name: 140, model: 160, category: 100, status: 90, message: 240 }
+const compactWidths: Record<string, number> = { created_at: 124, request_id: 150, key_name: 140, model: 160, advice: 280, category: 100, status: 90, message: 240 }
 const compactTableWidth = computed(() => columns.value.reduce((width, column) => width + (compactWidths[column.key] ?? 160), 0))
 
 function requestTypeBadge(row: UserErrorRequest): { label: string; className: string } | null {
@@ -209,6 +239,27 @@ function openDetail(id: number) {
 }
 
 const statusClass = statusCodeBadgeClass
+
+// 每行的白话原因按行缓存，避免每个单元格重复判断。
+const adviceCache = new WeakMap<UserErrorRequest, UserErrorAdvice>()
+function advice(row: UserErrorRequest): UserErrorAdvice {
+  let found = adviceCache.get(row)
+  if (!found) {
+    found = adviseUserError(row)
+    adviceCache.set(row, found)
+  }
+  return found
+}
+
+const { copyToClipboard } = useClipboard()
+const copiedRequestId = ref('')
+let copiedTimer: number | undefined
+async function copyRequestId(id: string) {
+  if (!(await copyToClipboard(id, t('keyConsole.copied')))) return
+  copiedRequestId.value = id
+  window.clearTimeout(copiedTimer)
+  copiedTimer = window.setTimeout(() => { copiedRequestId.value = '' }, 1600)
+}
 </script>
 
 <style scoped>
@@ -219,6 +270,18 @@ const statusClass = statusCodeBadgeClass
 .error-compact :deep([data-field="category"]) { width: 100px; }
 .error-compact :deep([data-field="status"]) { width: 90px; }
 .error-compact :deep([data-field="message"]) { width: 240px; }
+.error-compact :deep([data-field="request_id"]) { width: 150px; }
+.error-compact :deep([data-field="advice"]) { width: 280px; }
+.error-advice { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.error-advice-badge { padding: 1px 6px; border-radius: var(--surface-radius-tag); font-size: 11px; font-weight: 600; }
+.error-advice[data-blame='user'] .error-advice-badge { background: rgb(59 130 246 / 14%); color: theme('colors.blue.700'); }
+.error-advice[data-blame='upstream'] .error-advice-badge { background: rgb(239 68 68 / 13%); color: theme('colors.red.700'); }
+.error-advice[data-blame='gateway'] .error-advice-badge { background: rgb(139 92 246 / 15%); color: theme('colors.violet.700'); }
+.dark .error-advice[data-blame='user'] .error-advice-badge { color: theme('colors.blue.300'); }
+.dark .error-advice[data-blame='upstream'] .error-advice-badge { color: theme('colors.red.300'); }
+.dark .error-advice[data-blame='gateway'] .error-advice-badge { color: theme('colors.violet.300'); }
+.error-advice-reason { font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--surface-text); }
+.error-advice-next { font-size: 12px; line-height: 1.5; color: var(--surface-muted); }
 .error-compact :deep(td [class*="max-w-"]) { max-width: 100%; }
 @media (max-width: 767px) { .error-compact :deep(.record-cards [data-field]) { width: auto; padding-inline: 0; } }
 </style>

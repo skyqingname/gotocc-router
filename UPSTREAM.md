@@ -6,6 +6,12 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
+GoToCC `0.2.25+custom.004` is a local candidate on top of the `0.2.25+custom.003`
+candidate (`01efb8160`). It adds console onboarding, request-ID lookup with
+plain-language failure causes, and an in-console low-balance reminder; the
+backend only gains a `request_id` filter on the user usage and error lists.
+No database schema changes.
+
 GoToCC `0.2.25+custom.003` is a local candidate based on owned main
 `3618610ad424df4d995cc0e18e449aacc7747b6b` and retains the Plus
 `v0.2.25+custom.001` baseline below. It reworks the user console shell and

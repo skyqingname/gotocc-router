@@ -935,6 +935,8 @@
       :base-url="publicSettings?.api_base_url || ''"
       @close="closeTestModal"
     />
+
+    <SpotlightTour :open="tourOpen" :steps="tourSteps" @finish="onTourFinish" />
   </AppLayout>
 </template>
 
@@ -975,6 +977,9 @@ import KeyStatsBar, { type KeyStat } from '@/components/keys/KeyStatsBar.vue'
 import KeyDetailDialog from '@/components/keys/KeyDetailDialog.vue'
 import KeyCreatedPanel from '@/components/keys/KeyCreatedPanel.vue'
 import CcSwitchImportDialog from '@/components/keys/CcSwitchImportDialog.vue'
+import SpotlightTour, { type TourStep } from '@/components/gotocc/onboarding/SpotlightTour.vue'
+import { useAuthStore } from '@/stores/auth'
+import consoleGuide from '../../../../console-guide.json'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import GroupRateSummary from '@/components/keys/GroupRateSummary.vue'
@@ -1828,11 +1833,71 @@ const loadScopeStats = () => {
 
 watch(scope, loadScopeStats)
 
+// ==================== Page tour & onboarding intents ====================
+// 「开始使用」页带 onboarding=create / ccswitch 跳进来时直接打开对应弹窗；第一次这样进来先放一遍
+// 导览，放完再打开。tour=1（头像菜单「密钥页导览」）只放导览。
+const authStore = useAuthStore()
+const tourSeenKey = () => `${consoleGuide.keys_tour.storage_prefix}${authStore.user!.id}`
+const tourOpen = ref(false)
+let tourIntent = ''
+
+const tourSteps = computed<TourStep[]>(() => {
+  const step = (target: string, name: string, enter?: () => void): TourStep => ({
+    target,
+    title: t(`consoleGuide.tour.steps.${name}.title`),
+    body: t(`consoleGuide.tour.steps.${name}.body`),
+    enter
+  })
+  const steps = [
+    step('.endpoint-bar', 'endpoint'),
+    step('.key-stats', 'stats'),
+    step('[data-tour=keys-create-btn]', 'create')
+  ]
+  const first = clientConfigKeys.value[0]
+  if (!first) return [...steps, step('.workspace-table-card', 'list')]
+  const openFirst = () => { detailKeyId.value = first.id }
+  return [
+    ...steps,
+    ...(showCcs.value ? [step('[data-test=key-detail-ccs]', 'ccswitch', openFirst)] : []),
+    step('[data-test=key-detail-logs]', 'logs', openFirst)
+  ]
+})
+
+const runOnboardingIntent = (intent: string) => {
+  if (intent === 'create') showCreateModal.value = true
+  if (intent === 'ccswitch') openCcSwitch(clientConfigKeys.value[0])
+}
+
+const onTourFinish = () => {
+  tourOpen.value = false
+  detailKeyId.value = null
+  localStorage.setItem(tourSeenKey(), '1')
+  runOnboardingIntent(tourIntent)
+  tourIntent = ''
+}
+
+const handleOnboardingQuery = () => {
+  const intent = typeof route.query.onboarding === 'string' ? route.query.onboarding : ''
+  const tour = route.query.tour === '1'
+  if (!intent && !tour) return
+  const { onboarding: _onboarding, tour: _tour, ...query } = route.query
+  void router.replace({ query })
+  if (tour || localStorage.getItem(tourSeenKey()) !== '1') {
+    tourIntent = intent
+    tourOpen.value = true
+  } else {
+    runOnboardingIntent(intent)
+  }
+}
+
 onMounted(async () => {
   void refreshQuotes()
   loadScopeStats()
   await loadPublicSettings()
   await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
+  handleOnboardingQuery()
+  // 已在密钥页时从头像菜单再点「密钥页导览」，只有地址参数变化。
+  watch(() => [route.query.onboarding, route.query.tour], handleOnboardingQuery)
 })
 
 useLocaleRefresh(() => Promise.all([loadApiKeys(), loadGroups(), refreshQuotes()]))

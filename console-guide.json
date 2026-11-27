@@ -1,0 +1,18 @@
+{
+  "onboarding": {
+    "storage_prefix": "gotocc_onboarding_",
+    "celebration_particles": 14
+  },
+  "keys_tour": {
+    "storage_prefix": "gotocc_keys_tour_seen_",
+    "spotlight_padding": 8,
+    "bubble_gap": 14,
+    "bubble_width": 320
+  },
+  "balance_reminder": {
+    "storage_prefix": "gotocc_balance_reminder_"
+  },
+  "request_id": {
+    "usage_client_prefix": "client:"
+  }
+}

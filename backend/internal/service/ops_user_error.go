@@ -12,6 +12,7 @@ import "time"
 // error_body 仅在详情接口（GetUserErrorRequestDetail）按归属校验后返回。
 type UserErrorRequest struct {
 	ID              int64     `json:"id"`
+	RequestID       string    `json:"request_id"`
 	CreatedAt       time.Time `json:"created_at"`
 	Model           string    `json:"model"`
 	InboundEndpoint string    `json:"inbound_endpoint"`
@@ -109,6 +110,7 @@ func ToUserErrorRequest(e *OpsErrorLog) *UserErrorRequest {
 	}
 	return &UserErrorRequest{
 		ID:              e.ID,
+		RequestID:       e.ClientRequestID,
 		CreatedAt:       e.CreatedAt,
 		Model:           model,
 		InboundEndpoint: e.InboundEndpoint,

@@ -15,6 +15,7 @@
       <main class="app-main">
         <div class="app-page">
           <AdminSupportBanner v-if="supportUser" :target="supportUser" class="support-banner-spacing" />
+          <BalanceReminderBar v-if="portalArea !== 'admin' && !supportUser && authStore.user" class="support-banner-spacing" />
           <slot />
         </div>
       </main>
@@ -44,6 +45,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
 import AdminSupportBanner from '@/components/admin/support/AdminSupportBanner.vue'
+import BalanceReminderBar from '@/components/gotocc/BalanceReminderBar.vue'
 import { useUserView } from '@/composables/useUserView'
 import { usePortalArea } from '@/composables/usePortalArea'
 import { adminSupportContext, supportTransitioning } from '@/utils/adminSupportContext'
