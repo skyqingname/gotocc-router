@@ -12,5 +12,9 @@ target.write_text(
     f'const QuotaSnapshotMaxAgeSeconds = {config["quota_snapshot_max_age_seconds"]}\n'
     f'const TakeoverHeaderWaitSeconds = {config["takeover_header_wait_seconds"]}\n'
     f'const TakeoverUpstreamIdleSeconds = {config["takeover_upstream_idle_seconds"]}\n'
-    f'const TakeoverTotalWaitSeconds = {config["takeover_total_wait_seconds"]}\n'
+    f'const TakeoverTotalWaitSeconds = {config["takeover_total_wait_seconds"]}\n\n'
+    'var OpenAIRelayIncompatible400Keywords = [...]string{\n'
+    + ''.join(f'\t{json.dumps(keyword, ensure_ascii=False)},\n'
+              for keyword in config['openai_relay_incompatible_400_keywords'])
+    + '}\n'
 )

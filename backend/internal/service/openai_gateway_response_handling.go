@@ -695,6 +695,11 @@ func (s *OpenAIGatewayService) handleStreamingResponseWithReasoning(ctx context.
 					}
 				}
 				if !outputStarted {
+					if relayFailure := s.openAIRelayEventFailover(c, account, resp.Header, dataBytes, false); !cyberHit && relayFailure != nil {
+						sawFailedEvent = true
+						streamEarlyErr = relayFailure
+						return
+					}
 					shouldFailover := false
 					if !cyberHit {
 						if eventType == "error" {

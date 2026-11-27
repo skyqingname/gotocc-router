@@ -256,6 +256,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			wsPath,
 			account.ProxyID != nil && account.Proxy != nil,
 		)
+		if failure := s.openAIRelayWSDialFailover(ctx, c, account, err, false); failure != nil {
+			return nil, failure
+		}
 		var dialErr *openAIWSDialError
 		if errors.As(err, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 			s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(err.Error()), mappedModel)
@@ -722,6 +725,12 @@ readLoop:
 			markOpenAICyberPolicyEvent(c, message, http.StatusOK, usage)
 		}
 
+		if !wroteDownstream && (eventType == "error" || eventType == "response.failed") {
+			if failure := s.openAIRelayEventFailover(c, account, lease.HandshakeHeaders(), message, false); failure != nil {
+				lease.MarkBroken()
+				return nil, failure
+			}
+		}
 		if eventType == "error" {
 			s.handleOpenAIWSErrorEventTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), message)
 			errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(message)
@@ -775,6 +784,9 @@ readLoop:
 				return nil, wrapOpenAIWSFallback(fallbackReason, errors.New(errMsg))
 			}
 			statusCode := openAIWSErrorHTTPStatus(message)
+			if statusCode == http.StatusBadRequest || statusCode == http.StatusUnprocessableEntity {
+				setOpenAIErrorMessageSource(c, statusCode, message, account)
+			}
 			setOpsUpstreamError(c, statusCode, errMsg, "")
 			if reqStream && !clientDisconnected {
 				flushBufferedStreamEvents("error_event")

@@ -133,6 +133,12 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 			)
 		}
 
+		if eventType == "error" || eventType == "response.failed" {
+			if failure := s.openAIRelayEventFailover(nil, account, lease.HandshakeHeaders(), message, false); failure != nil {
+				lease.MarkBroken()
+				return failure
+			}
+		}
 		if eventType == "error" {
 			if status, ok := openAIRequestTerminalEventStatus(message); ok {
 				lease.MarkBroken()
@@ -903,6 +909,15 @@ func openAIWSErrorHTTPStatusFromRaw(codeRaw, errTypeRaw string) int {
 	default:
 		return http.StatusBadGateway
 	}
+}
+
+// openAIWSRejectionStatus reads the status from both error frame shapes.
+func openAIWSRejectionStatus(payload []byte) int {
+	if status := openAIErrorEventStatus(payload); status != 0 {
+		return status
+	}
+	_, fields := openAIProtocolError(gjson.ParseBytes(payload))
+	return openAIWSErrorHTTPStatusFromRaw(fields.Get("code").String(), fields.Get("type").String())
 }
 
 func openAIWSErrorHTTPStatus(message []byte) int {

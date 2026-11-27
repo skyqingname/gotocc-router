@@ -996,6 +996,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			statusCode,
 			truncateOpenAIWSLogValue(err.Error(), openAIWSLogValueMaxLen),
 		)
+		if failure := s.openAIRelayWSDialFailover(ctx, c, account, dialErr, true); failure != nil {
+			return failure
+		}
 		s.handleOpenAIWSDialTransientFailure(ctx, account, capturedSessionModel, dialErr)
 		if statusCode == http.StatusTooManyRequests {
 			s.persistOpenAIWSRateLimitSignal(ctx, account, handshakeHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(err.Error()), capturedSessionModel)
@@ -1363,6 +1366,14 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		}
 		if (eventType == "error" || eventType == "response.failed") && markOpenAIWSV2PassthroughCyberPolicy(c, payload) {
 			return nil
+		}
+		if !wroteDownstream && (eventType == "error" || eventType == "response.failed") {
+			if failure := s.openAIRelayEventFailover(c, account, handshakeHeaders, payload, true); failure != nil {
+				if completedTurns.Load() > 0 {
+					return newOpenAIWSCurrentTurnFailoverError(failure, nil)
+				}
+				return failure
+			}
 		}
 		errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(payload)
 		isPreOutputRateLimit := eventType == "error" && !wroteDownstream && isOpenAIWSRateLimitEvent(payload, errCodeRaw, errTypeRaw, errMsgRaw)

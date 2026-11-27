@@ -1080,6 +1080,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				wsPath,
 				account.ProxyID != nil && account.Proxy != nil,
 			)
+			if failure := s.openAIRelayWSDialFailover(ctx, c, account, acquireErr, false); failure != nil {
+				return nil, failure
+			}
 			var dialErr *openAIWSDialError
 			if errors.As(acquireErr, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 				s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(acquireErr.Error()), canonicalModel)
@@ -1249,6 +1252,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if eventType == "error" || eventType == "response.failed" {
 				markOpenAICyberPolicyEvent(c, upstreamMessage, http.StatusOK, &usage)
+			}
+			if !wroteDownstream && (eventType == "error" || eventType == "response.failed") {
+				if failure := s.openAIRelayEventFailover(c, account, lease.HandshakeHeaders(), upstreamMessage, false); failure != nil {
+					lease.MarkBroken()
+					return nil, failure
+				}
 			}
 			if eventType == "error" {
 				s.handleOpenAIWSErrorEventTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)

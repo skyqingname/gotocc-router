@@ -4768,7 +4768,9 @@ func (h *OpenAIGatewayHandler) closeOpenAIWSFailoverExhausted(c *gin.Context, co
 	if !ok || errCode == "" {
 		errType, errCode = "server_error", "service_error"
 	}
-	errorObject := gin.H{"type": errType, "code": errCode, "message": message}
+	failoverErr.SetOpenAIErrorMessageSource(c)
+	publicMessage := service.CodexPublicErrorFinalMessage(c, key, message)
+	errorObject := gin.H{"type": errType, "code": errCode, "message": publicMessage}
 	if key == "policy_capacity_unavailable" && failoverErr != nil {
 		retryAdvice := make(map[string]string)
 		for _, name := range []string{"Retry-After", "Retry-After-Ms"} {

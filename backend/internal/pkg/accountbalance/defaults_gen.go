@@ -6,3 +6,8 @@ const QuotaSnapshotMaxAgeSeconds = 300
 const TakeoverHeaderWaitSeconds = 20
 const TakeoverUpstreamIdleSeconds = 60
 const TakeoverTotalWaitSeconds = 180
+
+var OpenAIRelayIncompatible400Keywords = [...]string{
+	"function_call_output requires call_id on HTTP requests",
+	"codex_session_identity_conflict",
+}

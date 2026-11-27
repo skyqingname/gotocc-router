@@ -1143,6 +1143,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			}
 			return wsResult, nil
 		}
+		var relayFailure *UpstreamFailoverError
+		if errors.As(wsErr, &relayFailure) && relayFailure.Reason == openAIRelayIncompatibleReason {
+			return nil, relayFailure
+		}
 		// 官方语义（client.rs FallbackToHttp）：上游拒绝 WS 升级（426）或声明不
 		// 支持 WebSocket 时，当前请求静默改走 HTTP，而不是把硬错误暴露给客户端。
 		// 同时标记 fallback cooling，让后续请求在冷却窗内直接选 HTTP 传输。
