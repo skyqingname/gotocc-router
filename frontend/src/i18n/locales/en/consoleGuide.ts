@@ -64,6 +64,8 @@ export default {
       doneTitle: 'You are all set',
       doneLead: 'Key, client and first request are in place. Enjoy.',
       progress: '{done}/{total} done',
+      loadFailed: "Couldn't load your progress. Please try again.",
+      retry: 'Retry',
       needKey: 'Finish step 1 first',
       celebrateTitle: 'Setup complete',
       celebrateLead: 'Every request now shows its usage and cost in usage records, and failures explain why.',

@@ -17,7 +17,11 @@
         </div>
       </section>
 
-      <div v-if="!progress.loaded.value" class="flex flex-col gap-3">
+      <div v-if="loadFailed" class="card start-failed" data-test="onboarding-load-failed">
+        <span>{{ t('consoleGuide.start.loadFailed') }}</span>
+        <button type="button" class="btn btn-secondary btn-sm" :disabled="loading" @click="load">{{ t('consoleGuide.start.retry') }}</button>
+      </div>
+      <div v-else-if="!progress.loaded.value" class="flex flex-col gap-3">
         <div v-for="index in 3" :key="index" class="gc-skeleton h-[74px] w-full"></div>
       </div>
       <OnboardingSteps v-else :steps="progress.steps.value" :has-key="progress.hasKey.value" @go="go" />
@@ -45,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -62,7 +66,22 @@ function go(id: OnboardingStepId) {
   void router.push(ONBOARDING_STEP_ROUTES[id])
 }
 
-onMounted(() => { void progress.refresh() })
+// 进度来自统计接口；失败时就地提示并可重试。
+const loadFailed = ref(false)
+const loading = ref(false)
+async function load() {
+  loading.value = true
+  loadFailed.value = false
+  try {
+    await progress.refresh()
+  } catch {
+    loadFailed.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => { void load() })
 </script>
 
 <style scoped>
@@ -82,6 +101,7 @@ onMounted(() => { void progress.refresh() })
   background: linear-gradient(90deg, theme('colors.primary.500'), theme('colors.accent.500'));
   transition: width var(--motion-collapse) var(--motion-ease-fluid);
 }
+.start-failed { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; font-size: 13px; color: var(--surface-muted); }
 .start-done { display: flex; align-items: center; gap: 18px; padding: 18px 22px; }
 .start-done-title { font-size: 17px; font-weight: 700; color: var(--surface-text); }
 .start-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-inline: 4px; font-size: 12px; }

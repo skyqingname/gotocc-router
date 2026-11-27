@@ -64,6 +64,8 @@ export default {
       doneTitle: '已经全部就绪',
       doneLead: '密钥、客户端和第一条请求都有了，可以放心开始用了。',
       progress: '已完成 {done}/{total}',
+      loadFailed: '加载进度失败，请稍后重试。',
+      retry: '重试',
       needKey: '先完成第 1 步',
       celebrateTitle: '接入完成',
       celebrateLead: '之后的每一条请求都能在使用记录里看到用量和费用；出错时那里也会写明原因。',
