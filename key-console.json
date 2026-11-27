@@ -1,0 +1,41 @@
+{
+  "endpoint_probe": {
+    "timeout_ms": 8000,
+    "primary_probe_path": "/health",
+    "storage_key": "gotocc_api_endpoint"
+  },
+  "key_reveal": {
+    "settle_start_ms": 190,
+    "settle_step_ms": 9,
+    "scramble_interval_ms": 55,
+    "charset": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    "mask_char": "•",
+    "visible_prefix": 6,
+    "visible_suffix": 4
+  },
+  "ccswitch": {
+    "usage_auto_interval_minutes": 30,
+    "default_app": "claude",
+    "default_app_by_platform": {
+      "anthropic": "claude",
+      "openai": "codex",
+      "gemini": "gemini",
+      "grok": "grokbuild"
+    },
+    "default_model_by_app": {
+      "codex": "openai_model",
+      "grokbuild": "grok_model"
+    },
+    "apps": [
+      { "id": "claude", "label": "Claude Code", "default_name": "My Claude", "api_format": "anthropic", "endpoint": "root", "icon": "anthropic", "model_fields": ["model", "haikuModel", "sonnetModel", "opusModel"] },
+      { "id": "codex", "label": "Codex", "default_name": "My Codex", "api_format": "openai_responses", "endpoint": "v1", "icon": "openai", "model_fields": ["model"] },
+      { "id": "gemini", "label": "Gemini CLI", "default_name": "My Gemini", "api_format": "gemini_native", "endpoint": "root", "icon": "gemini", "model_fields": ["model"] },
+      { "id": "grokbuild", "label": "Grok Build", "default_name": "My Grok Build", "api_format": "openai_responses", "endpoint": "v1", "icon": "grok", "model_fields": ["model"] },
+      { "id": "opencode", "label": "OpenCode", "default_name": "My OpenCode", "api_format": "openai_chat", "endpoint": "v1", "icon": "opencode_go", "model_fields": ["model"] },
+      { "id": "openclaw", "label": "OpenClaw", "default_name": "My OpenClaw", "api_format": "openai_chat", "endpoint": "v1", "icon": "", "model_fields": ["model"] },
+      { "id": "hermes", "label": "Hermes", "default_name": "My Hermes", "api_format": "openai_chat", "endpoint": "v1", "icon": "", "model_fields": ["model"] },
+      { "id": "pi", "label": "Pi", "default_name": "My Pi", "api_format": "openai_chat", "endpoint": "v1", "icon": "", "model_fields": ["model"] },
+      { "id": "agy", "label": "Antigravity CLI", "default_name": "My Antigravity CLI", "api_format": "gemini_native", "endpoint": "root", "icon": "antigravity", "model_fields": ["model"] }
+    ]
+  }
+}

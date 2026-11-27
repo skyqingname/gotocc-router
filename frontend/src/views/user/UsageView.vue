@@ -425,6 +425,8 @@ const errorViewEnabled = computed(() => appStore.cachedPublicSettings?.allow_use
 const filters = ref<UsageQueryParams>({
   start_date: startDate.value,
   end_date: endDate.value,
+  // 从 API 密钥详情「查看日志」进入时带上该密钥，打开即按它筛好。
+  api_key_id: route.query.api_key_id ? Number(route.query.api_key_id) : undefined,
   request_type: undefined,
   native_compaction_v2: null,
   billing_type: null,
