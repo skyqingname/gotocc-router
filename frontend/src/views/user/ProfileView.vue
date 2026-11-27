@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
@@ -84,6 +84,16 @@ const oidcOAuthEnabled = ref(false)
 const oidcOAuthProviderName = ref('OIDC')
 const passkeyEnabled = ref(false)
 
+// 从控制台余额提醒条「设置邮件提醒」进来（或已在本页时点它，只变锚点）时滚到余额提醒卡片。
+// 窄屏滚动的是整个窗口，路由每次跳转后会把窗口滚回顶部（router scrollBehavior）；
+// 放到下一轮任务里执行，排在路由的滚动之后。
+function scrollToBalanceNotify() {
+  if (balanceLowNotifyEnabled.value && route.hash === '#balance-notify') {
+    void nextTick(() => window.setTimeout(() => document.getElementById('balance-notify')!.scrollIntoView({ block: 'start', behavior: 'smooth' })))
+  }
+}
+watch(() => route.hash, scrollToBalanceNotify)
+
 onMounted(async () => {
   const profileRefresh = authStore.refreshUser().catch((error) => {
     console.error('Failed to refresh profile:', error)
@@ -97,10 +107,7 @@ onMounted(async () => {
       contactInfo.value = settings.contact_info || ''
       balanceLowNotifyEnabled.value = settings.balance_low_notify_enabled ?? false
       systemDefaultThreshold.value = settings.balance_low_notify_threshold ?? 0
-      // 从控制台余额提醒条「设置邮件提醒」进来时滚到余额提醒卡片。
-      if (balanceLowNotifyEnabled.value && route.hash === '#balance-notify') {
-        void nextTick(() => document.getElementById('balance-notify')!.scrollIntoView({ block: 'start', behavior: 'smooth' }))
-      }
+      scrollToBalanceNotify()
       linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled ?? false
       dingtalkOAuthEnabled.value = settings.dingtalk_oauth_enabled ?? false
       wechatOAuthEnabled.value = isWeChatWebOAuthEnabled(settings)
