@@ -903,7 +903,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	// 账号刚被上游拒绝 WS 升级时处在 fallback 冷却期：官方 client.rs 把这种结果
 	// 作为会话级永久回退 HTTP，Plus 用冷却窗表达同一意图——窗内不再重复 WS 拨号，
 	// 否则冷却窗里的每个请求都会各自再撞一次 426。
-	wsFallbackCooling := s.isOpenAIWSFallbackCooling(account.ID)
+	wsFallbackReason := s.openAIWSFallbackCoolingReason(account.ID)
+	wsFallbackCooling := wsFallbackReason != ""
+	if wsDecision.Transport == OpenAIUpstreamTransportResponsesWebsocketV2 && wsFallbackReason == openAIWSAvailabilityFallbackReason {
+		ctx = WithOpenAIWSAvailabilityHTTPFallback(ctx, account.ID)
+	}
 	if wsFallbackCooling {
 		logOpenAIWSModeInfo("fallback_cooling_skip_ws account_id=%d", account.ID)
 	}
@@ -1144,7 +1148,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			return wsResult, nil
 		}
 		var relayFailure *UpstreamFailoverError
-		if errors.As(wsErr, &relayFailure) && relayFailure.Reason == openAIRelayIncompatibleReason {
+		if errors.As(wsErr, &relayFailure) && relayFailure.isOpenAIAvailabilityFailover() {
 			return nil, relayFailure
 		}
 		// 官方语义（client.rs FallbackToHttp）：上游拒绝 WS 升级（426）或声明不
@@ -1152,7 +1156,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		// 同时标记 fallback cooling，让后续请求在冷却窗内直接选 HTTP 传输。
 		// 已经向下游写出字节时不回退——那会写出两份响应。
 		clientBytesWritten := c != nil && c.Writer != nil && c.Writer.Written()
-		if !clientBytesWritten && isOpenAIWSTransportUnsupportedReason(wsLastFailureReason) {
+		if !clientBytesWritten && IsOpenAIWSAvailabilityFallback(wsErr) {
+			ctx = WithOpenAIWSAvailabilityHTTPFallback(ctx, account.ID)
+		} else if !clientBytesWritten && isOpenAIWSTransportUnsupportedReason(wsLastFailureReason) {
 			s.markOpenAIWSFallbackCooling(account.ID, wsLastFailureReason)
 			// 上游拒绝 WS 传输是运维要看见的信号：与硬错误路径一样记一条 ops
 			// upstream-error 事件，否则 426 型故障在事件流里完全不可见。
@@ -1370,6 +1376,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 					logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Retrying same account once after 401 credential refresh (account: %s)", account.Name)
 					continue
 				}
+			}
+			if failure := s.openAIUpstreamUnavailableHTTPFailover(ctx, c, account, resp, respBody, false); failure != nil {
+				return nil, failure
 			}
 			if s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody) {
 				upstreamDetail := ""

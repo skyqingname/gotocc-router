@@ -88,7 +88,7 @@ func writeOpenAIUpstreamClientError(c *gin.Context, statusCode int, body []byte,
 			if definition.PublicCode != "" {
 				errorPayload["code"] = definition.PublicCode
 			}
-			errorPayload["message"] = codexPublicErrorMessageWithRejection(key, definition.DefaultMessage, source.rejectionMessage)
+			errorPayload["message"] = codexPublicErrorMessageWithUpstream(key, definition.DefaultMessage, source.upstreamMessage)
 			if param, _ := errorPayload["param"].(string); !codexPublicErrorParamAllowed(param) {
 				delete(errorPayload, "param")
 			}

@@ -47,6 +47,9 @@ func responsesWSInflightPassthrough(ctx context.Context, account *Account) bool 
 // Proxy and reservation share the same attempt's dynamic force-HTTP decision.
 // Direct service callers without a snapshot retain the existing routing rules.
 func (s *OpenAIGatewayService) responsesWSForceHTTPBridge(ctx context.Context, account *Account) bool {
+	if isOpenAIWSAvailabilityHTTPFallback(ctx, account) {
+		return true
+	}
 	if ctx != nil && account != nil {
 		if decision, ok := ctx.Value(responsesWSInflightTransportKey{}).(responsesWSInflightTransport); ok && decision.ownerID == account.ID {
 			return decision.forceHTTP
@@ -56,6 +59,8 @@ func (s *OpenAIGatewayService) responsesWSForceHTTPBridge(ctx context.Context, a
 }
 
 func (s *OpenAIGatewayService) responsesWSUncachedForceHTTPBridge(ctx context.Context, account *Account) bool {
-	return s == nil || !s.codexUpstreamWSAllowed(ctx, account) || (account != nil && account.Platform == PlatformGrok) ||
+	return s == nil || !s.codexUpstreamWSAllowed(ctx, account) ||
+		(account != nil && (account.Platform == PlatformGrok || isOpenAIWSAvailabilityHTTPFallback(ctx, account) ||
+			s.openAIWSFallbackCoolingReason(account.ID) == openAIWSAvailabilityFallbackReason)) ||
 		(s.pluginManager != nil && s.pluginManager.ShouldRouteTransport(account))
 }

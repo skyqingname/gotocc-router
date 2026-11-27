@@ -859,6 +859,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			s.coolOpenAIImagesInsufficientBalance(upstreamCtx, account)
 			return nil, newOpenAIImagesInsufficientBalanceFailoverError(resp.StatusCode, resp.Header, respBody)
 		}
+		if failure := s.openAIUpstreamUnavailableHTTPFailover(upstreamCtx, c, account, resp, respBody, false); failure != nil {
+			return nil, failure
+		}
 		if s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				ProxyID:            opsUpstreamProxyID(account),

@@ -7,7 +7,14 @@ const TakeoverHeaderWaitSeconds = 20
 const TakeoverUpstreamIdleSeconds = 60
 const TakeoverTotalWaitSeconds = 180
 
+const OpenAIUpstreamUnavailableCooldownSeconds = 30
+const OpenAIWSUnavailableFallbackCooldownSeconds = 30
+
 var OpenAIRelayIncompatible400Keywords = [...]string{
 	"function_call_output requires call_id on HTTP requests",
 	"codex_session_identity_conflict",
+}
+
+var OpenAIUpstreamUnavailableHTTPKeywords = [...]string{
+	"no available account",
 }

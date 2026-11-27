@@ -712,7 +712,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	firstClientMessage []byte,
 	hooks *OpenAIWSIngressHooks,
 	wsDecision OpenAIWSProtocolDecision,
-) error {
+) (returnErr error) {
 	// The same request context survives scheduler failover attempts. Clear any
 	// reverse mapping installed by the prior account before processing frames.
 	setCodexToolNameReverse(c, nil)
@@ -779,7 +779,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	}
 	firstTurnSettled := false
 	defer func() {
-		if firstTurnSettled || hooks == nil || hooks.AfterTurn == nil {
+		if firstTurnSettled || IsOpenAIWSAvailabilityFallback(returnErr) || hooks == nil || hooks.AfterTurn == nil {
 			return
 		}
 		hooks.AfterTurn(1, nil, wrapOpenAIWSIngressTurnError("write_upstream", errors.New("first websocket turn did not reach upstream"), false))
@@ -996,7 +996,10 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			statusCode,
 			truncateOpenAIWSLogValue(err.Error(), openAIWSLogValueMaxLen),
 		)
-		if failure := s.openAIRelayWSDialFailover(ctx, c, account, dialErr, true); failure != nil {
+		if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, handshakeHeaders, dialErr, true); fallback != nil {
+			return fallback
+		}
+		if failure := s.openAIWSDialFailover(ctx, c, account, dialErr, true); failure != nil {
 			return failure
 		}
 		s.handleOpenAIWSDialTransientFailure(ctx, account, capturedSessionModel, dialErr)
@@ -1327,6 +1330,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	firstWriteErr := relayUpstreamFrameConn.WriteFrame(firstWriteCtx, coderws.MessageText, firstClientMessage)
 	cancelFirstWrite()
 	if firstWriteErr != nil {
+		if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, handshakeHeaders, firstWriteErr, true); fallback != nil {
+			return fallback
+		}
 		return wrapOpenAIWSIngressTurnError(
 			"write_upstream",
 			fmt.Errorf("write first upstream websocket request: %w", firstWriteErr),
@@ -1708,6 +1714,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 	)
 
 	relayErr := relayExit.Err
+	if turnCount == 0 && !relayExit.WroteDownstream && (relayExit.Stage == "read_upstream" || relayExit.Stage == "write_upstream") {
+		if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, handshakeHeaders, relayErr, true); fallback != nil {
+			return fallback
+		}
+	}
 	var firstOutputTimeoutErr *openAIWSPassthroughFirstOutputTimeoutError
 	if errors.As(relayErr, &firstOutputTimeoutErr) {
 		deadline := firstOutputTimeoutErr.deadline
@@ -1775,6 +1786,11 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 }
 
 func openAIWSPassthroughRelayClientClose(exit openaiwsv2.RelayExit, completedTurns int) (coderws.StatusCode, string, bool) {
+	if completedTurns == 0 && !exit.WroteDownstream &&
+		(exit.Stage == "read_upstream" || exit.Stage == "write_upstream") &&
+		coderws.CloseStatus(exit.Err) == coderws.StatusTryAgainLater {
+		return 0, "", false
+	}
 	var closeErr *OpenAIWSClientCloseError
 	if errors.As(exit.Err, &closeErr) {
 		return closeErr.StatusCode(), closeErr.Reason(), true

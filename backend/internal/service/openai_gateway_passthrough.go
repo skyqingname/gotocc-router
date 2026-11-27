@@ -868,6 +868,9 @@ func shouldFailoverOpenAIPassthroughResponse(account *Account, statusCode int, r
 	if isOpenAIContextWindowError("", responseBody) {
 		return false
 	}
+	if _, unavailable := openAIUpstreamUnavailableHTTPMessage(account, statusCode, responseBody, false); unavailable {
+		return true
+	}
 	if isOpenAIRelayIncompatible400(account, statusCode, "", responseBody) {
 		return true
 	}
@@ -998,6 +1001,9 @@ func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(
 	responseBody []byte,
 ) error {
 	body := s.redactAgentIdentitySensitiveBody(ctx, account, responseBody)
+	if failure := s.openAIUpstreamUnavailableHTTPFailover(ctx, c, account, resp, body, true); failure != nil {
+		return failure
+	}
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)

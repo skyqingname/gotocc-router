@@ -233,6 +233,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			}
 			return nil, &agentIdentityTaskRecoveredError{ctx: recoveredCtx}
 		}
+		if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, nil, err, false); fallback != nil {
+			return nil, fallback
+		}
 		s.handleOpenAIWSDialTransientFailure(ctx, account, mappedModel, err)
 		dialStatus, dialClass, dialCloseStatus, dialCloseReason, dialRespServer, dialRespVia, dialRespCFRay, dialRespReqID := summarizeOpenAIWSDialError(err)
 		logOpenAIWSModeInfo(
@@ -256,7 +259,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			wsPath,
 			account.ProxyID != nil && account.Proxy != nil,
 		)
-		if failure := s.openAIRelayWSDialFailover(ctx, c, account, err, false); failure != nil {
+		if failure := s.openAIWSDialFailover(ctx, c, account, err, false); failure != nil {
 			return nil, failure
 		}
 		var dialErr *openAIWSDialError
@@ -364,6 +367,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		stateStore,
 		groupID,
 	); err != nil {
+		if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), err, false); failure != nil {
+			return nil, failure
+		}
 		return nil, err
 	}
 
@@ -373,6 +379,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	requestSubmitted = true
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
+		if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), err, false); failure != nil {
+			return nil, failure
+		}
 		logOpenAIWSModeInfo(
 			"write_request_fail account_id=%d conn_id=%s cause=%s payload_bytes=%d",
 			account.ID,
@@ -647,6 +656,9 @@ readLoop:
 				break
 			}
 			if !wroteDownstream {
+				if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), readErr, false); failure != nil {
+					return nil, failure
+				}
 				return nil, wrapOpenAIWSFallback(classifyOpenAIWSReadFallbackReason(readErr), readErr)
 			}
 			setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(readErr.Error()), "")

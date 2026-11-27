@@ -52,7 +52,7 @@ func (s *OpenAIGatewayService) openAIRelayEventFailover(c *gin.Context, account 
 	return newOpenAIRelayIncompatibleFailoverError(account, headers, payload)
 }
 
-func (s *OpenAIGatewayService) openAIRelayWSDialFailover(ctx context.Context, c *gin.Context, account *Account, err error, passthrough bool) *UpstreamFailoverError {
+func (s *OpenAIGatewayService) openAIWSDialFailover(ctx context.Context, c *gin.Context, account *Account, err error, passthrough bool) *UpstreamFailoverError {
 	var dialErr *openAIWSDialError
 	if !errors.As(err, &dialErr) {
 		return nil

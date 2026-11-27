@@ -3022,7 +3022,7 @@ func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Accoun
 	if len(observedErr) > 0 {
 		var failoverErr *UpstreamFailoverError
 		if errors.Is(observedErr[0], ErrOpenAIClientDisconnected) || isOpenAIRequestTerminalError(observedErr[0]) ||
-			errors.As(observedErr[0], &failoverErr) && failoverErr.Reason == openAIRelayIncompatibleReason {
+			errors.As(observedErr[0], &failoverErr) && failoverErr.isOpenAIAvailabilityFailover() {
 			return false
 		}
 	}
@@ -3060,7 +3060,7 @@ func (s *OpenAIGatewayService) ObserveOpenAIAccountHealthFailure(ctx context.Con
 		return false
 	}
 	var failoverErr *UpstreamFailoverError
-	if errors.As(observedErr, &failoverErr) && failoverErr.Reason == openAIRelayIncompatibleReason {
+	if errors.As(observedErr, &failoverErr) && failoverErr.isOpenAIAvailabilityFailover() {
 		return false
 	}
 	return s.rateLimitService.ObserveOpenAIAPIKeyHealthFailure(ctx, account, observedErr)
