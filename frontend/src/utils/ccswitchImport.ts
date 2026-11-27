@@ -2,6 +2,7 @@ import type { GroupPlatform } from '@/types'
 import clientAccessDefaults from '../../../client-access-defaults.json'
 import keyConsole from '../../../key-console.json'
 import { creditUnit } from '@/utils/credits'
+import { buildCodexApiKeyAuthConfig } from '@/utils/codexAuthConfig'
 
 export const OPENAI_CC_SWITCH_CODEX_MODEL = clientAccessDefaults.openai_model
 export const OPENAI_CODEX_DEFAULT_CLIENT_TAB = clientAccessDefaults.openai_codex_client_tab
@@ -132,6 +133,22 @@ export function buildCcSwitchImportDeeplink(input: CcSwitchImportDeeplinkInput):
   for (const field of input.app.model_fields) {
     const value = input.models[field]?.trim()
     if (value) entries.push([field, value])
+  }
+  if (input.app.id === 'codex') {
+    // CC Switch's embedded-config import keeps the provider's auth and the
+    // gateway headers; its own generated Codex config would drop them.
+    const endpoint = ccSwitchEndpoint(input.app, input.baseUrl, input.platform)
+    const codexConfig = `model_provider = "sub2api"
+model = ${JSON.stringify(input.models.model ?? '')}
+web_search = "live"
+
+[model_providers.sub2api]
+name = "Sub2API"
+base_url = ${JSON.stringify(endpoint)}
+wire_api = "responses"
+${buildCodexApiKeyAuthConfig(input.apiKey)}
+`
+    entries.push(['configFormat', 'json'], ['config', utf8Base64(JSON.stringify({ config: codexConfig }))])
   }
   entries.push(
     ['homepage', gatewayRoot(input.homepage)],

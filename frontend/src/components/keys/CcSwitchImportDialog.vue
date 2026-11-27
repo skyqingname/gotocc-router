@@ -198,7 +198,7 @@ function openCcSwitch() {
 .ccs-app:focus-visible { outline: 2px solid theme('colors.primary.500'); outline-offset: 2px; }
 .ccs-app-icon { display: flex; height: 28px; width: 28px; flex: none; align-items: center; justify-content: center; border-radius: var(--surface-radius-tag); }
 .ccs-app-icon-letter { background: linear-gradient(135deg, theme('colors.primary.500'), theme('colors.accent.500')); color: white; font-size: 13px; font-weight: 700; }
-.ccs-app-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--surface-text); }
+.ccs-app-label { min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.25; color: var(--surface-text); }
 .ccs-issue {
   display: flex; gap: 6px; margin-top: 10px; padding: 8px 10px; font-size: 12px; line-height: 1.6;
   border-radius: var(--surface-radius-control); background: rgb(245 158 11 / 10%); color: theme('colors.amber.700');
