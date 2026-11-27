@@ -45,7 +45,8 @@ export function useOnboardingProgress() {
   const steps = computed(() => counts.value
     ? [
         { id: 'key' as OnboardingStepId, done: counts.value.keys > 0 },
-        { id: 'ccswitch' as OnboardingStepId, done: ccswitchDone.value },
+        // A request already on record means a client is connected, whichever way it was set up.
+        { id: 'ccswitch' as OnboardingStepId, done: ccswitchDone.value || counts.value.requests > 0 },
         { id: 'request' as OnboardingStepId, done: counts.value.requests > 0 }
       ]
     : [])
