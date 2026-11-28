@@ -947,7 +947,7 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -1882,6 +1882,23 @@ const onTourFinish = () => {
   tourIntent = ''
 }
 
+// 服务状态页「使用此分组」带 create=1&group=<id> 过来：打开新建弹窗并选好该分组。
+const handleCreateQuery = async () => {
+  if (route.query.create !== '1') return
+  const groupID = Number(route.query.group)
+  const { create: _create, group: _group, ...query } = route.query
+  void router.replace({ query })
+  const group = groups.value.find(item => item.id === groupID)
+  closeModals()
+  formData.value.group_binding_mode = 'single'
+  formData.value.routing_mode = 'fixed'
+  showCreateModal.value = true
+  if (!group) return
+  await nextTick()
+  createProvider.value = getKeyGroupProvider(group.platform)
+  formData.value.group_id = group.id
+}
+
 const handleOnboardingQuery = () => {
   const intent = typeof route.query.onboarding === 'string' ? route.query.onboarding : ''
   const tour = route.query.tour === '1'
@@ -1902,8 +1919,10 @@ onMounted(async () => {
   await loadPublicSettings()
   await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
   handleOnboardingQuery()
+  void handleCreateQuery()
   // 已在密钥页时从头像菜单再点「密钥页导览」，只有地址参数变化。
   watch(() => [route.query.onboarding, route.query.tour], handleOnboardingQuery)
+  watch(() => route.query.create, () => { void handleCreateQuery() })
 })
 
 useLocaleRefresh(() => Promise.all([loadApiKeys(), loadGroups(), refreshQuotes()]))

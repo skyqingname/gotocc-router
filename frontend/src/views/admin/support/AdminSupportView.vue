@@ -26,7 +26,6 @@ const pages = {
   'async-images': defineAsyncComponent(() => import('@/views/user/GotoccCreativeStudioView.vue')),
   'batch-images': defineAsyncComponent(() => import('@/views/user/BatchImageGuideView.vue')),
   usage: defineAsyncComponent(() => import('@/views/user/UsageView.vue')),
-  channels: defineAsyncComponent(() => import('@/views/user/AvailableChannelsView.vue')),
   'channel-status': defineAsyncComponent(() => import('@/views/user/ChannelStatusView.vue')),
   subscriptions: defineAsyncComponent(() => import('@/views/user/SubscriptionsView.vue')),
   orders: defineAsyncComponent(() => import('@/views/user/UserOrdersView.vue')),

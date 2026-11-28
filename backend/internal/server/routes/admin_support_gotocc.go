@@ -15,4 +15,6 @@ func registerAdminSupportGotoccRoutes(support *gin.RouterGroup, h *handler.Handl
 	support.GET("/team/keys", h.Team.ListTeamKeys)
 	support.GET("/team/members", h.Team.ListMembers)
 	support.GET("/team/usage/members", h.Team.ListMemberUsageSeries)
+	support.GET("/service-status", h.ServiceStatus.Snapshot)
+	support.GET("/service-status/groups/:id/models", h.ServiceStatus.Models)
 }

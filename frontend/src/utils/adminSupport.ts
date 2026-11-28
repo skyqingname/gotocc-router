@@ -3,7 +3,6 @@ export type AdminSupportResource =
   | 'api-keys'
   | 'async-images'
   | 'usage'
-  | 'channels'
   | 'channel-status'
   | 'subscriptions'
   | 'orders'
@@ -19,7 +18,6 @@ export const selfPaths: Record<AdminSupportResource, string> = {
   'api-keys': '/keys',
   'async-images': '/async-image',
   usage: '/usage',
-  channels: '/available-channels',
   'channel-status': '/monitor',
   subscriptions: '/subscriptions',
   orders: '/orders',
@@ -49,7 +47,7 @@ export function selfPathForSupportResource(resource: AdminSupportResource): stri
 }
 
 export function supportResourceFromPath(path: string): AdminSupportResource | null {
-  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|async-images|usage|channels|channel-status|subscriptions|orders|profile|batch-images|purchase|redeem|affiliate|custom)(?:\/|$)/)
+  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|async-images|usage|channel-status|subscriptions|orders|profile|batch-images|purchase|redeem|affiliate|custom)(?:\/|$)/)
   return (match?.[1] as AdminSupportResource | undefined) ?? null
 }
 
@@ -62,8 +60,7 @@ export function supportResourceForPersonalPath(path: string): AdminSupportResour
   if (path.startsWith('/custom/')) return 'custom'
   if (path === '/creative' || path === '/async-image' || path.startsWith('/async-image/')) return 'async-images'
   if (path === '/usage' || path.startsWith('/usage/')) return 'usage'
-  if (path === '/available-channels' || path.startsWith('/available-channels/')) return 'channels'
-  if (path === '/monitor' || path.startsWith('/monitor/')) return 'channel-status'
+  if (path === '/monitor' || path.startsWith('/monitor/') || path === '/available-channels') return 'channel-status'
   if (path === '/subscriptions' || path.startsWith('/subscriptions/')) return 'subscriptions'
   if (path === '/orders' || path.startsWith('/orders/')) return 'orders'
   if (path === '/profile' || path.startsWith('/profile/')) return 'profile'

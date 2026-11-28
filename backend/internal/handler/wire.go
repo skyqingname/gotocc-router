@@ -303,6 +303,8 @@ func ProvideHandlers(
 	teamHandler *TeamHandler,
 	imageTaskUserHandler *ImageTaskUserHandler,
 	videoTaskUserHandler *VideoTaskUserHandler,
+	checkinHandler *CheckinHandler,
+	serviceStatusHandler *ServiceStatusHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -341,6 +343,8 @@ func ProvideHandlers(
 		Team:             teamHandler,
 		ImageTasks:       imageTaskUserHandler,
 		VideoTasks:       videoTaskUserHandler,
+		Checkin:          checkinHandler,
+		ServiceStatus:    serviceStatusHandler,
 	}
 }
 
@@ -376,6 +380,8 @@ var ProviderSet = wire.NewSet(
 	NewTeamHandler,
 	ProvideImageTaskUserHandler,
 	NewVideoTaskUserHandler,
+	NewCheckinHandler,
+	NewServiceStatusHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

@@ -364,16 +364,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'affiliate.description'
     }
   },
+  // 可用渠道并入服务状态：每张分组卡带倍率和可用模型。
+  { path: '/available-channels', redirect: '/monitor' },
   {
-    path: '/available-channels',
-    name: 'UserAvailableChannels',
-    component: () => import('@/views/user/AvailableChannelsView.vue'),
+    path: '/checkin',
+    name: 'Checkin',
+    component: () => import('@/views/user/CheckinView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Available Channels',
-      titleKey: 'availableChannels.title',
-      descriptionKey: 'availableChannels.description'
+      title: 'Check-in',
+      titleKey: 'checkin.navTitle',
+      descriptionKey: 'checkin.navDescription'
     }
   },
   {
@@ -657,8 +659,9 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Channel Status',
-      titleKey: 'nav.channelStatus'
+      title: 'Service Status',
+      titleKey: 'serviceStatus.title',
+      descriptionKey: 'serviceStatus.navDescription'
     }
   },
   {
@@ -1154,16 +1157,6 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-
-  if (to.path === '/monitor' || supportResource === 'channel-status') {
-    // The mode may have changed in another tab since the cached settings loaded.
-    try { await appStore.fetchPublicSettings(true) } catch { /* Backend guards remain authoritative. */ }
-    const settings = appStore.cachedPublicSettings
-    if (!settings?.channel_monitor_enabled) {
-      next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
-      return
-    }
-  }
 
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control

@@ -54,3 +54,16 @@ func registerUserTaskCenterRoutes(authenticated *gin.RouterGroup, h *handler.Han
 		videoTasks.GET("/:task_id/content", panelRateLimiter.Heavy(), h.VideoTasks.Content)
 	}
 }
+
+// registerUserCheckinRoutes mounts the check-in center and the passive,
+// per-group service status that replaced the v1/v2/v3 monitor pages.
+func registerUserCheckinRoutes(authenticated *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
+	authenticated.GET("/checkin", h.Checkin.Overview)
+	authenticated.POST("/checkin", h.Checkin.CheckIn)
+	status := authenticated.Group("/service-status")
+	status.Use(panelRateLimiter.Heavy())
+	{
+		status.GET("", h.ServiceStatus.Snapshot)
+		status.GET("/groups/:id/models", h.ServiceStatus.Models)
+	}
+}

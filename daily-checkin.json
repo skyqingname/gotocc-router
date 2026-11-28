@@ -1,0 +1,12 @@
+{
+  "daily_reward": 0.1,
+  "milestones": [
+    { "days": 7, "reward": 1 },
+    { "days": 14, "reward": 3 },
+    { "days": 30, "reward": 5 }
+  ],
+  "unlock": {
+    "redeem_code_types": ["balance", "admin_balance"],
+    "payment_order_statuses": ["COMPLETED"]
+  }
+}

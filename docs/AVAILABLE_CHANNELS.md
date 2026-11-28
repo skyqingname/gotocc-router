@@ -1,5 +1,7 @@
 # Available-channel model catalog
 
+> 用户端 `/available-channels` 页已并入服务状态：`/available-channels` 重定向到 `/monitor`，每张分组卡带倍率和「模型」弹窗（同一份目录）。见[签到中心与服务状态](SERVICE_STATUS_AND_CHECKIN.md)。下面的接口与目录契约不变。
+
 The authenticated `/available-channels` page lists configured models and their
 prices in active channels bound to groups the current user can bind to an API
 key. It uses `available_channels_enabled` independently of `model_plaza_enabled`.

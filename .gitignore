@@ -210,6 +210,7 @@ docs/research/*
 !docs/screenshots/
 docs/screenshots/*
 !docs/screenshots/mobile-account-actions-menu.png
+!docs/SERVICE_STATUS_AND_CHECKIN.md
 .serena/
 .codex/
 frontend/coverage/

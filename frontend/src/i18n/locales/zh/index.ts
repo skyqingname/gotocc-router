@@ -28,6 +28,8 @@ import nativeAccess from './nativeAccess'
 import keyConsole from './keyConsole'
 import consoleGuide from './consoleGuide'
 import consoleTips from './consoleTips'
+import checkin from './checkin'
+import serviceStatus from './serviceStatus'
 
 export default {
   ...workspace,
@@ -38,6 +40,8 @@ export default {
   ...keyConsole,
   ...consoleGuide,
   ...consoleTips,
+  ...checkin,
+  ...serviceStatus,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,
