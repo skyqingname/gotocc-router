@@ -36,15 +36,15 @@
   --frame-gap: 12px;
 
   /* 纸面：大屏正文区，四角圆、半透明，背景的流动隐约透出来；卡片和表格照常实底。 */
-  --console-paper-fill: rgb(250 248 245 / 66%);
+  --console-paper-fill: rgb(250 248 245 / 58%);
   --paper-shadow: 0 0 0 1px rgb(79 70 229 / 9%), 0 24px 56px -32px rgb(49 46 129 / 34%);
 
   /* 流动背景：四团光各自漂移缩放。周期两两互质，四团不会同时回到起点；
      --aurora-travel 是漂移幅度，--aurora-drift 是鼠标牵引整体的最大位移。 */
-  --aurora-indigo: rgb(99 102 241 / 38%);
-  --aurora-violet: rgb(139 92 246 / 32%);
-  --aurora-sky: rgb(56 189 248 / 26%);
-  --aurora-amber: rgb(251 146 60 / 22%);
+  --aurora-indigo: rgb(99 102 241 / 46%);
+  --aurora-violet: rgb(139 92 246 / 40%);
+  --aurora-sky: rgb(56 189 248 / 34%);
+  --aurora-amber: rgb(251 146 60 / 30%);
   --aurora-period-indigo: 23s;
   --aurora-period-violet: 29s;
   --aurora-period-sky: 19s;
@@ -101,7 +101,7 @@
   --nav-plate: var(--surface-hover);
   --nav-indicator: rgb(var(--console-accent-500, 20 184 166));
   --nav-indicator-width: 3px;
-  --card-glow: rgb(var(--console-accent-500, 20 184 166) / 11%);
+  --card-glow: rgb(var(--console-accent-500, 20 184 166) / 14%);
   --card-glow-size: 260px;
   --card-hover-edge: rgb(var(--console-accent-500, 20 184 166) / 32%);
   --card-hover-shadow: 0 14px 30px -20px rgb(49 46 129 / 40%);
@@ -121,12 +121,12 @@
   --frame-edge: rgb(255 255 255 / 8%);
   --frame-divider: rgb(255 255 255 / 6%);
   --frame-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 36px -20px rgb(0 0 0 / 70%);
-  --console-paper-fill: rgb(28 26 25 / 70%);
+  --console-paper-fill: rgb(28 26 25 / 64%);
   --paper-shadow: 0 0 0 1px rgb(255 255 255 / 6%), 0 24px 56px -28px rgb(0 0 0 / 70%);
-  --aurora-indigo: rgb(79 70 229 / 34%);
-  --aurora-violet: rgb(124 58 237 / 26%);
-  --aurora-sky: rgb(14 165 233 / 15%);
-  --aurora-amber: rgb(234 88 12 / 13%);
+  --aurora-indigo: rgb(79 70 229 / 44%);
+  --aurora-violet: rgb(124 58 237 / 36%);
+  --aurora-sky: rgb(14 165 233 / 22%);
+  --aurora-amber: rgb(234 88 12 / 18%);
   --flow-sheen: rgb(165 180 252 / 34%);
   --skeleton-base: rgb(255 255 255 / 6%);
   --skeleton-sheen: rgb(255 255 255 / 14%);
@@ -191,25 +191,25 @@
 .console-aurora .aurora-indigo {
   --blob-motion: gc-aurora-indigo;
   --blob-period: var(--aurora-period-indigo);
-  left: -16vw; top: -24vw; width: 68vw; height: 60vw;
+  left: -10vw; top: -16vw; width: 54vw; height: 50vw;
   background: radial-gradient(closest-side, var(--aurora-indigo), transparent);
 }
 .console-aurora .aurora-violet {
   --blob-motion: gc-aurora-violet;
   --blob-period: var(--aurora-period-violet);
-  left: -20vw; bottom: -30vw; width: 64vw; height: 62vw;
+  left: -12vw; bottom: -22vw; width: 52vw; height: 50vw;
   background: radial-gradient(closest-side, var(--aurora-violet), transparent);
 }
 .console-aurora .aurora-sky {
   --blob-motion: gc-aurora-sky;
   --blob-period: var(--aurora-period-sky);
-  left: 26vw; top: -26vw; width: 70vw; height: 46vw;
+  left: 30vw; top: -18vw; width: 56vw; height: 40vw;
   background: radial-gradient(closest-side, var(--aurora-sky), transparent);
 }
 .console-aurora .aurora-amber {
   --blob-motion: gc-aurora-amber;
   --blob-period: var(--aurora-period-amber);
-  right: -20vw; top: -18vw; width: 56vw; height: 50vw;
+  right: -14vw; top: -10vw; width: 46vw; height: 44vw;
   background: radial-gradient(closest-side, var(--aurora-amber), transparent);
 }
 @keyframes gc-aurora-indigo {
