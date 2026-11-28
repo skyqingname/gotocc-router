@@ -14,5 +14,14 @@
   },
   "request_id": {
     "usage_client_prefix": "client:"
+  },
+  "tooltip": {
+    "show_delay_ms": 300,
+    "skip_delay_ms": 500,
+    "copied_ms": 1200,
+    "gap_px": 8,
+    "edge_px": 12,
+    "arrow_inset_px": 12,
+    "amount_digits": 8
   }
 }

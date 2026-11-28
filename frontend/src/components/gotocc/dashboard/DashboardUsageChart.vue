@@ -8,8 +8,9 @@
         type="button"
         role="tab"
         :aria-selected="metric === item.key"
-        class="metric-card card flex min-w-0 flex-col gap-3 overflow-hidden p-4 text-left"
-        :class="metric === item.key ? '!border-primary-500 ring-1 ring-primary-500/30 dark:!border-primary-400' : 'hover:!border-gray-300 dark:hover:!border-dark-500'"
+        class="metric-card card gc-stat flex min-w-0 flex-col gap-3 overflow-hidden p-4 text-left"
+        :class="metric === item.key ? '!border-primary-500 ring-1 ring-primary-500/30 dark:!border-primary-400' : ''"
+        :data-tip="t(`consoleTips.dashboard.${item.key}`)"
         @click="selectMetric(item.key)"
       >
         <div class="flex min-w-0 items-center gap-2">
@@ -136,6 +137,7 @@ import { CHART_TICK_FONT_SIZE, METRIC_TONES, SERIES_COLORS, useChartColors } fro
 import { cacheHitRateOf } from './usageData'
 import { injectUsageState, type UsageMetric } from './usageState'
 import { useCountUp } from './useCountUp'
+import { chartTooltipStyle } from '@/utils/chartTooltip'
 
 // 指标卡与趋势图，结构与动效参照 TokenRouter（LGPL-3.0）：未结束时段画虚线，标出峰值与均值，可叠加上一周期对比线。
 
@@ -160,7 +162,7 @@ const DELTA_CLASSES = {
 type Delta = { text: string; tone: keyof typeof DELTA_CLASSES }
 
 const { t } = useI18n()
-const { colors } = useChartColors()
+const { isDark, colors } = useChartColors()
 const reducedMotion = usePreferredReducedMotion()
 const { metric, activeRange, loading, loaded, current, previous, previousTotals, totals, selectMetric } = injectUsageState()
 
@@ -334,12 +336,7 @@ const chartOptions = computed(() => ({
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: colors.value.tooltip,
-      titleColor: '#ffffff',
-      bodyColor: '#ffffff',
-      footerColor: '#ffffff',
-      padding: 10,
-      cornerRadius: 8,
+      ...chartTooltipStyle(isDark.value),
       usePointStyle: true,
       boxWidth: 8,
       boxHeight: 8,
@@ -385,27 +382,6 @@ const chartOptions = computed(() => ({
     },
   },
 }))
-
-// 悬停时间点画一条贯穿绘图区的竖线，画在折线下层。
-const crosshairPlugin: Plugin<'line'> = {
-  id: 'gcCrosshair',
-  beforeDatasetsDraw(chart) {
-    const active = chart.getActiveElements()
-    if (!active.length) return
-    const { ctx, chartArea } = chart
-    const x = active[0].element.x
-    ctx.save()
-    ctx.strokeStyle = colors.value.muted
-    ctx.globalAlpha = 0.5
-    ctx.lineWidth = 1
-    ctx.setLineDash([3, 3])
-    ctx.beginPath()
-    ctx.moveTo(x, chartArea.top)
-    ctx.lineTo(x, chartArea.bottom)
-    ctx.stroke()
-    ctx.restore()
-  },
-}
 
 // 圆角标签胶囊，x 为左边缘，y 为上边缘。
 const drawLabel = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fill: string, color: string) => {
@@ -500,7 +476,7 @@ const revealPlugin: Plugin<'line'> = {
   },
 }
 
-const chartPlugins = [crosshairPlugin, revealPlugin]
+const chartPlugins = [revealPlugin]
 
 const cancelReveal = () => {
   cancelAnimationFrame(revealFrame)

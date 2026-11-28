@@ -12,7 +12,7 @@
     >
       <Icon name="search" size="md" />
     </button>
-    <button type="button" class="gc-search-trigger hidden md:flex" aria-haspopup="dialog" :aria-expanded="open" :aria-keyshortcuts="ariaShortcut" @click="open = true">
+    <button type="button" class="gc-search-trigger hidden md:flex" aria-haspopup="dialog" :aria-expanded="open" :aria-keyshortcuts="ariaShortcut" :data-tip="t('consoleTips.header.search', { shortcut: shortcutLabel })" data-tip-side="bottom" @click="open = true">
       <Icon name="search" size="sm" class="shrink-0" />
       <span class="min-w-0 flex-1 truncate text-left">{{ t('gotocc.search.placeholder') }}</span>
       <kbd class="gc-kbd">{{ shortcutLabel }}</kbd>

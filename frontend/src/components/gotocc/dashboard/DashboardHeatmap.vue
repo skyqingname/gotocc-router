@@ -61,7 +61,7 @@
     <!-- 悬停提示：卡片内绝对定位；前两行格子改为下方弹出 -->
     <div
       v-if="hoveredDay"
-      class="pointer-events-none absolute z-20 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg dark:bg-dark-600"
+      class="heatmap-tip pointer-events-none absolute z-20 whitespace-nowrap"
       :style="tooltipStyle"
     >
       <div class="font-medium">{{ formatDayLabel(hoveredDay.date) }}</div>
@@ -404,5 +404,16 @@ defineExpose({ reload: load })
   .heatmap-cell-interactive:focus-visible {
     transform: none;
   }
+}
+/* 与控制台统一悬停提示同一套反色气泡令牌（styles/console-glass.css 的 --tip-*）。 */
+.heatmap-tip {
+  padding: var(--tip-pad-y) var(--tip-pad-x);
+  border: 1px solid var(--tip-edge);
+  border-radius: var(--tip-radius);
+  background-color: var(--tip-fill);
+  box-shadow: var(--tip-shadow);
+  color: var(--tip-text);
+  font-size: var(--tip-font-size);
+  line-height: var(--tip-line-height);
 }
 </style>

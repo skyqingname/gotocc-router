@@ -4,6 +4,8 @@
       type="button"
       class="flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-primary-200 transition-shadow hover:ring-2 hover:ring-primary-300 dark:ring-dark-600 dark:hover:ring-dark-400"
       :aria-label="t('common.userMenu')"
+      :data-tip="t('consoleTips.header.account', { name: displayName })"
+      data-tip-side="bottom"
       :aria-expanded="open"
       @click="open = !open"
     >

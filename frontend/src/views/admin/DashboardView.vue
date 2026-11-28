@@ -57,7 +57,7 @@
         <div class="dashboard-kpis flex flex-col gap-4">
           <div class="dashboard-hero card p-5">
             <div class="flex flex-wrap items-start justify-between gap-6">
-              <div class="min-w-0">
+              <div class="min-w-0" :data-tip="t('consoleTips.admin.todayTokens')">
                 <p class="text-xs font-medium surface-muted">{{ t('admin.dashboard.todayTokens') }}</p>
                 <p class="mt-1 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                   {{ formatTokens(stats.today_tokens) }}
@@ -72,13 +72,13 @@
                   </template>
                 </p>
               </div>
-              <div class="shrink-0 text-right">
+              <div class="shrink-0 text-right" :data-tip="t('consoleTips.admin.todayRequests')">
                 <p class="text-xs font-medium surface-muted">{{ t('admin.dashboard.todayRequests') }}</p>
                 <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ formatNumber(stats.today_requests) }}</p>
                 <p class="mt-1 text-xs surface-muted">{{ t('common.total') }}: {{ formatNumber(stats.total_requests) }}</p>
               </div>
             </div>
-            <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-100 pt-3 text-xs dark:border-dark-700">
+            <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-gray-100 pt-3 text-xs dark:border-dark-700" :data-tip="t('consoleTips.admin.todayCost')">
               <span class="surface-muted">{{ t('admin.dashboard.actual') }}</span>
               <span class="font-semibold text-green-600 dark:text-green-400">${{ formatCost(stats.today_actual_cost) }}</span>
               <span class="surface-muted" aria-hidden="true">/</span>
@@ -93,7 +93,7 @@
           <!-- Supporting KPIs: uniform and neutral; color carries no meaning here -->
           <div class="dashboard-kpi-grid grid grid-cols-2 gap-4 md:grid-cols-3">
           <!-- Total API Keys -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.apiKeys')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="key" size="md" class="surface-muted" :stroke-width="2" />
@@ -113,7 +113,7 @@
           </div>
 
           <!-- Service Accounts -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.accounts')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="server" size="md" class="surface-muted" :stroke-width="2" />
@@ -138,7 +138,7 @@
           </div>
 
           <!-- New Users Today -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.users')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="userPlus" size="md" class="surface-muted" :stroke-width="2" />
@@ -158,7 +158,7 @@
           </div>
 
           <!-- Total Tokens -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.totalTokens')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="database" size="md" class="surface-muted" :stroke-width="2" />
@@ -200,7 +200,7 @@
           </div>
 
           <!-- Performance (RPM/TPM) -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.performance')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="bolt" size="md" class="surface-muted" :stroke-width="2" />
@@ -226,7 +226,7 @@
           </div>
 
           <!-- Avg Response Time -->
-          <div class="card p-4">
+          <div class="card gc-stat p-4" :data-tip="t('consoleTips.admin.avgResponse')">
             <div class="flex items-center gap-3">
               <div class="rounded-lg surface-inset p-2">
                 <Icon name="clock" size="md" class="surface-muted" :stroke-width="2" />

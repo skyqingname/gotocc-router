@@ -8,7 +8,7 @@
           </h2>
           <p class="start-lead">{{ progress.allDone.value ? t('consoleGuide.start.doneLead') : t('consoleGuide.start.lead') }}</p>
         </div>
-        <div class="start-progress" :aria-label="t('consoleGuide.start.progress', { done: progress.doneCount.value, total: 3 })">
+        <div class="start-progress" :aria-label="t('consoleGuide.start.progress', { done: progress.doneCount.value, total: 3 })" :data-tip="t('consoleTips.start.progress', { done: progress.doneCount.value, total: 3 })">
           <span v-if="progress.loaded.value" :key="progress.doneCount.value" class="start-progress-text gc-num gc-reveal">
             {{ t('consoleGuide.start.progress', { done: progress.doneCount.value, total: 3 }) }}
           </span>

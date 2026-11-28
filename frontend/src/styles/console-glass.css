@@ -1,6 +1,7 @@
-/* GoToCC 控制台质感：外壳亚克力、光晕、首屏光流、纸面，以及全站统一的缓动、
-   入场、内容切换、折叠和骨架动效。时长、缓动、模糊、光晕颜色都只在本文件的令牌里调；
-   系统开启「减少动态效果」时全部关掉。在 gotocc.css 之后加载。 */
+/* GoToCC 控制台质感：实底外框、流动背景、首屏光流、纸面，以及全站统一的缓动、
+   入场、内容切换、折叠、骨架、悬停反馈和悬停提示的令牌。时长、缓动、尺寸、颜色都只在
+   本文件的令牌里调；悬停反馈的规则在 console-hover.css。系统开启「减少动态效果」时
+   移动、跟随、滑动全部关掉，颜色变化和提示保留。在 gotocc.css 之后加载。 */
 
 @property --gc-flow {
   syntax: '<percentage>';
@@ -24,59 +25,131 @@
   --motion-ease: var(--motion-ease-fluid);
   --motion-ease-enter: var(--motion-ease-fluid);
 
-  /* 外壳亚克力与纸面 */
-  --acrylic-blur: 22px;
-  --acrylic-saturate: 1.7;
-  --acrylic-fill: rgb(251 250 255 / 44%);
-  --acrylic-fill-floating: rgb(251 250 255 / 80%);
-  --acrylic-edge: rgb(255 255 255 / 62%);
-  --paper-fill: rgb(248 246 243 / 95%);
-  --paper-edge: rgb(255 255 255 / 75%);
-  --paper-shadow: 0 0 0 1px rgb(79 70 229 / 7%), 0 24px 56px -32px rgb(49 46 129 / 38%);
-  --paper-radius: 14px;
+  /* 外框：大屏时侧栏、顶栏各是一块实底浮板，四周和彼此之间留出缝隙，流动的背景从缝里露出来。
+     底色是偏冷的淡雾紫，和偏暖的正文纸面分开。 */
+  --frame-fill: #f4f3fa;
+  --frame-edge: rgb(79 70 229 / 14%);
+  --frame-divider: rgb(79 70 229 / 10%);
+  --frame-shadow: 0 1px 2px rgb(49 46 129 / 6%), 0 14px 34px -20px rgb(49 46 129 / 30%);
+  --frame-radius: 16px;
+  --frame-gap: 12px;
 
-  /* 光晕：靛、紫为主，一团天蓝、一团暖橙互补。大小 × 位置。 */
-  --aurora-indigo: rgb(99 102 241 / 42%);
-  --aurora-violet: rgb(139 92 246 / 34%);
+  /* 纸面：大屏正文区，四角圆、半透明，背景的流动隐约透出来；卡片和表格照常实底。 */
+  --paper-fill: rgb(250 248 245 / 76%);
+  --paper-shadow: 0 0 0 1px rgb(79 70 229 / 9%), 0 24px 56px -32px rgb(49 46 129 / 34%);
+
+  /* 流动背景：四团光各自漂移缩放。周期两两互质，四团不会同时回到起点；
+     --aurora-travel 是漂移幅度，--aurora-drift 是鼠标牵引整体的最大位移。 */
+  --aurora-indigo: rgb(99 102 241 / 34%);
+  --aurora-violet: rgb(139 92 246 / 28%);
   --aurora-sky: rgb(56 189 248 / 22%);
-  --aurora-amber: rgb(251 146 60 / 20%);
-  --aurora-layers:
-    radial-gradient(48rem 32rem at 4% 2%, var(--aurora-indigo), transparent 70%),
-    radial-gradient(44rem 36rem at 0% 100%, var(--aurora-violet), transparent 70%),
-    radial-gradient(50rem 22rem at 52% 0%, var(--aurora-sky), transparent 70%),
-    radial-gradient(40rem 28rem at 100% 0%, var(--aurora-amber), transparent 70%);
+  --aurora-amber: rgb(251 146 60 / 18%);
+  --aurora-period-indigo: 23s;
+  --aurora-period-violet: 29s;
+  --aurora-period-sky: 19s;
+  --aurora-period-amber: 31s;
+  --aurora-travel: 9vw;
+  --aurora-drift: 36px;
+  --aurora-drift-duration: 1.4s;
 
-  /* 首屏光流：先盖住外壳，再从左上角揭开，前沿带一圈亮光。 */
+  /* 首屏光流：先盖住背景，再从左上角揭开，前沿带一圈亮光。 */
   --flow-cover: var(--console-canvas);
   --flow-sheen: rgb(255 255 255 / 70%);
 
   /* 骨架闪光 */
   --skeleton-base: rgb(120 112 102 / 12%);
   --skeleton-sheen: rgb(255 255 255 / 70%);
+
+  /* 悬停提示：反色小气泡，浅色界面深底白字、深色界面浅底深字。两套颜色都在这里，
+     图表的画布提示按主题直接取对应的一套。 */
+  --tip-fill-light: #1d1b29;
+  --tip-text-light: #f7f6fc;
+  --tip-edge-light: rgb(255 255 255 / 8%);
+  --tip-fill-dark: #f1effa;
+  --tip-text-dark: #1a1824;
+  --tip-edge-dark: rgb(0 0 0 / 10%);
+  --tip-fill: var(--tip-fill-light);
+  --tip-text: var(--tip-text-light);
+  --tip-edge: var(--tip-edge-light);
+  --tip-shadow: 0 10px 26px -12px rgb(20 18 40 / 50%), 0 2px 6px -2px rgb(20 18 40 / 24%);
+  --tip-radius: 7px;
+  --tip-pad-y: 6px;
+  --tip-pad-x: 10px;
+  --tip-font-size: 12px;
+  --tip-line-height: 1.5;
+  --tip-max-width: 280px;
+  --tip-arrow-size: 8px;
+  --tip-in: 160ms;
+  --tip-shift: 4px;
+  --tip-scale-from: .96;
+  --tip-move: 140ms;
+  --chart-tip-caret: 5px;
+
+  /* 悬停反馈 */
+  --motion-hover: 180ms;
+  --motion-slide: 260ms;
+  --motion-press: 90ms;
+  --motion-sheen: 720ms;
+  --hover-lift: -1px;
+  --hover-lift-card: -2px;
+  --press-scale: .98;
+  --icon-nudge: 2px;
+  --row-arrow-nudge: 2px;
+  --btn-hover-shadow: 0 8px 18px -10px rgb(49 46 129 / 38%);
+  --btn-sheen: rgb(255 255 255 / 42%);
+  --nav-plate: var(--surface-hover);
+  --nav-indicator: rgb(var(--console-accent-500, 20 184 166));
+  --nav-indicator-width: 3px;
+  --card-glow: rgb(var(--console-accent-500, 20 184 166) / 11%);
+  --card-glow-size: 260px;
+  --card-hover-edge: rgb(var(--console-accent-500, 20 184 166) / 32%);
+  --card-hover-shadow: 0 14px 30px -20px rgb(49 46 129 / 40%);
+  --row-hover: rgb(var(--console-accent-500, 20 184 166) / 4%);
+  --row-action-rest: .6;
+  --field-hover-edge: rgb(var(--console-accent-500, 20 184 166) / 45%);
+  --search-glow: 0 0 0 4px rgb(var(--console-accent-500, 20 184 166) / 10%), 0 6px 18px -10px rgb(var(--console-accent-500, 20 184 166) / 45%);
+  --tab-mark: rgb(var(--console-accent-500, 20 184 166));
+  --tab-mark-hover: rgb(var(--console-accent-500, 20 184 166) / 40%);
+  --tab-mark-height: 2px;
+  --link-underline: 1px;
+  --chart-crosshair: rgb(79 70 229 / 38%);
 }
 
 .dark {
-  --acrylic-fill: rgb(24 22 30 / 50%);
-  --acrylic-fill-floating: rgb(30 28 34 / 82%);
-  --acrylic-edge: rgb(255 255 255 / 9%);
-  --paper-fill: rgb(28 26 25 / 94%);
-  --paper-edge: rgb(255 255 255 / 8%);
-  --paper-shadow: 0 0 0 1px rgb(0 0 0 / 30%), 0 24px 56px -28px rgb(0 0 0 / 70%);
+  --frame-fill: #15141c;
+  --frame-edge: rgb(255 255 255 / 8%);
+  --frame-divider: rgb(255 255 255 / 6%);
+  --frame-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 36px -20px rgb(0 0 0 / 70%);
+  --paper-fill: rgb(28 26 25 / 78%);
+  --paper-shadow: 0 0 0 1px rgb(255 255 255 / 6%), 0 24px 56px -28px rgb(0 0 0 / 70%);
   --aurora-indigo: rgb(79 70 229 / 34%);
   --aurora-violet: rgb(124 58 237 / 26%);
-  --aurora-sky: rgb(14 165 233 / 13%);
-  --aurora-amber: rgb(234 88 12 / 12%);
+  --aurora-sky: rgb(14 165 233 / 15%);
+  --aurora-amber: rgb(234 88 12 / 13%);
   --flow-sheen: rgb(165 180 252 / 34%);
   --skeleton-base: rgb(255 255 255 / 6%);
   --skeleton-sheen: rgb(255 255 255 / 14%);
+  --tip-fill: var(--tip-fill-dark);
+  --tip-text: var(--tip-text-dark);
+  --tip-edge: var(--tip-edge-dark);
+  --tip-shadow: 0 10px 26px -12px rgb(0 0 0 / 70%), 0 2px 6px -2px rgb(0 0 0 / 40%);
+  --btn-hover-shadow: 0 8px 18px -10px rgb(0 0 0 / 70%);
+  --btn-sheen: rgb(255 255 255 / 30%);
+  --card-glow: rgb(var(--console-accent-400, 45 212 191) / 10%);
+  --card-hover-edge: rgb(var(--console-accent-400, 45 212 191) / 34%);
+  --card-hover-shadow: 0 14px 30px -18px rgb(0 0 0 / 70%);
+  --row-hover: rgb(var(--console-accent-400, 45 212 191) / 5%);
+  --tab-mark: rgb(var(--console-accent-400, 45 212 191));
+  --tab-mark-hover: rgb(var(--console-accent-400, 45 212 191) / 40%);
+  --chart-crosshair: rgb(165 180 252 / 40%);
 }
 
-/* ============ 光晕 + 亚克力外壳 ============
-   光晕铺在最底层；整张亚克力罩在光晕上面，侧栏和顶栏就坐在这层毛玻璃上。
-   管理员设了自定义背景图时，光晕层换成那张图，亚克力照常。 */
+/* ============ 流动背景 ============
+   最底层是画布底色；上面一层是四团各自漂移的光（.console-aurora，AppLayout 挂载），
+   只动 transform，不逐帧重画渐变。管理员设了自定义背景图时，光晕层换成那张图，图本身不动。 */
 :root[data-product-ui] .app-layout::before {
   z-index: -3;
-  background: var(--aurora-layers), var(--console-canvas);
+  background: var(--console-canvas);
 }
 :root[data-product-ui][data-console-background] .app-layout::before {
   background: linear-gradient(var(--console-background-mask), var(--console-background-mask)), var(--console-custom-background-image);
@@ -84,15 +157,83 @@
   background-position: center;
   background-repeat: no-repeat;
 }
-.app-layout::after {
-  content: '';
+:root[data-console-background] .console-aurora { display: none; }
+
+.console-aurora {
   position: fixed;
   inset: 0;
   z-index: -2;
+  overflow: hidden;
   pointer-events: none;
-  background-color: var(--acrylic-fill);
-  -webkit-backdrop-filter: blur(var(--acrylic-blur)) saturate(var(--acrylic-saturate));
-  backdrop-filter: blur(var(--acrylic-blur)) saturate(var(--acrylic-saturate));
+}
+.console-aurora-drift {
+  --drift-x: 0;
+  --drift-y: 0;
+  position: absolute;
+  inset: calc(var(--aurora-drift) * -1);
+  transform: translate3d(calc(var(--drift-x) * var(--aurora-drift)), calc(var(--drift-y) * var(--aurora-drift)), 0);
+  transition: transform var(--aurora-drift-duration) var(--motion-ease-fluid);
+}
+.console-aurora-drift > i {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  animation-name: var(--blob-motion);
+  animation-duration: var(--blob-period);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  /* 从打开控制台起算的时间：换页重挂载后光团接着原来的位置走。 */
+  animation-delay: calc(var(--aurora-clock) * -1s);
+}
+.console-aurora[data-paused] .console-aurora-drift > i { animation-play-state: paused; }
+.console-aurora .aurora-indigo {
+  --blob-motion: gc-aurora-indigo;
+  --blob-period: var(--aurora-period-indigo);
+  left: -16vw; top: -24vw; width: 68vw; height: 60vw;
+  background: radial-gradient(closest-side, var(--aurora-indigo), transparent);
+}
+.console-aurora .aurora-violet {
+  --blob-motion: gc-aurora-violet;
+  --blob-period: var(--aurora-period-violet);
+  left: -20vw; bottom: -30vw; width: 64vw; height: 62vw;
+  background: radial-gradient(closest-side, var(--aurora-violet), transparent);
+}
+.console-aurora .aurora-sky {
+  --blob-motion: gc-aurora-sky;
+  --blob-period: var(--aurora-period-sky);
+  left: 26vw; top: -26vw; width: 70vw; height: 46vw;
+  background: radial-gradient(closest-side, var(--aurora-sky), transparent);
+}
+.console-aurora .aurora-amber {
+  --blob-motion: gc-aurora-amber;
+  --blob-period: var(--aurora-period-amber);
+  right: -20vw; top: -18vw; width: 56vw; height: 50vw;
+  background: radial-gradient(closest-side, var(--aurora-amber), transparent);
+}
+@keyframes gc-aurora-indigo {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  35% { transform: translate3d(calc(var(--aurora-travel) * .9), calc(var(--aurora-travel) * .5), 0) scale(1.12); }
+  70% { transform: translate3d(calc(var(--aurora-travel) * .3), calc(var(--aurora-travel) * 1.1), 0) scale(.92); }
+  100% { transform: translate3d(calc(var(--aurora-travel) * 1.2), calc(var(--aurora-travel) * .2), 0) scale(1.06); }
+}
+@keyframes gc-aurora-violet {
+  0% { transform: translate3d(0, 0, 0) scale(1.04); }
+  40% { transform: translate3d(calc(var(--aurora-travel) * 1.1), calc(var(--aurora-travel) * -.8), 0) scale(.94); }
+  75% { transform: translate3d(calc(var(--aurora-travel) * .4), calc(var(--aurora-travel) * -1.2), 0) scale(1.1); }
+  100% { transform: translate3d(calc(var(--aurora-travel) * 1.3), calc(var(--aurora-travel) * -.3), 0) scale(1); }
+}
+@keyframes gc-aurora-sky {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  30% { transform: translate3d(calc(var(--aurora-travel) * -1.2), calc(var(--aurora-travel) * .6), 0) scale(1.1); }
+  65% { transform: translate3d(calc(var(--aurora-travel) * .8), calc(var(--aurora-travel) * .9), 0) scale(.9); }
+  100% { transform: translate3d(calc(var(--aurora-travel) * -.4), calc(var(--aurora-travel) * .3), 0) scale(1.08); }
+}
+@keyframes gc-aurora-amber {
+  0% { transform: translate3d(0, 0, 0) scale(.96); }
+  45% { transform: translate3d(calc(var(--aurora-travel) * -1.1), calc(var(--aurora-travel) * .9), 0) scale(1.12); }
+  80% { transform: translate3d(calc(var(--aurora-travel) * -.3), calc(var(--aurora-travel) * 1.3), 0) scale(.94); }
+  100% { transform: translate3d(calc(var(--aurora-travel) * -1.3), calc(var(--aurora-travel) * .4), 0) scale(1.04); }
 }
 
 .console-flow {
@@ -121,49 +262,59 @@
   to { --gc-flow: 190%; }
 }
 
-/* 窄屏：侧栏抽屉和顶栏浮在内容上，各自是一块更厚的亚克力。 */
+/* ============ 外框 ============
+   窄屏：顶栏和抽屉侧栏浮在内容上，各自是一块实底浮板，不透出背景。 */
 .app-layout .shell-surface {
-  background-color: var(--acrylic-fill-floating);
-  border-color: var(--acrylic-edge);
-  -webkit-backdrop-filter: blur(var(--acrylic-blur)) saturate(var(--acrylic-saturate));
-  backdrop-filter: blur(var(--acrylic-blur)) saturate(var(--acrylic-saturate));
+  border-color: var(--frame-edge);
+  border-radius: var(--frame-radius);
+  background-color: var(--frame-fill);
+  background-image: none;
+  box-shadow: var(--frame-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
-/* ============ 大屏：外壳 + 纸面 ============
-   侧栏与顶栏连成一圈透明外壳，正文区是一张贴到右、下边缘的纸，只有左上角是圆角。 */
+/* 大屏：侧栏整列和顶栏各是一块浮板，正文区是四角圆的半透明纸面；三块之间和四周都留同样的缝。 */
 @media (min-width: 1024px) {
   .app-layout {
-    column-gap: var(--shell-gap);
-    padding: 0 0 0 max(var(--shell-gutter), env(safe-area-inset-left));
-    --console-content-left: calc(max(var(--shell-gutter), env(safe-area-inset-left)) + var(--sidebar-width) + var(--shell-gap));
+    column-gap: var(--frame-gap);
+    padding:
+      max(var(--frame-gap), env(safe-area-inset-top))
+      max(var(--frame-gap), env(safe-area-inset-right))
+      max(var(--frame-gap), env(safe-area-inset-bottom))
+      max(var(--frame-gap), env(safe-area-inset-left));
+    --console-content-left: calc(max(var(--frame-gap), env(safe-area-inset-left)) + var(--sidebar-width) + var(--frame-gap));
   }
   .app-layout .sidebar {
     top: 0;
-    height: 100dvh;
-    padding-block: var(--shell-inset-top) var(--shell-inset-bottom);
+    align-self: stretch;
+    height: 100%;
+    gap: 0;
+    padding: 0;
+    border: 1px solid var(--frame-edge);
+    border-radius: var(--frame-radius);
+    background-color: var(--frame-fill);
+    box-shadow: var(--frame-shadow);
   }
-  .app-layout :is(.sidebar-header, .sidebar-panel, .app-header).shell-surface {
+  .app-layout :is(.sidebar-header, .sidebar-panel).shell-surface {
     background-color: transparent;
     border-color: transparent;
     box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
   }
-  .app-layout .sidebar-footer { border-color: var(--acrylic-edge); }
+  .app-layout .sidebar-footer { border-color: var(--frame-divider); }
   .app-layout .app-content {
-    padding-top: var(--shell-inset-top);
-    gap: calc(var(--shell-gap) / 2);
+    padding-top: 0;
+    gap: var(--frame-gap);
   }
-  .app-layout .app-header-inner { padding-inline: 4px max(var(--shell-gutter), env(safe-area-inset-right)); }
   .app-layout .app-main {
     position: relative;
-    border-radius: var(--paper-radius) 0 0 0;
+    border-radius: var(--frame-radius);
     background-color: var(--paper-fill);
-    box-shadow: var(--paper-shadow), inset 1px 1px 0 var(--paper-edge);
+    box-shadow: var(--paper-shadow);
   }
   .app-layout .app-main > .app-page { padding-block: var(--shell-gap); }
   .app-layout-admin .app-main > .app-page { padding-inline: var(--shell-gap); }
-  .console-save-bar { right: var(--shell-gutter); bottom: var(--shell-gutter); }
+  .console-save-bar { right: max(var(--frame-gap), env(safe-area-inset-right)); bottom: max(var(--frame-gap), env(safe-area-inset-bottom)); }
 }
 
 /* ============ 内容切换：模糊上浮 ============
@@ -235,7 +386,18 @@
     --reveal-blur: 0px;
     --reveal-shift: 0px;
     --row-shift: 0px;
+    --tip-shift: 0px;
+    --tip-scale-from: 1;
+    --tip-move: 1ms;
+    --motion-slide: 1ms;
+    --hover-lift: 0px;
+    --hover-lift-card: 0px;
+    --press-scale: 1;
+    --icon-nudge: 0px;
+    --row-arrow-nudge: 0px;
   }
   .console-flow { display: none; }
   .gc-skeleton { animation: none; }
+  .console-aurora-drift { transition: none; transform: none; }
+  .console-aurora-drift > i { animation: none; }
 }

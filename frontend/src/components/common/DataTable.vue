@@ -129,6 +129,7 @@
             :data-field="column.key"
             scope="col"
             :aria-sort="column.sortable ? getColumnAriaSort(column.key) : undefined"
+            :data-tip="column.tip"
             :data-sticky="getStickyColumnSide(column, index)"
             :style="getStickyColumnStyle(column, index)"
             :class="[
