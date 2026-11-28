@@ -3,5 +3,14 @@
   "quota_snapshot_max_age_seconds": 300,
   "takeover_header_wait_seconds": 20,
   "takeover_upstream_idle_seconds": 60,
-  "takeover_total_wait_seconds": 180
+  "takeover_total_wait_seconds": 180,
+  "openai_relay_incompatible_400_keywords": [
+    "function_call_output requires call_id on HTTP requests",
+    "codex_session_identity_conflict"
+  ],
+  "openai_upstream_unavailable_cooldown_seconds": 30,
+  "openai_upstream_unavailable_http_keywords": [
+    "no available account"
+  ],
+  "openai_ws_unavailable_fallback_cooldown_seconds": 30
 }

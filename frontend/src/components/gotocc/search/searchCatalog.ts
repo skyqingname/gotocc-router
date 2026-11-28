@@ -127,9 +127,9 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
       { path: '/getting-started', icon: RocketIcon },
       { path: '/model-plaza?embedded=1', icon: ModelPlazaIcon, when: flag(FeatureFlags.modelPlaza) },
       { path: '/keys', icon: KeyIcon },
+      ...custom.map((item) => ({ path: `/custom/${item.id}`, label: item.label, iconSvg: item.icon_svg })),
       { path: '/team', icon: TeamIcon, hideInSimpleMode: true, when: teamEnabled },
       { path: navigationLinks.canvas_url, icon: CanvasIcon, titleKey: 'nav.enterCanvas', external: true, hideInSimpleMode: true },
-      { path: '/async-image', icon: BatchImageIcon, hideInSimpleMode: true, when: () => canUseAsyncImage.value },
       { path: '/tasks', icon: TaskCenterIcon, hideInSimpleMode: true },
       { path: '/usage', icon: ChartIcon, hideInSimpleMode: true },
       { path: '/available-channels', icon: ChannelIcon, hideInSimpleMode: true, when: flag(FeatureFlags.availableChannels) },
@@ -143,7 +143,7 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
       { path: '/reseller', icon: ResellerIcon, hideInSimpleMode: true, when: () => resellerAccess.enabled.value },
       { path: '/profile', icon: UserIcon },
       { path: '/settings/mcp', icon: MCPIcon, when: flag(FeatureFlags.mcp) },
-      ...custom.map((item) => ({ path: `/custom/${item.id}`, label: item.label, iconSvg: item.icon_svg })),
+      { path: '/async-image', icon: BatchImageIcon, hideInSimpleMode: true, when: () => canUseAsyncImage.value },
     ]
   }
 
