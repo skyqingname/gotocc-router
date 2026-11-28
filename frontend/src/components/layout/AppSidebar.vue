@@ -464,7 +464,8 @@ function buildSelfNavSections(): NavSection[] {
           ? { path: '/credits', label: t('nav.customerCredits'), icon: GiftIcon, tip: t('consoleTips.nav.credits'), hideInSimpleMode: true }
           : { path: '/wallet', label: t('nav.wallet'), icon: RechargeSubscriptionIcon, tip: t('consoleTips.nav.wallet'), hideInSimpleMode: true },
         // 站长中心含发展客户和邀请返利两部分，任一可用就显示。
-        ...(resellerAccess.enabled.value || flagAffiliate() ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, tip: t('consoleTips.nav.reseller'), hideInSimpleMode: true }] : []),
+        // 没有站长资格的人（站长客户、被关闭的站长）在这里只有邀请返利，入口就叫邀请返利。
+        ...(resellerAccess.enabled.value || flagAffiliate() ? [{ path: '/reseller', label: resellerAccess.enabled.value ? t('nav.reseller') : t('nav.affiliate'), icon: ResellerIcon, tip: resellerAccess.enabled.value ? t('consoleTips.nav.reseller') : t('affiliate.description'), hideInSimpleMode: true }] : []),
         { path: '/team', label: t('nav.team'), icon: TeamIcon, tip: t('team.description'), hideInSimpleMode: true, featureFlag: flagTeam },
         { path: '/profile', label: t('nav.profile'), icon: UserIcon, tip: t('profile.description') },
         { path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon, tip: t('mcp.description'), featureFlag: flagMCP },
