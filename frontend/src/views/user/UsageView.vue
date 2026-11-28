@@ -1122,6 +1122,8 @@ onMounted(() => {
   document.addEventListener('click', handleColumnClickOutside)
   void loadFilterOptions()
   refreshData()
+  // 仪表盘「失败请求」点进来时直接打开错误请求。
+  if (route.query.view === 'errors' && errorViewEnabled.value) switchToErrors()
 })
 
 onUnmounted(() => {

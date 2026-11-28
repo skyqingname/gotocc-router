@@ -11,7 +11,7 @@ export interface ResellerGroup { id: number; name: string; platform: string; bas
 export interface ResellerPrices { prices: ResellerPrice[]; groups: ResellerGroup[]; default_multiplier: number }
 export interface ResellerEarning { id: number; customer_id: number; username: string; group_id: number; group_name: string; model: string; charged: number; cost: number; profit: number; multiplier: number; created_at: string; settlement_type: string }
 export interface ResellerPage<T> { items: T[]; total: number; page: number; page_size: number }
-export interface ResellerOverview { profile: ResellerProfile; invitation_url: string; limits: ResellerOwnerLimits; summary: { customer_count: number; charged: number; profit: number; cost: number; credit_balance: number; gifted: number } }
+export interface ResellerOverview { profile: ResellerProfile; invitation_url: string; limits: ResellerOwnerLimits; summary: { customer_count: number; charged: number; profit: number; cost: number; credit_balance: number; gifted: number; month_new_customers: number; month_charged: number; month_cost: number } }
 export interface ResellerOwnerLimits { balance: number; concurrency: number; rpm_limit: number }
 export interface ResellerCustomerInput { email: string; username: string; password: string; status: 'active' | 'disabled'; concurrency: number; rpm_limit: number; allowed_groups: number[]; notes: string }
 export interface ResellerCreditEntry { id: number; customer_id: number; owner_id: number; operation_id: string; kind: string; amount: number; frozen_amount: number; balance_after: number; frozen_after: number; platform_cost: number; model: string; notes: string; created_at: string }

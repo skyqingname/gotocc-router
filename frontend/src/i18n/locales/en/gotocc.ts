@@ -30,14 +30,6 @@ export default {
       },
     },
     dashboard: {
-      live: {
-        rpm: 'RPM',
-        rpmHint: 'Average requests per minute over the last 5 minutes',
-        tpm: 'TPM',
-        tpmHint: 'Average tokens per minute over the last 5 minutes',
-        latency: 'Avg latency',
-        todayCost: 'Today',
-      },
       filters: {
         title: 'Filters',
         apiKey: 'API key',
@@ -195,7 +187,7 @@ export default {
       empty: {
         title: 'No tasks yet',
         video: 'Submit a generation with a video model to follow its progress, preview and download it here.',
-        image: 'Submit a task from the Creative Studio or the async image API to follow its progress and results here.',
+        image: 'Submit a task through the async image API to follow its progress and results here.',
       },
       loadFailed: 'Failed to load tasks',
       retry: 'Retry',

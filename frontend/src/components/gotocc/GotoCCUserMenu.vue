@@ -162,7 +162,6 @@ import { useOnboardingProgress } from '@/composables/useOnboardingProgress'
 import { ADMIN_PORTAL_HOME, USER_PORTAL_HOME } from '@/utils/portalArea'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import Icon from '@/components/icons/Icon.vue'
 import { vSegmented } from './vSegmented'
 
@@ -212,13 +211,6 @@ interface NavEntry {
 const navGroups = computed(() => {
   const settings = appStore.cachedPublicSettings
   const full = !view.isSimpleMode
-  const payment = full && isFeatureFlagEnabled(FeatureFlags.payment)
-  // 购买入口文案随站点计费模式切换，与侧栏相同。
-  const purchaseLabel = {
-    recharge_and_subscription: t('nav.buySubscription'),
-    recharge_only: t('nav.recharge'),
-    subscription_only: t('nav.subscribe'),
-  }[resolveSiteBillingMode(settings)]
   const groups: Array<{ key: string; entries: NavEntry[] }> = [
     {
       key: 'workspace',
@@ -232,12 +224,10 @@ const navGroups = computed(() => {
     {
       key: 'billing',
       entries: [
-        { path: '/purchase', label: purchaseLabel, icon: 'creditCard', visible: payment },
-        { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: 'calendar', visible: full && isFeatureFlagEnabled(FeatureFlags.subscription) },
-        { path: '/orders', label: t('nav.myOrders'), icon: 'document', visible: payment },
-        { path: '/redeem', label: t('nav.redeem'), icon: 'gift', visible: full },
+        { path: '/wallet', label: t('nav.wallet'), icon: 'creditCard', visible: full },
         { path: '/credits', label: t('nav.customerCredits'), icon: 'gift', visible: full && resellerCustomer.isCustomer.value },
-        { path: '/affiliate', label: t('nav.affiliate'), icon: 'userPlus', visible: full && isFeatureFlagEnabled(FeatureFlags.affiliate) },
+        // 代理中心已并入站长中心的「邀请返利」选项卡。
+        { path: '/reseller?tab=affiliate', label: t('nav.affiliate'), icon: 'userPlus', visible: full && isFeatureFlagEnabled(FeatureFlags.affiliate) },
       ],
     },
   ]

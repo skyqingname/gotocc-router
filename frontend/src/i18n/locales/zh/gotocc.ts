@@ -30,14 +30,6 @@ export default {
       },
     },
     dashboard: {
-      live: {
-        rpm: 'RPM',
-        rpmHint: '近 5 分钟平均每分钟请求数',
-        tpm: 'TPM',
-        tpmHint: '近 5 分钟平均每分钟 Token 数',
-        latency: '平均耗时',
-        todayCost: '今日消费',
-      },
       filters: {
         title: '筛选',
         apiKey: 'API 密钥',
@@ -195,7 +187,7 @@ export default {
       empty: {
         title: '暂无任务',
         video: '用视频模型提交生成后，可以在这里查看进度、预览和下载成片。',
-        image: '在创作台或异步生图接口提交任务后，可以在这里查看进度和结果。',
+        image: '用异步生图接口提交任务后，可以在这里查看进度和结果。',
       },
       loadFailed: '任务加载失败',
       retry: '重试',

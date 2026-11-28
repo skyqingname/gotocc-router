@@ -23,16 +23,11 @@ import { parseAdminSupportTargetId, type AdminSupportResource } from '@/utils/ad
 const pages = {
   overview: defineAsyncComponent(() => import('@/views/user/DashboardView.vue')),
   'api-keys': defineAsyncComponent(() => import('@/views/user/KeysView.vue')),
-  'async-images': defineAsyncComponent(() => import('@/views/user/GotoccCreativeStudioView.vue')),
-  'batch-images': defineAsyncComponent(() => import('@/views/user/BatchImageGuideView.vue')),
   usage: defineAsyncComponent(() => import('@/views/user/UsageView.vue')),
   channels: defineAsyncComponent(() => import('@/views/user/AvailableChannelsView.vue')),
   'channel-status': defineAsyncComponent(() => import('@/views/user/ChannelStatusView.vue')),
-  subscriptions: defineAsyncComponent(() => import('@/views/user/SubscriptionsView.vue')),
-  orders: defineAsyncComponent(() => import('@/views/user/UserOrdersView.vue')),
+  wallet: defineAsyncComponent(() => import('@/views/user/WalletView.vue')),
   profile: defineAsyncComponent(() => import('@/views/user/ProfileView.vue')),
-  purchase: defineAsyncComponent(() => import('@/views/user/PaymentView.vue')),
-  redeem: defineAsyncComponent(() => import('@/views/user/RedeemView.vue')),
   affiliate: defineAsyncComponent(() => import('@/views/user/AffiliateView.vue')),
   custom: defineAsyncComponent(() => import('@/views/user/CustomPageView.vue'))
 }

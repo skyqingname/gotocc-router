@@ -12,6 +12,9 @@
   "balance_reminder": {
     "storage_prefix": "gotocc_balance_reminder_"
   },
+  "reseller_guide": {
+    "storage_prefix": "gotocc_reseller_guide_"
+  },
   "request_id": {
     "usage_client_prefix": "client:"
   },

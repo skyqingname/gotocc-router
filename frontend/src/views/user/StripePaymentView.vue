@@ -10,7 +10,7 @@
         </div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.stripeLoadFailed') }}</h3>
         <p class="mt-2 text-sm surface-muted">{{ initError }}</p>
-        <button class="btn btn-primary mt-6" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
+        <button class="btn btn-primary mt-6" @click="router.push({ path: '/wallet', query: { tab: 'recharge' } })">{{ t('payment.result.backToRecharge') }}</button>
       </div>
       <template v-else>
         <!-- 金额头部 -->
@@ -79,14 +79,14 @@
             </button>
           </div>
           <div class="text-center">
-            <button class="btn btn-secondary" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
+            <button class="btn btn-secondary" @click="router.push({ path: '/wallet', query: { tab: 'recharge' } })">{{ t('payment.result.backToRecharge') }}</button>
           </div>
         </template>
 
         <!-- 错误状态 -->
         <div v-if="stripeError && !showPaymentElement" class="card p-4">
           <p class="text-sm text-red-600 dark:text-red-400">{{ stripeError }}</p>
-          <button class="btn btn-secondary mt-3 w-full" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
+          <button class="btn btn-secondary mt-3 w-full" @click="router.push({ path: '/wallet', query: { tab: 'recharge' } })">{{ t('payment.result.backToRecharge') }}</button>
         </div>
       </template>
     </div>

@@ -257,6 +257,9 @@ type UserDashboardStats struct {
 
 	// 按"有效平台"维度拆分（与 ops 路径口径一致：group.platform 优先，否则 account.platform）
 	ByPlatform []PlatformDashboardStats `json:"by_platform,omitempty"`
+
+	// GoToCC 仪表盘重点卡片的字段，见 usage_log_types_gotocc.go。
+	UserDashboardFocus
 }
 
 // PlatformDashboardStats 单个平台的用量明细。

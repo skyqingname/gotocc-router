@@ -115,26 +115,78 @@
 
       <!-- Personal / assistance view (also used by administrators in the user portal) -->
       <template v-else>
-        <div class="sidebar-section">
-          <div v-if="isAdminUserPortal" class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
-            <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
-          </div>
-          <component
-            v-for="item in userNavItems"
-            :key="item.path"
-            :is="item.external ? 'a' : RouterLink"
-            v-bind="item.external ? { href: item.path, target: '_blank', rel: 'noopener noreferrer' } : { to: item.path }"
-            class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': !item.external && isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
-            :data-tip="sidebarCollapsed ? item.label : item.tip"
-            data-tip-side="right"
-            :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : item.path === '/usage' ? 'sidebar-usage' : undefined"
-            @click="handleMenuItemClick(item.path)"
+        <div v-if="isAdminUserPortal" class="mb-2" :class="sidebarCollapsed ? 'px-1' : 'px-2'">
+          <AdminSupportUserSelector :collapsed="sidebarCollapsed" />
+        </div>
+        <!-- 用户端分三段：开始、使用、账户；段标题在侧栏收起时变成一条细分隔线。 -->
+        <div v-for="section in userNavSections" :key="section.key" class="sidebar-section user-nav-section">
+          <div
+            class="sidebar-section-title user-nav-section-title"
+            :class="{ 'sidebar-section-title-collapsed': sidebarCollapsed }"
+            :aria-hidden="sidebarCollapsed ? 'true' : undefined"
           >
-            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
-            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
-          </component>
+            <span class="sidebar-section-title-text" :class="{ 'sidebar-section-title-text-collapsed': sidebarCollapsed }">{{ section.title }}</span>
+          </div>
+          <template v-for="item in section.items" :key="item.path">
+            <!-- 可展开的组（开始使用）：当前页在组内时自动展开；侧栏收起时点它直接进第一项。 -->
+            <template v-if="item.children?.length">
+              <button
+                type="button"
+                class="sidebar-link mb-1 w-full surface-control"
+                :class="{
+                  'sidebar-link-active': isGroupActive(item) && (sidebarCollapsed || !isGroupExpanded(item)),
+                  'sidebar-link-collapsed': sidebarCollapsed
+                }"
+                :aria-expanded="sidebarCollapsed ? undefined : isGroupExpanded(item)"
+                :data-tip="sidebarCollapsed ? item.label : item.tip"
+                data-tip-side="right"
+                @click="handleGroupClick(item)"
+              >
+                <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                <span
+                  class="sidebar-label sidebar-label-flex"
+                  :class="{ 'sidebar-label-collapsed': sidebarCollapsed }"
+                  :aria-hidden="sidebarCollapsed ? 'true' : 'false'"
+                >
+                  <span class="min-w-0 truncate">{{ item.label }}</span>
+                  <ChevronDownIcon
+                    class="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                    :class="isGroupExpanded(item) ? 'rotate-180' : ''"
+                  />
+                </span>
+              </button>
+              <div v-if="!sidebarCollapsed && isGroupExpanded(item)" class="user-nav-children mb-1 ml-4 border-l border-gray-200 pl-2 dark:border-dark-600">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.path"
+                  :to="child.path"
+                  class="sidebar-link mb-0.5 py-1.5 text-sm"
+                  :class="{ 'sidebar-link-active': isActive(child.path) }"
+                  :data-tip="child.tip"
+                  data-tip-side="right"
+                  @click="handleMenuItemClick(child.path)"
+                >
+                  <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
+                  <span>{{ child.label }}</span>
+                </router-link>
+              </div>
+            </template>
+            <component
+              v-else
+              :is="item.external ? 'a' : RouterLink"
+              v-bind="item.external ? { href: item.path, target: '_blank', rel: 'noopener noreferrer' } : { to: item.path }"
+              class="sidebar-link mb-1"
+              :class="{ 'sidebar-link-active': !item.external && isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+              :data-tip="sidebarCollapsed ? item.label : item.tip"
+              data-tip-side="right"
+              :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : item.path === '/usage' ? 'sidebar-usage' : undefined"
+              @click="handleMenuItemClick(item.path)"
+            >
+              <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+              <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+              <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+            </component>
+          </template>
         </div>
       </template>
     </nav>
@@ -224,9 +276,9 @@ import { useResellerCustomer } from '@/composables/useResellerCustomer'
 import { useTheme } from '@/composables/useTheme'
 // 侧栏图标用 GoToCC 的 Lucide 图形，悬停时播放动效。
 import {
-  BatchImageIcon, BellIcon, CanvasIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
-  CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, MoonIcon, OrderIcon,
-  OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, RocketIcon, ServerIcon, ShieldIcon, SignalIcon,
+  BellIcon, CalendarCheckIcon, CanvasIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
+  CompassIcon, CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, MoonIcon, OrderIcon,
+  PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, RocketIcon, ServerIcon, ShieldIcon, SignalIcon,
   SunIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
 } from '@/components/gotocc/navIcons'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -234,11 +286,8 @@ import VersionBadge from '@/components/common/VersionBadge.vue'
 import AdminSupportUserSelector from '@/components/layout/AdminSupportUserSelector.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
-import { FeatureFlags, makeSidebarFlag, getChannelMonitorMode } from '@/utils/featureFlags'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import Icon from '@/components/icons/Icon.vue'
-import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
-import { useImageTaskModes } from '@/composables/useImageTaskModes'
 import { usePortalArea } from '@/composables/usePortalArea'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
 import {
@@ -303,8 +352,6 @@ const resellerCustomer = useResellerCustomer()
 watch(() => authStore.user?.id, () => { void resellerAccess.load(true).catch(() => { resellerAccess.enabled.value = false }) }, { immediate: true })
 const onboardingStore = useOnboardingStore()
 const adminSettingsStore = useAdminSettingsStore()
-const { canUseAsyncImage, refreshAsyncImageAccess } = useAsyncImageAccess()
-const { refreshImageTaskModes } = useImageTaskModes()
 
 const portalArea = usePortalArea()
 const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -318,10 +365,6 @@ const isAdmin = computed(() => authStore.isAdmin && portalArea.value === 'admin'
 const isAdminUserPortal = computed(() => authStore.isAdmin && portalArea.value === 'user')
 watch(() => route.fullPath, () => {
   closeMobile()
-  void refreshImageTaskModes()
-  if (!isAdmin.value) {
-    void refreshAsyncImageAccess()
-  }
 })
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const { isDark, toggleTheme } = useTheme()
@@ -359,22 +402,8 @@ const ChevronDownIcon = {
 // which handles the opt-in vs opt-out fallback when settings haven't loaded
 // yet. Admin-only flags (not in public settings) stay inline below.
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
-const flagPayment = makeSidebarFlag(FeatureFlags.payment)
-const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 const flagModelPlaza = makeSidebarFlag(FeatureFlags.modelPlaza)
-
-// 购买入口文案随站点计费模式切换：仅充值 → 「充值」，仅订阅 → 「订阅」，否则「充值/订阅」。
-const purchaseNavLabel = computed(() => {
-  switch (resolveSiteBillingMode(appStore.cachedPublicSettings)) {
-    case 'recharge_only':
-      return t('nav.recharge')
-    case 'subscription_only':
-      return t('nav.subscribe')
-    default:
-      return t('nav.buySubscription')
-  }
-})
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagGlobalIpAccessControl = makeSidebarFlag(FeatureFlags.globalIpAccessControl)
@@ -382,59 +411,100 @@ const flagPluginManagement = makeSidebarFlag(FeatureFlags.pluginManagement)
 const flagMCP = makeSidebarFlag(FeatureFlags.mcp)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
-const flagAsyncImageAccess = () => canUseAsyncImage.value
 const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
 
-// buildSelfNavItems 构造用户端的个人导航项。
-//
-// 条目顺序：仪表盘 → 模型广场 → API 密钥 → 用户自定义菜单（如小铺充值） → 我的团队 → 走进画布 → 任务/用量 → 渠道 → 订阅/支付/兑换/资料 → 创作台。
-// 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
-function buildSelfNavItems(): NavItem[] {
-  const items: NavItem[] = [
-    { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon, tip: t('consoleTips.nav.dashboard') },
-    { path: '/getting-started', label: t('consoleGuide.start.navTitle'), icon: RocketIcon, tip: t('consoleGuide.start.navDescription') },
-  ]
-  items.push(
-    // 带 embedded=1 在后台布局内打开，与页眉入口一致。
-    { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, tip: t('consoleTips.nav.modelPlaza'), featureFlag: flagModelPlaza },
-    { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon, tip: t('keys.description') },
-    ...customMenuItemsForUser.value.map((item): NavItem => ({
-      path: `/custom/${item.id}`,
-      label: item.label,
-      icon: null,
-      iconSvg: item.icon_svg,
-    })),
-    { path: '/team', label: t('nav.team'), icon: TeamIcon, tip: t('team.description'), hideInSimpleMode: true, featureFlag: flagTeam },
-    { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, tip: t('consoleTips.nav.canvas'), external: true, hideInSimpleMode: true },
-    { path: '/tasks', label: t('gotocc.taskCenter.title'), icon: TaskCenterIcon, tip: t('consoleTips.nav.tasks'), hideInSimpleMode: true },
-    { path: '/usage', label: t('nav.usage'), icon: ChartIcon, tip: t('usage.description'), hideInSimpleMode: true },
-    { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, tip: t('availableChannels.description'), hideInSimpleMode: true, featureFlag: flagAvailableChannels },
-    { path: '/monitor', label: t(getChannelMonitorMode() === 'v3' ? 'channelMonitorV3.title' : 'nav.channelStatus'), icon: SignalIcon, tip: t('consoleTips.nav.monitor'), featureFlag: flagChannelMonitor },
-    { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, tip: t('userSubscriptions.description'), hideInSimpleMode: true, featureFlag: flagSubscription },
-    { path: '/purchase', label: purchaseNavLabel.value, icon: RechargeSubscriptionIcon, tip: t('purchase.description'), hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/orders', label: t('nav.myOrders'), icon: OrderListIcon, tip: t('consoleTips.nav.orders'), hideInSimpleMode: true, featureFlag: flagPayment },
-    { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, tip: t('redeem.description'), hideInSimpleMode: true },
-    ...(resellerCustomer.isCustomer.value ? [{ path: '/credits', label: t('nav.customerCredits'), icon: GiftIcon, tip: t('consoleTips.nav.credits'), hideInSimpleMode: true }] : []),
-    { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, tip: t('affiliate.description'), hideInSimpleMode: true, featureFlag: flagAffiliate },
-    ...(resellerAccess.enabled.value ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, tip: t('consoleTips.nav.reseller'), hideInSimpleMode: true }] : []),
-    { path: '/profile', label: t('nav.profile'), icon: UserIcon, tip: t('profile.description') },
-    { path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon, tip: t('mcp.description'), featureFlag: flagMCP },
-    { path: '/async-image', label: t('creative.title'), icon: BatchImageIcon, tip: t('studioGotocc.description'), hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
-  )
-  return items
+interface NavSection {
+  key: string
+  title: string
+  items: NavItem[]
 }
 
-// finalizeNav 合并三重过滤：featureFlag 过滤 + simple 模式过滤。
+// buildSelfNavSections 构造用户端的个人导航，分三段：
+// 开始：仪表盘、开始使用（新手指引、签到中心）；
+// 使用：模型广场、API 密钥、使用记录、任务中心、服务状态、走进画布；
+// 账户：充值与订阅（站长客户是「我的额度」）、站长中心、我的团队、个人资料、MCP、管理员配置的自定义菜单。
+function buildSelfNavSections(): NavSection[] {
+  return [
+    {
+      key: 'start',
+      title: t('nav.sectionStart'),
+      items: [
+        { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon, tip: t('consoleTips.nav.dashboard') },
+        {
+          path: '/getting-started',
+          label: t('nav.startGroup'),
+          icon: RocketIcon,
+          tip: t('consoleTips.nav.startGroup'),
+          expandOnly: true,
+          children: [
+            { path: '/getting-started', label: t('nav.guide'), icon: CompassIcon, tip: t('consoleGuide.start.navDescription') },
+            { path: '/checkin', label: t('nav.checkin'), icon: CalendarCheckIcon, tip: t('consoleTips.nav.checkin') },
+          ],
+        },
+      ],
+    },
+    {
+      key: 'use',
+      title: t('nav.sectionUse'),
+      items: [
+        // 带 embedded=1 在后台布局内打开，与页眉入口一致。
+        { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, tip: t('consoleTips.nav.modelPlaza'), featureFlag: flagModelPlaza },
+        { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon, tip: t('keys.description') },
+        { path: '/usage', label: t('nav.usage'), icon: ChartIcon, tip: t('usage.description'), hideInSimpleMode: true },
+        { path: '/tasks', label: t('gotocc.taskCenter.title'), icon: TaskCenterIcon, tip: t('consoleTips.nav.tasks'), hideInSimpleMode: true },
+        { path: '/monitor', label: t('nav.serviceStatus'), icon: SignalIcon, tip: t('consoleTips.nav.serviceStatus') },
+        { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, tip: t('consoleTips.nav.canvas'), external: true, hideInSimpleMode: true },
+      ],
+    },
+    {
+      key: 'account',
+      title: t('nav.sectionAccount'),
+      items: [
+        resellerCustomer.isCustomer.value
+          ? { path: '/credits', label: t('nav.customerCredits'), icon: GiftIcon, tip: t('consoleTips.nav.credits'), hideInSimpleMode: true }
+          : { path: '/wallet', label: t('nav.wallet'), icon: RechargeSubscriptionIcon, tip: t('consoleTips.nav.wallet'), hideInSimpleMode: true },
+        // 站长中心含发展客户和邀请返利两部分，任一可用就显示。
+        ...(resellerAccess.enabled.value || flagAffiliate() ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, tip: t('consoleTips.nav.reseller'), hideInSimpleMode: true }] : []),
+        { path: '/team', label: t('nav.team'), icon: TeamIcon, tip: t('team.description'), hideInSimpleMode: true, featureFlag: flagTeam },
+        { path: '/profile', label: t('nav.profile'), icon: UserIcon, tip: t('profile.description') },
+        { path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon, tip: t('mcp.description'), featureFlag: flagMCP },
+        ...customMenuItemsForUser.value.map((item): NavItem => ({
+          path: `/custom/${item.id}`,
+          label: item.label,
+          icon: null,
+          iconSvg: item.icon_svg,
+          tip: t('consoleTips.nav.custom', { name: item.label }),
+        })),
+      ],
+    },
+  ]
+}
+
+// finalizeNav 合并三重过滤：站长客户可见范围、featureFlag 过滤、简易模式过滤。
 function finalizeNav(items: NavItem[]): NavItem[] {
   const visible = applyFeatureFlags(items.filter(item => resellerCustomer.canVisit(item.path)))
   return authStore.isSimpleMode ? visible.filter(item => !item.hideInSimpleMode) : visible
 }
 
-// User navigation items (regular users and administrators in the user portal).
-const userNavItems = computed((): NavItem[] => {
-  const items = finalizeNav(buildSelfNavItems())
+// 管理员代看用户时，个人页面换成协助视图的路径；组内子项同样换。
+function toSupportPath(id: number, item: NavItem): NavItem {
+  if (item.external) return item
+  return {
+    ...item,
+    path: supportPathForPersonalPath(id, item.path) || item.path,
+    children: item.children?.map(child => toSupportPath(id, child)),
+  }
+}
+
+// User navigation sections (regular users and administrators in the user portal).
+const userNavSections = computed((): NavSection[] => {
   const id = adminSupportContext.value?.userId
-  return id ? items.map(item => item.external ? item : ({ ...item, path: supportPathForPersonalPath(id, item.path) || item.path })) : items
+  return buildSelfNavSections()
+    .map(section => {
+      const items = finalizeNav(section.items)
+      return { ...section, items: id ? items.map(item => toSupportPath(id, item)) : items }
+    })
+    .filter(section => section.items.length > 0)
 })
 
 // Custom menu items filtered by visibility
@@ -591,13 +661,12 @@ function routePathOf(path: string): string {
 
 function isActive(path: string): boolean {
   const target = routePathOf(path)
-  if (target === '/async-image' && route.path === '/creative') return true
   return route.path === target || route.path.startsWith(target + '/')
 }
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
-  return item.children.some(child => route.path === routePathOf(child.path))
+  return item.children.some(child => isActive(child.path))
 }
 
 function isGroupExpanded(item: NavItem): boolean {
@@ -618,7 +687,14 @@ function toggleGroup(item: NavItem) {
  *   (router-link semantics) and ensure the group is expanded.
  */
 function handleGroupClick(item: NavItem) {
-  if (sidebarCollapsed.value) return
+  if (sidebarCollapsed.value) {
+    // 收起时看不到子项：用户端的组直接进第一项，管理端保持原样。
+    if (!isAdmin.value) {
+      handleMenuItemClick(item.children![0].path)
+      void router.push(item.children![0].path)
+    }
+    return
+  }
   if (item.expandOnly) {
     toggleGroup(item)
     return
@@ -642,10 +718,6 @@ watch(
 )
 
 onMounted(() => {
-  void refreshImageTaskModes()
-  if (!isAdmin.value) {
-    void refreshAsyncImageAccess()
-  }
   if (authStore.isAdmin) {
     adminSettingsStore.fetch()
   }
@@ -754,6 +826,20 @@ onBeforeUnmount(() => {
 .sidebar-section-title-collapsed::after {
   opacity: 1;
   transition-delay: 0.08s;
+}
+
+/* 用户端段标题：小号字、宽字距；第一段之外上方留出段间距。 */
+.user-nav-section + .user-nav-section {
+  margin-top: 0.75rem;
+}
+
+.user-nav-section-title {
+  margin-bottom: 0.25rem;
+  padding: 0 0.75rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--surface-muted);
 }
 
 .sidebar-label {

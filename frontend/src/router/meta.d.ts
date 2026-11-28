@@ -61,33 +61,15 @@ declare module 'vue-router' {
      */
     requiresIpAccessControl?: boolean
 
-    /**
-     * Whether this route requires async image access. Administrators always
-     * have access; users need an eligible image-generation API key.
-     * @default false
-     */
-    requiresAsyncImageAccess?: boolean
-
-    /**
-     * 是否要求订阅功能开关（subscription_enabled，opt-out）未被显式关闭
-     * @default false
-     */
-    requiresSubscription?: boolean
-
     /** Read-only administrator support resource for an explicit target user. */
     adminSupportResource?:
       | 'overview'
       | 'api-keys'
-      | 'async-images'
       | 'usage'
       | 'channels'
       | 'channel-status'
-      | 'subscriptions'
-      | 'orders'
+      | 'wallet'
       | 'profile'
-      | 'batch-images'
-      | 'purchase'
-      | 'redeem'
       | 'affiliate'
       | 'custom'
 

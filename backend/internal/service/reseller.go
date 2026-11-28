@@ -58,6 +58,10 @@ type ResellerSummary struct {
 	Cost          float64 `json:"cost"`
 	CreditBalance float64 `json:"credit_balance"`
 	Gifted        float64 `json:"gifted"`
+	// 本月（服务器时区自然月）新增客户、客户消耗额度和站长平台成本，只统计站长余额结算的记录。
+	MonthNewCustomers int64   `json:"month_new_customers"`
+	MonthCharged      float64 `json:"month_charged"`
+	MonthCost         float64 `json:"month_cost"`
 }
 type ResellerRepository interface {
 	ResellerCommunicationsRepository

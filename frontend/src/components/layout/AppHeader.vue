@@ -46,10 +46,11 @@
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
         <SubscriptionProgressMini v-if="user && isUserPortal && subscriptionFeatureEnabled && !compactHeader" />
 
-        <!-- Balance Display -->
-        <div
+        <!-- Balance Display：点开进充值与订阅，站长客户进我的额度 -->
+        <router-link
           v-if="user && isUserPortal && !compactHeader"
-          class="header-balance relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
+          :to="balancePath"
+          class="header-balance relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 transition-colors hover:bg-primary-100/40 dark:bg-primary-900/20 dark:hover:bg-primary-900/35 sm:flex"
           :data-tip="balanceTip"
           data-tip-side="bottom"
         >
@@ -75,7 +76,7 @@
           >
             {{ balanceFrozenLabel }}
           </span>
-        </div>
+        </router-link>
 
         <!-- 用户菜单：GoToCC 自有组件 -->
         <GotoCCUserMenu v-if="user" />
@@ -105,7 +106,8 @@ import GotoCCUserMenu from '@/components/gotocc/GotoCCUserMenu.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { supportPathForPersonalPath } from '@/utils/adminSupport'
+import { adminSupportContext } from '@/utils/adminSupportContext'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -138,14 +140,17 @@ const balanceTip = computed(() => t('consoleTips.header.balance', {
   frozen: exactCredit(frozenBalance.value),
   total: exactCredit(totalBalance.value),
 }))
+// 余额点开去充值与订阅；站长客户的余额是站长给的额度，去「我的额度」。管理员代看时换成协助视图。
+const balancePath = computed(() => {
+  const path = user.value?.reseller_customer ? '/credits' : '/wallet'
+  const id = adminSupportContext.value?.userId
+  return id ? supportPathForPersonalPath(id, path) || path : path
+})
 
 // 订阅功能关闭时不挂载顶栏订阅徽章（组件 onMounted 会拉取订阅接口）。
 const subscriptionFeatureEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.subscription))
 
-// /purchase 的标题/描述随站点计费模式切换，与 document.title 共用同一解析。
-const routeMetaKeys = computed(() => resolveRouteMetaKeys(route, {
-  billingMode: resolveSiteBillingMode(appStore.cachedPublicSettings),
-}))
+const routeMetaKeys = computed(() => resolveRouteMetaKeys(route))
 
 const pageTitle = computed(() => {
   // For custom pages, use the menu item's label instead of generic "自定义页面"

@@ -2,8 +2,8 @@
   <AppLayout appearance="user">
     <div class="space-y-4">
       <div class="flex flex-wrap items-center gap-3">
-        <RouterLink to="/purchase" class="btn btn-secondary">{{ t('featureExtensions.backPurchase') }}</RouterLink>
-        <RouterLink to="/redeem" class="btn btn-secondary">{{ t('featureExtensions.redeemLink') }}</RouterLink>
+        <RouterLink :to="{ path: '/wallet', query: { tab: 'recharge' } }" class="btn btn-secondary">{{ t('featureExtensions.backPurchase') }}</RouterLink>
+        <RouterLink :to="{ path: '/wallet', query: { tab: 'redeem' } }" class="btn btn-secondary">{{ t('featureExtensions.redeemLink') }}</RouterLink>
         <a v-if="url" :href="url" target="_blank" rel="noopener noreferrer" class="btn btn-primary">{{ t('featureExtensions.openNewTab') }}</a>
       </div>
       <p v-if="error" role="alert" class="text-red-600">{{ t('featureExtensions.purchaseUnavailable') }}</p>

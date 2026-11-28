@@ -10,6 +10,7 @@ import (
 	dbent "github.com/LuckyKuang/sub2api-plus/ent"
 	infraerrors "github.com/LuckyKuang/sub2api-plus/internal/pkg/errors"
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/reseller"
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/timezone"
 	"github.com/LuckyKuang/sub2api-plus/internal/service"
 	"github.com/google/uuid"
 )
@@ -228,7 +229,8 @@ func (r *resellerRepository) SetPrices(ctx context.Context, ownerID int64, custo
 }
 func (r *resellerRepository) Summary(ctx context.Context, ownerID int64) (*service.ResellerSummary, error) {
 	p := &service.ResellerSummary{}
-	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.owner_user_id=$1 AND u.deleted_at IS NULL),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8,COALESCE(SUM(cost_amount),0)::float8,(SELECT COALESCE(SUM(credit_balance),0)::float8 FROM reseller_customers WHERE owner_user_id=$1),(SELECT COALESCE(SUM(amount),0)::float8 FROM reseller_credit_entries WHERE owner_user_id=$1 AND kind='gift') FROM reseller_earnings WHERE owner_user_id=$1 AND settlement_type='managed_credit'`, []any{ownerID}, &p.CustomerCount, &p.Charged, &p.Profit, &p.Cost, &p.CreditBalance, &p.Gifted)
+	monthStart := timezone.StartOfMonth(timezone.Now())
+	err := scanSingleRow(ctx, r.executor(ctx), `SELECT (SELECT COUNT(*) FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.owner_user_id=$1 AND u.deleted_at IS NULL),(SELECT COUNT(*) FROM reseller_customers c JOIN users u ON u.id=c.user_id WHERE c.owner_user_id=$1 AND u.deleted_at IS NULL AND c.created_at>=$2),COALESCE(SUM(charged_amount),0)::float8,COALESCE(SUM(profit_amount),0)::float8,COALESCE(SUM(cost_amount),0)::float8,COALESCE(SUM(charged_amount) FILTER (WHERE created_at>=$2),0)::float8,COALESCE(SUM(cost_amount) FILTER (WHERE created_at>=$2),0)::float8,(SELECT COALESCE(SUM(credit_balance),0)::float8 FROM reseller_customers WHERE owner_user_id=$1),(SELECT COALESCE(SUM(amount),0)::float8 FROM reseller_credit_entries WHERE owner_user_id=$1 AND kind='gift') FROM reseller_earnings WHERE owner_user_id=$1 AND settlement_type='managed_credit'`, []any{ownerID, monthStart}, &p.CustomerCount, &p.MonthNewCustomers, &p.Charged, &p.Profit, &p.Cost, &p.MonthCharged, &p.MonthCost, &p.CreditBalance, &p.Gifted)
 	return p, err
 }
 func (r *resellerRepository) Earnings(ctx context.Context, ownerID int64, page, size int) ([]service.ResellerEarning, int64, error) {

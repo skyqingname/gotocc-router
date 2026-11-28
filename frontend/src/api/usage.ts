@@ -55,6 +55,12 @@ export interface UserDashboardStats {
   rpm: number // 近5分钟平均每分钟请求数
   tpm: number // 近5分钟平均每分钟Token数
   by_platform?: PlatformDashboardStats[]
+  // 仪表盘重点卡片：近 24 小时本人的成功数、失败数（其中平台原因）、首字中位数，近 7 天实际扣费
+  last24h_success: number
+  last24h_failed: number
+  last24h_platform_failed: number
+  last24h_ttft_median_ms: number | null
+  last7d_actual_cost: number
 }
 
 export interface TrendParams {

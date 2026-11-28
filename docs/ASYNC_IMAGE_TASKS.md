@@ -348,18 +348,11 @@ compensation reaches PostgreSQL can still lose that compensation.
 
 ## Signed-in console and read states
 
-The single `/image-tasks` console preserves each panel's filters and pagination
-when switching modes. `/async-image`, `/batch-image` and `/docs/batch-image`
-redirect to the requested mode. A disabled requested mode displays its reason;
-an available mode remains reachable. New submissions follow `can_submit` while
-history follows `can_view`; loading capability never mounts an unauthorized
-panel. Switching login/support targets clears capability and panel state and
-rejects late responses. Both panels explain their different ownership rules.
-The standard panel stops polling when unmounted and ignores its outstanding
-responses. An in-flight poll or initial key/filter load cannot restart timers,
-continue pagination, or issue follow-up history reads after the panel is gone.
-Refreshing or changing its task list also invalidates earlier polls, so an old
-processing snapshot cannot replace a newer result or restart obsolete polling.
+GoToCC has no web pages for generating images. The upstream `/image-tasks`
+console and the GoToCC creative studio are removed; `/async-image`, `/creative`,
+`/image-tasks`, `/batch-image` and `/docs/batch-image` redirect to the task
+center `/tasks`, which lists asynchronous tasks submitted through the API. The
+read routes below remain for the task center and for API clients.
 
 Console routes use the authenticated user, never a client-supplied user ID:
 

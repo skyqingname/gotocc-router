@@ -7,10 +7,11 @@
     <div class="space-y-2 p-4">
       <button
         v-for="action in actions"
-        :key="action.path"
+        :key="action.key"
         type="button"
         class="group flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors surface-inset hover:surface-hover"
-        @click="router.push(action.path)"
+        :data-tip="action.description"
+        @click="router.push(action.to)"
       >
         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105" :class="action.iconClass">
           <Icon :name="action.icon" size="md" />
@@ -26,23 +27,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { useResellerAccess } from '@/composables/useResellerAccess'
 import { useResellerCustomer } from '@/composables/useResellerCustomer'
-import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
-// 仪表盘快捷入口：入口与显示条件同上游 UserDashboardQuickActions（批量生图按权限显示，站长客户不显示兑换），
+// 仪表盘快捷入口：创建密钥、使用记录、签到中心、充值与订阅（站长客户是我的额度）、站长中心。
 // 紧凑样式参照 TokenRouter（LGPL-3.0）：36px 图标块、各自的图标底色，悬停时右侧箭头右移并换成该行的颜色。
 const router = useRouter()
 const { t } = useI18n()
 const resellerCustomer = useResellerCustomer()
-const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
+const resellerAccess = useResellerAccess()
 
 const actions = computed(() => [
   {
-    path: '/keys',
+    key: 'keys',
+    to: '/keys' as RouteLocationRaw,
     icon: 'key' as const,
     title: t('dashboard.createApiKey'),
     description: t('dashboard.generateNewKey'),
@@ -51,7 +54,8 @@ const actions = computed(() => [
     visible: true,
   },
   {
-    path: '/usage',
+    key: 'usage',
+    to: '/usage' as RouteLocationRaw,
     icon: 'chart' as const,
     title: t('dashboard.viewUsage'),
     description: t('dashboard.checkDetailedLogs'),
@@ -60,28 +64,47 @@ const actions = computed(() => [
     visible: true,
   },
   {
-    path: '/batch-image',
-    icon: 'sparkles' as const,
-    title: t('dashboard.batchImageAgent'),
-    description: t('dashboard.batchImageAgentDesc'),
+    key: 'checkin',
+    to: '/checkin' as RouteLocationRaw,
+    icon: 'calendar' as const,
+    title: t('nav.checkin'),
+    description: t('dashboardFocus.quick.checkin'),
     iconClass: 'bg-sky-100 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300',
     arrowClass: 'group-hover:text-sky-500 dark:group-hover:text-sky-400',
-    visible: canUseBatchImage.value,
+    visible: true,
   },
+  resellerCustomer.isCustomer.value
+    ? {
+        key: 'credits',
+        to: '/credits' as RouteLocationRaw,
+        icon: 'gift' as const,
+        title: t('nav.customerCredits'),
+        description: t('consoleTips.nav.credits'),
+        iconClass: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
+        arrowClass: 'group-hover:text-amber-500 dark:group-hover:text-amber-400',
+        visible: true,
+      }
+    : {
+        key: 'wallet',
+        to: { path: '/wallet', query: { tab: isFeatureFlagEnabled(FeatureFlags.payment) ? 'recharge' : 'redeem' } } as RouteLocationRaw,
+        icon: 'creditCard' as const,
+        title: t('nav.wallet'),
+        description: t('dashboardFocus.quick.wallet'),
+        iconClass: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
+        arrowClass: 'group-hover:text-amber-500 dark:group-hover:text-amber-400',
+        visible: true,
+      },
   {
-    path: '/redeem',
-    icon: 'gift' as const,
-    title: t('dashboard.redeemCode'),
-    description: t('dashboard.addBalanceWithCode'),
-    iconClass: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
-    arrowClass: 'group-hover:text-amber-500 dark:group-hover:text-amber-400',
-    visible: !resellerCustomer.isCustomer.value,
+    key: 'reseller',
+    to: '/reseller' as RouteLocationRaw,
+    icon: 'userPlus' as const,
+    title: t('nav.reseller'),
+    description: t('dashboardFocus.quick.reseller'),
+    iconClass: 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300',
+    arrowClass: 'group-hover:text-violet-500 dark:group-hover:text-violet-400',
+    visible: resellerAccess.enabled.value || isFeatureFlagEnabled(FeatureFlags.affiliate),
   },
 ].filter((action) => action.visible))
-
-onMounted(() => {
-  void refreshBatchImageAccess()
-})
 </script>
 
 <style scoped>

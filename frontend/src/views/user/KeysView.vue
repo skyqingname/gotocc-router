@@ -953,7 +953,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { useClipboard } from '@/composables/useClipboard'
-import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useApiEndpoint } from '@/composables/useApiEndpoint'
 import RoutingPriorityPanel from '@/components/keys/RoutingPriorityPanel.vue'
@@ -1689,7 +1688,6 @@ const handleSubmit = async () => {
       await keysAPI.update(targetKey.id, updates)
       keyFieldsSaved = true
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(targetKey.id)
-      clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
       closeModals()
     } else {
@@ -1708,7 +1706,6 @@ const handleSubmit = async () => {
         { conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled, default_client: formData.value.default_client, default_endpoint: formData.value.default_endpoint },
         formData.value.group_binding_mode !== 'single' ? { group_binding_mode: formData.value.group_binding_mode, aggregate_group_ids: formData.value.group_binding_mode === 'custom' ? formData.value.aggregate_group_ids : [] } : undefined
       )
-      clearAutoRoutingCapabilities()
       keyFieldsSaved = true
       createdKeyForRetry.value = created
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(created.id)

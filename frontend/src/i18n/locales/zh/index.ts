@@ -2,7 +2,6 @@ import workspace from './workspace'
 import requestList from './requestList'
 import featureExtensions from './featureExtensions'
 import canvasCard from './canvasCard'
-import creativeGotocc from './creativeGotocc'
 import balanceCashback from './balanceCashback'
 import adminAccessKeys from './adminAccessKeys'
 import codexCli from './codexCli'
@@ -14,9 +13,7 @@ import common from './common'
 import dashboard from './dashboard'
 import channelMonitorV2 from './channelMonitorV2'
 import channelMonitorV3 from './channelMonitorV3'
-import batchImage from './batchImage'
 import asyncImage from './asyncImage'
-import imageTasks from './imageTasks'
 import admin from './admin'
 import misc from './misc'
 import team from './team'
@@ -28,6 +25,7 @@ import nativeAccess from './nativeAccess'
 import keyConsole from './keyConsole'
 import consoleGuide from './consoleGuide'
 import consoleTips from './consoleTips'
+import accountHub from './accountHub'
 
 export default {
   ...workspace,
@@ -38,10 +36,10 @@ export default {
   ...keyConsole,
   ...consoleGuide,
   ...consoleTips,
+  ...accountHub,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,
-  ...creativeGotocc,
   ...codexCli,
   ...codexCliRuntime,
   adminAccessKeys,
@@ -52,9 +50,7 @@ export default {
   ...dashboard,
   ...channelMonitorV2,
   ...channelMonitorV3,
-  ...batchImage,
   ...asyncImage,
-  ...imageTasks,
   admin,
   ...misc,
   ...team,

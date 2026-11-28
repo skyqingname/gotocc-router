@@ -1,5 +1,5 @@
 <template>
-  <AppLayout appearance="user" workspace>
+  <!-- 充值与订阅的「订单」选项卡 -->
     <div class="workspace-page">
       <!-- Filters -->
       <div class="card workspace-fixed p-4" data-test="user-orders-filters">
@@ -17,7 +17,6 @@
             <button @click="fetchOrders" :disabled="loading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
-            <button class="btn btn-primary" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
           </div>
         </div>
       </div>
@@ -88,7 +87,6 @@
         </div>
       </template>
     </BaseDialog>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -96,12 +94,10 @@ import { formatOrderAmount } from '@/components/payment/currency'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import type { PaymentOrder } from '@/types/payment'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -109,7 +105,6 @@ import Icon from '@/components/icons/Icon.vue'
 import OrderTable from '@/components/payment/OrderTable.vue'
 
 const { t } = useI18n()
-const router = useRouter()
 const appStore = useAppStore()
 
 const loading = ref(false)

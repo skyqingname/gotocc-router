@@ -1,0 +1,86 @@
+/* 充值与订阅页：顶部余额与选项卡，以及各选项卡里共用的小节标题和空状态。
+   颜色、圆角、时长都取 console-glass.css / surfaces.css 的令牌。 */
+
+.wallet-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 10px;
+  overflow: hidden;
+  border-radius: var(--surface-radius);
+}
+.wallet-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(26rem 10rem at 0% 0%, rgb(99 102 241 / 13%), transparent 70%),
+    radial-gradient(18rem 9rem at 100% 0%, rgb(56 189 248 / 11%), transparent 70%);
+}
+.wallet-hero-main {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 24px;
+}
+.wallet-balance { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+.wallet-balance-label { width: 100%; font-size: 12px; font-weight: 500; color: var(--surface-muted); }
+.wallet-balance-value { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; color: var(--surface-text); }
+.wallet-balance-frozen {
+  border-radius: var(--surface-radius-tag);
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: theme('colors.amber.700');
+  background: rgb(245 158 11 / 12%);
+}
+.dark .wallet-balance-frozen { color: theme('colors.amber.300'); }
+.wallet-hero-lead { max-width: 34rem; font-size: 13px; line-height: 1.7; color: var(--surface-muted); }
+.wallet-tabs { position: relative; margin-inline: -8px; }
+
+.wallet-body { min-width: 0; }
+.wallet-scroll { gap: var(--shell-zone-gap); }
+
+/* 小节标题：「我的订阅」「可购买的套餐」等 */
+.wallet-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-inline: 4px;
+}
+.wallet-section-title { font-size: 15px; font-weight: 600; color: var(--surface-text); }
+.wallet-section-lead { margin-top: 2px; font-size: 12px; line-height: 1.6; color: var(--surface-muted); }
+.wallet-section-chip {
+  border: 1px solid var(--surface-edge);
+  border-radius: var(--surface-radius-control);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--surface-muted);
+}
+
+/* 空状态：图标块 + 一句话，比整卡留白更紧凑 */
+.wallet-empty { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: var(--surface-radius); }
+.wallet-empty-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--surface-radius-control);
+  background: var(--surface-soft);
+  color: var(--console-accent-readable);
+}
+
+@media (max-width: 640px) {
+  .wallet-hero { padding: 16px 14px 8px; }
+  .wallet-balance-value { font-size: 26px; }
+  .wallet-tabs { margin-inline: -4px; }
+}

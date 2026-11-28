@@ -51,8 +51,6 @@ export default {
     quickActions: '快捷操作',
     createApiKey: '创建 API 密钥',
     generateNewKey: '生成新的 API 密钥',
-    batchImageAgent: '批量生图助手',
-    batchImageAgentDesc: '复制给 Agent 的任务说明',
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
@@ -974,8 +972,8 @@ export default {
   },
 
   affiliate: {
-    title: '代理中心',
-    description: '邀请新用户注册，并将返利额度转入账户余额',
+    title: '邀请返利',
+    description: '把主站邀请链接发给朋友，对方充值后你按比例拿返利，可转入余额',
     yourCode: '我的邀请码',
     inviteLink: '邀请链接',
     copyCode: '复制邀请码',
@@ -1034,7 +1032,20 @@ export default {
       line1: '将邀请码或邀请链接分享给新用户。',
       line2: "每笔有效充值按最近三代的 {rates} 分佣，缺少的代次不补发。",
       line3: "首充和后续充值均参与；赠额和佣金转余额不产生新佣金。",
-      line4: "冻结期结束后可将返利转入使用余额。"
+      line4: "冻结期结束后可将返利转入使用余额。",
+      rateTip: '一、二、三代邀请人各自拿到的返利比例',
+      invitedTip: '用你的邀请码在主站注册的人数',
+      availableTip: '已过冻结期、可以转入余额的返利',
+      totalTip: '开通以来得到的全部返利',
+      codeTip: '你的邀请码，朋友注册时填它也能算到你名下',
+      linkTip: '主站注册链接，已带上你的邀请码',
+      columns: {
+        level: '对方是你邀请的第几代',
+        email: '被邀请人的邮箱（部分隐藏）',
+        username: '被邀请人的用户名',
+        rebate: '这个人的充值给你带来的累计返利',
+        joinedAt: '对方注册的时间',
+      },
     }
   },
 

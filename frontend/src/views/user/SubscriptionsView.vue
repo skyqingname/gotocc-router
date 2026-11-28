@@ -1,42 +1,31 @@
 <template>
-  <AppLayout appearance="user" workspace>
-    <div class="workspace-page subscriptions-page">
-      <header class="card workspace-fixed subscriptions-heading flex flex-wrap items-center justify-between gap-4 p-5" data-testid="subscriptions-heading">
-        <div>
-          <h2 class="text-base font-semibold">{{ t('userSubscriptions.title') }}</h2>
-          <p class="mt-1 text-xs surface-muted">{{ t('userSubscriptions.description') }}</p>
-        </div>
-        <span class="rounded-lg border px-3 py-2 text-xs surface-muted">
-          {{ t('userSubscriptions.count', { count: subscriptions.length }) }} · {{ t('userSubscriptions.pageSize', { count: PAGE_SIZE }) }}
-        </span>
-      </header>
-      <UserCardScroll :label="t('userSubscriptions.title')" :reset-key="page" data-testid="subscriptions-activity">
+  <!-- 充值与订阅的「订阅」选项卡上半部分：生效中的套餐和用量；下半部分可购买的套餐在 PaymentView。 -->
+  <section class="subscriptions-panel" data-testid="subscriptions-panel">
+    <header class="wallet-section-head">
+      <div class="min-w-0">
+        <h2 class="wallet-section-title">{{ t('userSubscriptions.title') }}</h2>
+        <p class="wallet-section-lead">{{ t('userSubscriptions.description') }}</p>
+      </div>
+      <span v-if="!loading" class="wallet-section-chip" :data-tip="t('walletCenter.tips.subscriptionCount')">{{ t('userSubscriptions.count', { count: subscriptions.length }) }}</span>
+    </header>
       <!-- Loading State -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div
-          class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
-        ></div>
+      <div v-if="loading" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-for="index in 3" :key="index" class="gc-skeleton h-40 w-full"></div>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="subscriptions.length === 0" class="card workspace-shell p-12 text-center">
-        <div
-          class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full surface-inset"
-        >
-          <Icon name="creditCard" size="xl" class="text-gray-400" />
+      <div v-else-if="subscriptions.length === 0" class="card wallet-empty">
+        <span class="wallet-empty-icon"><Icon name="creditCard" size="lg" /></span>
+        <div class="min-w-0">
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('userSubscriptions.noActiveSubscriptions') }}</h3>
+          <p class="mt-1 text-xs surface-muted">{{ paymentEnabled ? t('walletCenter.subscription.emptyBuy') : t('userSubscriptions.noActiveSubscriptionsDesc') }}</p>
         </div>
-        <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-          {{ t('userSubscriptions.noActiveSubscriptions') }}
-        </h3>
-        <p class="surface-muted">
-          {{ t('userSubscriptions.noActiveSubscriptionsDesc') }}
-        </p>
       </div>
 
       <!-- Subscriptions Grid -->
       <div v-else class="subscriptions-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <div
-          v-for="subscription in pagedSubscriptions"
+          v-for="subscription in subscriptions"
           :key="subscription.id"
           data-testid="subscription-card"
           class="glass-surface overflow-hidden border"
@@ -82,9 +71,9 @@
                 {{ t(`userSubscriptions.status.${subscription.status}`) }}
               </span>
               <button
-                v-if="subscription.status === 'active'"
+                v-if="subscription.status === 'active' && paymentEnabled"
                 :class="['rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors', platformButtonClass(subscription.group?.platform || '')]"
-                @click="router.push({ path: '/purchase', query: { tab: 'subscription', group: String(subscription.group_id) } })"
+                @click="router.push({ path: '/wallet', query: { tab: 'subscription', group: String(subscription.group_id) } })"
               >
                 {{ t('payment.renewNow') }}
               </button>
@@ -274,39 +263,23 @@
           </div>
         </div>
       </div>
-      </UserCardScroll>
-      <Pagination
-        v-if="!loading && subscriptions.length"
-        class="subscriptions-pagination workspace-fixed"
-        :total="subscriptions.length"
-        :page="page"
-        :page-size="PAGE_SIZE"
-        :show-page-size-selector="false"
-        @update:page="page = $event"
-      />
-      <footer v-else class="card workspace-fixed subscriptions-pagination p-5 text-sm surface-muted">
-        {{ loading ? t('common.loading') : t('userSubscriptions.count', { count: 0 }) }}
-      </footer>
-    </div>
-  </AppLayout>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { withCreditUnit } from '@/utils/credits'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import subscriptionsAPI from '@/api/subscriptions'
 import type { UserSubscription } from '@/types'
-import AppLayout from '@/components/layout/AppLayout.vue'
-import Pagination from '@/components/common/Pagination.vue'
-import UserCardScroll from '@/components/user/UserCardScroll.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import {
   getExpirationDateRelation,
   getRemainingDurationParts,
@@ -330,12 +303,8 @@ const appStore = useAppStore()
 
 const subscriptions = ref<UserSubscription[]>([])
 const loading = ref(true)
-const PAGE_SIZE = 9
-const page = ref(1)
-const pagedSubscriptions = computed(() => subscriptions.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE))
-watch(() => subscriptions.value.length, count => {
-  page.value = Math.min(page.value, Math.max(1, Math.ceil(count / PAGE_SIZE)))
-})
+// 续费要走在线支付；支付关着时不显示续费按钮。
+const paymentEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.payment))
 
 function subscriptionHasPeakRate(subscription: UserSubscription): boolean {
   return hasPeakRate(subscription.group)
@@ -452,9 +421,7 @@ useLocaleRefresh(loadSubscriptions)
 </script>
 
 <style scoped>
-.subscriptions-page > :is(.subscriptions-heading, .subscriptions-pagination) {
-  flex: none;
-}
+.subscriptions-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .subscriptions-grid { grid-auto-rows: max-content; align-content: start; }
 .subscriptions-grid > .glass-surface { min-width: 0; border-radius: var(--surface-radius) !important; }
 </style>

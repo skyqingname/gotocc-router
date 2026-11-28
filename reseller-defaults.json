@@ -4,10 +4,8 @@
   "minimum_multiplier": 1,
   "page_size": 20,
   "customer_hidden_routes": [
-    "/purchase",
-    "/orders",
-    "/redeem",
-    "/subscriptions"
+    "/wallet",
+    "/purchase"
   ],
   "customer_hidden_route_prefixes": [
     "/custom/"

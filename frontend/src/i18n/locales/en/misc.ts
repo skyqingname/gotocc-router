@@ -75,20 +75,6 @@ export default {
     dockerRecreate: 'Recreate the container'
   },
 
-  // Recharge / Subscription Page
-  purchase: {
-    title: 'Recharge / Subscription',
-    description: 'Recharge balance or purchase subscription via the embedded page',
-    rechargeDescription: 'Recharge balance via the embedded page',
-    subscriptionDescription: 'Purchase subscription via the embedded page',
-    openInNewTab: 'Open in new tab',
-    notEnabledTitle: 'Feature not enabled',
-    notEnabledDesc: 'The administrator has not enabled the recharge/subscription entry. Please contact admin.',
-    notConfiguredTitle: 'Recharge / Subscription URL not configured',
-    notConfiguredDesc:
-      'The administrator enabled the entry but has not configured a recharge/subscription URL. Please contact admin.'
-  },
-
   // Custom Page (iframe embed)
   customPage: {
     title: 'Custom Page',
@@ -130,7 +116,6 @@ export default {
   // User Subscriptions Page
   userSubscriptions: {
     count: '{count} subscriptions',
-    pageSize: '{count} per page',
     title: 'My Subscriptions',
     description: 'View your subscription plans and usage',
     noActiveSubscriptions: 'No Active Subscriptions',
@@ -470,10 +455,6 @@ export default {
       backToRecharge: 'Back to Recharge',
       viewOrders: 'View Orders',
     },
-    currentBalance: 'Current Balance',
-    groupFallback: 'Group #{id}',
-    rechargeAccount: 'Recharge Account',
-    activeSubscription: 'Active Subscription',
     noActiveSubscription: 'No active subscription',
     tabTopUp: 'Top Up',
     tabSubscribe: 'Subscribe',

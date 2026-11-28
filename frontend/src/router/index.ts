@@ -12,8 +12,9 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
-import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
 import { getSetupStatus } from '@/api/setup'
+import { walletRedirect } from './walletRedirect'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import {
@@ -278,34 +279,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/async-image',
-    alias: '/creative',
-    name: 'AsyncImage',
-    component: () => import('@/views/user/GotoccCreativeStudioView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      requiresAsyncImageAccess: true,
-      title: 'Async Images',
-      titleKey: 'creative.title',
-      descriptionKey: 'studioGotocc.description'
-    }
-  },
-  {
-    // One entry for both generation modes. The mode is selected inside the page,
-    // and old links keep working so existing bookmarks do not break.
-    path: '/image-tasks',
-    name: 'ImageTasks',
-    component: () => import('@/views/user/ImageTasksView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Image Tasks',
-      titleKey: 'imageTasks.title',
-      descriptionKey: 'imageTasks.description'
-    }
-  },
-  {
     // GoToCC 任务中心：视频与图片任务的状态、耗时、费用、预览和下载。
     path: '/tasks',
     name: 'TaskCenter',
@@ -317,8 +290,8 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'gotocc.taskCenter.title'
     }
   },
-  { path: '/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
-  { path: '/docs/batch-image', redirect: { path: '/image-tasks', query: { mode: 'batch' } } },
+  // 创作台与网页生图已下线，旧链接进任务中心查看 API 异步任务。
+  ...['/async-image', '/creative', '/image-tasks', '/batch-image', '/docs/batch-image'].map((path): RouteRecordRaw => ({ path, redirect: '/tasks' })),
   {
     path: '/usage',
     name: 'Usage',
@@ -332,38 +305,40 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/redeem',
-    name: 'Redeem',
-    component: () => import('@/views/user/RedeemView.vue'),
+    // 充值与订阅：充值、订阅（我的订阅 + 可购买套餐）、订单、兑换四个选项卡，当前选项卡在 ?tab=。
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('@/views/user/WalletView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Redeem Code',
-      titleKey: 'redeem.title',
-      descriptionKey: 'redeem.description'
+      title: 'Top-up & Subscriptions',
+      titleKey: 'nav.wallet',
+      descriptionKey: 'walletCenter.description'
     }
   },
+  // 原充值/订阅、我的订阅、我的订单、兑换页并入 /wallet，查询参数原样带上（支付回跳、续费分组等）。
+  { path: '/purchase', redirect: to => walletRedirect(to, 'purchase') },
+  { path: '/subscriptions', redirect: to => walletRedirect(to, 'subscription') },
+  { path: '/orders', redirect: to => walletRedirect(to, 'orders') },
+  { path: '/redeem', redirect: to => walletRedirect(to, 'redeem') },
   {
     path: '/credits', name: 'CustomerCredits', component: () => import('@/views/user/GotoCCCustomerCreditsView.vue'),
     meta: { requiresAuth: true, requiresAdmin: false, title: 'My Credits', titleKey: 'nav.customerCredits' }
   },
   {
+    // 站长中心含发展客户和邀请返利两部分，有站长资格或开着邀请返利任一项就能进，页内各部分按各自的权限显示。
     path: '/reseller', name: 'Reseller', component: () => import('@/views/user/ResellerView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: false, title: 'Reseller Center', titleKey: 'nav.reseller' },
-    beforeEnter: async () => await useResellerAccess().load(true) ? true : '/keys'
-  },
-  {
-    path: '/affiliate',
-    name: 'Affiliate',
-    component: () => import('@/views/user/AffiliateView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Affiliate',
-      titleKey: 'affiliate.title',
-      descriptionKey: 'affiliate.description'
+    meta: { requiresAuth: true, requiresAdmin: false, title: 'Reseller Center', titleKey: 'nav.reseller', descriptionKey: 'resellerHub.description' },
+    beforeEnter: async () => {
+      if (await useResellerAccess().load(true)) return true
+      const appStore = useAppStore()
+      if (!appStore.publicSettingsLoaded) await appStore.fetchPublicSettings()
+      return isFeatureFlagEnabled(FeatureFlags.affiliate) ? true : '/keys'
     }
   },
+  // 代理中心并入站长中心的「邀请返利」选项卡。
+  { path: '/affiliate', redirect: to => ({ path: '/reseller', query: { ...to.query, tab: 'affiliate' } }) },
   {
     path: '/available-channels',
     name: 'UserAvailableChannels',
@@ -412,48 +387,10 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/subscriptions',
-    name: 'Subscriptions',
-    component: () => import('@/views/user/SubscriptionsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'My Subscriptions',
-      titleKey: 'userSubscriptions.title',
-      descriptionKey: 'userSubscriptions.description',
-      requiresSubscription: true
-    }
-  },
-  {
     path: '/purchase/redeem-shop',
     name: 'RedeemShop',
     component: () => import('@/views/user/RedeemShopView.vue'),
     meta: { requiresAuth: true, requiresPayment: true, titleKey: 'featureExtensions.purchaseTitle' }
-  },
-  {
-    path: '/purchase',
-    name: 'PurchaseSubscription',
-    component: () => import('@/views/user/PaymentView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'Purchase Subscription',
-      titleKey: 'nav.buySubscription',
-      descriptionKey: 'purchase.description',
-      requiresPayment: true
-    }
-  },
-  {
-    path: '/orders',
-    name: 'OrderList',
-    component: () => import('@/views/user/UserOrdersView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: 'My Orders',
-      titleKey: 'nav.myOrders',
-      requiresPayment: true
-    }
   },
   {
     path: '/payment/qrcode',
@@ -1142,18 +1079,6 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  // The image task page decides from backend capability which mode to show, so
-  // the router no longer blocks users who only have batch access.
-  // The GoToCC creative studio keeps its key-based entry guard.
-  if (to.meta.requiresAsyncImageAccess && (supportResource || !authStore.isAdmin)) {
-    const { canUseAsyncImage, refreshAsyncImageAccess } = useAsyncImageAccess()
-    await refreshAsyncImageAccess()
-    if (!canUseAsyncImage.value) {
-      next('/keys')
-      return
-    }
-  }
-
 
   if (to.path === '/monitor' || supportResource === 'channel-status') {
     // The mode may have changed in another tab since the cached settings loaded.
@@ -1168,7 +1093,7 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresIpAccessControl || to.meta.requiresSubscription) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresIpAccessControl) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
@@ -1205,23 +1130,12 @@ router.beforeEach(async (to, _from, next) => {
     return
   }
 
-  // 订阅功能是 opt-out 开关：只有显式 false 才拦截「我的订阅」页直达。
-  if (
-    to.meta.requiresSubscription &&
-    appStore.publicSettingsLoaded &&
-    appStore.cachedPublicSettings?.subscription_enabled === false
-  ) {
-    next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
-    return
-  }
-
   // 简易模式下限制访问某些页面
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
       '/admin/subscriptions',
       '/admin/redeem',
-      '/subscriptions',
-      '/redeem'
+      '/wallet'
     ]
 
     if (restrictedPaths.some((path) => to.path.startsWith(path))) {

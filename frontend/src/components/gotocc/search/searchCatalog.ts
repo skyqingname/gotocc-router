@@ -5,12 +5,11 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { ModelPlazaGroup, PlazaModel } from '@/api/modelPlaza'
 import {
-  BatchImageIcon, BellIcon, CanvasIcon, ChannelIcon, ChartIcon, CogIcon, CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon,
-  GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, OrderIcon, OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon,
-  ResellerIcon, RocketIcon, ServerIcon, ShieldIcon, SignalIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
+  BellIcon, CalendarCheckIcon, CanvasIcon, ChartIcon, CogIcon, CompassIcon, CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon,
+  GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, OrderIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon,
+  ResellerIcon, ServerIcon, ShieldIcon, SignalIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
 } from '@/components/gotocc/navIcons'
 import { vendorLabel } from '@/components/gotocc/plaza/vendors'
-import { useAsyncImageAccess } from '@/composables/useAsyncImageAccess'
 import { useOnboardingProgress } from '@/composables/useOnboardingProgress'
 import { usePortalArea } from '@/composables/usePortalArea'
 import { useResellerAccess } from '@/composables/useResellerAccess'
@@ -22,14 +21,14 @@ import { useAdminSettingsStore, useAppStore, useAuthStore } from '@/stores'
 import { parseAdminSupportTargetId, supportPathForPersonalPath } from '@/utils/adminSupport'
 import { adminSupportContext } from '@/utils/adminSupportContext'
 import { FeatureFlags, isFeatureFlagEnabled, type FeatureFlagDefinition } from '@/utils/featureFlags'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { bestMatch, type FieldMatch } from './fuzzyMatch'
 import config from '../../../../../global-search.json'
 import navigationLinks from '../../../../../navigation-links.json'
 
 // 全局搜索能找到的三类条目：模型广场里的模型、当前账号能进的页面、几个现成的操作。
 // 页面目录由路由表的 meta.titleKey 生成标题，哪些页面出现、用哪个图标由下面一份自有规则决定，规则逐条照侧栏 AppSidebar.vue 的显示条件与图标：
-// 功能开关、管理员与个人区、简易模式、站长客户不可见的充值类页面、站长中心、创作台权限、自定义菜单，以及管理员只读协助时的路径映射。
+// 功能开关、管理员与个人区、简易模式、站长客户不可见的充值类页面、站长中心、自定义菜单，以及管理员只读协助时的路径映射。
+// 充值与订阅的四个选项卡、站长中心的邀请返利各占一条，原来的独立页面仍能按名字搜到。
 // 中英文标题都参与匹配，所以中文界面输入 keys、英文界面输入「密钥」都能找到 API 密钥页。
 
 export type SearchKind = 'model' | 'page' | 'action'
@@ -103,7 +102,6 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   const adminSettingsStore = useAdminSettingsStore()
   const resellerCustomer = useResellerCustomer()
   const resellerAccess = useResellerAccess()
-  const { canUseAsyncImage } = useAsyncImageAccess()
   const { isDark, toggleTheme } = useTheme()
   const onboarding = useOnboardingProgress()
   const routes = new Map(router.getRoutes().map((record) => [record.path, record]))
@@ -117,33 +115,35 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
     return { title, fields: [title, ...availableLocales.map(({ code }) => render(code))] }
   }
 
-  // 同 AppSidebar buildSelfNavItems：用户端主菜单与管理员个人区共用，管理员个人区的仪表盘标为「个人仪表盘」。
+  // 同 AppSidebar buildSelfNavSections：用户端主菜单与管理员个人区共用，管理员个人区的仪表盘标为「个人仪表盘」。
   function selfRules(personal: boolean): PageRule[] {
     const custom = (appStore.cachedPublicSettings?.custom_menu_items ?? [])
       .filter((item) => item.visibility === 'user')
       .sort((a, b) => a.sort_order - b.sort_order)
+    const payment = flag(FeatureFlags.payment)
+    const affiliate = flag(FeatureFlags.affiliate)
     return [
       { path: '/dashboard', icon: DashboardIcon, titleKey: personal ? 'nav.personalDashboard' : undefined },
-      { path: '/getting-started', icon: RocketIcon },
+      { path: '/getting-started', icon: CompassIcon, titleKey: 'nav.guide' },
+      { path: '/checkin', icon: CalendarCheckIcon, titleKey: 'nav.checkin' },
       { path: '/model-plaza?embedded=1', icon: ModelPlazaIcon, when: flag(FeatureFlags.modelPlaza) },
       { path: '/keys', icon: KeyIcon },
-      ...custom.map((item) => ({ path: `/custom/${item.id}`, label: item.label, iconSvg: item.icon_svg })),
-      { path: '/team', icon: TeamIcon, hideInSimpleMode: true, when: teamEnabled },
-      { path: navigationLinks.canvas_url, icon: CanvasIcon, titleKey: 'nav.enterCanvas', external: true, hideInSimpleMode: true },
-      { path: '/tasks', icon: TaskCenterIcon, hideInSimpleMode: true },
       { path: '/usage', icon: ChartIcon, hideInSimpleMode: true },
-      { path: '/available-channels', icon: ChannelIcon, hideInSimpleMode: true, when: flag(FeatureFlags.availableChannels) },
-      { path: '/monitor', icon: SignalIcon, when: flag(FeatureFlags.channelMonitor) },
-      { path: '/subscriptions', icon: CreditCardIcon, hideInSimpleMode: true, when: flag(FeatureFlags.subscription) },
-      { path: '/purchase', icon: RechargeSubscriptionIcon, hideInSimpleMode: true, when: flag(FeatureFlags.payment) },
-      { path: '/orders', icon: OrderListIcon, hideInSimpleMode: true, when: flag(FeatureFlags.payment) },
-      { path: '/redeem', icon: GiftIcon, hideInSimpleMode: true },
+      { path: '/tasks', icon: TaskCenterIcon, hideInSimpleMode: true },
+      { path: '/monitor', icon: SignalIcon, titleKey: 'nav.serviceStatus' },
+      { path: navigationLinks.canvas_url, icon: CanvasIcon, titleKey: 'nav.enterCanvas', external: true, hideInSimpleMode: true },
+      { path: '/wallet', icon: RechargeSubscriptionIcon, hideInSimpleMode: true },
+      { path: '/wallet?tab=recharge', icon: RechargeSubscriptionIcon, titleKey: 'nav.recharge', hideInSimpleMode: true, when: payment },
+      { path: '/wallet?tab=subscription', icon: RechargeSubscriptionIcon, titleKey: 'nav.mySubscriptions', hideInSimpleMode: true, when: flag(FeatureFlags.subscription) },
+      { path: '/wallet?tab=orders', icon: RechargeSubscriptionIcon, titleKey: 'nav.myOrders', hideInSimpleMode: true, when: payment },
+      { path: '/wallet?tab=redeem', icon: GiftIcon, titleKey: 'nav.redeem', hideInSimpleMode: true },
       { path: '/credits', icon: GiftIcon, hideInSimpleMode: true, when: () => resellerCustomer.isCustomer.value },
-      { path: '/affiliate', icon: UsersIcon, hideInSimpleMode: true, when: flag(FeatureFlags.affiliate) },
-      { path: '/reseller', icon: ResellerIcon, hideInSimpleMode: true, when: () => resellerAccess.enabled.value },
+      { path: '/reseller', icon: ResellerIcon, hideInSimpleMode: true, when: () => resellerAccess.enabled.value || affiliate() },
+      { path: '/reseller?tab=affiliate', icon: ResellerIcon, titleKey: 'nav.affiliate', hideInSimpleMode: true, when: affiliate },
+      { path: '/team', icon: TeamIcon, hideInSimpleMode: true, when: teamEnabled },
       { path: '/profile', icon: UserIcon },
       { path: '/settings/mcp', icon: MCPIcon, when: flag(FeatureFlags.mcp) },
-      { path: '/async-image', icon: BatchImageIcon, hideInSimpleMode: true, when: () => canUseAsyncImage.value },
+      ...custom.map((item) => ({ path: `/custom/${item.id}`, label: item.label, iconSvg: item.icon_svg })),
     ]
   }
 
@@ -227,12 +227,11 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   })
 
   const pages = computed<SearchItem[]>(() => {
-    const billingMode = resolveSiteBillingMode(appStore.cachedPublicSettings)
     const supportUser = adminSupportContext.value?.userId
     return visibleRules.value.map((rule): SearchItem => {
       const to = rule.external || !supportUser ? rule.path : supportPathForPersonalPath(supportUser, rule.path) || rule.path
       const record = routes.get(rule.path.split('?')[0])
-      const titleKey = rule.titleKey ?? (record && resolveRouteMetaKeys(record, { billingMode }).titleKey)
+      const titleKey = rule.titleKey ?? (record && resolveRouteMetaKeys(record).titleKey)
       const { title, fields } = titleKey ? texts((code) => t(titleKey, {}, { locale: code })) : { title: rule.label!, fields: [rule.label!] }
       return {
         key: `page:${rule.path}`,
@@ -251,7 +250,6 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
   // 动作只放站内现成的入口：创建 API 密钥、前往充值与侧栏页面同条件；主题、语言、退出登录与用户菜单相同。
   const actions = computed<SearchItem[]>(() => {
     const visible = new Set(visibleRules.value.map((rule) => rule.path))
-    const purchaseKey = resolveRouteMetaKeys(routes.get('/purchase')!, { billingMode: resolveSiteBillingMode(appStore.cachedPublicSettings) }).titleKey!
     const action = (name: string, text: { title: string; fields: string[] }, icon: SearchIcon, run: () => unknown): SearchItem => ({
       key: `action:${name}`,
       kind: 'action',
@@ -273,8 +271,8 @@ export function useSearchCatalog(plazaGroups: Ref<ModelPlazaGroup[]>) {
           ]
         : []),
       ...(visible.has('/keys') ? [action('create-key', texts((code) => t('dashboard.createApiKey', {}, { locale: code })), 'key', () => router.push('/keys'))] : []),
-      ...(visible.has('/purchase')
-        ? [action('purchase', texts((code) => t('gotocc.search.actions.goTo', { page: t(purchaseKey, {}, { locale: code }) }, { locale: code })), 'creditCard', () => router.push('/purchase'))]
+      ...(visible.has('/wallet')
+        ? [action('wallet', texts((code) => t('gotocc.search.actions.goTo', { page: t('nav.wallet', {}, { locale: code }) }, { locale: code })), 'creditCard', () => router.push('/wallet'))]
         : []),
       action(
         'theme',

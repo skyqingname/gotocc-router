@@ -1,17 +1,12 @@
 <template>
   <div class="space-y-4" :aria-busy="loading">
-    <!-- 指标卡展示所选范围的合计与环比，点击后在下方折线图中查看该指标 -->
-    <div class="dash-rise-item grid grid-cols-2 gap-4 lg:grid-cols-4" :style="{ '--rise-i': 1 }" role="tablist" :aria-label="t('gotocc.dashboard.usageChart.metricsLabel')">
-      <button
+    <!-- 区间指标卡：所选范围的合计、迷你走势和较上一周期的变化；上一周期没有数据时不写对比 -->
+    <div class="dash-rise-item grid grid-cols-2 gap-4 lg:grid-cols-4" :style="{ '--rise-i': 2 }">
+      <div
         v-for="item in metricTabs"
         :key="item.key"
-        type="button"
-        role="tab"
-        :aria-selected="metric === item.key"
         class="metric-card card gc-stat flex min-w-0 flex-col gap-3 overflow-hidden p-4 text-left"
-        :class="metric === item.key ? '!border-primary-500 ring-1 ring-primary-500/30 dark:!border-primary-400' : ''"
-        :data-tip="t(`consoleTips.dashboard.${item.key}`)"
-        @click="selectMetric(item.key)"
+        :data-tip="item.tip"
       >
         <div class="flex min-w-0 items-center gap-2">
           <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="[METRIC_TONES[item.key].tile, METRIC_TONES[item.key].icon]">
@@ -28,32 +23,42 @@
           </span>
           <UsageSparkline
             v-if="loaded"
-            class="metric-sparkline h-8 w-20 shrink-0"
-            :class="metric === item.key ? 'text-primary-600 dark:text-primary-400' : 'text-gray-300 dark:text-dark-500'"
+            class="metric-sparkline h-8 w-20 shrink-0 text-primary-500 dark:text-primary-400"
             :values="item.series"
           />
         </div>
-        <Skeleton v-if="!loaded" :width="120" :height="20" />
-        <span v-else class="flex min-w-0 items-center gap-2 text-xs text-gray-500 dark:text-dark-400">
-          <template v-if="item.delta">
-            <span class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium tabular-nums" :class="DELTA_CLASSES[item.delta.tone]">
-              <Icon v-if="item.delta.tone !== 'flat'" :name="item.delta.tone === 'up' ? 'arrowUp' : 'arrowDown'" size="xs" />
-              {{ item.delta.text }}
-            </span>
-            <span class="metric-delta-label truncate">{{ t('gotocc.dashboard.usageChart.vsPrevious') }}</span>
-          </template>
-          <span v-else class="truncate">{{ t('gotocc.dashboard.usageChart.noPrevious') }}</span>
+        <span v-if="loaded && item.delta" class="flex min-w-0 items-center gap-2 text-xs text-gray-500 dark:text-dark-400">
+          <span class="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-medium tabular-nums" :class="DELTA_CLASSES[item.delta.tone]">
+            <Icon v-if="item.delta.tone !== 'flat'" :name="item.delta.tone === 'up' ? 'arrowUp' : 'arrowDown'" size="xs" />
+            {{ item.delta.text }}
+          </span>
+          <span class="metric-delta-label truncate">{{ t('gotocc.dashboard.usageChart.vsPrevious') }}</span>
         </span>
-      </button>
+      </div>
     </div>
 
     <!-- 折线图与模型排行并排，窄于 xl 时排行排到图表下方 -->
-    <div class="dash-rise-item grid grid-cols-1 gap-4 xl:grid-cols-3" :style="{ '--rise-i': 2 }">
+    <div class="dash-rise-item grid grid-cols-1 gap-4 xl:grid-cols-3" :style="{ '--rise-i': 3 }">
       <div ref="chartCardRef" class="card flex min-w-0 flex-col p-4 xl:col-span-2">
         <div class="mb-4 flex min-h-7 flex-wrap items-center justify-between gap-2">
-          <div class="flex items-baseline gap-2">
-            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ chartTitle }}</h3>
-            <span class="text-xs text-gray-500 dark:text-dark-400">{{ granularityHint }}</span>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div class="flex items-baseline gap-2">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ chartTitle }}</h3>
+              <span class="text-xs text-gray-500 dark:text-dark-400">{{ granularityHint }}</span>
+            </div>
+            <!-- 趋势图看哪一项：消费、Token、请求 -->
+            <div v-segmented class="segmented inline-flex" role="tablist" :aria-label="t('gotocc.dashboard.usageChart.metricsLabel')">
+              <button
+                v-for="option in CHART_METRICS"
+                :key="option"
+                type="button"
+                role="tab"
+                :aria-selected="metric === option"
+                class="segmented-item h-7 px-2.5 text-xs font-medium"
+                :class="metric === option && 'segmented-item-active'"
+                @click="selectMetric(option)"
+              >{{ t(`gotocc.dashboard.usageChart.metrics.${option}`) }}</button>
+            </div>
           </div>
           <!-- 图例兼开关：Token 按分项开关，其余指标开关上一周期对比线 -->
           <div class="flex flex-wrap gap-2">
@@ -135,7 +140,9 @@ import { formatCostAuto, formatUsd } from './format'
 import { CHART_REVEAL_MS, COUNT_UP_MS } from './motion'
 import { CHART_TICK_FONT_SIZE, METRIC_TONES, SERIES_COLORS, useChartColors } from './tones'
 import { cacheHitRateOf } from './usageData'
-import { injectUsageState, type UsageMetric } from './usageState'
+import { CHART_METRICS, injectUsageState, type UsageMetric } from './usageState'
+import { vSegmented } from '../vSegmented'
+import { exactCredit } from '@/utils/consoleTips'
 import { useCountUp } from './useCountUp'
 import { chartTooltipStyle } from '@/utils/chartTooltip'
 
@@ -210,10 +217,10 @@ const metricTabs = computed(() => {
   const before = previousTotals.value
   const seriesOf = (key: UsageMetric) => current.value.map((point) => metricValueOf(point, key))
   return [
-    { key: 'requests' as const, icon: 'swap' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.requests'), value: formatNumber(now.requests), animatedValue: formatNumber(Math.round(animatedRequests.value)), delta: percentDelta(now.requests, before?.requests), series: seriesOf('requests') },
-    { key: 'tokens' as const, icon: 'cube' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.tokens'), value: formatTokensK(now.tokens), animatedValue: formatTokensK(animatedTokens.value), delta: percentDelta(now.tokens, before?.tokens), series: seriesOf('tokens') },
-    { key: 'cost' as const, icon: 'dollar' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.cost'), value: formatCostAuto(now.cost), animatedValue: formatCostAuto(animatedCost.value), delta: percentDelta(now.cost, before?.cost), series: seriesOf('cost') },
-    { key: 'cacheHitRate' as const, icon: 'database' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.cacheHitRate'), value: formatPercent(now.cacheHitRate), animatedValue: now.cacheHitRate === null ? '—' : formatPercent(animatedHitRate.value), delta: pointDelta(now.cacheHitRate, before?.cacheHitRate), series: seriesOf('cacheHitRate') },
+    { key: 'requests' as const, icon: 'swap' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.requests'), value: formatNumber(now.requests), animatedValue: formatNumber(Math.round(animatedRequests.value)), delta: percentDelta(now.requests, before?.requests), series: seriesOf('requests'), tip: t('consoleTips.dashboard.requests') },
+    { key: 'tokens' as const, icon: 'cube' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.tokens'), value: formatTokensK(now.tokens), animatedValue: formatTokensK(animatedTokens.value), delta: percentDelta(now.tokens, before?.tokens), series: seriesOf('tokens'), tip: `${t('consoleTips.dashboard.tokens')}\n${formatNumber(now.tokens)}` },
+    { key: 'cost' as const, icon: 'dollar' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.cost'), value: formatCostAuto(now.cost), animatedValue: formatCostAuto(animatedCost.value), delta: percentDelta(now.cost, before?.cost), series: seriesOf('cost'), tip: `${t('consoleTips.dashboard.cost')}\n${exactCredit(now.cost)}` },
+    { key: 'cacheHitRate' as const, icon: 'database' as MetricIcon, label: t('gotocc.dashboard.usageChart.metrics.cacheHitRate'), value: formatPercent(now.cacheHitRate), animatedValue: now.cacheHitRate === null ? '—' : formatPercent(animatedHitRate.value), delta: pointDelta(now.cacheHitRate, before?.cacheHitRate), series: seriesOf('cacheHitRate'), tip: t('consoleTips.dashboard.cacheHitRate') },
   ]
 })
 

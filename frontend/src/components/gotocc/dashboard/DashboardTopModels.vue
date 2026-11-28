@@ -8,10 +8,20 @@
         </h3>
         <span class="truncate text-xs text-gray-500 dark:text-dark-400">{{ subtitle }}</span>
       </div>
-      <RouterLink to="/usage" class="text-link inline-flex shrink-0 items-center gap-1 text-xs font-medium">
-        {{ t('gotocc.dashboard.topModels.viewAll') }}
-        <Icon name="chevronRight" size="xs" />
-      </RouterLink>
+      <!-- 排行默认按消费占比，可切到按 Token -->
+      <div v-segmented class="segmented inline-flex shrink-0" role="tablist" :aria-label="t('gotocc.dashboard.topModels.title')">
+        <button
+          v-for="option in RANK_OPTIONS"
+          :key="option"
+          type="button"
+          role="tab"
+          :aria-selected="rankBy === option"
+          class="segmented-item h-7 px-2.5 text-xs font-medium"
+          :class="rankBy === option && 'segmented-item-active'"
+          :data-tip="t(`dashboardFocus.topModels.${option}Tip`)"
+          @click="rankBy = option"
+        >{{ t(`gotocc.dashboard.usageChart.metrics.${option}`) }}</button>
+      </div>
     </div>
 
     <div v-if="!loaded" class="space-y-4" aria-hidden="true">
@@ -70,58 +80,49 @@ import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Skeleton from '@/components/common/Skeleton.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
+import { formatTokensK } from '@/utils/format'
 import type { ModelStat } from '@/types'
 import { formatCostAuto } from './format'
 import { TOP_MODEL_BAR_STEP_MS } from './motion'
-import { cacheHitRateOf } from './usageData'
-import { injectUsageState, type UsageMetric } from './usageState'
+import { injectUsageState } from './usageState'
+import { vSegmented } from '../vSegmented'
 
 // 常用模型排行，结构参照 TokenRouter（LGPL-3.0）：按当前指标取前 5，其余合并；占比条依次伸展。
 const TOP_COUNT = 5
 
 const { t } = useI18n()
-const { metric, models, loaded, filters, applyModelFilter } = injectUsageState()
+const { models, loaded, filters, applyModelFilter } = injectUsageState()
 
-// 每次取到新数据或切换指标时递增，作为行 key 让占比条重新伸展。
+type RankBy = 'cost' | 'tokens'
+const RANK_OPTIONS: RankBy[] = ['cost', 'tokens']
+const rankBy = ref<RankBy>('cost')
+
+// 每次取到新数据或切换排序依据时递增，作为行 key 让占比条重新伸展。
 const version = ref(0)
-watch([models, metric], () => {
+watch([models, rankBy], () => {
   version.value += 1
 })
 
-const subtitle = computed(() => t('gotocc.dashboard.topModels.subtitle', { metric: t(`gotocc.dashboard.usageChart.metrics.${metric.value}`) }))
+const subtitle = computed(() => t('gotocc.dashboard.topModels.subtitle', { metric: t(`gotocc.dashboard.usageChart.metrics.${rankBy.value}`) }))
 
-// 命中率不是可加总的量，排行按 Token 用量排序。
-const amountOf = (model: ModelStat, key: UsageMetric): number => {
-  if (key === 'requests') return model.requests
-  if (key === 'cost') return model.actual_cost
-  return model.total_tokens
-}
+const amountOf = (model: ModelStat, key: RankBy): number => (key === 'cost' ? model.actual_cost : model.total_tokens)
 
-const formatAmount = (amount: number): string => {
-  if (metric.value === 'requests') return formatNumber(amount)
-  if (metric.value === 'cost') return formatCostAuto(amount)
-  return formatTokensK(amount)
-}
+const formatAmount = (amount: number): string => (rankBy.value === 'cost' ? formatCostAuto(amount) : formatTokensK(amount))
 
-const formatModelValue = (model: ModelStat): string => {
-  if (metric.value !== 'cacheHitRate') return formatAmount(amountOf(model, metric.value))
-  const rate = cacheHitRateOf(model.input_tokens, model.cache_creation_tokens, model.cache_read_tokens)
-  return rate === null ? '—' : t('gotocc.dashboard.topModels.hitRate', { rate: `${rate.toFixed(1)}%` })
-}
+const formatModelValue = (model: ModelStat): string => formatAmount(amountOf(model, rankBy.value))
 
 const formatShare = (share: number): string => `${share < 10 ? share.toFixed(1) : Math.round(share)}%`
 
 const ranking = computed(() => {
   const sorted = models.value
-    .filter((model) => amountOf(model, metric.value) > 0)
-    .sort((a, b) => amountOf(b, metric.value) - amountOf(a, metric.value))
-  const total = sorted.reduce((sum, model) => sum + amountOf(model, metric.value), 0)
+    .filter((model) => amountOf(model, rankBy.value) > 0)
+    .sort((a, b) => amountOf(b, rankBy.value) - amountOf(a, rankBy.value))
+  const total = sorted.reduce((sum, model) => sum + amountOf(model, rankBy.value), 0)
   const shareOf = (amount: number) => (amount / total) * 100
   const rest = sorted.slice(TOP_COUNT)
-  const restAmount = rest.reduce((sum, model) => sum + amountOf(model, metric.value), 0)
+  const restAmount = rest.reduce((sum, model) => sum + amountOf(model, rankBy.value), 0)
   return {
-    top: sorted.slice(0, TOP_COUNT).map((model) => ({ model, share: shareOf(amountOf(model, metric.value)) })),
+    top: sorted.slice(0, TOP_COUNT).map((model) => ({ model, share: shareOf(amountOf(model, rankBy.value)) })),
     others: rest.length > 0 ? { count: rest.length, amount: restAmount, share: shareOf(restAmount) } : null,
   }
 })

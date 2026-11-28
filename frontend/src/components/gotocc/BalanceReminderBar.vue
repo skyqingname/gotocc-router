@@ -63,8 +63,8 @@ watch([balance, dismissedAt], ([value, at]) => {
 
 const visible = computed(() => threshold.value > 0 && balance.value < threshold.value && dismissedAt.value === null)
 
-// 去充值：开着在线支付就去购买页，否则去兑换（与头像菜单的入口条件相同）。
-const rechargePath = computed(() => (isFeatureFlagEnabled(FeatureFlags.payment) ? '/purchase' : '/redeem'))
+// 去充值：开着在线支付进「充值与订阅」的充值，否则进兑换。
+const rechargePath = computed(() => ({ path: '/wallet', query: { tab: isFeatureFlagEnabled(FeatureFlags.payment) ? 'recharge' : 'redeem' } }))
 
 function dismiss() {
   localStorage.setItem(storageKey.value, String(balance.value))

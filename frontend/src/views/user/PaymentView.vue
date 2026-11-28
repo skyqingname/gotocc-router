@@ -1,19 +1,13 @@
 <template>
-  <AppLayout appearance="user" workspace>
+  <!-- 充值与订阅的「充值」选项卡，以及「订阅」选项卡里可购买的套餐；选哪个由 tab 决定。 -->
     <div class="payment-page workspace-page">
       <div v-if="loading" class="card workspace-shell workspace-scroll items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
       <template v-else>
-        <!-- Tab Switcher (hide during payment and subscription confirm) -->
-        <WorkspaceTabs
-          v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan"
-          v-model="activeTab"
-          class="workspace-shell payment-tabs"
-          :tabs="tabs"
-          :label="`${t('payment.tabSubscribe')} / ${t('payment.tabTopUp')}`"
-        />
         <div class="workspace-shell workspace-scroll payment-activity" data-testid="payment-activity" tabindex="0">
+        <!-- 订阅选项卡：上方先放「我的订阅」 -->
+        <slot v-if="activeTab === 'subscription' && paymentPhase === 'select' && !selectedPlan" name="lead" />
         <div v-if="errorMessage" role="alert" class="card workspace-shell border border-amber-300 p-4 text-sm text-amber-800 dark:border-amber-700 dark:text-amber-200">
           <p>{{ errorMessage }}</p>
           <p v-if="errorHintMessage" class="mt-1">{{ errorHintMessage }}</p>
@@ -45,12 +39,6 @@
           </div>
           <!-- Top-up Tab -->
           <template v-else-if="activeTab === 'recharge'">
-            <!-- Recharge Account Card -->
-            <div class="card workspace-shell p-5">
-              <p class="text-xs font-medium surface-muted">{{ t('payment.rechargeAccount') }}</p>
-              <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ user?.username || '' }}</p>
-              <p class="mt-0.5 text-sm font-medium text-green-600 dark:text-green-400">{{ t('payment.currentBalance') }}: {{ user?.balance?.toFixed(2) || '0.00' }}</p>
-            </div>
             <div v-if="enabledMethods.length === 0" class="card workspace-shell py-16 text-center">
               <p class="surface-muted">{{ t('payment.notAvailable') }}</p>
             </div>
@@ -198,35 +186,18 @@
             </template>
             <!-- Plan list -->
             <template v-else>
+              <header class="wallet-section-head">
+                <div class="min-w-0">
+                  <h2 class="wallet-section-title">{{ t('walletCenter.subscription.plansTitle') }}</h2>
+                  <p class="wallet-section-lead">{{ t('walletCenter.subscription.plansLead') }}</p>
+                </div>
+              </header>
               <div v-if="checkout.plans.length === 0" class="card workspace-shell py-16 text-center">
                 <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
                 <p class="surface-muted">{{ t('payment.noPlans') }}</p>
               </div>
               <div v-else class="payment-plan-grid grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 <SubscriptionPlanCard v-for="plan in checkout.plans" :key="plan.id" catalog :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
-              </div>
-              <!-- Active subscriptions (compact, below plan list) -->
-              <div v-if="activeSubscriptions.length > 0">
-                <p class="mb-2 text-xs font-medium surface-muted">{{ t('payment.activeSubscription') }}</p>
-                <div class="space-y-2">
-                  <div v-for="sub in activeSubscriptions" :key="sub.id"
-                    class="flex items-center gap-3 rounded-lg border border-gray-100 surface-inset px-3 py-2 dark:border-dark-700">
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-1.5">
-                        <span class="truncate text-xs font-semibold text-gray-900 dark:text-white">{{ sub.group?.name || t('payment.groupFallback', { id: sub.group_id }) }}</span>
-                        <span :class="['shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-medium', platformBadgeLightClass(sub.group?.platform || '')]">{{ platformLabel(sub.group?.platform || '') }}</span>
-                      </div>
-                      <div class="flex flex-wrap gap-x-3 text-[11px] surface-muted">
-                        <span>{{ t('payment.planCard.rate') }}: ×{{ sub.group?.rate_multiplier ?? 1 }}</span>
-                        <span v-if="subscriptionHasPeakRate(sub)">{{ t('payment.planCard.peakRate') }}: {{ subscriptionPeakRateLabel(sub) }}</span>
-                        <span v-if="sub.group?.daily_limit_usd == null && sub.group?.weekly_limit_usd == null && sub.group?.monthly_limit_usd == null && sub.group?.five_hour_limit_usd == null">{{ t('payment.planCard.quota') }}: {{ t('payment.planCard.unlimited') }}</span>
-                        <span v-if="sub.expires_at">{{ t('userSubscriptions.daysRemaining', { days: getDaysRemaining(sub.expires_at) }) }}</span>
-                        <span v-else>{{ t('userSubscriptions.noExpiration') }}</span>
-                      </div>
-                    </div>
-                    <span class="badge badge-success shrink-0 text-[10px]">{{ t('userSubscriptions.status.active') }}</span>
-                  </div>
-                </div>
               </div>
             </template>
           </template>
@@ -302,7 +273,6 @@
         </div>
       </Transition>
     </Teleport>
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -325,11 +295,9 @@ import { FeatureFlags, resolveFeatureFlag } from '@/utils/featureFlags'
 import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
-import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
+import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
 import { formatRechargeBonusNumber, normalizeRechargeBonusMode, normalizeRechargeBonusTiers, quoteRechargeBonus } from '@/utils/rechargeBonus'
-import AppLayout from '@/components/layout/AppLayout.vue'
-import WorkspaceTabs from '@/components/common/WorkspaceTabs.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
 import { METHOD_ORDER, getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
@@ -344,7 +312,7 @@ import {
   type PaymentRecoverySnapshot,
   writePaymentRecoverySnapshot,
 } from '@/components/payment/paymentFlow'
-import { platformBadgeLightClass, platformBadgeClass, platformTextClass, platformLabel } from '@/utils/platformColors'
+import { platformBadgeClass, platformTextClass, platformLabel } from '@/utils/platformColors'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PlanModelCatalog from '@/components/payment/PlanModelCatalog.vue'
 import { planRateLabel, saleQuoteChanged } from '@/utils/billingRate'
@@ -365,27 +333,16 @@ const paymentStore = usePaymentStore()
 const subscriptionStore = useSubscriptionStore()
 const appStore = useAppStore()
 
-const user = computed(() => authStore.user)
 const activeSubscriptions = computed(() => subscriptionStore.activeSubscriptions)
-
-function getDaysRemaining(expiresAt: string): number {
-  const diff = new Date(expiresAt).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-}
-
-function subscriptionHasPeakRate(sub: { group?: PeakRateFields | null }): boolean {
-  return hasPeakRate(sub.group)
-}
-
-function subscriptionPeakRateLabel(sub: { group?: PeakRateFields | null }): string {
-  return formatPeakRateWindow(sub.group, serverTimezoneLabel(appStore.cachedPublicSettings?.server_utc_offset))
-}
 
 const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const errorHintMessage = ref('')
-const activeTab = ref<'recharge' | 'subscription'>('subscription')
+const props = defineProps<{ tab: 'recharge' | 'subscription' }>()
+const emit = defineEmits<{ 'update:tab': [tab: 'recharge' | 'subscription'] }>()
+// 选项卡由「充值与订阅」页决定，切换时本组件重新挂载。
+const activeTab = computed(() => props.tab)
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
@@ -543,7 +500,7 @@ function onPaymentDone() {
   const wasSubscription = paymentState.value.orderType === 'subscription'
   resetPayment()
   selectedPlan.value = null
-  activeTab.value = wasSubscription || checkout.value.balance_disabled ? 'subscription' : 'recharge'
+  emit('update:tab', wasSubscription || checkout.value.balance_disabled ? 'subscription' : 'recharge')
   if (wasSubscription) {
     subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
   }
@@ -596,15 +553,6 @@ const tabs = computed(() => {
   if (subscriptionEnabled.value) result.push({ value: 'subscription', label: t('payment.tabSubscribe') })
   if (!checkout.value.balance_disabled) result.push({ value: 'recharge', label: t('payment.tabTopUp') })
   return result
-})
-
-// tab 列表随 checkout（balance_disabled）与订阅开关变化。当前 tab 不在列表里时收敛到第一个可用 tab，
-// 两个方向都覆盖：关闭订阅 → 回到充值；仅订阅站点重新打开订阅 → 进入订阅。列表为空时模板展示不可用提示。
-watch(tabs, (available) => {
-  if (available.some((tab) => tab.value === activeTab.value)) return
-  const leavingSubscription = activeTab.value === 'subscription'
-  activeTab.value = available[0]?.value ?? 'recharge'
-  if (leavingSubscription) selectedPlan.value = null
 })
 
 const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
@@ -1299,26 +1247,11 @@ onMounted(async () => {
       }
     }
     if (!adminSupportContext.value) await resumeWechatPaymentFromQuery()
-    if (checkout.value.balance_disabled && subscriptionEnabled.value) {
-      activeTab.value = 'subscription'
+    // 只开订阅、关了余额充值的站点，充值选项卡转到订阅。
+    if (activeTab.value === 'recharge' && checkout.value.balance_disabled && subscriptionEnabled.value) {
+      emit('update:tab', 'subscription')
     }
-    // Handle deep-link / renewal navigation: ?tab=subscription|recharge&group=123
-    // ?tab=subscription is ignored when subscriptions are disabled.
-    if (route.query.tab === 'recharge' && !checkout.value.balance_disabled) {
-      activeTab.value = 'recharge'
-    } else if (route.query.tab === 'subscription' && subscriptionEnabled.value) {
-      activeTab.value = 'subscription'
-      if (route.query.group) {
-        const groupId = Number(route.query.group)
-        const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
-        if (groupPlans.length === 1) {
-          selectedPlan.value = groupPlans[0]
-        } else if (groupPlans.length > 1) {
-          renewGroupId.value = groupId
-          showRenewalModal.value = true
-        }
-      }
-    }
+    openRenewal()
   } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking); skipped when the subscription feature is off
@@ -1326,18 +1259,23 @@ onMounted(async () => {
     subscriptionStore.fetchActiveSubscriptions().catch(() => {})
   }
 })
+
+// 续费：订阅选项卡带 ?group= 时，直接选中该分组的套餐（多个时弹出选择）。「我的订阅」里点续费只改查询参数，这里跟着打开。
+function openRenewal() {
+  if (activeTab.value !== 'subscription' || !route.query.group) return
+  const groupId = Number(route.query.group)
+  const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
+  if (groupPlans.length === 1) {
+    selectedPlan.value = groupPlans[0]
+  } else if (groupPlans.length > 1) {
+    renewGroupId.value = groupId
+    showRenewalModal.value = true
+  }
+}
+watch(() => route.query.group, () => { if (!loading.value) openRenewal() })
 </script>
 
 <style scoped>
-.payment-tabs {
-  flex: none;
-}
-
-.payment-tabs { padding: 8px; }
 .payment-activity { border-radius: var(--surface-radius); }
-
-.payment-tabs :deep(.workspace-tab) {
-  flex: 1 1 0%;
-}
 
 </style>
