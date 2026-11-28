@@ -6,6 +6,12 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
+GoToCC `0.2.25+custom.006` is a local candidate on top of owned main
+`598962887` (which carries `0.2.25+custom.004`). It gives the console shell solid
+framed panels over a continuously flowing background, a unified hover tooltip
+and pointer-following hover responses, in the frontend only. No backend or
+database schema changes. `0.2.25+custom.005` is reserved for a separate candidate.
+
 GoToCC `0.2.25+custom.004` is a local candidate on top of the `0.2.25+custom.003`
 candidate (owned main `bd8fc6b19`, which also carries `0.2.25+custom.002`). It adds console onboarding, request-ID lookup with
 plain-language failure causes, and an in-console low-balance reminder; the

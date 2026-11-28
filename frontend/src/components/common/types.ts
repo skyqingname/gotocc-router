@@ -10,4 +10,6 @@ export interface Column {
   sticky?: 'left' | 'right' | false
   class?: string
   formatter?: (value: any, row: any) => string
+  /** 表头悬停提示：一句话说明这一列是什么。 */
+  tip?: string
 }

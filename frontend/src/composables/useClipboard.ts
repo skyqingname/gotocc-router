@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { i18n } from '@/i18n'
+import { flashTip } from '@/composables/useTipFlash'
 
 const { t } = i18n.global
 
@@ -58,6 +59,8 @@ export function useClipboard() {
 
     if (success) {
       copied.value = true
+      // 刚点的复制按钮上的悬停提示换成「已复制」。
+      flashTip(t('common.copied'))
       appStore.showSuccess(successMessage || t('common.copiedToClipboard'))
       setTimeout(() => {
         copied.value = false

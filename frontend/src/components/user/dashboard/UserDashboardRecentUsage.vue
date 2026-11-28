@@ -14,13 +14,13 @@
       <div v-else class="space-y-3">
         <div v-for="log in data" :key="log.id" class="flex flex-wrap items-center justify-between gap-3 rounded-xl surface-inset p-4 transition-colors hover:surface-hover">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-gray-900 dark:text-white" :title="log.model">{{ log.model }}</p>
-            <p class="text-xs surface-muted">{{ formatDateTime(log.created_at) }}</p>
+            <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ log.model }}</p>
+            <p class="text-xs surface-muted" :data-tip="timeTip(log.created_at)">{{ formatDateTime(log.created_at) }}</p>
           </div>
           <div class="text-right">
             <p class="text-sm font-semibold">
-              <span class="text-green-600 dark:text-green-400" :title="t('dashboard.actual')">{{ usageMoney(log.actual_cost) }}</span>
-              <span class="font-normal surface-muted" :title="t('dashboard.standard')"> / {{ usageMoney(log.total_cost) }}</span>
+              <span class="text-green-600 dark:text-green-400" :data-tip="`${t('dashboard.actual')} ${exactCredit(log.actual_cost)}`">{{ usageMoney(log.actual_cost) }}</span>
+              <span class="font-normal surface-muted" :data-tip="`${t('dashboard.standard')} ${exactCredit(log.total_cost)}`"> / {{ usageMoney(log.total_cost) }}</span>
             </p>
             <p class="text-xs surface-muted">
               {{ requestTokenTotal(log).toLocaleString() }} Token
@@ -46,6 +46,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'
+import { exactCredit, timeTip } from '@/utils/consoleTips'
 import { usageMoney } from '@/utils/usageInspection'
 import type { UsageLog } from '@/types'
 import { formatTokenShare, sumTokenBuckets } from '@/utils/tokenShare'

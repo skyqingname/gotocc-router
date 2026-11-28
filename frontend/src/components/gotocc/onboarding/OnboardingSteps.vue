@@ -4,10 +4,11 @@
       v-for="(step, index) in steps"
       :key="step.id"
       class="ob-step"
+      data-glow
       :data-state="stateOf(index)"
       :data-step="step.id"
     >
-      <span class="ob-step-mark gc-num">
+      <span class="ob-step-mark gc-num" :data-tip="t(`consoleTips.start.${stateOf(index)}`)">
         <Icon v-if="step.done" :key="'done'" name="check" size="sm" :stroke-width="2.6" class="ob-step-check" />
         <span v-else>{{ index + 1 }}</span>
       </span>

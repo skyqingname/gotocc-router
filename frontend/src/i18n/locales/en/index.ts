@@ -27,6 +27,7 @@ import billingRates from './billingRates'
 import nativeAccess from './nativeAccess'
 import keyConsole from './keyConsole'
 import consoleGuide from './consoleGuide'
+import consoleTips from './consoleTips'
 
 export default {
   ...workspace,
@@ -36,6 +37,7 @@ export default {
   ...nativeAccess,
   ...keyConsole,
   ...consoleGuide,
+  ...consoleTips,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

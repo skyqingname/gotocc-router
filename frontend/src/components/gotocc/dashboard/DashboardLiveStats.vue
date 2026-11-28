@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-500 dark:text-dark-400" :aria-busy="!loaded">
-    <span v-for="item in items" :key="item.key" class="inline-flex items-center gap-2" :title="item.hint">
+    <span v-for="item in items" :key="item.key" class="inline-flex items-center gap-2" :data-tip="item.hint">
       <span class="flex h-6 w-6 items-center justify-center rounded-md" :class="[METRIC_TONES[item.tone].tile, METRIC_TONES[item.tone].icon]">
         <Icon :name="item.icon" size="xs" />
       </span>
@@ -25,6 +25,7 @@ import { COUNT_UP_MS } from './motion'
 import { METRIC_TONES, type MetricTone } from './tones'
 import { useCountUp } from './useCountUp'
 import { formatUsd } from './format'
+import { exactCredit } from '@/utils/consoleTips'
 
 // 实时状态条：RPM/TPM 是接口给出的近 5 分钟均值，页面可见时每分钟刷新一次。结构参照 TokenRouter（LGPL-3.0）。
 const POLL_INTERVAL_MS = 60 * 1000
@@ -51,8 +52,8 @@ const items = computed(() => {
   return [
     { key: 'rpm', icon: 'swap' as LiveIcon, tone: 'requests' as MetricTone, label: t('gotocc.dashboard.live.rpm'), hint: t('gotocc.dashboard.live.rpmHint'), value: formatRpm(current?.rpm ?? 0), animated: formatRpm(animatedRpm.value) },
     { key: 'tpm', icon: 'cube' as LiveIcon, tone: 'tokens' as MetricTone, label: t('gotocc.dashboard.live.tpm'), hint: t('gotocc.dashboard.live.tpmHint'), value: formatTokensK(current?.tpm ?? 0), animated: formatTokensK(animatedTpm.value) },
-    { key: 'latency', icon: 'clock' as LiveIcon, tone: 'latency' as MetricTone, label: t('gotocc.dashboard.live.latency'), hint: undefined, value: formatLatency(current?.average_duration_ms ?? 0), animated: formatLatency(animatedLatency.value) },
-    { key: 'todayCost', icon: 'dollar' as LiveIcon, tone: 'cost' as MetricTone, label: t('gotocc.dashboard.live.todayCost'), hint: undefined, value: formatCost(current?.today_actual_cost ?? 0), animated: formatCost(animatedTodayCost.value) },
+    { key: 'latency', icon: 'clock' as LiveIcon, tone: 'latency' as MetricTone, label: t('gotocc.dashboard.live.latency'), hint: t('consoleTips.dashboard.latency'), value: formatLatency(current?.average_duration_ms ?? 0), animated: formatLatency(animatedLatency.value) },
+    { key: 'todayCost', icon: 'dollar' as LiveIcon, tone: 'cost' as MetricTone, label: t('gotocc.dashboard.live.todayCost'), hint: `${t('consoleTips.dashboard.todayCost')}\n${exactCredit(current?.today_actual_cost ?? 0)}`, value: formatCost(current?.today_actual_cost ?? 0), animated: formatCost(animatedTodayCost.value) },
   ]
 })
 

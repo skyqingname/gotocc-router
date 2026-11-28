@@ -286,7 +286,7 @@
         <template #cell-cost="{ row }">
           <div class="text-sm">
             <div class="flex items-center gap-1.5">
-              <span class="font-medium text-green-600 dark:text-green-400">{{ usageMoney(row.actual_cost) }}</span>
+              <span class="font-medium text-green-600 dark:text-green-400" :data-tip="t('consoleTips.usage.exactCost', { amount: exactCredit(row.actual_cost) })">{{ usageMoney(row.actual_cost) }}</span>
               <span
                 v-if="row.long_context_billing_applied"
                 data-testid="long-context-billing-marker"
@@ -355,7 +355,7 @@
         </template>
 
         <template #cell-created_at="{ value }">
-          <span class="text-sm surface-muted">{{ formatDateTime(value) }}</span>
+          <span class="text-sm surface-muted" :data-tip="timeTip(value)">{{ formatDateTime(value) }}</span>
         </template>
 
         <template #cell-request_id="{ row }">
@@ -707,6 +707,8 @@
 </template>
 
 <script setup lang="ts">
+import { flashTip } from '@/composables/useTipFlash'
+import { exactCredit, timeTip } from '@/utils/consoleTips'
 import { withCreditUnit } from '@/utils/credits'
 import { computed, provide, ref } from 'vue'
 import { USER_TABLE_LAYOUT_KEY } from '@/composables/useUserTableLayout'
@@ -905,6 +907,7 @@ const copyRequestId = async (requestId: string) => {
   try {
     await navigator.clipboard.writeText(requestId)
     copiedRequestId.value = requestId
+    flashTip(t('keys.copied'))
     appStore.showSuccess(t('admin.usage.requestIdCopied'))
     window.setTimeout(() => {
       if (copiedRequestId.value === requestId) copiedRequestId.value = null

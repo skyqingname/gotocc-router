@@ -79,7 +79,7 @@
       <section v-show="workspaceTab === 'records'" class="usage-records" data-testid="usage-records-panel">
       <div class="card usage-records-head">
       <div class="usage-records-bar">
-      <div class="usage-detail-tabs card-tabs" role="tablist" :aria-label="t('usage.tabs.usage')">
+      <div v-slide-mark class="usage-detail-tabs card-tabs" role="tablist" :aria-label="t('usage.tabs.usage')">
         <button type="button" role="tab" class="card-tab" :aria-selected="activeTab === 'live'" @click="selectRecordTab('live')">{{ t('inspection.live') }}</button>
         <button type="button" role="tab" class="card-tab" :aria-selected="activeTab === 'usage'" @click="selectRecordTab('usage')">
           {{ t('usage.tabs.usage') }}
@@ -278,6 +278,7 @@ import Select, { type SelectOption } from '@/components/common/Select.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
+import { vSlideMark } from '@/components/gotocc/vSlideMark'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
@@ -854,21 +855,21 @@ const DEFAULT_HIDDEN_COLUMNS = ['user_agent']
 const HIDDEN_COLUMNS_KEY = useColumnPreferenceKey('user-usage-restored-v2-hidden-columns')
 
 const allColumns = computed<Column[]>(() => [
-  ...(isTeamOwner.value ? [{ key: 'user', label: t('team.member'), sortable: false, class: 'w-36 min-w-36 max-w-36' }] : []),
-  { key: 'api_key', label: t('usage.apiKeyFilter'), sortable: false },
-  { key: 'model', label: t('usage.model'), sortable: true },
-  { key: 'request_id', label: t('consoleGuide.usage.requestId'), sortable: false },
-  { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
-  { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
-  { key: 'ip_address', label: 'IP', sortable: false },
-  { key: 'group', label: t('admin.usage.group'), sortable: false },
-  { key: 'stream', label: t('usage.type'), sortable: false },
-  { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false },
-  { key: 'tokens', label: t('usage.tokens'), sortable: false },
-  { key: 'cost', label: t('usage.cost'), sortable: false },
-  { key: 'latency', label: t('usage.latency'), sortable: false },
-  { key: 'created_at', label: t('usage.time'), sortable: true },
-  { key: 'user_agent', label: t('usage.userAgent'), sortable: false },
+  ...(isTeamOwner.value ? [{ key: 'user', label: t('team.member'), sortable: false, class: 'w-36 min-w-36 max-w-36', tip: t('consoleTips.usage.columns.user') }] : []),
+  { key: 'api_key', label: t('usage.apiKeyFilter'), sortable: false, tip: t('consoleTips.usage.columns.api_key') },
+  { key: 'model', label: t('usage.model'), sortable: true, tip: t('consoleTips.usage.columns.model') },
+  { key: 'request_id', label: t('consoleGuide.usage.requestId'), sortable: false, tip: t('consoleTips.usage.columns.request_id') },
+  { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false, tip: t('consoleTips.usage.columns.reasoning_effort') },
+  { key: 'endpoint', label: t('usage.endpoint'), sortable: false, tip: t('consoleTips.usage.columns.endpoint') },
+  { key: 'ip_address', label: 'IP', sortable: false, tip: t('consoleTips.usage.columns.ip_address') },
+  { key: 'group', label: t('admin.usage.group'), sortable: false, tip: t('consoleTips.usage.columns.group') },
+  { key: 'stream', label: t('usage.type'), sortable: false, tip: t('consoleTips.usage.columns.stream') },
+  { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false, tip: t('consoleTips.usage.columns.billing_mode') },
+  { key: 'tokens', label: t('usage.tokens'), sortable: false, tip: t('consoleTips.usage.columns.tokens') },
+  { key: 'cost', label: t('usage.cost'), sortable: false, tip: t('consoleTips.usage.columns.cost') },
+  { key: 'latency', label: t('usage.latency'), sortable: false, tip: t('consoleTips.usage.columns.latency') },
+  { key: 'created_at', label: t('usage.time'), sortable: true, tip: t('consoleTips.usage.columns.created_at') },
+  { key: 'user_agent', label: t('usage.userAgent'), sortable: false, tip: t('consoleTips.usage.columns.user_agent') },
 ])
 
 const hiddenColumns = reactive<Set<string>>(new Set())

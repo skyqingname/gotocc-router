@@ -2,7 +2,7 @@
 <template>
   <div v-if="showAnnouncements">
     <!-- 顶栏入口：铃铛动效图标加文字（窄顶栏只留铃铛），有未读时铃铛变主色并在右上角挂红点 -->
-    <button type="button" class="header-nav-link" :title="t('announcements.title')" :aria-label="t('announcements.title')" @click="open = true">
+    <button type="button" class="header-nav-link" :data-tip="t('consoleTips.header.announcements')" data-tip-side="bottom" :aria-label="t('announcements.title')" @click="open = true">
       <span class="relative flex" :class="{ 'text-primary-600 dark:text-primary-400': unreadCount > 0 }">
         <BellIcon />
         <span v-if="unreadCount > 0" class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-dark-900" aria-hidden="true"></span>

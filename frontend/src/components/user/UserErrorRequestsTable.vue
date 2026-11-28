@@ -119,7 +119,7 @@
         </template>
 
         <template #cell-created_at="{ row }">
-          <button type="button" class="text-left text-sm text-primary-600 underline decoration-dotted surface-control" :aria-label="t('inspection.view')" @click.stop="openDetail(row.id)">{{ formatDateTime(row.created_at) }}</button>
+          <button type="button" class="text-left text-sm text-primary-600 underline decoration-dotted surface-control" :aria-label="t('inspection.view')" :data-tip="timeTip(row.created_at)" @click.stop="openDetail(row.id)">{{ formatDateTime(row.created_at) }}</button>
         </template>
 
         <template #cell-user_agent="{ row }">
@@ -163,6 +163,7 @@ import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatDateTime } from '@/utils/format'
+import { timeTip } from '@/utils/consoleTips'
 import { adviseUserError, type UserErrorAdvice } from '@/utils/userErrorAdvice'
 import {
   mapErrorSortKey,
