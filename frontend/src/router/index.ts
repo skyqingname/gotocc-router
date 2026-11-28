@@ -242,6 +242,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/getting-started',
+    name: 'GettingStarted',
+    component: () => import('@/views/user/GettingStartedView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Getting Started',
+      titleKey: 'consoleGuide.start.navTitle',
+      descriptionKey: 'consoleGuide.start.navDescription'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),

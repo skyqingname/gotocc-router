@@ -217,7 +217,7 @@ import { useTheme } from '@/composables/useTheme'
 import {
   BatchImageIcon, BellIcon, CanvasIcon, ChannelIcon, ChartIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, CogIcon,
   CreditCardIcon, DashboardIcon, FolderIcon, GiftIcon, GlobeIcon, KeyIcon, MCPIcon, ModelPlazaIcon, MoonIcon, OrderIcon,
-  OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, ServerIcon, ShieldIcon, SignalIcon,
+  OrderListIcon, PluginIcon, PriceTagIcon, RechargeSubscriptionIcon, ResellerIcon, RocketIcon, ServerIcon, ShieldIcon, SignalIcon,
   SunIcon, TaskCenterIcon, TeamIcon, TicketIcon, UserCheckIcon, UserIcon, UsersIcon,
 } from '@/components/gotocc/navIcons'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -380,6 +380,7 @@ const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
 function buildSelfNavItems(): NavItem[] {
   const items: NavItem[] = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+    { path: '/getting-started', label: t('consoleGuide.start.navTitle'), icon: RocketIcon },
   ]
   items.push(
     // 带 embedded=1 在后台布局内打开，与页眉入口一致。

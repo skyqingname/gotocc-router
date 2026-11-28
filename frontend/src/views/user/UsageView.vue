@@ -3,6 +3,10 @@
     <div class="usage-page">
       <div class="card usage-toolbar">
         <WorkspaceTabs v-model="workspaceTab" embedded :tabs="workspaceTabs" :label="t('usage.tabs.usage')" />
+        <p class="usage-trace-hint" data-test="usage-trace-hint">
+          <Icon name="infoCircle" size="sm" class="flex-none" />
+          {{ t('consoleGuide.usage.traceHint') }}
+        </p>
         <div v-show="activeTab !== 'live'" class="usage-toolbar-range">
           <div class="filter-pair">
             <span class="text-sm font-medium surface-muted">{{ t('admin.dashboard.timeRange') }}:</span>
@@ -93,6 +97,10 @@
       <div v-if="activeTab !== 'live'" class="usage-workspace-filters border-t border-gray-100 p-4 dark:border-dark-700/50">
         <div class="usage-filter-layout flex flex-wrap items-end justify-between gap-4">
           <div v-if="activeTab === 'errors'" class="usage-filter-fields filter-bar flex-1">
+            <div class="filter-field filter-field--search">
+              <label class="input-label">{{ t('consoleGuide.usage.requestId') }}</label>
+              <SearchInput v-model="errorRequestId" :placeholder="t('consoleGuide.usage.requestIdPlaceholder')" data-test="error-request-id" @search="applyErrorFilters" />
+            </div>
             <div class="filter-field">
               <label class="input-label">{{ t('usage.errors.keyName') }}</label>
               <Select v-model="errorFilter.api_key_id" :options="errorKeyOptions" @change="applyErrorFilters" />
@@ -119,6 +127,10 @@
             </div>
           </div>
           <div v-else class="usage-filter-fields filter-bar flex-1">
+            <div class="filter-field filter-field--search">
+              <label class="input-label">{{ t('consoleGuide.usage.requestId') }}</label>
+              <SearchInput v-model="usageRequestId" :placeholder="t('consoleGuide.usage.requestIdPlaceholder')" data-test="usage-request-id" @search="applyRequestIdSearch" />
+            </div>
             <div class="filter-field">
               <label class="input-label">{{ t('usage.apiKeyFilter') }}</label>
               <Select v-model="filters.api_key_id" :options="apiKeyOptions" @change="applyFilters" />
@@ -272,7 +284,9 @@ import EndpointDistributionChart from '@/components/charts/EndpointDistributionC
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import TeamMemberUsageCharts from '@/components/charts/TeamMemberUsageCharts.vue'
 import Icon from '@/components/icons/Icon.vue'
+import SearchInput from '@/components/common/SearchInput.vue'
 import UserErrorRequestsTable from '@/components/user/UserErrorRequestsTable.vue'
+import consoleGuide from '../../../../console-guide.json'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
@@ -334,6 +348,9 @@ const errorPageSize = ref(20)
 const errorSortBy = ref('created_at')
 const errorSortOrder = ref<'asc' | 'desc'>('desc')
 const errorTotal = ref(0)
+// 请求号精确查找：填了就只按请求号查，不受时间范围和其他筛选影响。
+const usageRequestId = ref('')
+const errorRequestId = ref('')
 const errorFilter = ref<{ model: string | null; category: string; api_key_id: number | null; status_code: number | null }>({
   model: '',
   category: '',
@@ -505,14 +522,27 @@ const normalizedFilters = computed<UsageQueryParams>(() => {
 })
 
 const historySnapshot = useUsageSnapshot()
-const buildUsageListParams = (page: number, pageSize: number): UsageQueryParams => ({
-  page,
-  page_size: pageSize,
-  ...normalizedFilters.value,
-  snapshot_max_id: historySnapshot.forFilters(normalizedFilters.value),
-  sort_by: sortState.sort_by,
-  sort_order: sortState.sort_order,
-})
+// 使用记录里的请求号存为 "client:<请求号>"；输入不带前缀时按客户端请求号补上，
+// 「错误」标签页复制来的请求号同样能查到。
+const usageRequestIdQuery = (value: string): string => {
+  const trimmed = value.trim()
+  return trimmed.includes(':') ? trimmed : consoleGuide.request_id.usage_client_prefix + trimmed
+}
+const buildUsageListParams = (page: number, pageSize: number): UsageQueryParams => usageRequestId.value.trim()
+  ? { page, page_size: pageSize, request_id: usageRequestIdQuery(usageRequestId.value) }
+  : {
+      page,
+      page_size: pageSize,
+      ...normalizedFilters.value,
+      snapshot_max_id: historySnapshot.forFilters(normalizedFilters.value),
+      sort_by: sortState.sort_by,
+      sort_order: sortState.sort_order,
+    }
+
+const applyRequestIdSearch = () => {
+  pagination.page = 1
+  void loadLogs()
+}
 
 const loadLogs = async () => {
   abortController?.abort()
@@ -525,7 +555,7 @@ const loadLogs = async () => {
     })
     if (!controller.signal.aborted) {
       usageLogs.value = res.items
-      historySnapshot.accept(res, pagination.page === 1 && sortState.sort_by === 'created_at' && sortState.sort_order === 'desc')
+      historySnapshot.accept(res, !usageRequestId.value.trim() && pagination.page === 1 && sortState.sort_by === 'created_at' && sortState.sort_order === 'desc')
       pagination.total = res.total
     }
   } catch (error: any) {
@@ -640,8 +670,10 @@ const resetFilters = () => {
     billing_mode: null,
   }
   granularity.value = getGranularityForRange(range.start, range.end)
+  usageRequestId.value = ''
   applyFilters()
   if (activeTab.value === 'errors') {
+    errorRequestId.value = ''
     errorFilter.value = { model: '', category: '', api_key_id: null, status_code: null }
     applyErrorFilters()
   }
@@ -825,6 +857,7 @@ const allColumns = computed<Column[]>(() => [
   ...(isTeamOwner.value ? [{ key: 'user', label: t('team.member'), sortable: false, class: 'w-36 min-w-36 max-w-36' }] : []),
   { key: 'api_key', label: t('usage.apiKeyFilter'), sortable: false },
   { key: 'model', label: t('usage.model'), sortable: true },
+  { key: 'request_id', label: t('consoleGuide.usage.requestId'), sortable: false },
   { key: 'reasoning_effort', label: t('usage.reasoningEffort'), sortable: false },
   { key: 'endpoint', label: t('usage.endpoint'), sortable: false },
   { key: 'ip_address', label: 'IP', sortable: false },
@@ -862,11 +895,13 @@ const loadSavedColumns = () => {
 
 // 错误请求 tab 独立列设置(机制同用量列设置,存储互不影响)
 const ERR_ALWAYS_VISIBLE = ['status', 'created_at']
-const ERR_DEFAULT_HIDDEN_COLUMNS = ['user_agent', 'endpoint', 'client_ip', 'group', 'type', 'platform']
+const ERR_DEFAULT_HIDDEN_COLUMNS = ['user_agent', 'endpoint', 'client_ip', 'group', 'type', 'platform', 'category']
 const ERR_HIDDEN_COLUMNS_KEY = useColumnPreferenceKey('user-usage-error-hidden-columns')
 
 // key 须与 UserErrorRequestsTable 的 allColumns 一致
 const errAllColumns = computed<Column[]>(() => [
+  { key: 'advice', label: t('consoleGuide.errorAdvice.column') },
+  { key: 'request_id', label: t('consoleGuide.usage.requestId') },
   { key: 'key_name', label: t('usage.errors.keyName') },
   { key: 'model', label: t('usage.errors.model') },
   { key: 'endpoint', label: t('usage.errors.endpoint') },
@@ -1030,18 +1065,21 @@ const resetErrorRows = () => {
 const loadErrors = async () => {
   errorLoading.value = true
   try {
-    const resp = await usageAPI.listMyErrorRequests({
-      page: errorPage.value,
-      page_size: errorPageSize.value,
-      start_date: startDate.value,
-      end_date: endDate.value,
-      model: (errorFilter.value.model ?? '').trim() || undefined,
-      category: errorFilter.value.category || undefined,
-      api_key_id: errorFilter.value.api_key_id ?? undefined,
-      status_code: errorFilter.value.status_code ?? undefined,
-      sort_by: errorSortBy.value,
-      sort_order: errorSortOrder.value,
-    })
+    const requestId = errorRequestId.value.trim()
+    const resp = await usageAPI.listMyErrorRequests(requestId
+      ? { page: errorPage.value, page_size: errorPageSize.value, request_id: requestId }
+      : {
+          page: errorPage.value,
+          page_size: errorPageSize.value,
+          start_date: startDate.value,
+          end_date: endDate.value,
+          model: (errorFilter.value.model ?? '').trim() || undefined,
+          category: errorFilter.value.category || undefined,
+          api_key_id: errorFilter.value.api_key_id ?? undefined,
+          status_code: errorFilter.value.status_code ?? undefined,
+          sort_by: errorSortBy.value,
+          sort_order: errorSortOrder.value,
+        })
     errorRows.value = resp.items
     errorTotal.value = resp.total
   } catch (error) {
@@ -1141,6 +1179,8 @@ function showLatestRecords() {
   gap: var(--filter-gap);
 }
 .usage-filter-fields > * { width: auto; min-width: 0; }
+.usage-filter-fields > .filter-field--search { grid-column: span 2; }
+.usage-trace-hint { display: inline-flex; align-items: center; gap: 6px; padding-inline: 6px; font-size: 12px; color: var(--surface-muted); }
 .usage-filter-fields :where(.input, .select-trigger, .date-picker-trigger) { width: 100%; }
 @media (max-width: 1023px) {
   .usage-toolbar, .usage-records-bar { padding-right: 6px; }

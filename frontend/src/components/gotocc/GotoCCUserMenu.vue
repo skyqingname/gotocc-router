@@ -87,6 +87,18 @@
           </button>
         </div>
 
+        <!-- 新手导览：重新打开设置引导并进入「开始使用」；密钥页导览：在密钥页从头讲一遍。 -->
+        <div v-if="showGuides" class="menu-section">
+          <button type="button" class="menu-item" data-test="menu-guide" @click="openGuide">
+            <Icon name="sparkles" size="md" class="shrink-0" />
+            {{ t('consoleGuide.menu.guide') }}
+          </button>
+          <button type="button" class="menu-item" data-test="menu-keys-tour" @click="openKeysTour">
+            <Icon name="key" size="md" class="shrink-0" />
+            {{ t('consoleGuide.menu.keysTour') }}
+          </button>
+        </div>
+
         <div v-if="contactInfo" class="menu-section">
           <div class="flex items-start gap-3 px-2.5 py-2 text-sm">
             <Icon name="chat" size="md" class="shrink-0 text-gray-400 dark:text-dark-400" />
@@ -144,6 +156,7 @@ import { useUserView } from '@/composables/useUserView'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { adminSupportContext, beginSupportTransition, endSupportTransition, setAdminSupportContext } from '@/utils/adminSupportContext'
 import { usePortalArea } from '@/composables/usePortalArea'
+import { useOnboardingProgress } from '@/composables/useOnboardingProgress'
 import { ADMIN_PORTAL_HOME, USER_PORTAL_HOME } from '@/utils/portalArea'
 import { supportPathForPersonalPath } from '@/utils/adminSupport'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
@@ -176,6 +189,8 @@ const frozenBalance = computed(() => user.value.frozen_balance ?? 0)
 
 // 新手引导按钮只给标准模式下的管理员本人，协助模式不显示。
 const showOnboarding = computed(() => !authStore.isSimpleMode && !adminSupportContext.value && user.value.role === 'admin')
+const showGuides = computed(() => !adminSupportContext.value && !isAdminPortal.value)
+const onboarding = useOnboardingProgress()
 
 // 管理员只读协助时，个人页面路径映射到协助路由，与侧栏一致。
 function personalPath(path: string): string {
@@ -261,6 +276,17 @@ async function switchToAdminPortal() {
 function replayGuide() {
   open.value = false
   onboardingStore.replay()
+}
+
+function openGuide() {
+  open.value = false
+  onboarding.reopen()
+  void router.push('/getting-started')
+}
+
+function openKeysTour() {
+  open.value = false
+  void router.push({ path: '/keys', query: { tour: '1' } })
 }
 
 async function logout() {

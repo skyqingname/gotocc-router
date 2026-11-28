@@ -91,6 +91,7 @@ import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { useKeyModels } from '@/composables/useKeyModels'
+import { markCcSwitchImported } from '@/composables/useOnboardingProgress'
 import { platformBadgeLightClass } from '@/utils/platformColors'
 import {
   CC_SWITCH_APPS,
@@ -173,6 +174,7 @@ function openCcSwitch() {
     models: modelValues
   })
   window.open(deeplink, '_self')
+  markCcSwitchImported()
   // Still focused shortly after means no protocol handler took the link.
   setTimeout(() => {
     if (document.hasFocus()) appStore.showError(t('keys.ccSwitchNotInstalled'))

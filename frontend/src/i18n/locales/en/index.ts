@@ -26,6 +26,7 @@ import inspection from './inspection'
 import billingRates from './billingRates'
 import nativeAccess from './nativeAccess'
 import keyConsole from './keyConsole'
+import consoleGuide from './consoleGuide'
 
 export default {
   ...workspace,
@@ -34,6 +35,7 @@ export default {
   ...billingRates,
   ...nativeAccess,
   ...keyConsole,
+  ...consoleGuide,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

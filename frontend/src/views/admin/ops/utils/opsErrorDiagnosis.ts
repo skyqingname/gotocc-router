@@ -1,6 +1,7 @@
 import type { OpsErrorLog, OpsRoutingDiagnostics } from '@/api/admin/ops'
+import { classifyRequestError, extractCleanText, type ErrorBlame } from '@/utils/requestErrorDiagnosis'
 
-export type OpsBlameKind = 'user' | 'upstream' | 'gateway'
+export type OpsBlameKind = ErrorBlame
 
 export interface OpsReadableDiagnosis {
   blame: OpsBlameKind
@@ -58,23 +59,6 @@ export function formatRoutingDiagnosticsSummary(
   return parts.join('；')
 }
 
-function extractCleanText(raw?: string | null): string {
-  const trimmed = String(raw || '').trim()
-  if (!trimmed || trimmed === '{}' || trimmed === '[]' || trimmed.toLowerCase() === 'null') return ''
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(trimmed)
-      if (parsed?.error?.message) return String(parsed.error.message).trim()
-      if (parsed?.response?.error?.message) return String(parsed.response.error.message).trim()
-      if (parsed?.message) return String(parsed.message).trim()
-      if (parsed?.detail) return String(parsed.detail).trim()
-    } catch {
-      // keep raw snippet
-    }
-  }
-  return trimmed
-}
-
 function formatDurationSec(ms?: number | null): string {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return ''
   if (ms < 1000) return `${Math.round(ms)}ms`
@@ -108,6 +92,7 @@ function isPureUnsupportedModelFilter(diag?: OpsRoutingDiagnostics | null): bool
   return entries.every(([k]) => k === 'model_not_supported' || k === 'capability_mismatch' || k === 'channel_upstream_restricted')
 }
 
+// 归因判断在 utils/requestErrorDiagnosis.ts，与用户端共用；这里按管理员需要写明上游账号、分组等细节。
 export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiagnosis {
   const gwStatus = typeof log.gateway_status_code === 'number' && log.gateway_status_code > 0
     ? log.gateway_status_code
@@ -118,9 +103,6 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
   const primaryStatus = gwStatus ?? log.status_code ?? 0
 
   const phase = String(log.phase || '').toLowerCase()
-  const errType = String(log.type || '').toLowerCase()
-  const ownerRaw = String(log.error_owner || '').toLowerCase()
-
   const cleanMsg = extractCleanText(log.message)
   const cleanUpMsg = extractCleanText(log.upstream_error_message)
   const msgLower = `${cleanMsg} ${cleanUpMsg}`.toLowerCase()
@@ -144,7 +126,24 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
     return cleanMsg || cleanUpMsg
   })()
 
-  if (primaryStatus === 499 || gwStatus === 499 || errType === 'client_disconnect') {
+  const { kind } = classifyRequestError({
+    primaryStatus,
+    gatewayStatus: gwStatus,
+    upstreamStatus: upStatus,
+    phase,
+    type: String(log.type || '').toLowerCase(),
+    owner: String(log.error_owner || '').toLowerCase(),
+    message: cleanMsg,
+    upstreamMessage: cleanUpMsg,
+    businessLimited: Boolean(log.is_business_limited),
+    routingCapacityLimited: Boolean(log.is_routing_capacity_limited),
+    unsupportedModelOnly: isPureUnsupportedModelFilter(log.routing_diagnostics)
+  })
+
+  const userBadge = 'bg-amber-100/[0.18] text-amber-800 dark:bg-amber-900/30 dark:text-amber-200'
+  const base = { detail: bestRawDetail, filterHint, gatewayStatus: gwStatus, upstreamStatus: upStatus }
+
+  if (kind === 'client_closed') {
     const hasAccount = Boolean(log.account_id || log.account_name)
     const acct = formatAccountTag(log, isZh)
     let headline = ''
@@ -160,25 +159,18 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
         : `User issue: client disconnected before upstream dispatch${durationText ? ` (${durationText})` : ''}`
     }
     return {
+      ...base,
       blame: 'user',
       ownerLabel: isZh ? '用户问题' : 'User',
       subLabel: isZh ? '客户端断连' : 'Client Closed',
-      badgeClass: 'bg-amber-100/[0.18] text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
+      badgeClass: userBadge,
       headline,
       detail: bestRawDetail === headline ? '' : bestRawDetail,
-      filterHint,
-      gatewayStatus: gwStatus || 499,
-      upstreamStatus: upStatus
+      gatewayStatus: gwStatus || 499
     }
   }
 
-  if (
-    errType === 'model_not_found' ||
-    errType === 'auto_route_model_not_found' ||
-    msgLower.includes('is not available for this key and endpoint') ||
-    msgLower.includes('is not supported by any configured account') ||
-    isPureUnsupportedModelFilter(log.routing_diagnostics)
-  ) {
+  if (kind === 'model_unsupported') {
     const modelName = formatModelTag(log)
     const grp = formatGroupTag(log, isZh)
     const isAuto = msgLower.includes('for this key and endpoint') || !log.group_id
@@ -188,62 +180,47 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
           : `用户或分组配置问题：分组 ${grp} 内没有支持模型 [${modelName}] 的可用账号`)
       : `User/config issue: model [${modelName}] is not supported in ${grp}`
     return {
+      ...base,
       blame: 'user',
       ownerLabel: isZh ? '用户问题' : 'User',
       subLabel: isZh ? '模型未开通' : 'Model Unsupported',
-      badgeClass: 'bg-amber-100/[0.18] text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
-      headline,
-      detail: bestRawDetail,
-      filterHint,
-      gatewayStatus: gwStatus,
-      upstreamStatus: upStatus
+      badgeClass: userBadge,
+      headline
     }
   }
 
-  const looksLikeUpstreamStreamBreak =
-    msgLower.includes('upstream stream') ||
-    msgLower.includes('upstream http/2') ||
-    msgLower.includes('stream interrupted') ||
-    msgLower.includes('unexpected eof')
-  if (
-    ownerRaw === 'provider' ||
-    phase === 'upstream' ||
-    phase === 'account_auth' ||
-    (upStatus !== null && upStatus >= 400 && ownerRaw !== 'client') ||
-    looksLikeUpstreamStreamBreak
-  ) {
+  if (kind.startsWith('upstream_')) {
     const acct = formatAccountTag(log, isZh)
     const modelName = formatModelTag(log)
     const codeHint = upStatus ? `HTTP ${upStatus}` : `HTTP ${primaryStatus}`
     let subLabel = isZh ? '上游故障' : 'Upstream Error'
     let headline = ''
-
-    if (upStatus === 404 || msgLower.includes('model_not_found') || (msgLower.includes('model') && msgLower.includes('not supported'))) {
+    if (kind === 'upstream_no_model') {
       subLabel = isZh ? '上游缺此模型' : 'Upstream No Model'
       headline = isZh
         ? `上游问题：${acct} 调用不到模型 [${modelName}]（上游返回 ${codeHint}）`
         : `Upstream issue: ${acct} does not serve model [${modelName}] (${codeHint})`
-    } else if (upStatus === 401 || upStatus === 403 || phase === 'account_auth' || msgLower.includes('forbidden') || msgLower.includes('cloudflare')) {
+    } else if (kind === 'upstream_auth') {
       subLabel = isZh ? '上游 401/403 拒访' : 'Upstream Auth/403'
       headline = isZh
         ? `上游问题：${acct} 凭据失效或被上游防火墙拦截（上游返回 ${codeHint}）`
         : `Upstream issue: ${acct} rejected with ${codeHint} (auth or WAF block)`
-    } else if (upStatus === 429 || errType === 'rate_limit_error' || msgLower.includes('rate limit') || msgLower.includes('quota')) {
+    } else if (kind === 'upstream_rate_limit') {
       subLabel = isZh ? '上游限流/无额度' : 'Upstream 429'
       headline = isZh
         ? `上游问题：${acct} 触发上游速率限制或额度耗尽（上游返回 ${codeHint}）`
         : `Upstream issue: ${acct} hit rate/quota limit (${codeHint})`
-    } else if (looksLikeUpstreamStreamBreak) {
+    } else if (kind === 'upstream_stream_broken') {
       subLabel = isZh ? '上游流中途断链' : 'Stream Broken'
       headline = isZh
         ? `上游问题：${acct} 在流式返回中途断开连接${durationText ? `（耗时 ${durationText}）` : ''}`
         : `Upstream issue: ${acct} dropped stream mid-response`
-    } else if (primaryStatus === 504 || upStatus === 504 || msgLower.includes('timeout') || msgLower.includes('deadline exceeded')) {
+    } else if (kind === 'upstream_timeout') {
       subLabel = isZh ? '上游响应超时' : 'Upstream Timeout'
       headline = isZh
         ? `上游问题：${acct} 响应超时未按时返回${durationText ? `（等待 ${durationText}）` : ''}`
         : `Upstream issue: ${acct} timed out`
-    } else if (upStatus === 400 || primaryStatus === 400) {
+    } else if (kind === 'upstream_bad_request') {
       subLabel = isZh ? '上游拒收请求 400' : 'Upstream 400'
       headline = isZh
         ? `上游问题：${acct} 拒绝请求参数或上下文（上游返回 ${codeHint}）`
@@ -253,40 +230,25 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
         ? `上游问题：${acct} 服务返回异常（${codeHint}，模型 [${modelName}]）`
         : `Upstream issue: ${acct} failed (${codeHint})`
     }
-
     return {
+      ...base,
       blame: 'upstream',
       ownerLabel: isZh ? '上游问题' : 'Upstream',
       subLabel,
       badgeClass: 'bg-red-100/[0.18] text-red-800 dark:bg-red-900/30 dark:text-red-200',
-      headline,
-      detail: bestRawDetail,
-      filterHint,
-      gatewayStatus: gwStatus,
-      upstreamStatus: upStatus
+      headline
     }
   }
 
-  const isTeamOrAuth =
-    phase === 'auth' ||
-    errType === 'authentication_error' ||
-    errType === 'permission_error' ||
-    errType === 'billing_error' ||
-    errType === 'subscription_error' ||
-    msgLower.includes('团队') ||
-    msgLower.includes('api key') ||
-    msgLower.includes('balance') ||
-    msgLower.includes('quota') ||
-    msgLower.includes('limit exceeded')
-  if (ownerRaw === 'client' || phase === 'request' || isTeamOrAuth || log.is_business_limited) {
+  if (kind === 'ciphertext' || kind === 'access_quota' || kind === 'invalid_request') {
     let subLabel = isZh ? '调用参数异常' : 'Invalid Request'
     let headline = ''
-    if (msgLower.includes('encrypted') && msgLower.includes('decrypt')) {
+    if (kind === 'ciphertext') {
       subLabel = isZh ? '历史密文失效' : 'Invalid Ciphertext'
       headline = isZh
         ? `用户会话问题：请求携带的历史加密上下文无法在当前上游解密（跨渠道切换后旧密文残留）`
         : `User session issue: encrypted history item could not be decrypted by current upstream`
-    } else if (isTeamOrAuth || primaryStatus === 401 || primaryStatus === 403 || primaryStatus === 429) {
+    } else if (kind === 'access_quota') {
       subLabel = isZh ? '权限/额度受限' : 'Auth / Quota'
       headline = isZh
         ? `用户调用受限：${cleanMsg || 'API Key 权限、团队成员状态或账户额度不满足要求'}`
@@ -297,15 +259,13 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
         : `User request rejected (HTTP ${primaryStatus})`
     }
     return {
+      ...base,
       blame: 'user',
       ownerLabel: isZh ? '用户问题' : 'User',
       subLabel,
       badgeClass: 'bg-blue-100/[0.18] text-blue-800 dark:bg-blue-900/30 dark:text-blue-200',
       headline,
-      detail: bestRawDetail === headline || (Boolean(cleanMsg) && headline.includes(cleanMsg)) ? '' : bestRawDetail,
-      filterHint,
-      gatewayStatus: gwStatus,
-      upstreamStatus: upStatus
+      detail: bestRawDetail === headline || (Boolean(cleanMsg) && headline.includes(cleanMsg)) ? '' : bestRawDetail
     }
   }
 
@@ -313,12 +273,12 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
   const modelName = formatModelTag(log)
   let subLabel = isZh ? '网关内部异常' : 'Gateway Internal'
   let headline = ''
-  if (msgLower.includes('session routing is temporarily unavailable') || msgLower.includes('takeover')) {
+  if (kind === 'session_route') {
     subLabel = isZh ? '会话迁移异常' : 'Session Route'
     headline = isZh
       ? `本网关问题：原粘性账号繁忙，迁移至候选账号时未通过响应校验或等待超时`
       : `Gateway issue: session route migration failed or timed out`
-  } else if (log.is_routing_capacity_limited || phase === 'routing' || msgLower.includes('no available') || msgLower.includes('temporarily unavailable')) {
+  } else if (kind === 'pool_exhausted') {
     subLabel = isZh ? '渠道池无可用号' : 'Pool Exhausted'
     headline = isZh
       ? `本网关调度受限：分组 ${grp} 当前没有可调度账号处理模型 [${modelName}]（可能全部限流、满载或临时熔断）`
@@ -330,14 +290,11 @@ export function diagnoseOpsError(log: OpsErrorLog, isZh = true): OpsReadableDiag
   }
 
   return {
+    ...base,
     blame: 'gateway',
     ownerLabel: isZh ? '本网关问题' : 'Gateway',
     subLabel,
     badgeClass: 'bg-purple-100/[0.18] text-purple-800 dark:bg-purple-900/30 dark:text-purple-200',
-    headline,
-    detail: bestRawDetail,
-    filterHint,
-    gatewayStatus: gwStatus,
-    upstreamStatus: upStatus
+    headline
   }
 }

@@ -2,6 +2,7 @@
   <AppLayout>
     <!-- 首次进入时各区块按 --rise-i 依次上移淡入，最后一块播放完后移除入场类 -->
     <div class="space-y-4" :class="{ 'dash-rise': entering }" :style="dashboardMotionVars" @animationend="onRiseEnd">
+      <SetupGuideCard />
       <div class="dash-rise-item flex flex-wrap items-center justify-between gap-3" :style="{ '--rise-i': 0 }">
         <DashboardLiveStats ref="liveStatsRef" />
         <DashboardToolbar :refreshing="refreshing" @refresh="refreshAll" />
@@ -39,6 +40,7 @@ import DashboardPlatformUsage from '@/components/gotocc/dashboard/DashboardPlatf
 import DashboardQuickActions from '@/components/gotocc/dashboard/DashboardQuickActions.vue'
 import DashboardToolbar from '@/components/gotocc/dashboard/DashboardToolbar.vue'
 import DashboardUsageChart from '@/components/gotocc/dashboard/DashboardUsageChart.vue'
+import SetupGuideCard from '@/components/gotocc/onboarding/SetupGuideCard.vue'
 import { dashboardMotionVars } from '@/components/gotocc/dashboard/motion'
 import { provideUsageState } from '@/components/gotocc/dashboard/usageState'
 import { usageAPI } from '@/api/usage'
