@@ -67,6 +67,7 @@ type ResellerRepository interface {
 	ChangeCustomerCredit(context.Context, int64, int64, ResellerCreditInput) (*ResellerCreditEntry, error)
 	CustomerCreditEntries(context.Context, int64, int64, int, int) ([]ResellerCreditEntry, int64, error)
 	Profile(context.Context, int64) (*ResellerProfile, error)
+	EnsureProfile(context.Context, int64) (*ResellerProfile, error)
 	SaveProfile(context.Context, int64, bool) (*ResellerProfile, error)
 	Invitation(context.Context, string) (*ResellerProfile, error)
 	BindCustomer(context.Context, int64, int64) error
@@ -92,6 +93,14 @@ func (s *ResellerService) RequireEnabled(ctx context.Context, userID int64) (*Re
 	p, err := s.Repo.Profile(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if p.Enabled && p.InvitationCode == "" {
+		// Access and admin reads are allocation-free. Owner operations need a
+		// stable profile for invitations and the repository's enabled locks.
+		p, err = s.Repo.EnsureProfile(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !p.Enabled {
 		return nil, infraerrors.Forbidden("RESELLER_DISABLED", "站长中心尚未向此用户开放")
