@@ -59,7 +59,8 @@ func writeOpenAIUpstreamClientError(c *gin.Context, statusCode int, body []byte,
 	errorPayload["message"] = message
 
 	publicStatus := statusCode
-	key := getOpenAIErrorMessageSource(c).key
+	source := getOpenAIErrorMessageSource(c)
+	key := source.key
 	if key == "" && isOpenAIContextWindowError(upstreamMsg, body) && strings.TrimSpace(upstreamMsg) != "" {
 		key = "context_length_exceeded"
 	}
@@ -70,6 +71,10 @@ func writeOpenAIUpstreamClientError(c *gin.Context, statusCode int, body []byte,
 		key, classified = ClassifyCodexPublicFailureKey(statusCode, key)
 	}
 	if key != "" {
+		if !source.recorded && key == "request_rejected" {
+			SetOpenAIErrorMessageSource(c, statusCode, body)
+			source = getOpenAIErrorMessageSource(c)
+		}
 		SetCodexPublicErrorFinal(c, key, classified)
 		if statusCode >= 400 {
 			publicStatus = classified
@@ -83,7 +88,7 @@ func writeOpenAIUpstreamClientError(c *gin.Context, statusCode int, body []byte,
 			if definition.PublicCode != "" {
 				errorPayload["code"] = definition.PublicCode
 			}
-			errorPayload["message"] = definition.DefaultMessage
+			errorPayload["message"] = codexPublicErrorMessageWithUpstream(key, definition.DefaultMessage, source.upstreamMessage)
 			if param, _ := errorPayload["param"].(string); !codexPublicErrorParamAllowed(param) {
 				delete(errorPayload, "param")
 			}

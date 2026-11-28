@@ -233,6 +233,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			}
 			return nil, &agentIdentityTaskRecoveredError{ctx: recoveredCtx}
 		}
+		if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, nil, err, false); fallback != nil {
+			return nil, fallback
+		}
 		s.handleOpenAIWSDialTransientFailure(ctx, account, mappedModel, err)
 		dialStatus, dialClass, dialCloseStatus, dialCloseReason, dialRespServer, dialRespVia, dialRespCFRay, dialRespReqID := summarizeOpenAIWSDialError(err)
 		logOpenAIWSModeInfo(
@@ -256,6 +259,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			wsPath,
 			account.ProxyID != nil && account.Proxy != nil,
 		)
+		if failure := s.openAIWSDialFailover(ctx, c, account, err, false); failure != nil {
+			return nil, failure
+		}
 		var dialErr *openAIWSDialError
 		if errors.As(err, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 			s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(err.Error()), mappedModel)
@@ -361,6 +367,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		stateStore,
 		groupID,
 	); err != nil {
+		if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), err, false); failure != nil {
+			return nil, failure
+		}
 		return nil, err
 	}
 
@@ -370,6 +379,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	requestSubmitted = true
 	if err := lease.WriteJSONWithContextTimeout(ctx, payload, s.openAIWSWriteTimeout()); err != nil {
 		lease.MarkBroken()
+		if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), err, false); failure != nil {
+			return nil, failure
+		}
 		logOpenAIWSModeInfo(
 			"write_request_fail account_id=%d conn_id=%s cause=%s payload_bytes=%d",
 			account.ID,
@@ -644,6 +656,9 @@ readLoop:
 				break
 			}
 			if !wroteDownstream {
+				if failure := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), readErr, false); failure != nil {
+					return nil, failure
+				}
 				return nil, wrapOpenAIWSFallback(classifyOpenAIWSReadFallbackReason(readErr), readErr)
 			}
 			setOpsUpstreamError(c, 0, sanitizeUpstreamErrorMessage(readErr.Error()), "")
@@ -722,6 +737,12 @@ readLoop:
 			markOpenAICyberPolicyEvent(c, message, http.StatusOK, usage)
 		}
 
+		if !wroteDownstream && (eventType == "error" || eventType == "response.failed") {
+			if failure := s.openAIRelayEventFailover(c, account, lease.HandshakeHeaders(), message, false); failure != nil {
+				lease.MarkBroken()
+				return nil, failure
+			}
+		}
 		if eventType == "error" {
 			s.handleOpenAIWSErrorEventTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), message)
 			errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(message)
@@ -775,6 +796,9 @@ readLoop:
 				return nil, wrapOpenAIWSFallback(fallbackReason, errors.New(errMsg))
 			}
 			statusCode := openAIWSErrorHTTPStatus(message)
+			if statusCode == http.StatusBadRequest || statusCode == http.StatusUnprocessableEntity {
+				setOpenAIErrorMessageSource(c, statusCode, message, account)
+			}
 			setOpsUpstreamError(c, statusCode, errMsg, "")
 			if reqStream && !clientDisconnected {
 				flushBufferedStreamEvents("error_event")

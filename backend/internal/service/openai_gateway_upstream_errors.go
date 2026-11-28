@@ -335,6 +335,9 @@ func (s *OpenAIGatewayService) shouldFailoverOpenAIUpstreamResponse(account *Acc
 	if isOpenAIContextWindowError(upstreamMsg, upstreamBody) {
 		return false
 	}
+	if isOpenAIRelayIncompatible400(account, statusCode, upstreamMsg, upstreamBody) {
+		return true
+	}
 	if isOpenAIHTTPUpstreamAccessStateError(statusCode, upstreamMsg, upstreamBody) {
 		return true
 	}
@@ -570,6 +573,9 @@ func (s *OpenAIGatewayService) newOpenAIAccountFailoverErrorWithClassificationHe
 	shouldDisable bool,
 	retryableOnSameAccount bool,
 ) *UpstreamFailoverError {
+	if isOpenAIRelayIncompatible400(account, statusCode, upstreamMsg, responseBody) {
+		return newOpenAIRelayIncompatibleFailoverError(account, responseHeaders, responseBody)
+	}
 	if account != nil && account.Platform == PlatformOpenAI && statusCode == http.StatusTooManyRequests && openAISharedRateLimit(classificationHeaders, responseBody) {
 		failure := newOpenAIUpstreamFailoverError(statusCode, responseHeaders, responseBody, upstreamMsg, false)
 		failure.Scope = GatewayFailureScopeProvider
@@ -947,7 +953,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		SetCodexPublicErrorFinal(c, key, publicStatus)
 		if definition, ok := codexPublicErrorByKey(key); ok {
 			errType = definition.ErrorType
-			errMsg = definition.DefaultMessage
+			errMsg = CodexPublicErrorResponseMessage(key, definition.DefaultMessage, resp.StatusCode, body)
 		}
 	}
 	c.JSON(statusCode, gin.H{
@@ -1119,12 +1125,15 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 		errType = "api_error"
 	}
 	if account != nil && account.Platform == PlatformOpenAI {
+		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnprocessableEntity {
+			SetOpenAIErrorMessageSource(c, resp.StatusCode, body)
+		}
 		key, publicStatus := ClassifyCodexPublicFailure(resp.StatusCode, body)
 		statusCode = publicStatus
 		SetCodexPublicErrorFinal(c, key, publicStatus)
 		if definition, ok := codexPublicErrorByKey(key); ok {
 			errType = definition.ErrorType
-			upstreamMsg = definition.DefaultMessage
+			upstreamMsg = CodexPublicErrorResponseMessage(key, definition.DefaultMessage, resp.StatusCode, body)
 		}
 	}
 

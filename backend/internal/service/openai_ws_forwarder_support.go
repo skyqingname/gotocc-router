@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LuckyKuang/sub2api-plus/internal/pkg/accountbalance"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -133,6 +134,12 @@ func (s *OpenAIGatewayService) performOpenAIWSGeneratePrewarm(
 			)
 		}
 
+		if eventType == "error" || eventType == "response.failed" {
+			if failure := s.openAIRelayEventFailover(nil, account, lease.HandshakeHeaders(), message, false); failure != nil {
+				lease.MarkBroken()
+				return failure
+			}
+		}
 		if eventType == "error" {
 			if status, ok := openAIRequestTerminalEventStatus(message); ok {
 				lease.MarkBroken()
@@ -905,6 +912,15 @@ func openAIWSErrorHTTPStatusFromRaw(codeRaw, errTypeRaw string) int {
 	}
 }
 
+// openAIWSRejectionStatus reads the status from both error frame shapes.
+func openAIWSRejectionStatus(payload []byte) int {
+	if status := openAIErrorEventStatus(payload); status != 0 {
+		return status
+	}
+	_, fields := openAIProtocolError(gjson.ParseBytes(payload))
+	return openAIWSErrorHTTPStatusFromRaw(fields.Get("code").String(), fields.Get("type").String())
+}
+
 func openAIWSErrorHTTPStatus(message []byte) int {
 	if openAIInputTerminalCode(0, message) != "" {
 		return http.StatusBadRequest
@@ -950,39 +966,43 @@ func (s *OpenAIGatewayService) openAIWSFallbackCooldown() time.Duration {
 	return time.Duration(seconds) * time.Second
 }
 
-func (s *OpenAIGatewayService) isOpenAIWSFallbackCooling(accountID int64) bool {
-	if s == nil || accountID <= 0 {
-		return false
-	}
-	cooldown := s.openAIWSFallbackCooldown()
-	if cooldown <= 0 {
-		return false
-	}
-	rawUntil, ok := s.openaiWSFallbackUntil.Load(accountID)
-	if !ok || rawUntil == nil {
-		return false
-	}
-	until, ok := rawUntil.(time.Time)
-	if !ok || until.IsZero() {
-		s.openaiWSFallbackUntil.Delete(accountID)
-		return false
-	}
-	if time.Now().Before(until) {
-		return true
-	}
-	s.openaiWSFallbackUntil.Delete(accountID)
-	return false
+type openAIWSFallbackState struct {
+	until  time.Time
+	reason string
 }
 
-func (s *OpenAIGatewayService) markOpenAIWSFallbackCooling(accountID int64, _ string) {
+func (s *OpenAIGatewayService) openAIWSFallbackCoolingReason(accountID int64) string {
+	if s == nil || accountID <= 0 {
+		return ""
+	}
+	rawState, ok := s.openaiWSFallbackUntil.Load(accountID)
+	if !ok {
+		return ""
+	}
+	state := rawState.(openAIWSFallbackState)
+	if time.Now().Before(state.until) {
+		return state.reason
+	}
+	s.openaiWSFallbackUntil.CompareAndDelete(accountID, state)
+	return ""
+}
+
+func (s *OpenAIGatewayService) isOpenAIWSFallbackCooling(accountID int64) bool {
+	return s.openAIWSFallbackCoolingReason(accountID) != ""
+}
+
+func (s *OpenAIGatewayService) markOpenAIWSFallbackCooling(accountID int64, reason string) {
 	if s == nil || accountID <= 0 {
 		return
 	}
 	cooldown := s.openAIWSFallbackCooldown()
+	if reason == openAIWSAvailabilityFallbackReason {
+		cooldown = time.Duration(accountbalance.OpenAIWSUnavailableFallbackCooldownSeconds) * time.Second
+	}
 	if cooldown <= 0 {
 		return
 	}
-	s.openaiWSFallbackUntil.Store(accountID, time.Now().Add(cooldown))
+	s.openaiWSFallbackUntil.Store(accountID, openAIWSFallbackState{until: time.Now().Add(cooldown), reason: reason})
 }
 
 func (s *OpenAIGatewayService) clearOpenAIWSFallbackCooling(accountID int64) {

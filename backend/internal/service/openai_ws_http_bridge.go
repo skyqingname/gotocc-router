@@ -629,6 +629,9 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if upstreamMsg == "" {
 			upstreamMsg = http.StatusText(resp.StatusCode)
 		}
+		if failure := s.openAIUpstreamUnavailableHTTPFailover(ctx, c, account, resp, respBody, true); failure != nil {
+			return nil, failure
+		}
 		shouldFailover := s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody)
 		if account.Platform == PlatformGrok {
 			shouldFailover = s.shouldFailoverGrokUpstreamError(resp.StatusCode, respBody)
@@ -636,7 +639,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			if shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests) {
 				return nil, newOpenAIUpstreamFailoverError(resp.StatusCode, resp.Header, respBody, upstreamMsg, false)
 			}
-		} else if shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests) && !isOpenAIHTTPCapacityShed(resp.StatusCode, upstreamMsg, respBody) {
+		} else if shouldFailover && (turn == 1 || resp.StatusCode == http.StatusTooManyRequests || isOpenAIRelayIncompatible400(account, resp.StatusCode, upstreamMsg, respBody)) && !isOpenAIHTTPCapacityShed(resp.StatusCode, upstreamMsg, respBody) {
 			return nil, s.handleFailoverErrorResponsePassthrough(ctx, resp, c, account, body, respBody)
 		}
 		if account.Platform != PlatformGrok && (shouldFailover || shouldCooldownOpenAITransientUpstreamError(resp.StatusCode, respBody)) {
@@ -657,6 +660,7 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 		if rewritten, changed := sanitizeOpenAICapacityShedErrorCodeForClient(clientError); changed {
 			clientError = rewritten
 		}
+		setOpenAIErrorMessageSource(c, resp.StatusCode, respBody, account)
 		SetCodexPublicErrorFinal(c, publicKey, publicStatus)
 		if writeErr := writeClientMessage(clientError); writeErr == nil {
 			markOpenAIWSClientVisibleFailure(c, "error", clientError)
@@ -883,6 +887,11 @@ func (s *OpenAIGatewayService) proxyOpenAIWSHTTPBridgeTurn(
 			}
 			if errMessage == "" {
 				errMessage = "upstream error event"
+			}
+			if !wroteDownstream {
+				if relayFailure := s.openAIRelayEventFailover(c, account, resp.Header, upstreamMessage, true); relayFailure != nil {
+					return nil, relayFailure
+				}
 			}
 			statusCode := openAIStreamFailureStatus(upstreamMessage, errMessage)
 			shouldFailover := openAIStreamFailedEventShouldFailover(upstreamMessage, errMessage)

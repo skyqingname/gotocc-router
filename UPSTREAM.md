@@ -6,6 +6,11 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
+GoToCC `0.2.25+custom.002` is a local candidate based on owned main
+`3618610ad424df4d995cc0e18e449aacc7747b6b` and retains the Plus
+`v0.2.25+custom.001` baseline below. It updates OpenAI relay failover and
+public request-rejection text without changing the database schema.
+
 GoToCC `skyqingname/gotocc-router@v0.2.25+custom.001` starts from owned main
 `880dcfeeae459753e33272e0d6af7b925eb6160a` (`skyqingname/gotocc-router@v0.2.22+custom.001`,
 fixed package commit `f6cceec5cd81f1353d8a38ed782a65f4b755a11b`) and incorporates the complete

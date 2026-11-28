@@ -528,8 +528,9 @@ type OpsUpstreamErrorEvent struct {
 	DroppedEarlierAttempts int `json:"dropped_earlier_attempts,omitempty"`
 
 	// Outcome
-	UpstreamStatusCode int    `json:"upstream_status_code,omitempty"`
-	UpstreamRequestID  string `json:"upstream_request_id,omitempty"`
+	UpstreamStatusCode  int    `json:"upstream_status_code,omitempty"`
+	UpstreamWSCloseCode int    `json:"upstream_ws_close_code,omitempty"`
+	UpstreamRequestID   string `json:"upstream_request_id,omitempty"`
 
 	// UpstreamURL is the actual upstream URL that was called (host + path, query/fragment stripped).
 	// Helps debug 404/routing errors by showing which endpoint was targeted.

@@ -1139,6 +1139,10 @@ func (s *OpenAIGatewayService) writeOpenAIWSFallbackErrorResponse(c *gin.Context
 		upstreamMessage = clientMessage
 	}
 
+	var dialErr *openAIWSDialError
+	if (statusCode == http.StatusBadRequest || statusCode == http.StatusUnprocessableEntity) && errors.As(wsErr, &dialErr) {
+		setOpenAIErrorMessageSource(c, statusCode, dialErr.ResponseBody, account)
+	}
 	setOpsUpstreamError(c, statusCode, upstreamMessage, "")
 	if account != nil {
 		proxyID, proxyName := opsUpstreamWSProxyAttribution(account)
