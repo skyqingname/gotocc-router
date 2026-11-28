@@ -15,7 +15,7 @@ export function chartTooltipStyle(isDark: boolean) {
     cornerRadius: px('--tip-radius'),
     caretSize: px('--chart-tip-caret'),
     padding: { top: px('--tip-pad-y'), bottom: px('--tip-pad-y'), left: px('--tip-pad-x'), right: px('--tip-pad-x') },
-    backgroundColor: rootToken(`--tip-fill-${theme}`),
+    backgroundColor: rootToken(`--console-tip-fill-${theme}`),
     titleColor: text,
     bodyColor: text,
     footerColor: text,

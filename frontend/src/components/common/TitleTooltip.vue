@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
   padding: var(--tip-pad-y) var(--tip-pad-x);
   border: 1px solid var(--tip-edge);
   border-radius: var(--tip-radius);
-  background-color: var(--tip-fill);
+  background-color: var(--console-tip-fill);
   box-shadow: var(--tip-shadow);
   color: var(--tip-text);
   font-size: var(--tip-font-size);
@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
   position: absolute;
   width: var(--tip-arrow-size);
   height: var(--tip-arrow-size);
-  background-color: var(--tip-fill);
+  background-color: var(--console-tip-fill);
   border: 1px solid var(--tip-edge);
   rotate: 45deg;
 }

@@ -26,8 +26,9 @@
   --motion-ease-enter: var(--motion-ease-fluid);
 
   /* 外框：大屏时侧栏、顶栏各是一块实底浮板，四周和彼此之间留出缝隙，流动的背景从缝里露出来。
-     底色是偏冷的淡雾紫，和偏暖的正文纸面分开。 */
-  --frame-fill: #f4f3fa;
+     底色是偏冷的淡雾紫，和偏暖的正文纸面分开。外框、纸面和提示气泡的底色令牌带 --console- 前缀：
+     构建时的卡片透明度处理（scripts/consoleSurfaces.js）不改这类变量，管理员调卡片透明度时它们保持原样。 */
+  --console-frame-fill: #f4f3fa;
   --frame-edge: rgb(79 70 229 / 14%);
   --frame-divider: rgb(79 70 229 / 10%);
   --frame-shadow: 0 1px 2px rgb(49 46 129 / 6%), 0 14px 34px -20px rgb(49 46 129 / 30%);
@@ -35,15 +36,15 @@
   --frame-gap: 12px;
 
   /* 纸面：大屏正文区，四角圆、半透明，背景的流动隐约透出来；卡片和表格照常实底。 */
-  --paper-fill: rgb(250 248 245 / 76%);
+  --console-paper-fill: rgb(250 248 245 / 66%);
   --paper-shadow: 0 0 0 1px rgb(79 70 229 / 9%), 0 24px 56px -32px rgb(49 46 129 / 34%);
 
   /* 流动背景：四团光各自漂移缩放。周期两两互质，四团不会同时回到起点；
      --aurora-travel 是漂移幅度，--aurora-drift 是鼠标牵引整体的最大位移。 */
-  --aurora-indigo: rgb(99 102 241 / 34%);
-  --aurora-violet: rgb(139 92 246 / 28%);
-  --aurora-sky: rgb(56 189 248 / 22%);
-  --aurora-amber: rgb(251 146 60 / 18%);
+  --aurora-indigo: rgb(99 102 241 / 38%);
+  --aurora-violet: rgb(139 92 246 / 32%);
+  --aurora-sky: rgb(56 189 248 / 26%);
+  --aurora-amber: rgb(251 146 60 / 22%);
   --aurora-period-indigo: 23s;
   --aurora-period-violet: 29s;
   --aurora-period-sky: 19s;
@@ -62,13 +63,13 @@
 
   /* 悬停提示：反色小气泡，浅色界面深底白字、深色界面浅底深字。两套颜色都在这里，
      图表的画布提示按主题直接取对应的一套。 */
-  --tip-fill-light: #1d1b29;
+  --console-tip-fill-light: #1d1b29;
   --tip-text-light: #f7f6fc;
   --tip-edge-light: rgb(255 255 255 / 8%);
-  --tip-fill-dark: #f1effa;
+  --console-tip-fill-dark: #f1effa;
   --tip-text-dark: #1a1824;
   --tip-edge-dark: rgb(0 0 0 / 10%);
-  --tip-fill: var(--tip-fill-light);
+  --console-tip-fill: var(--console-tip-fill-light);
   --tip-text: var(--tip-text-light);
   --tip-edge: var(--tip-edge-light);
   --tip-shadow: 0 10px 26px -12px rgb(20 18 40 / 50%), 0 2px 6px -2px rgb(20 18 40 / 24%);
@@ -116,11 +117,11 @@
 }
 
 .dark {
-  --frame-fill: #15141c;
+  --console-frame-fill: #15141c;
   --frame-edge: rgb(255 255 255 / 8%);
   --frame-divider: rgb(255 255 255 / 6%);
   --frame-shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 16px 36px -20px rgb(0 0 0 / 70%);
-  --paper-fill: rgb(28 26 25 / 78%);
+  --console-paper-fill: rgb(28 26 25 / 70%);
   --paper-shadow: 0 0 0 1px rgb(255 255 255 / 6%), 0 24px 56px -28px rgb(0 0 0 / 70%);
   --aurora-indigo: rgb(79 70 229 / 34%);
   --aurora-violet: rgb(124 58 237 / 26%);
@@ -129,7 +130,7 @@
   --flow-sheen: rgb(165 180 252 / 34%);
   --skeleton-base: rgb(255 255 255 / 6%);
   --skeleton-sheen: rgb(255 255 255 / 14%);
-  --tip-fill: var(--tip-fill-dark);
+  --console-tip-fill: var(--console-tip-fill-dark);
   --tip-text: var(--tip-text-dark);
   --tip-edge: var(--tip-edge-dark);
   --tip-shadow: 0 10px 26px -12px rgb(0 0 0 / 70%), 0 2px 6px -2px rgb(0 0 0 / 40%);
@@ -267,7 +268,7 @@
 .app-layout .shell-surface {
   border-color: var(--frame-edge);
   border-radius: var(--frame-radius);
-  background-color: var(--frame-fill);
+  background-color: var(--console-frame-fill);
   background-image: none;
   box-shadow: var(--frame-shadow);
   -webkit-backdrop-filter: none;
@@ -293,7 +294,7 @@
     padding: 0;
     border: 1px solid var(--frame-edge);
     border-radius: var(--frame-radius);
-    background-color: var(--frame-fill);
+    background-color: var(--console-frame-fill);
     box-shadow: var(--frame-shadow);
   }
   .app-layout :is(.sidebar-header, .sidebar-panel).shell-surface {
@@ -309,7 +310,7 @@
   .app-layout .app-main {
     position: relative;
     border-radius: var(--frame-radius);
-    background-color: var(--paper-fill);
+    background-color: var(--console-paper-fill);
     box-shadow: var(--paper-shadow);
   }
   .app-layout .app-main > .app-page { padding-block: var(--shell-gap); }
