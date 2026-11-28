@@ -224,5 +224,6 @@ func RegisterUserRoutes(
 			imageTasks.DELETE("/:task_id", h.ImageTasks.Delete)
 		}
 		registerUserTaskCenterRoutes(authenticated, h, panelRateLimiter)
+		registerUserCheckinRoutes(authenticated, h, panelRateLimiter)
 	}
 }

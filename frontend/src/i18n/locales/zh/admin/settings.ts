@@ -89,35 +89,14 @@ export default {
       features: {
         channelMonitor: {
           title: '渠道监控',
-          description: '选择 V1 主动探测、V2 被动监控或 V3 服务状态。关闭后监控任务停止，用户端入口隐藏。',
+          description: '用户端「服务状态」按分组展示真实请求的成功率，不受这里影响；这里只管渠道监控页的管理员探测。',
           configureLink: '前往 渠道管理 > 渠道监控 配置监控项',
           enabled: '启用渠道监控',
-          enabledHint: '关闭后 V1 调度器、V2 聚合与 V3 状态观测均停止；已有配置与历史保留。',
-          mode: '监控模式',
-          modeHint: '默认 V1（主动探测）；V2 被动聚合；V3 展示真实请求的服务状态。开启后，登录用户可查看所选模式。同一时间只启用一种模式。',
-          modeV2: 'V2 被动监控',
-          modeV1: 'V1 主动探测',
-          modeV3: 'V3 服务状态',
-          modeV2Hint: '需主动选择：基于真实网关流量聚合健康指标，不向上游发送探活请求；启用期间 V1 探测停止。',
-          modeV1Hint: '默认模式：按配置的渠道监控项定时发起上游健康检查（产生探测流量）。',
-          modeV3Hint: '基于用户请求自动观测平台可用性和服务事件，不发送主动探测请求。',
+          enabledHint: '关闭后渠道监控任务停止；已有配置与历史保留。',
           defaultInterval: '默认检测间隔（秒）',
           defaultIntervalHint: '仅 V1 模式使用：新建渠道监控时表单的默认值，可被单个渠道覆盖。范围 15 – 3600 秒。',
-          hideThroughput: '对用户隐藏吞吐速率（RPM / TPM）',
-          hideThroughputHint:
-            '开启后，用户端渠道监控页面与用户 API 不返回 RPM/TPM，避免用「速率 × 时间窗」反推集群规模。管理员仍可见完整指标；错误率、延迟、缓存率照常展示。',
-          showQuota: '向用户展示渠道用量/余额',
-          showQuotaHint:
-            '开启后，配额模式的渠道监控会在用户端渠道状态页展示关联账号的用量滚动窗口/余额。默认关闭；管理员始终可见。',
-          hideUserRanking: '对用户隐藏用户排行',
-          hideUserRankingHint:
-            '开启后，用户端渠道监控 V2 不再显示「用户排行」页，用户 API 也不返回排行数据。管理员仍可查看。',
         },
         availableChannels: {
-          layout: '展示布局',
-          layoutCard: '卡片',
-          layoutList: '列表',
-          layoutHint: '所有用户使用此布局。默认卡片；列表按平台分区展示紧凑模型菜单。',
           title: '可用渠道',
           description: '向已登录用户展示他们能访问的渠道、模型和定价聚合视图。默认关闭。',
           configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',

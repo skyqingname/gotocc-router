@@ -221,23 +221,6 @@ export function getChannelMonitorRefreshIntervalSeconds(): number {
   return configured && configured > 0 ? configured : DEFAULT_INTERVAL_SECONDS
 }
 
-/** Hide RPM/TPM on user-facing monitor (scale privacy). Admin always shows full metrics. */
-export function isChannelMonitorThroughputHidden(): boolean {
-  const appStore = useAppStore()
-  return Boolean(appStore.cachedPublicSettings?.channel_monitor_hide_throughput)
-}
-
-/**
- * Show quota/balance snapshots on the user-facing monitor page
- * (channel_monitor_show_quota, default off). The backend strips
- * latest_quota server-side when the switch is off; this flag is
- * defense-in-depth only. Admin views always show quota.
- */
-export function isChannelMonitorQuotaVisible(): boolean {
-  const appStore = useAppStore()
-  return appStore.cachedPublicSettings?.channel_monitor_show_quota === true
-}
-
 /** Hide the user ranking tab on user-facing monitor v2. Admin always keeps it. */
 export function isChannelMonitorUserRankingHidden(): boolean {
   const appStore = useAppStore()

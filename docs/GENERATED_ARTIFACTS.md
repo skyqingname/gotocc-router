@@ -20,6 +20,8 @@
 | `model-fingerprint.json` | `tools/generate_model_fingerprint.py` | 后端指纹参数及前端 `parameters.gen.json` |
 | `model-pricing-defaults.json` | `tools/generate_model_pricing_defaults.py`，支持 `--check` | 随包价格目录中的显式精确价卡；保留每款模型的核实日期与期限说明 |
 | `model-plaza-catalog.json` | `tools/generate_model_catalog.py` | `backend/internal/pkg/modelcatalog/catalog_gen.json`；该生成器会联网下载数据，并应用有来源记录的 metadata override |
+| `daily-checkin.json` | `tools/generate_daily_checkin.py` | `backend/internal/service/daily_checkin_config_gotocc.go`（每日奖励、月累计里程碑、开启签到认可的充值来源） |
+| `service-status.json` | `tools/generate_service_status.py` | `backend/internal/service/service_status_config_gotocc.go`（最近请求条数、成功率阈值、状态条格数与时长、服务端缓存）；前端直接读取根 JSON 的阈值与刷新间隔 |
 | 其他路由、返佣、卡密、站长、审计根参数 | 对应 `tools/generate_*.py` | 依据本次改动逐项追踪，不能假设所有脚本都有检查模式 |
 | `backend/ent/schema/` | 现有 Ent/Wire 生成入口 | Ent 与依赖注入代码，见 [贡献说明](../CONTRIBUTING.md#generated-code) |
 

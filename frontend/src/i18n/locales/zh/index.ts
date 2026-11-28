@@ -26,6 +26,8 @@ import keyConsole from './keyConsole'
 import consoleGuide from './consoleGuide'
 import consoleTips from './consoleTips'
 import accountHub from './accountHub'
+import checkin from './checkin'
+import serviceStatus from './serviceStatus'
 
 export default {
   ...workspace,
@@ -37,6 +39,8 @@ export default {
   ...consoleGuide,
   ...consoleTips,
   ...accountHub,
+  ...checkin,
+  ...serviceStatus,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

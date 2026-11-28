@@ -53,6 +53,7 @@ const personalReads = [
   /^\/channel-monitors(?:\/\d+\/status)?$/,
   /^\/channel-monitor-v2\/(dimensions|snapshot|models|matrix|errors|users)$/,
   /^\/channel-monitor-v3\/snapshot$/,
+  /^\/service-status(?:\/groups\/\d+\/models)?$/,
   /^\/image-tasks(?:\/(?:modes|filters|[^/]+(?:\/download|\/images\/\d+)?))?$/,
   /^\/payment\/(config|checkout-info|plans|limits|orders\/(my|\d+|refund-eligible-providers))$/,
 ]

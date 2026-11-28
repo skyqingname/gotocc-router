@@ -84,6 +84,8 @@ type Handlers struct {
 	Team             *TeamHandler
 	ImageTasks       *ImageTaskUserHandler
 	VideoTasks       *VideoTaskUserHandler
+	Checkin          *CheckinHandler
+	ServiceStatus    *ServiceStatusHandler
 }
 
 // BuildInfo contains build-time information

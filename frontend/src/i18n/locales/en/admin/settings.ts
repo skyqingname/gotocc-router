@@ -89,35 +89,14 @@ export default {
       features: {
         channelMonitor: {
           title: 'Channel Monitor',
-          description: 'Choose V1 active probes, V2 passive monitoring, or V3 service status. Disabling stops monitoring jobs and hides the user entry.',
+          description: 'The user Service Status page shows the success rate of each group from real requests and does not depend on this switch; it only controls the admin probes on the Channel Monitor page.',
           configureLink: 'Configure monitors in Channel Management > Channel Monitor',
           enabled: 'Enable Channel Monitor',
-          enabledHint: 'Disabling stops the V1 scheduler, V2 aggregation, and V3 status observation; existing config and history are kept.',
-          mode: 'Monitor mode',
-          modeHint: 'V1 active probes are the default; V2 uses passive aggregation; V3 shows service status from real requests. Logged-in users can view the selected mode when enabled. Only one mode runs at a time.',
-          modeV2: 'V2 passive monitoring',
-          modeV1: 'V1 active probes',
-          modeV3: 'V3 service status',
-          modeV2Hint: 'Opt-in: aggregates health metrics from real gateway traffic without upstream probe traffic. V1 probes stop while V2 is active.',
-          modeV1Hint: 'Default: runs scheduled upstream health checks for configured channel monitors (probe traffic).',
-          modeV3Hint: 'Observes platform availability and service incidents from user requests without active probes.',
+          enabledHint: 'Disabling stops channel monitoring jobs; existing config and history are kept.',
           defaultInterval: 'Default check interval (seconds)',
           defaultIntervalHint: 'V1 only: default interval for new monitors (overridable per monitor). Range 15 – 3600 seconds.',
-          hideThroughput: 'Hide throughput rates from users (RPM / TPM)',
-          hideThroughputHint:
-            'When on, the user Channel Monitor page and user APIs omit RPM and TPM so fleet volume cannot be reverse-estimated from rates × window. Admins still see full metrics. Error rates, latency, and cache rates remain visible.',
-          showQuota: 'Show channel usage/balance to users',
-          showQuotaHint:
-            'When on, quota-mode channel monitors expose the linked account usage windows/balance on the user Channel Status page. Disabled by default; admins always see it.',
-          hideUserRanking: 'Hide user ranking from users',
-          hideUserRankingHint:
-            'When on, the user Channel Monitor V2 page hides the user ranking tab and the user API returns no ranking rows. Admins still see the ranking.',
         },
         availableChannels: {
-          layout: 'Display layout',
-          layoutCard: 'Cards',
-          layoutList: 'List',
-          layoutHint: 'Applies to all users. Cards are the default; List shows a compact model menu grouped by platform.',
           title: 'Available Channels',
           description: 'Show logged-in users an aggregate view of the channels, models and pricing they can access. Disabled by default.',
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',

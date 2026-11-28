@@ -1,5 +1,11 @@
 # Database Migrations
 
+Migration `346_daily_checkins.sql` adds `daily_checkins`, one row per user and
+site-local calendar day with the daily and monthly-milestone rewards. The
+`(user_id, checkin_date)` pair is unique, so a repeated check-in on the same day
+inserts nothing. Only a new table is created; no existing table is locked or
+rewritten. See [check-in and service status](../../docs/SERVICE_STATUS_AND_CHECKIN.md).
+
 Migration `344_channel_pricing_ultrafast_multiplier.sql` adds an optional
 channel-level multiplier for the OpenAI ultrafast service tier. `NULL` keeps the
 model-owned default, including the GPT-6.2 introductory rate; a positive value

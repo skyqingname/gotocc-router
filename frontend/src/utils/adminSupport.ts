@@ -2,7 +2,6 @@ export type AdminSupportResource =
   | 'overview'
   | 'api-keys'
   | 'usage'
-  | 'channels'
   | 'channel-status'
   | 'wallet'
   | 'profile'
@@ -14,7 +13,6 @@ export const selfPaths: Record<AdminSupportResource, string> = {
   overview: '/dashboard',
   'api-keys': '/keys',
   usage: '/usage',
-  channels: '/available-channels',
   'channel-status': '/monitor',
   wallet: '/wallet',
   profile: '/profile',
@@ -40,7 +38,7 @@ export function selfPathForSupportResource(resource: AdminSupportResource): stri
 }
 
 export function supportResourceFromPath(path: string): AdminSupportResource | null {
-  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|usage|channels|channel-status|wallet|profile|affiliate|custom)(?:\/|$)/)
+  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|usage|channel-status|wallet|profile|affiliate|custom)(?:\/|$)/)
   return (match?.[1] as AdminSupportResource | undefined) ?? null
 }
 
@@ -49,8 +47,7 @@ export function supportResourceForPersonalPath(path: string): AdminSupportResour
   if (path === '/reseller' || path.startsWith('/reseller/')) return 'affiliate'
   if (path.startsWith('/custom/')) return 'custom'
   if (path === '/usage' || path.startsWith('/usage/')) return 'usage'
-  if (path === '/available-channels' || path.startsWith('/available-channels/')) return 'channels'
-  if (path === '/monitor' || path.startsWith('/monitor/')) return 'channel-status'
+  if (path === '/monitor' || path.startsWith('/monitor/') || path === '/available-channels') return 'channel-status'
   if (path === '/profile' || path.startsWith('/profile/')) return 'profile'
   if (path === '/keys' || path.startsWith('/keys/')) return 'api-keys'
   return supportResourceFromPath(path) ?? 'overview'

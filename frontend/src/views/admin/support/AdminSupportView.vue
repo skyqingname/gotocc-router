@@ -24,7 +24,6 @@ const pages = {
   overview: defineAsyncComponent(() => import('@/views/user/DashboardView.vue')),
   'api-keys': defineAsyncComponent(() => import('@/views/user/KeysView.vue')),
   usage: defineAsyncComponent(() => import('@/views/user/UsageView.vue')),
-  channels: defineAsyncComponent(() => import('@/views/user/AvailableChannelsView.vue')),
   'channel-status': defineAsyncComponent(() => import('@/views/user/ChannelStatusView.vue')),
   wallet: defineAsyncComponent(() => import('@/views/user/WalletView.vue')),
   profile: defineAsyncComponent(() => import('@/views/user/ProfileView.vue')),

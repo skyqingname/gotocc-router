@@ -62,7 +62,6 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Computed ====================
 
   const hasActiveToasts = computed(() => toasts.value.length > 0)
-  const availableChannelsLayout = computed(() => cachedPublicSettings.value?.available_channels_layout === 'list' ? 'list' : 'card')
   const backendModeEnabled = computed(() => cachedPublicSettings.value?.backend_mode_enabled ?? false)
 
   const loadingCount = ref<number>(0)
@@ -541,7 +540,6 @@ export const useAppStore = defineStore('app', () => {
     apiBaseUrl,
     docUrl,
     cachedPublicSettings,
-    availableChannelsLayout,
     consoleAppearancePreview,
     consoleAppearance,
     applyConsoleAppearance,
