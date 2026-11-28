@@ -1,33 +1,22 @@
 export type AdminSupportResource =
   | 'overview'
   | 'api-keys'
-  | 'async-images'
   | 'usage'
-  | 'channels'
   | 'channel-status'
-  | 'subscriptions'
-  | 'orders'
+  | 'wallet'
   | 'profile'
-  | 'batch-images'
-  | 'purchase'
-  | 'redeem'
   | 'affiliate'
   | 'custom'
 
+// 站长中心在协助模式下只读目标用户的「邀请返利」部分。
 export const selfPaths: Record<AdminSupportResource, string> = {
   overview: '/dashboard',
   'api-keys': '/keys',
-  'async-images': '/async-image',
   usage: '/usage',
-  channels: '/available-channels',
   'channel-status': '/monitor',
-  subscriptions: '/subscriptions',
-  orders: '/orders',
+  wallet: '/wallet',
   profile: '/profile',
-  'batch-images': '/batch-image',
-  purchase: '/purchase',
-  redeem: '/redeem',
-  affiliate: '/affiliate',
+  affiliate: '/reseller',
   custom: '/custom/:id'
 }
 
@@ -49,23 +38,16 @@ export function selfPathForSupportResource(resource: AdminSupportResource): stri
 }
 
 export function supportResourceFromPath(path: string): AdminSupportResource | null {
-  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|async-images|usage|channels|channel-status|subscriptions|orders|profile|batch-images|purchase|redeem|affiliate|custom)(?:\/|$)/)
+  const match = path.match(/^\/admin\/support\/users\/\d+\/(overview|api-keys|usage|channel-status|wallet|profile|affiliate|custom)(?:\/|$)/)
   return (match?.[1] as AdminSupportResource | undefined) ?? null
 }
 
 export function supportResourceForPersonalPath(path: string): AdminSupportResource {
-  if (path === '/image-tasks' || path.startsWith('/image-tasks/')) return 'async-images'
-  if (path === '/batch-image' || path.startsWith('/batch-image/')) return 'batch-images'
-  if (path === '/purchase' || path.startsWith('/purchase/')) return 'purchase'
-  if (path === '/redeem' || path.startsWith('/redeem/')) return 'redeem'
-  if (path === '/affiliate' || path.startsWith('/affiliate/')) return 'affiliate'
+  if (path === '/wallet' || path.startsWith('/wallet/')) return 'wallet'
+  if (path === '/reseller' || path.startsWith('/reseller/')) return 'affiliate'
   if (path.startsWith('/custom/')) return 'custom'
-  if (path === '/creative' || path === '/async-image' || path.startsWith('/async-image/')) return 'async-images'
   if (path === '/usage' || path.startsWith('/usage/')) return 'usage'
-  if (path === '/available-channels' || path.startsWith('/available-channels/')) return 'channels'
-  if (path === '/monitor' || path.startsWith('/monitor/')) return 'channel-status'
-  if (path === '/subscriptions' || path.startsWith('/subscriptions/')) return 'subscriptions'
-  if (path === '/orders' || path.startsWith('/orders/')) return 'orders'
+  if (path === '/monitor' || path.startsWith('/monitor/') || path === '/available-channels') return 'channel-status'
   if (path === '/profile' || path.startsWith('/profile/')) return 'profile'
   if (path === '/keys' || path.startsWith('/keys/')) return 'api-keys'
   return supportResourceFromPath(path) ?? 'overview'
@@ -85,8 +67,6 @@ export function accountSelectionDestination(
 }
 
 export function supportPathForPersonalPath(userId: number, path: string): string | null {
-  if (path === '/creative') return adminSupportPath(userId, 'async-images')
-  if (path === '/image-tasks') return adminSupportPath(userId, 'async-images')
   const entry = Object.entries(selfPaths).find(([, self]) => self === path || (self === '/custom/:id' && path.startsWith('/custom/')))
   if (!entry) return null
   const resource = entry[0] as AdminSupportResource

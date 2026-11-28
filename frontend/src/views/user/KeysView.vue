@@ -102,7 +102,7 @@
         >
           <template #cell-name="{ row }">
             <div class="keys-name">
-              <span class="keys-status-dot" :data-status="row.status" :title="t('keys.status.' + row.status)"></span>
+              <span class="keys-status-dot" role="img" :data-status="row.status" :aria-label="t('keys.status.' + row.status)" :data-tip="t('consoleTips.keys.status.' + row.status)"></span>
               <span class="font-medium text-gray-900 dark:text-white">{{ row.name }}</span>
               <code class="keys-tail">{{ keyTail(row.key) }}</code>
               <Icon
@@ -110,7 +110,8 @@
                 name="shield"
                 size="sm"
                 class="text-blue-500"
-                :title="t('keys.ipRestrictionEnabled')"
+                :aria-label="t('keys.ipRestrictionEnabled')"
+                :data-tip="t('consoleTips.keys.ipRestriction')"
               />
             </div>
           </template>
@@ -138,13 +139,13 @@
           </template>
 
           <template #cell-last_used_at="{ value }">
-            <span class="text-sm surface-muted gc-num">{{ value ? formatDateTime(value) : t('keyConsole.detail.neverUsed') }}</span>
+            <span class="text-sm surface-muted gc-num" :data-tip="value ? timeTip(value) : undefined">{{ value ? formatDateTime(value) : t('keyConsole.detail.neverUsed') }}</span>
           </template>
 
           <template #cell-today="{ row }">
             <div class="keys-today">
               <span v-if="usageLoading && !usageStats[row.id]" data-test="usage-pending" class="gc-skeleton inline-block h-3.5 w-16"></span>
-              <span v-else class="font-medium text-gray-900 dark:text-white gc-num">{{ withCreditUnit((usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4)) }}</span>
+              <span v-else class="font-medium text-gray-900 dark:text-white gc-num" :data-tip="exactCredit(usageStats[row.id]?.today_actual_cost ?? 0)">{{ withCreditUnit((usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4)) }}</span>
               <Icon name="chevronRight" size="sm" class="keys-row-chevron" />
             </div>
           </template>
@@ -946,13 +947,12 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { useClipboard } from '@/composables/useClipboard'
-import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useApiEndpoint } from '@/composables/useApiEndpoint'
 import RoutingPriorityPanel from '@/components/keys/RoutingPriorityPanel.vue'
@@ -991,6 +991,7 @@ import ScopeDropdown, { type DataScope } from '@/components/team/ScopeDropdown.v
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats, UserDashboardStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
+import { exactCredit, timeTip } from '@/utils/consoleTips'
 import { maskApiKey } from '@/utils/maskApiKey'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
@@ -1064,10 +1065,10 @@ const pageSize = ref(getPersistedPageSize())
 const sortState = ref({ key: 'name', order: 'asc' as 'asc' | 'desc' })
 
 const columns = computed<Column[]>(() => [
-  { key: 'name', label: t('common.name'), sortable: true },
-  { key: 'group', label: t('keys.group'), sortable: false },
-  { key: 'last_used_at', label: t('keys.lastUsedAt'), sortable: true },
-  { key: 'today', label: t('keyConsole.stats.today'), sortable: true }
+  { key: 'name', label: t('common.name'), sortable: true, tip: t('consoleTips.keys.columns.name') },
+  { key: 'group', label: t('keys.group'), sortable: false, tip: t('consoleTips.keys.columns.group') },
+  { key: 'last_used_at', label: t('keys.lastUsedAt'), sortable: true, tip: t('consoleTips.keys.columns.last_used_at') },
+  { key: 'today', label: t('keyConsole.stats.today'), sortable: true, tip: t('consoleTips.keys.columns.today') }
 ])
 
 const isAggregate = (key: ApiKey) => key.group_binding_mode === 'all' || key.group_binding_mode === 'custom'
@@ -1170,26 +1171,30 @@ const overviewStats = computed<KeyStat[]>(() => {
       key: 'today',
       label: t('keyConsole.stats.today'),
       value: withCreditUnit((personal ? dashboardStats.value?.today_actual_cost ?? 0 : sum(stat => stat.today_actual_cost)).toFixed(2)),
-      loading: statsLoading
+      loading: statsLoading,
+      tip: `${t('consoleTips.keys.today')}\n${exactCredit(personal ? dashboardStats.value?.today_actual_cost ?? 0 : sum(stat => stat.today_actual_cost))}`
     },
     {
       key: 'total',
       // The batch per-key endpoint covers 30 days; only the personal dashboard has an all-time total.
       label: personal ? t('keyConsole.stats.total') : t('keyConsole.stats.last30'),
       value: withCreditUnit((personal ? dashboardStats.value?.total_actual_cost ?? 0 : sum(stat => stat.total_actual_cost)).toFixed(2)),
-      loading: statsLoading
+      loading: statsLoading,
+      tip: `${t(personal ? 'consoleTips.keys.total' : 'consoleTips.keys.last30')}\n${exactCredit(personal ? dashboardStats.value?.total_actual_cost ?? 0 : sum(stat => stat.total_actual_cost))}`
     },
     {
       key: 'active',
       label: t('keyConsole.stats.active'),
       value: `${apiKeys.value.filter(key => key.status === 'active').length} / ${apiKeys.value.length}`,
-      loading: loading.value && apiKeys.value.length === 0
+      loading: loading.value && apiKeys.value.length === 0,
+      tip: t('consoleTips.keys.active')
     },
     {
       key: 'lastUsed',
       label: t('keyConsole.stats.lastUsed'),
       value: lastUsed ? formatDateTime(lastUsed) : t('keyConsole.detail.neverUsed'),
-      loading: loading.value && apiKeys.value.length === 0
+      loading: loading.value && apiKeys.value.length === 0,
+      tip: lastUsed ? `${t('consoleTips.keys.lastUsed')}\n${timeTip(lastUsed)}` : t('consoleTips.keys.lastUsed')
     }
   ]
 })
@@ -1683,7 +1688,6 @@ const handleSubmit = async () => {
       await keysAPI.update(targetKey.id, updates)
       keyFieldsSaved = true
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(targetKey.id)
-      clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
       closeModals()
     } else {
@@ -1702,7 +1706,6 @@ const handleSubmit = async () => {
         { conversion_enabled: groups.value.find(group => group.id === formData.value.group_id)?.platform === 'composite' && formData.value.conversion_enabled, default_client: formData.value.default_client, default_endpoint: formData.value.default_endpoint },
         formData.value.group_binding_mode !== 'single' ? { group_binding_mode: formData.value.group_binding_mode, aggregate_group_ids: formData.value.group_binding_mode === 'custom' ? formData.value.aggregate_group_ids : [] } : undefined
       )
-      clearAutoRoutingCapabilities()
       keyFieldsSaved = true
       createdKeyForRetry.value = created
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(created.id)
@@ -1876,6 +1879,23 @@ const onTourFinish = () => {
   tourIntent = ''
 }
 
+// 服务状态页「使用此分组」带 create=1&group=<id> 过来：打开新建弹窗并选好该分组。
+const handleCreateQuery = async () => {
+  if (route.query.create !== '1') return
+  const groupID = Number(route.query.group)
+  const { create: _create, group: _group, ...query } = route.query
+  void router.replace({ query })
+  const group = groups.value.find(item => item.id === groupID)
+  closeModals()
+  formData.value.group_binding_mode = 'single'
+  formData.value.routing_mode = 'fixed'
+  showCreateModal.value = true
+  if (!group) return
+  await nextTick()
+  createProvider.value = getKeyGroupProvider(group.platform)
+  formData.value.group_id = group.id
+}
+
 const handleOnboardingQuery = () => {
   const intent = typeof route.query.onboarding === 'string' ? route.query.onboarding : ''
   const tour = route.query.tour === '1'
@@ -1896,8 +1916,10 @@ onMounted(async () => {
   await loadPublicSettings()
   await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
   handleOnboardingQuery()
+  void handleCreateQuery()
   // 已在密钥页时从头像菜单再点「密钥页导览」，只有地址参数变化。
   watch(() => [route.query.onboarding, route.query.tour], handleOnboardingQuery)
+  watch(() => route.query.create, () => { void handleCreateQuery() })
 })
 
 useLocaleRefresh(() => Promise.all([loadApiKeys(), loadGroups(), refreshQuotes()]))

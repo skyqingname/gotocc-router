@@ -11,7 +11,6 @@ import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, 
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { useConsoleAppearance } from '@/composables/useConsoleAppearance'
 import { useStaticTableHeaders } from '@/composables/useStaticTableHeaders'
 import { useTransparentTableClipping } from '@/composables/useTransparentTableClipping'
@@ -36,9 +35,7 @@ function updateDocumentTitle() {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems, {
-    billingMode: resolveSiteBillingMode(appStore.cachedPublicSettings),
-  })
+  document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems)
 }
 
 // Watch for site settings changes and update favicon/title

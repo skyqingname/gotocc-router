@@ -74,19 +74,6 @@ export default {
     dockerRecreate: '重新创建容器'
   },
 
-  // Recharge / Subscription Page
-  purchase: {
-    title: '充值/订阅',
-    description: '通过内嵌页面完成充值/订阅',
-    rechargeDescription: '通过内嵌页面完成充值',
-    subscriptionDescription: '通过内嵌页面完成订阅',
-    openInNewTab: '新窗口打开',
-    notEnabledTitle: '该功能未开启',
-    notEnabledDesc: '管理员暂未开启充值/订阅入口，请联系管理员。',
-    notConfiguredTitle: '充值/订阅链接未配置',
-    notConfiguredDesc: '管理员已开启入口，但尚未配置充值/订阅链接，请联系管理员。'
-  },
-
   // Custom Page (iframe embed)
   customPage: {
     title: '自定义页面',
@@ -128,7 +115,6 @@ export default {
   // User Subscriptions Page
   userSubscriptions: {
     count: '{count} 个订阅',
-    pageSize: '每页 {count} 个',
     title: '我的订阅',
     description: '查看您的订阅计划和用量',
     noActiveSubscriptions: '暂无有效订阅',
@@ -494,10 +480,6 @@ export default {
       backToRecharge: '返回充值',
       viewOrders: '查看订单',
     },
-    currentBalance: '当前余额',
-    groupFallback: '分组 #{id}',
-    rechargeAccount: '充值账户',
-    activeSubscription: '当前订阅',
     noActiveSubscription: '暂无有效订阅',
     tabTopUp: '充值',
     tabSubscribe: '订阅',

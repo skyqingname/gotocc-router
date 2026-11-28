@@ -1,0 +1,9 @@
+{
+  "recent_requests": 20,
+  "normal_success_rate": 0.95,
+  "degraded_success_rate": 0.8,
+  "bucket_count": 24,
+  "bucket_minutes": 60,
+  "cache_seconds": 60,
+  "refresh_seconds": 60
+}

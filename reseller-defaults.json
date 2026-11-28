@@ -1,12 +1,12 @@
 {
+  "default_enabled": true,
   "default_multiplier": 1,
   "minimum_multiplier": 1,
   "page_size": 20,
   "customer_hidden_routes": [
+    "/wallet",
     "/purchase",
-    "/orders",
-    "/redeem",
-    "/subscriptions"
+    "/checkin"
   ],
   "customer_hidden_route_prefixes": [
     "/custom/"

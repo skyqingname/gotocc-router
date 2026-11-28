@@ -19,5 +19,19 @@
   "tools/workflow_provenance.py",
   "docs/CI_VALIDATION.md",
   "tools/ci_validation.py",
-  "tools/validation_checks.py"
+  "tools/validation_checks.py",
+  "frontend/src/views/user/AsyncImageView.vue",
+  "frontend/src/views/user/ImageTasksView.vue",
+  "frontend/src/views/user/BatchImageGuideView.vue",
+  "frontend/src/views/user/__tests__/AsyncImageView.spec.ts",
+  "frontend/src/views/user/__tests__/ImageTasksView.spec.ts",
+  "frontend/src/api/batchImage.ts",
+  "frontend/src/composables/useAsyncImageAccess.ts",
+  "frontend/src/composables/__tests__/useAsyncImageAccess.spec.ts",
+  "frontend/src/utils/asyncImageSize.ts",
+  "frontend/src/utils/__tests__/asyncImageSize.spec.ts",
+  "frontend/src/i18n/locales/en/batchImage.ts",
+  "frontend/src/i18n/locales/zh/batchImage.ts",
+  "frontend/src/i18n/locales/en/imageTasks.ts",
+  "frontend/src/i18n/locales/zh/imageTasks.ts"
 ]

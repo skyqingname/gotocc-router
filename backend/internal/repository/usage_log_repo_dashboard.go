@@ -525,6 +525,9 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := r.fillUserDashboardFocus(ctx, stats, userID, now); err != nil {
+		return nil, err
+	}
 
 	return stats, nil
 }

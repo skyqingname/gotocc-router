@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <!-- 宽屏左栏放余额、兑换与说明，右栏放兑换记录；窄屏按兑换、说明、记录顺序堆叠。 -->
+    <!-- 充值与订阅的「兑换」选项卡。宽屏左栏放余额、兑换与说明，右栏放兑换记录；窄屏按兑换、说明、记录顺序堆叠。 -->
     <div class="grid w-full gap-6 lg:grid-cols-[22.5rem_minmax(0,1fr)] lg:items-start">
       <div class="flex min-w-0 flex-col gap-6">
         <section class="card p-4 sm:p-6">
@@ -210,7 +209,6 @@
       </section>
     </div>
     <BalanceCashbackNotice :amount="cashbackNoticeAmount" @close="cashbackNoticeAmount = 0" />
-  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -224,7 +222,6 @@ import { useUserView as useAuthStore } from '@/composables/useUserView'
 import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, authAPI, type RedeemHistoryItem } from '@/api'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import RedeemCelebration from '@/components/user/RedeemCelebration.vue'
 import CanvasCardExchange from '@/components/gotocc/canvas-cards/CanvasCardExchange.vue'

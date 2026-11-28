@@ -58,6 +58,10 @@ type ResellerSummary struct {
 	Cost          float64 `json:"cost"`
 	CreditBalance float64 `json:"credit_balance"`
 	Gifted        float64 `json:"gifted"`
+	// 本月（服务器时区自然月）新增客户、客户消耗额度和站长平台成本，只统计站长余额结算的记录。
+	MonthNewCustomers int64   `json:"month_new_customers"`
+	MonthCharged      float64 `json:"month_charged"`
+	MonthCost         float64 `json:"month_cost"`
 }
 type ResellerRepository interface {
 	ResellerCommunicationsRepository
@@ -67,6 +71,7 @@ type ResellerRepository interface {
 	ChangeCustomerCredit(context.Context, int64, int64, ResellerCreditInput) (*ResellerCreditEntry, error)
 	CustomerCreditEntries(context.Context, int64, int64, int, int) ([]ResellerCreditEntry, int64, error)
 	Profile(context.Context, int64) (*ResellerProfile, error)
+	EnsureProfile(context.Context, int64) (*ResellerProfile, error)
 	SaveProfile(context.Context, int64, bool) (*ResellerProfile, error)
 	Invitation(context.Context, string) (*ResellerProfile, error)
 	BindCustomer(context.Context, int64, int64) error
@@ -92,6 +97,14 @@ func (s *ResellerService) RequireEnabled(ctx context.Context, userID int64) (*Re
 	p, err := s.Repo.Profile(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if p.Enabled && p.InvitationCode == "" {
+		// Access and admin reads are allocation-free. Owner operations need a
+		// stable profile for invitations and the repository's enabled locks.
+		p, err = s.Repo.EnsureProfile(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if !p.Enabled {
 		return nil, infraerrors.Forbidden("RESELLER_DISABLED", "站长中心尚未向此用户开放")

@@ -1,6 +1,12 @@
 <template>
-  <div class="app-layout" :class="{ 'sidebar-is-collapsed': sidebarCollapsed, 'app-layout-workspace': workspace, 'app-layout-user': appearance === 'user', 'app-layout-admin': appearance === 'admin' }">
-    <!-- 首次进入控制台时外壳上的光流，播完即移除（styles/console-glass.css）。 -->
+  <div v-glow class="app-layout" :class="{ 'sidebar-is-collapsed': sidebarCollapsed, 'app-layout-workspace': workspace, 'app-layout-user': appearance === 'user', 'app-layout-admin': appearance === 'admin' }">
+    <!-- 流动背景：四团光各自漂移，鼠标移动时整体朝指针轻移（styles/console-glass.css）。 -->
+    <div class="console-aurora" aria-hidden="true" :data-paused="pageHidden || undefined" :style="{ '--aurora-clock': auroraClock }">
+      <div ref="auroraDriftRef" class="console-aurora-drift">
+        <i class="aurora-indigo"></i><i class="aurora-violet"></i><i class="aurora-sky"></i><i class="aurora-amber"></i>
+      </div>
+    </div>
+    <!-- 首次进入控制台时背景上的光流，播完即移除（styles/console-glass.css）。 -->
     <div v-if="playFlow" class="console-flow" aria-hidden="true" @animationend="playFlow = false"></div>
 
     <!-- Sidebar -->
@@ -51,6 +57,8 @@ import { usePortalArea } from '@/composables/usePortalArea'
 import { adminSupportContext, supportTransitioning } from '@/utils/adminSupportContext'
 import { useProductAppearance } from '@/composables/useProductAppearance'
 import { USER_TABLE_LAYOUT_KEY } from '@/composables/useUserTableLayout'
+import { useConsoleAurora } from '@/composables/useConsoleAurora'
+import { vGlow } from '@/components/gotocc/vGlow'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 
@@ -63,6 +71,9 @@ provide(USER_TABLE_LAYOUT_KEY, computed(() => props.appearance === 'user'))
 
 const playFlow = ref(!flowPlayed)
 flowPlayed = true
+
+const auroraDriftRef = ref<HTMLElement | null>(null)
+const { clock: auroraClock, hidden: pageHidden } = useConsoleAurora(auroraDriftRef)
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

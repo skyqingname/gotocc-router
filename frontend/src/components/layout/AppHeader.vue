@@ -16,10 +16,10 @@
 
         <img v-if="appStore.publicSettingsLoaded" :src="siteLogo || '/logo.svg'" alt="" class="header-mobile-logo h-7 w-7 shrink-0 rounded-lg object-contain lg:hidden" />
         <div class="min-w-0">
-          <h1 class="truncate text-sm font-semibold text-gray-900 dark:text-white sm:text-lg" :title="pageTitle">
+          <h1 class="truncate text-sm font-semibold text-gray-900 dark:text-white sm:text-lg">
             {{ pageTitle }}
           </h1>
-          <p v-if="pageDescription && !compactHeader" class="truncate text-xs surface-muted" :title="pageDescription">
+          <p v-if="pageDescription && !compactHeader" class="truncate text-xs surface-muted">
             {{ pageDescription }}
           </p>
         </div>
@@ -34,10 +34,10 @@
         <!-- GoToCC 顶栏入口：公告、文档、模型广场、语言是动效图标加文字；顶栏宽度不够放文字时只留图标，间距由各自内边距撑开 -->
         <div class="flex items-center" :class="{ 'header-nav-compact': !labeledHeader }">
           <GotoCCAnnouncementBell v-if="user" />
-          <a v-if="docUrl && navEntries" :href="docUrl" target="_blank" rel="noopener noreferrer" class="header-nav-link" :title="t('nav.docs')" :aria-label="t('nav.docs')">
+          <a v-if="docUrl && navEntries" :href="docUrl" target="_blank" rel="noopener noreferrer" class="header-nav-link" :data-tip="t('consoleTips.header.docs')" data-tip-side="bottom" :aria-label="t('nav.docs')">
             <DocsIcon /><span class="header-nav-label">{{ t('nav.docs') }}</span>
           </a>
-          <router-link v-if="user && modelPlazaEnabled && navEntries" :to="{ path: '/model-plaza', query: { embedded: '1' } }" class="header-nav-link" :title="t('nav.modelPlaza')" :aria-label="t('nav.modelPlaza')">
+          <router-link v-if="user && modelPlazaEnabled && navEntries" :to="{ path: '/model-plaza', query: { embedded: '1' } }" class="header-nav-link" :data-tip="t('consoleTips.header.modelPlaza')" data-tip-side="bottom" :aria-label="t('nav.modelPlaza')">
             <ModelPlazaIcon /><span class="header-nav-label">{{ t('nav.modelPlaza') }}</span>
           </router-link>
           <GotoCCLocaleMenu v-if="navEntries" />
@@ -46,10 +46,13 @@
         <!-- Subscription Progress (for users with active subscriptions; not mounted at all when the feature is off) -->
         <SubscriptionProgressMini v-if="user && isUserPortal && subscriptionFeatureEnabled && !compactHeader" />
 
-        <!-- Balance Display -->
-        <div
+        <!-- Balance Display：点开进充值与订阅，站长客户进我的额度 -->
+        <router-link
           v-if="user && isUserPortal && !compactHeader"
-          class="group relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 dark:bg-primary-900/20 sm:flex"
+          :to="balancePath"
+          class="header-balance relative hidden items-center gap-2 rounded-lg bg-primary-50/[0.15] px-3 py-1.5 transition-colors hover:bg-primary-100/40 dark:bg-primary-900/20 dark:hover:bg-primary-900/35 sm:flex"
+          :data-tip="balanceTip"
+          data-tip-side="bottom"
         >
           <svg
             class="h-4 w-4 text-primary-600 dark:text-primary-400"
@@ -73,25 +76,7 @@
           >
             {{ balanceFrozenLabel }}
           </span>
-          <div
-            class="pointer-events-none absolute right-0 top-full mt-2 hidden w-56 rounded-lg border border-gray-200 p-3 text-xs shadow-lg group-hover:block dark:border-dark-700 surface-panel"
-          >
-            <div class="flex items-center justify-between">
-              <span class="surface-muted">{{ balanceAvailableText }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ formatHeaderMoney(availableBalance) }}</span>
-            </div>
-            <div class="mt-2 flex items-center justify-between">
-              <span class="surface-muted">{{ balanceFrozenText }}</span>
-              <span class="font-medium text-amber-700 dark:text-amber-200">{{ formatHeaderMoney(frozenBalance) }}</span>
-            </div>
-            <div class="mt-2 border-t border-gray-100 pt-2 dark:border-dark-700">
-              <div class="flex items-center justify-between">
-                <span class="surface-muted">{{ balanceTotalText }}</span>
-                <span class="font-semibold text-gray-900 dark:text-white">{{ formatHeaderMoney(totalBalance) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        </router-link>
 
         <!-- 用户菜单：GoToCC 自有组件 -->
         <GotoCCUserMenu v-if="user" />
@@ -102,6 +87,7 @@
 
 <script setup lang="ts">
 import { withCreditUnit } from '@/utils/credits'
+import { exactCredit } from '@/utils/consoleTips'
 import { usePortalArea } from '@/composables/usePortalArea'
 import { useUserView } from '@/composables/useUserView'
 import { ref, computed } from 'vue'
@@ -120,7 +106,8 @@ import GotoCCUserMenu from '@/components/gotocc/GotoCCUserMenu.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { resolveRouteMetaKeys } from '@/router/title'
-import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
+import { supportPathForPersonalPath } from '@/utils/adminSupport'
+import { adminSupportContext } from '@/utils/adminSupportContext'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -145,18 +132,25 @@ const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.model
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
 const totalBalance = computed(() => availableBalance.value + frozenBalance.value)
-const balanceAvailableText = computed(() => t('common.availableBalance') === 'common.availableBalance' ? '可用余额' : t('common.availableBalance'))
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
-const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
+// 悬停提示里给精确值，顶栏只显示两位小数。
+const balanceTip = computed(() => t('consoleTips.header.balance', {
+  available: exactCredit(availableBalance.value),
+  frozen: exactCredit(frozenBalance.value),
+  total: exactCredit(totalBalance.value),
+}))
+// 余额点开去充值与订阅；站长客户的余额是站长给的额度，去「我的额度」。管理员代看时换成协助视图。
+const balancePath = computed(() => {
+  const path = user.value?.reseller_customer ? '/credits' : '/wallet'
+  const id = adminSupportContext.value?.userId
+  return id ? supportPathForPersonalPath(id, path) || path : path
+})
 
 // 订阅功能关闭时不挂载顶栏订阅徽章（组件 onMounted 会拉取订阅接口）。
 const subscriptionFeatureEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.subscription))
 
-// /purchase 的标题/描述随站点计费模式切换，与 document.title 共用同一解析。
-const routeMetaKeys = computed(() => resolveRouteMetaKeys(route, {
-  billingMode: resolveSiteBillingMode(appStore.cachedPublicSettings),
-}))
+const routeMetaKeys = computed(() => resolveRouteMetaKeys(route))
 
 const pageTitle = computed(() => {
   // For custom pages, use the menu item's label instead of generic "自定义页面"

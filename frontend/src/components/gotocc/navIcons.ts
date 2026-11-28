@@ -49,15 +49,6 @@ export const KeyIcon = icon('key', [
   ]],
 ])
 
-export const BatchImageIcon = icon('images', [
-  ['path', { class: 'gc-back', d: 'M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2' }],
-  ['g', { class: 'gc-a' }, [
-    ['path', { d: 'm22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16' }],
-    ['circle', { cx: '13', cy: '7', r: '1', fill: 'currentColor' }],
-    ['rect', { x: '8', y: '2', width: '14', height: '14', rx: '2' }],
-  ]],
-])
-
 // 任务中心：Lucide list-checks，悬停时两个对勾依次描出。
 export const TaskCenterIcon = icon('list-checks', [
   ['path', { d: 'M13 5h8' }],
@@ -252,15 +243,6 @@ export const OrderIcon = icon('receipt', [
   drawn('path', { d: 'M12 17V7' }, 3),
 ])
 
-export const OrderListIcon = icon('list', [
-  ['path', { d: 'M3 5h.01' }],
-  ['path', { d: 'M3 12h.01' }],
-  ['path', { d: 'M3 19h.01' }],
-  drawn('path', { d: 'M8 5h13' }, 0),
-  drawn('path', { d: 'M8 12h13' }, 1),
-  drawn('path', { d: 'M8 19h13' }, 2),
-])
-
 export const SignalIcon = icon('activity', [
   drawn('path', { d: 'M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2' }, 0),
 ])
@@ -284,6 +266,21 @@ export const PriceTagIcon = icon('tag', [
 ])
 
 // 开始使用：Lucide rocket，悬停时火箭轻轻上跳、尾焰描出。
+// 新手指引：指针转半圈。
+export const CompassIcon = icon('compass', [
+  ['circle', { cx: '12', cy: '12', r: '10' }],
+  ['path', { class: 'gc-a', d: 'm16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z' }],
+])
+
+// 签到中心：勾选描线。
+export const CalendarCheckIcon = icon('calendar-check', [
+  ['path', { d: 'M8 2v4' }],
+  ['path', { d: 'M16 2v4' }],
+  ['rect', { width: '18', height: '18', x: '3', y: '4', rx: '2' }],
+  ['path', { d: 'M3 10h18' }],
+  drawn('path', { d: 'm9 16 2 2 4-4' }, 0),
+])
+
 export const RocketIcon = icon('rocket', [
   drawn('path', { d: 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z' }, 1),
   ['g', { class: 'gc-a' }, [

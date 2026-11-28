@@ -51,8 +51,6 @@ export default {
     quickActions: 'Quick Actions',
     createApiKey: 'Create API Key',
     generateNewKey: 'Generate a new API key',
-    batchImageAgent: 'Batch Image Assistant',
-    batchImageAgentDesc: 'Copy instructions for an agent',
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
@@ -970,8 +968,8 @@ export default {
   },
 
   affiliate: {
-    title: 'Agent Center',
-    description: 'Invite new users and convert your rebate quota into account balance',
+    title: 'Referral rebates',
+    description: 'Share your main-site link; when friends top up you earn a rebate you can move into your balance',
     yourCode: 'Your Affiliate Code',
     inviteLink: 'Invite Link',
     copyCode: 'Copy Code',
@@ -1030,7 +1028,20 @@ export default {
       line1: 'Share your invitation code or invite link with new users.',
       line2: "Each valid recharge pays {rates} to its nearest three ancestors. Missing generations are not redistributed.",
       line3: "First and later recharges qualify. Gifts and commission transfers do not earn further commission.",
-      line4: "Commission becomes transferable to your usage balance after the freeze period."
+      line4: "Commission becomes transferable to your usage balance after the freeze period.",
+      rateTip: 'Rebate rates for your first, second and third generation invitees',
+      invitedTip: 'People who signed up on the main site with your code',
+      availableTip: 'Rebates past the freeze period, ready to move into your balance',
+      totalTip: 'All rebates earned since you started',
+      codeTip: 'Your invitation code; friends who enter it at sign-up count as yours',
+      linkTip: 'Main-site sign-up link with your code already filled in',
+      columns: {
+        level: 'Which generation of your invitees they are',
+        email: 'Invitee email, partly hidden',
+        username: 'Invitee username',
+        rebate: 'Total rebate their top-ups earned you',
+        joinedAt: 'When they signed up',
+      },
     }
   },
 

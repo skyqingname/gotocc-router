@@ -6847,40 +6847,6 @@
                 <div><label class="input-label">{{ t('featureExtensions.probesEnabled') }}</label><p class="text-xs surface-muted">{{ t('featureExtensions.probesHint') }}</p></div>
                 <Toggle v-model="form.channel_monitor_v1_enabled" />
               </div>
-              <div>
-                <label class="input-label">
-                  {{ t('admin.settings.features.channelMonitor.mode') }}
-                </label>
-                <div
-                  class="segmented-control mt-1.5 w-full max-w-lg"
-                  role="group"
-                  :aria-label="t('admin.settings.features.channelMonitor.mode')"
-                  data-testid="channel-monitor-mode"
-                >
-                  <button
-                    v-for="mode in channelMonitorModes"
-                    :key="mode"
-                    type="button"
-                    class="segmented-option"
-                    :data-mode="mode"
-                    :aria-pressed="form.channel_monitor_mode === mode"
-                    @click="form.channel_monitor_mode = mode"
-                  >
-                    {{ t(`admin.settings.features.channelMonitor.mode${mode.toUpperCase()}`) }}
-                  </button>
-                </div>
-                <p class="mt-1.5 text-xs surface-muted">
-                  {{ form.channel_monitor_mode === 'v3'
-                    ? t('admin.settings.features.channelMonitor.modeV3Hint')
-                    : form.channel_monitor_mode === 'v2'
-                      ? t('admin.settings.features.channelMonitor.modeV2Hint')
-                      : t('admin.settings.features.channelMonitor.modeV1Hint') }}
-                </p>
-                <p class="mt-1 text-xs surface-muted">
-                  {{ t('admin.settings.features.channelMonitor.modeHint') }}
-                </p>
-              </div>
-
               <div v-if="form.channel_monitor_mode === 'v1'">
                 <label class="input-label">
                   {{ t('admin.settings.features.channelMonitor.defaultInterval') }}
@@ -6898,92 +6864,11 @@
                 </p>
               </div>
 
-              <div v-if="form.channel_monitor_mode === 'v2'" class="space-y-4">
-                <div class="flex items-start justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ t('admin.settings.features.channelMonitor.hideThroughput') }}
-                    </p>
-                    <p class="mt-1 text-xs surface-muted">
-                      {{ t('admin.settings.features.channelMonitor.hideThroughputHint') }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.channel_monitor_hide_throughput" />
-                </div>
-                <div class="flex items-start justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ t('admin.settings.features.channelMonitor.hideUserRanking') }}
-                    </p>
-                    <p class="mt-1 text-xs surface-muted">
-                      {{ t('admin.settings.features.channelMonitor.hideUserRankingHint') }}
-                    </p>
-                  </div>
-                  <Toggle v-model="form.channel_monitor_hide_user_ranking" />
-                </div>
-              </div>
 
-              <div v-if="form.channel_monitor_mode === 'v1'" class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ t('admin.settings.features.channelMonitor.showQuota') }}
-                  </p>
-                  <p class="mt-1 text-xs surface-muted">
-                    {{ t('admin.settings.features.channelMonitor.showQuotaHint') }}
-                  </p>
-                </div>
-                <Toggle v-model="form.channel_monitor_show_quota" />
-              </div>
             </div>
           </div>
         </div>
 
-        <div class="card workspace-shell">
-          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.settings.features.availableChannels.title') }}
-            </h2>
-            <p class="mt-1 text-sm surface-muted">
-              {{ t('admin.settings.features.availableChannels.description') }}
-            </p>
-            <p class="mt-1.5 text-xs">
-              <router-link
-                to="/admin/channels/pricing"
-                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
-              >
-                {{ t('admin.settings.features.availableChannels.configureLink') }}
-                <span aria-hidden="true">→</span>
-              </router-link>
-            </p>
-          </div>
-          <div class="space-y-5 p-6">
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="text-sm font-medium surface-muted">
-                  {{ t('admin.settings.features.availableChannels.enabled') }}
-                </label>
-                <p class="mt-0.5 text-xs surface-muted">
-                  {{ t('admin.settings.features.availableChannels.enabledHint') }}
-                </p>
-              </div>
-              <Toggle v-model="form.available_channels_enabled" />
-            </div>
-            <div>
-              <label for="available-channels-layout" class="input-label">{{ t('admin.settings.features.availableChannels.layout') }}</label>
-              <Select
-                id="available-channels-layout"
-                v-model="form.available_channels_layout"
-                :aria-label="t('admin.settings.features.availableChannels.layout')"
-                :searchable="false"
-                :options="[
-                  { value: 'card', label: t('admin.settings.features.availableChannels.layoutCard') },
-                  { value: 'list', label: t('admin.settings.features.availableChannels.layoutList') },
-                ]"
-              />
-              <p class="mt-1 text-xs surface-muted">{{ t('admin.settings.features.availableChannels.layoutHint') }}</p>
-            </div>
-          </div>
-        </div>
 
         <div class="card workspace-shell">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -8672,7 +8557,6 @@ const appStore = useAppStore();
 // 关闭 step-up 开关是敏感操作：后端返回 STEP_UP_REQUIRED 时弹 TOTP 码重试
 const settingsStepUp = useStepUp();
 const adminSettingsStore = useAdminSettingsStore();
-const channelMonitorModes = ['v1', 'v2', 'v3'] as const;
 const isZhLocale = computed(() => locale.value.startsWith("zh"));
 
 // Codex 全局出口时区/国家下拉选项：首项为空值（关闭/不声明）。

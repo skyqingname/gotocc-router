@@ -1,0 +1,205 @@
+/* GoToCC 控制台悬停反馈：鼠标移到哪里都有回应。时长、缓动、颜色、位移全在
+   console-glass.css 的令牌里；位移类反馈只在能悬停的设备上出现；系统开启
+   「减少动态效果」时令牌把位移、缩放、滑动压到零，跟随光斑关掉，颜色变化保留。
+   在 console-glass.css 之后加载。 */
+
+@property --glow-x {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --glow-y {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --record-row-tint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
+/* ============ 可点的东西都是手形 ============ */
+:root[data-product-ui] :is(a[href], button:not(:disabled), [role='button']:not([aria-disabled='true']), [role='tab']:not([aria-disabled='true']), summary, label[for], select:not(:disabled), .select-trigger:not(.select-trigger-disabled), [data-clickable]) {
+  cursor: pointer;
+}
+
+/* ============ 侧栏：一块底板跟着悬停项滑动（vHoverSlide），当前页常驻指示条 ============ */
+.sidebar [data-hover-slide] { position: relative; }
+.sidebar [data-hover-slide] .sidebar-link { position: relative; z-index: 1; }
+.hover-slide-plate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: var(--surface-radius-control);
+  background-color: var(--nav-plate);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--motion-slide) var(--motion-ease-fluid),
+    width var(--motion-slide) var(--motion-ease-fluid),
+    height var(--motion-slide) var(--motion-ease-fluid),
+    opacity var(--motion-hover) var(--motion-ease-fluid);
+}
+.hover-slide-plate[data-instant] { transition: opacity var(--motion-hover) var(--motion-ease-fluid); }
+.hover-slide-plate[data-visible] { opacity: 1; }
+@media (hover: hover) {
+  .sidebar [data-hover-slide] .sidebar-link:hover { background-color: transparent; }
+  .sidebar [data-hover-slide] .sidebar-link-active:hover { background-color: var(--surface-hover); }
+}
+.sidebar .sidebar-link > :is(svg, .sidebar-svg-icon):first-child {
+  transition: transform var(--motion-hover) var(--motion-ease-fluid), color var(--motion-hover) var(--motion-ease-fluid);
+}
+@media (hover: hover) {
+  .sidebar .sidebar-link:hover > :is(svg, .sidebar-svg-icon):first-child { transform: translateX(var(--icon-nudge)); }
+}
+.sidebar-nav .sidebar-link-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--nav-indicator-width);
+  height: 56%;
+  translate: 0 -50%;
+  border-radius: 9999px;
+  background-color: var(--nav-indicator);
+}
+
+/* ============ 按钮：上浮、阴影加深；主按钮掠过一道光；按下缩一点 ============ */
+:root[data-product-ui] .btn {
+  transition:
+    background-color var(--motion-hover) var(--motion-ease-fluid),
+    border-color var(--motion-hover) var(--motion-ease-fluid),
+    color var(--motion-hover) var(--motion-ease-fluid),
+    box-shadow var(--motion-hover) var(--motion-ease-fluid),
+    transform var(--motion-hover) var(--motion-ease-fluid);
+}
+:root[data-product-ui] .btn-primary { overflow: hidden; isolation: isolate; }
+:root[data-product-ui] .btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, var(--btn-sheen) 50%, transparent 70%);
+  transform: translateX(-110%);
+}
+@media (hover: hover) {
+  :root[data-product-ui] .btn:hover:not(:disabled) { transform: translateY(var(--hover-lift)); }
+  :root[data-product-ui] .btn:not(.btn-primary):hover:not(:disabled) { box-shadow: var(--btn-hover-shadow); }
+  :root[data-product-ui] .btn-primary:hover:not(:disabled)::after {
+    transform: translateX(110%);
+    transition: transform var(--motion-sheen) var(--motion-ease-fluid);
+  }
+}
+:root[data-product-ui] .btn:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+  transition-duration: var(--motion-press);
+}
+
+/* ============ 卡片：边框变亮，柔光圈跟着指针走（vGlow 写入坐标）；统计卡微微上浮 ============
+   页面级容器和装表格的大卡片不加光斑。 */
+@media (hover: hover) {
+  :root[data-product-ui] .app-layout :is(.card, .stat-card, [data-glow]) {
+    transition:
+      border-color var(--motion-hover) var(--motion-ease-fluid),
+      box-shadow var(--motion-hover) var(--motion-ease-fluid),
+      transform var(--motion-hover) var(--motion-ease-fluid);
+  }
+  :root[data-product-ui] .app-layout :is(.card, .stat-card, [data-glow]):not(.workspace-shell, .workspace-fixed, .workspace-tabs, .workspace-table-card, :has(table)):hover {
+    border-color: var(--card-hover-edge);
+  }
+  :root[data-product-ui] .app-layout .gc-stat:hover {
+    transform: translateY(var(--hover-lift-card));
+    box-shadow: var(--card-hover-shadow);
+  }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root[data-product-ui] .app-layout :is(.card, .stat-card, [data-glow]):not(.workspace-shell, .workspace-fixed, .workspace-tabs, .workspace-table-card, :has(table)):hover {
+    background-image: radial-gradient(var(--card-glow-size) circle at var(--glow-x) var(--glow-y), var(--card-glow), transparent 70%);
+  }
+}
+
+/* ============ 表格行：整行淡淡的主色底；末尾箭头右移；次要操作悬停时淡入 ============ */
+:root[data-product-ui] table.record-table { --record-row-hover: var(--row-hover); }
+table.record-table > :is(tbody, tfoot) > tr { transition: --record-row-tint var(--motion-hover) var(--motion-ease-fluid); }
+.row-arrow { transition: transform var(--motion-hover) var(--motion-ease-fluid), color var(--motion-hover) var(--motion-ease-fluid); }
+@media (hover: hover) {
+  :is(tr, .glass-inset, .group):hover .row-arrow { transform: translateX(var(--row-arrow-nudge)); }
+  table.record-table > tbody > tr .row-secondary {
+    opacity: var(--row-action-rest);
+    transition: opacity var(--motion-hover) var(--motion-ease-fluid), background-color var(--motion-hover) var(--motion-ease-fluid), color var(--motion-hover) var(--motion-ease-fluid);
+  }
+  table.record-table > tbody > tr:is(:hover, :focus-within) .row-secondary { opacity: 1; }
+}
+
+/* ============ 选项卡：悬停有底色、下划线从中间展开；选中的指示条滑过去（vSlideMark） ============ */
+:is(.card-tab, .workspace-tab) { position: relative; }
+:is(.card-tab, .workspace-tab)::after {
+  content: '';
+  position: absolute;
+  left: var(--surface-radius-control);
+  right: var(--surface-radius-control);
+  bottom: 2px;
+  height: var(--tab-mark-height);
+  border-radius: 9999px;
+  background-color: var(--tab-mark-hover);
+  transform: scaleX(0);
+  transition: transform var(--motion-hover) var(--motion-ease-fluid);
+}
+@media (hover: hover) {
+  :is(.card-tab, .workspace-tab):hover:not(:disabled, [aria-selected='true'])::after { transform: scaleX(1); }
+}
+[data-slide-mark] { position: relative; }
+[data-slide-mark][data-mark-ready]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--mark-w);
+  height: var(--tab-mark-height);
+  border-radius: 9999px;
+  background-color: var(--tab-mark);
+  transform: translateX(var(--mark-x));
+  transition: transform var(--motion-slide) var(--motion-ease-fluid), width var(--motion-slide) var(--motion-ease-fluid);
+  pointer-events: none;
+}
+
+/* ============ 文字链接：下划线从中间展开 ============ */
+:root[data-product-ui] :is(.text-link, :where(.text-link-content) a[href]) {
+  text-decoration-line: none;
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(color-mix(in srgb, currentColor 35%, transparent), color-mix(in srgb, currentColor 35%, transparent));
+  background-position: 50% 100%, 0 100%;
+  background-size: 0 var(--link-underline), 100% var(--link-underline);
+  background-repeat: no-repeat;
+  padding-bottom: 1px;
+  transition: color var(--motion-hover) var(--motion-ease-fluid), background-size var(--motion-hover) var(--motion-ease-fluid);
+}
+:root[data-product-ui] :is(.text-link:is(:hover, :focus-visible), :where(.text-link-content) a[href]:is(:hover, :focus-visible), :where(.text-link-area:is(:hover, :focus-visible)) .text-link) {
+  background-size: 100% var(--link-underline), 100% var(--link-underline);
+}
+
+/* ============ 输入框：悬停边框变亮，聚焦光圈渐入；顶栏搜索框悬停微光 ============ */
+:root[data-product-ui] :is(.input, .select-trigger) {
+  transition:
+    border-color var(--motion-hover) var(--motion-ease-fluid),
+    box-shadow var(--motion-hover) var(--motion-ease-fluid),
+    background-color var(--motion-hover) var(--motion-ease-fluid);
+}
+@media (hover: hover) {
+  :root[data-product-ui] .input:hover:not(:disabled, :focus, .input-error),
+  :root[data-product-ui] .select-trigger:hover:not(:disabled, :focus, .select-trigger-open, .select-trigger-error) {
+    border-color: var(--field-hover-edge);
+  }
+  :root[data-product-ui] .gc-search-trigger:hover { box-shadow: var(--search-glow); border-color: var(--field-hover-edge); }
+}
+:root[data-product-ui] .gc-search-trigger {
+  transition: box-shadow var(--motion-hover) var(--motion-ease-fluid), border-color var(--motion-hover) var(--motion-ease-fluid), color var(--motion-hover) var(--motion-ease-fluid);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-product-ui] .btn-primary::after { display: none; }
+}

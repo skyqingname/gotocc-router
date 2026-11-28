@@ -1,5 +1,6 @@
 <template>
-  <AppLayout appearance="user">
+  <!-- 邀请返利：站长中心的一个选项卡；管理员协助模式下单独打开（套控制台外框）。 -->
+  <EmbeddableLayout :embedded="embedded" appearance="user">
     <div class="affiliate-workspace">
       <div v-if="loading" class="flex justify-center py-12">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
@@ -38,7 +39,7 @@
 
 
         <div v-if="isAgent" class="affiliate-stats grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div class="card p-5">
+          <div class="card gc-stat p-5" :data-tip="t('affiliate.tips.rateTip')">
             <p class="flex items-center gap-1.5 text-sm surface-muted">
               <Icon name="dollar" size="sm" class="text-primary-500" />
               {{ t('affiliate.stats.rebateRate') }}
@@ -48,15 +49,15 @@
             </p>
             <p class="mt-1 text-xs surface-muted">{{ t('affiliate.stats.rebateRateHint') }}</p>
           </div>
-          <div class="card p-5">
+          <div class="card gc-stat p-5" :data-tip="t('affiliate.tips.invitedTip')">
             <p class="text-sm surface-muted">{{ t('affiliate.stats.invitedUsers') }}</p>
             <p class="mt-2 text-2xl font-semibold">{{ formatCount(detail.aff_count) }}</p>
           </div>
-          <div class="card p-5">
+          <div class="card gc-stat p-5" :data-tip="`${t('affiliate.tips.availableTip')}\n${exactCredit(detail.aff_quota)}`">
             <p class="text-sm surface-muted">{{ t('affiliate.stats.availableQuota') }}</p>
             <p class="mt-2 text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(detail.aff_quota) }}</p>
           </div>
-          <div class="card p-5">
+          <div class="card gc-stat p-5" :data-tip="`${t('affiliate.tips.totalTip')}\n${exactCredit(detail.aff_history_quota)}`">
             <p class="text-sm surface-muted">{{ t('affiliate.stats.totalQuota') }}</p>
             <p class="mt-2 text-2xl font-semibold">{{ formatCurrency(detail.aff_history_quota) }}</p>
             <p v-if="detail.aff_frozen_quota > 0" class="mt-1 text-xs text-amber-600 dark:text-amber-400">
@@ -73,7 +74,7 @@
               <div class="min-w-0 space-y-2">
                 <p class="text-sm font-medium surface-muted">{{ t('affiliate.yourCode') }}</p>
                 <div class="flex flex-col items-stretch gap-2 rounded-lg border border-gray-200 surface-inset px-3 py-2 dark:border-dark-700 sm:flex-row sm:items-center">
-                  <code class="min-w-0 break-all text-xs font-semibold sm:flex-1 sm:truncate">{{ detail.aff_code }}</code>
+                  <code class="min-w-0 break-all text-xs font-semibold sm:flex-1 sm:truncate" :data-tip="t('affiliate.tips.codeTip')">{{ detail.aff_code }}</code>
                   <button class="btn btn-secondary btn-sm w-full sm:w-auto sm:shrink-0" @click="copyCode">
                     <Icon name="copy" size="sm" /><span>{{ t('affiliate.copyCode') }}</span>
                   </button>
@@ -82,7 +83,7 @@
               <div class="min-w-0 space-y-2">
                 <p class="text-sm font-medium surface-muted">{{ t('affiliate.inviteLink') }}</p>
                 <div class="flex flex-col items-stretch gap-2 rounded-lg border border-gray-200 surface-inset px-3 py-2 dark:border-dark-700 sm:flex-row sm:items-center">
-                  <code class="min-w-0 break-all text-xs sm:flex-1 sm:truncate surface-muted">{{ inviteLink }}</code>
+                  <code class="min-w-0 break-all text-xs sm:flex-1 sm:truncate surface-muted" :data-tip="t('affiliate.tips.linkTip')">{{ inviteLink }}</code>
                   <button class="btn btn-secondary btn-sm w-full sm:w-auto sm:shrink-0" @click="copyInviteLink">
                     <Icon name="copy" size="sm" /><span>{{ t('affiliate.copyLink') }}</span>
                   </button>
@@ -96,7 +97,7 @@
               <div class="min-w-0 flex-1">
                 <h3 class="text-base font-semibold">{{ t('affiliate.transfer.title') }}</h3>
                 <p class="mt-1 text-sm surface-muted">{{ t('affiliate.transfer.description') }}</p>
-                <div class="affiliate-transfer-value">
+                <div class="affiliate-transfer-value" :data-tip="exactCredit(detail.aff_quota)">
                   <strong>{{ formatCurrency(detail.aff_quota) }}</strong>
                   <span>{{ t('affiliate.stats.availableQuota') }}</span>
                 </div>
@@ -135,11 +136,11 @@
             <table class="record-table w-full min-w-[560px] text-left text-sm">
               <thead>
                 <tr class="border-b border-gray-200 dark:border-dark-700 surface-muted">
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.level') }}</th>
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.email') }}</th>
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.username') }}</th>
-                  <th class="px-3 py-2 font-medium text-right">{{ t('affiliate.invitees.columns.rebate') }}</th>
-                  <th class="px-3 py-2 font-medium">{{ t('affiliate.invitees.columns.joinedAt') }}</th>
+                  <th class="px-3 py-2 font-medium" :data-tip="t('affiliate.tips.columns.level')">{{ t('affiliate.invitees.columns.level') }}</th>
+                  <th class="px-3 py-2 font-medium" :data-tip="t('affiliate.tips.columns.email')">{{ t('affiliate.invitees.columns.email') }}</th>
+                  <th class="px-3 py-2 font-medium" :data-tip="t('affiliate.tips.columns.username')">{{ t('affiliate.invitees.columns.username') }}</th>
+                  <th class="px-3 py-2 font-medium text-right" :data-tip="t('affiliate.tips.columns.rebate')">{{ t('affiliate.invitees.columns.rebate') }}</th>
+                  <th class="px-3 py-2 font-medium" :data-tip="t('affiliate.tips.columns.joinedAt')">{{ t('affiliate.invitees.columns.joinedAt') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,7 +148,7 @@
                   <td class="px-3 py-3">{{ t('affiliate.invitees.generation', { level: item.level }) }}</td>
                   <td class="px-3 py-3">{{ item.email || '-' }}</td>
                   <td class="px-3 py-3 surface-muted">{{ item.username || '-' }}</td>
-                  <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">{{ formatCurrency(item.total_rebate) }}</td>
+                  <td class="px-3 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400" :data-tip="exactCredit(item.total_rebate)">{{ formatCurrency(item.total_rebate) }}</td>
                   <td class="px-3 py-3 surface-muted">{{ formatDateTime(item.created_at) || '-' }}</td>
                 </tr>
               </tbody>
@@ -166,14 +167,14 @@
         />
       </template>
     </div>
-  </AppLayout>
+  </EmbeddableLayout>
 </template>
 
 <script setup lang="ts">
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import AppLayout from '@/components/layout/AppLayout.vue'
+import EmbeddableLayout from '@/components/layout/EmbeddableLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import userAPI from '@/api/user'
@@ -183,7 +184,11 @@ import { useUserView as useAuthStore } from '@/composables/useUserView'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { exactCredit } from '@/utils/consoleTips'
 
+defineProps<{ embedded?: boolean }>()
+// 开通代理、转入余额之后通知站长中心刷新概览里的返利数字。
+const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
@@ -211,6 +216,7 @@ async function submitAgentApplication(): Promise<void> {
   try {
     agentProfile.value = await userAPI.applyForAgent()
     await loadAffiliateDetail(true)
+    emit('changed')
     appStore.showSuccess(t('affiliate.agent.applied'))
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.agent.applyFailed')))
@@ -304,6 +310,7 @@ async function transferQuota(): Promise<void> {
       loadAffiliateDetail(true),
       authStore.refreshUser().catch(() => undefined),
     ])
+    emit('changed')
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('affiliate.transferFailed')))
   } finally {

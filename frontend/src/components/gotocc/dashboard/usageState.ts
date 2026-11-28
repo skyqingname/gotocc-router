@@ -25,7 +25,8 @@ import {
 export type UsageMetric = 'requests' | 'tokens' | 'cost' | 'cacheHitRate'
 export type PresetRange = Exclude<UsageRangePreset, 'custom'>
 
-export const USAGE_METRICS: UsageMetric[] = ['requests', 'tokens', 'cost', 'cacheHitRate']
+// 趋势图可切换的指标；命中率只在区间指标卡里看。
+export const CHART_METRICS: UsageMetric[] = ['cost', 'tokens', 'requests']
 const PRESETS: PresetRange[] = ['7d', '30d']
 
 // 记住上次选择的指标和快捷范围；自定义日期与筛选条件下次打开回到默认值。
@@ -54,7 +55,7 @@ const isNoTeam = (error: any): boolean => (
 const readSaved = (): { metric: UsageMetric; range: PresetRange } => {
   const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
   return {
-    metric: USAGE_METRICS.includes(saved.metric) ? saved.metric : 'tokens',
+    metric: CHART_METRICS.includes(saved.metric) ? saved.metric : 'cost',
     range: PRESETS.includes(saved.range) ? saved.range : '7d',
   }
 }

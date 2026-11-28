@@ -1,6 +1,6 @@
 <template>
   <dl class="key-stats">
-    <div v-for="stat in stats" :key="stat.key" class="key-stat" :data-stat="stat.key">
+    <div v-for="stat in stats" :key="stat.key" class="key-stat gc-stat" data-glow :data-stat="stat.key" :data-tip="stat.tip">
       <dt class="key-stat-label">{{ stat.label }}</dt>
       <dd class="key-stat-value gc-num">
         <span v-if="stat.loading" class="gc-skeleton inline-block h-5 w-20 align-middle"></span>
@@ -16,6 +16,8 @@ export interface KeyStat {
   label: string
   value: string
   loading: boolean
+  /** 悬停提示：这个数怎么算的。 */
+  tip: string
 }
 
 defineProps<{ stats: KeyStat[] }>()

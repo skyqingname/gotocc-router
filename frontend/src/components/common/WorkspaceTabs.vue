@@ -1,6 +1,7 @@
 <template>
   <div
     ref="navigation"
+    v-slide-mark
     :class="embedded ? 'workspace-tabs workspace-tabs--embedded workspace-fixed' : 'card workspace-tabs workspace-fixed'"
     role="tablist"
     :aria-label="label"
@@ -15,6 +16,7 @@
       :aria-controls="tab.panelId"
       :disabled="tab.disabled"
       :tabindex="modelValue === tab.value ? 0 : -1"
+      :data-tip="tab.tip"
       @click="emit('update:modelValue', tab.value)"
       @keydown="navigate($event, tab.value)"
     >{{ tab.label }}</button>
@@ -23,10 +25,11 @@
 
 <script setup lang="ts" generic="T extends string">
 import { nextTick, ref } from 'vue'
+import { vSlideMark } from '@/components/gotocc/vSlideMark'
 
 const props = defineProps<{
   modelValue: T
-  tabs: { value: T; label: string; panelId?: string; disabled?: boolean }[]
+  tabs: { value: T; label: string; panelId?: string; disabled?: boolean; tip?: string }[]
   label: string
   /** Render inside a parent card instead of as its own card. */
   embedded?: boolean
