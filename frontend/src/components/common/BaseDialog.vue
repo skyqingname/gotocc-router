@@ -14,7 +14,7 @@
         <div ref="dialogRef" tabindex="-1" :class="['modal-content', placement === 'right' ? 'detail-dialog' : widthClasses]" @click.stop>
           <!-- Header -->
           <div class="modal-header">
-            <h3 :id="dialogId" ref="titleRef" class="modal-title" :tabindex="titleOverflows ? 0 : undefined">
+            <h3 :id="dialogId" :key="title" ref="titleRef" class="modal-title gc-reveal" :tabindex="titleOverflows ? 0 : undefined">
               {{ title }}
             </h3>
             <div class="flex shrink-0 items-center gap-2">

@@ -1,123 +1,83 @@
 <template>
   <AppLayout appearance="user" workspace>
     <TablePageLayout>
-      <template #filters>
-        <div class="flex flex-col gap-3">
-          <div class="filter-bar">
-            <div class="filter-field filter-field--search">
-              <SearchInput
-                v-model="filterSearch"
-                :placeholder="t('keys.searchPlaceholder')"
-                @search="onFilterChange"
-              />
-            </div>
-            <div class="filter-field">
-              <Select
-                :model-value="filterGroupId"
-                :options="groupFilterOptions"
-                @update:model-value="onGroupFilterChange"
-              />
-            </div>
-            <div class="filter-field">
-              <Select
-                :model-value="filterStatus"
-                :options="statusFilterOptions"
-                @update:model-value="onStatusFilterChange"
-              />
-            </div>
-            <div class="filter-field">
-              <Select
-                :model-value="filterRoutingMode"
-                :options="routingModeFilterOptions"
-                @update:model-value="onRoutingModeFilterChange"
-              />
-            </div>
-          </div>
-          <EndpointPopover
-            v-if="publicSettings?.api_base_url || (publicSettings?.custom_endpoints?.length ?? 0) > 0"
-            :api-base-url="publicSettings?.api_base_url || ''"
-            :custom-endpoints="publicSettings?.custom_endpoints || []"
-          />
-          <div v-if="selectedIds.length" class="flex flex-wrap items-center gap-3 text-sm">
-            <span class="surface-muted">
-              {{ t('keys.bulkEdit.selectedCount', { count: selectedIds.length }) }}
-            </span>
-            <button
-              class="btn btn-primary btn-sm"
-              :disabled="loading"
-              data-test="bulk-edit-keys"
-              @click="showBulkEditModal = true"
-            >
-              {{ t('keys.bulkEdit.title') }}
-            </button>
-            <button class="btn btn-secondary btn-sm" @click="selectedIds = []">
-              {{ t('keys.bulkEdit.clearSelection') }}
-            </button>
-          </div>
-        </div>
-      </template>
-
       <template #actions>
-        <div class="flex flex-wrap justify-end gap-3">
-          <ScopeDropdown v-if="teamFeatureEnabled" v-model="scope" data-tour="keys-scope-switch" @change="onScopeChange" />
-          <button
-            type="button"
-            class="btn btn-secondary px-2 md:px-3"
-            :disabled="clientConfigKeys.length === 0"
-            :title="t('keys.oneClickAccess')"
-            data-test="one-click-access-global"
-            @click="openOneClickAccess"
-          >
-            <Icon name="terminal" size="md" class="md:mr-1.5" />
-            <span class="hidden md:inline">{{ t('keys.oneClickAccess') }}</span>
-          </button>
-          <button
-            @click="loadApiKeys"
-            :disabled="loading"
-            class="btn btn-secondary"
-            :title="t('common.refresh')"
-          >
-            <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
-          </button>
-          <div class="relative" ref="columnDropdownRef">
-            <button
-              @click="showColumnDropdown = !showColumnDropdown"
-              class="btn btn-secondary px-2 md:px-3"
-              :title="t('keys.columnSettings')"
-            >
-              <svg class="h-4 w-4 md:mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
-              </svg>
-              <span class="hidden md:inline">{{ t('keys.columnSettings') }}</span>
-            </button>
-            <div
-              v-if="showColumnDropdown"
-              class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 space-y-0.5 overflow-y-auto border border-gray-200 p-1 shadow-lg dark:border-dark-600 surface-panel"
-            >
+        <div class="keys-overview">
+          <div class="keys-overview-top">
+            <ApiEndpointBar :settings="publicSettings" class="min-w-0 flex-1" />
+            <div class="keys-actions">
+              <ScopeDropdown v-if="teamFeatureEnabled" v-model="scope" data-tour="keys-scope-switch" @change="onScopeChange" />
               <button
-                v-for="col in toggleableColumns"
-                :key="col.key"
-                @click="toggleColumn(col.key)"
-                class="flex w-full items-center justify-between rounded-[var(--surface-radius-item)] px-3 py-2 text-left text-sm hover:surface-hover surface-control surface-muted"
+                type="button"
+                class="btn btn-secondary px-2 md:px-3"
+                :disabled="clientConfigKeys.length === 0"
+                :title="t('keys.oneClickAccess')"
+                data-test="one-click-access-global"
+                @click="openOneClickAccess"
               >
-                <span>{{ col.label }}</span>
-                <Icon
-                  v-if="isColumnVisible(col.key)"
-                  name="check"
-                  size="sm"
-                  class="text-primary-500"
-                  :stroke-width="2"
-                />
+                <Icon name="terminal" size="md" class="md:mr-1.5" />
+                <span class="hidden md:inline">{{ t('keys.oneClickAccess') }}</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                :disabled="loading"
+                :title="t('common.refresh')"
+                @click="loadApiKeys"
+              >
+                <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+              </button>
+              <button v-support-readonly type="button" class="btn btn-secondary" data-testid="create-aggregate-key" @click="startAggregateCreate">
+                {{ t('keys.createAggregate') }}
+              </button>
+              <button v-support-readonly type="button" class="btn btn-primary" data-tour="keys-create-btn" @click="showCreateModal = true">
+                <Icon name="plus" size="md" />
+                {{ t('keys.createKey') }}
               </button>
             </div>
           </div>
-          <button v-support-readonly class="btn btn-primary" data-testid="create-aggregate-key" @click="startAggregateCreate">
-            {{ t('keys.createAggregate') }}
-          </button>
-          <button v-support-readonly @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
-            <Icon name="plus" size="md" class="mr-2" />
-            {{ t('keys.createKey') }}
-          </button>
+          <KeyStatsBar :stats="overviewStats" />
+        </div>
+      </template>
+
+      <template #filters>
+        <div class="keys-filters">
+          <div class="keys-tabs-scroll">
+            <div v-segmented class="segmented inline-flex" role="tablist" :aria-label="t('keyConsole.list.platformTabs')">
+              <button
+                v-for="tab in platformTabs"
+                :key="tab.id"
+                type="button"
+                role="tab"
+                :aria-selected="tab.id === platformTab"
+                class="segmented-item keys-tab"
+                :class="tab.id === platformTab && 'segmented-item-active'"
+                :data-tab="tab.id"
+                @click="selectPlatformTab(tab.id)"
+              >
+                <PlatformIcon v-if="tab.platform" :platform="tab.platform" size="xs" />
+                <span>{{ tab.label }}</span>
+                <span class="keys-tab-count gc-num">{{ tab.count }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-field filter-field--search">
+              <SearchInput v-model="filterSearch" :placeholder="t('keys.searchPlaceholder')" @search="onFilterChange" />
+            </div>
+            <div class="filter-field">
+              <Select :model-value="filterStatus" :options="statusFilterOptions" @update:model-value="onStatusFilterChange" />
+            </div>
+            <div v-if="selectedIds.length" class="flex flex-wrap items-center gap-3 text-sm">
+              <span class="surface-muted">{{ t('keys.bulkEdit.selectedCount', { count: selectedIds.length }) }}</span>
+              <button class="btn btn-primary btn-sm" :disabled="loading" data-test="bulk-edit-keys" @click="showBulkEditModal = true">
+                {{ t('keys.bulkEdit.title') }}
+              </button>
+              <button class="btn btn-secondary btn-sm" @click="selectedIds = []">
+                {{ t('keys.bulkEdit.clearSelection') }}
+              </button>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -125,51 +85,26 @@
         <DataTable
           class="workspace-table-viewport"
           :columns="columns"
-          :data="apiKeys"
+          :data="pageKeys"
           :loading="loading"
           selectable
           row-key="id"
           :selected-keys="selectedIds"
           :selection-label="(key: ApiKey) => t('keys.bulkEdit.selectKey', { name: key.name })"
-          @update:selected-keys="handleSelectionChange"
+          clickable-rows
+          :active-row-key="detailKeyId"
           :server-side-sort="true"
           default-sort-key="name"
           default-sort-order="asc"
+          @update:selected-keys="handleSelectionChange"
+          @row-click="openDetail"
           @sort="handleSort"
         >
-          <template #cell-id="{ value }">
-            <span class="font-mono text-xs surface-muted">#{{ value }}</span>
-          </template>
-
-          <template #cell-key="{ value, row }">
-            <div class="flex items-center gap-2">
-              <code class="code text-xs">
-                {{ maskApiKey(value) }}
-              </code>
-              <button
-                @click="copyToClipboard(value, row.id)"
-                class="rounded-lg p-1 transition-colors hover:surface-hover surface-control"
-                :class="
-                  copiedKeyId === row.id
-                    ? 'text-green-500'
-                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                "
-                :title="copiedKeyId === row.id ? t('keys.copied') : t('keys.copyToClipboard')"
-              >
-                <Icon
-                  v-if="copiedKeyId === row.id"
-                  name="check"
-                  size="sm"
-                  :stroke-width="2"
-                />
-                <Icon v-else name="clipboard" size="sm" />
-              </button>
-            </div>
-          </template>
-
-          <template #cell-name="{ value, row }">
-            <div class="flex items-center gap-1.5">
-              <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <template #cell-name="{ row }">
+            <div class="keys-name">
+              <span class="keys-status-dot" :data-status="row.status" :title="t('keys.status.' + row.status)"></span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ row.name }}</span>
+              <code class="keys-tail">{{ keyTail(row.key) }}</code>
               <Icon
                 v-if="row.ip_whitelist?.length > 0 || row.ip_blacklist?.length > 0"
                 name="shield"
@@ -181,288 +116,43 @@
           </template>
 
           <template #cell-group="{ row }">
-            <div class="group/dropdown relative">
-              <button
-                :ref="(el) => setGroupButtonRef(row.id, el)"
-                @click="openGroupSelector(row)"
-                class="-mx-2 -my-1 flex cursor-pointer flex-wrap items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:surface-hover surface-control sm:flex-nowrap"
-                :title="isAutoRouting(row) ? t('keys.clickToChangeRouting') : t('keys.clickToChangeGroup')"
-                :disabled="changingGroupIds.has(row.id)"
-              >
-                <span
-                  v-if="isAutoRouting(row)"
-                  data-testid="api-key-auto-routing-badge"
-                  class="inline-flex items-center rounded bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-                >
-                  {{ t('keys.routingMode.auto') }}
-                </span>
-                <GroupBadge
-                  v-else-if="row.group"
-                  :name="row.group.name"
-                  :show-rate="row.group.platform !== 'composite'"
-                  :platform="row.group.platform"
-                  :subscription-type="row.group.subscription_type"
-                  :rate-multiplier="row.group.rate_multiplier"
-                  :user-rate-multiplier="userGroupRates[row.group.id]"
-                  :peak-rate-enabled="row.group.peak_rate_enabled"
-                  :peak-start="row.group.peak_start"
-                  :peak-end="row.group.peak_end"
-                  :peak-rate-multiplier="row.group.peak_rate_multiplier"
-                />
-                <span v-else-if="!isAutoRouting(row)" class="text-sm surface-muted">{{
-                  row.group_binding_mode === 'all' ? t('keys.aggregateAll') : row.group_binding_mode === 'custom' ? t('keys.aggregateCustomCount', { count: row.aggregate_group_ids?.length || 0 }) : t('keys.noGroup')
-                }}</span>
-                <span v-if="!isAutoRouting(row)" class="shrink-0 text-xs surface-muted">{{ t('keys.selectGroup') }}</span>
-                <svg
-                  class="h-3.5 w-3.5 shrink-0 text-gray-400 opacity-60 transition-opacity group-hover/dropdown:opacity-100"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"
-                  />
-                </svg>
-              </button>
-            </div>
-          </template>
-
-          <template #cell-current_concurrency="{ value }">
-            <span
-              :class="[
-                'inline-flex min-w-8 items-center justify-center rounded px-2 py-1 text-sm font-semibold tabular-nums',
-                (value ?? 0) > 0
-                  ? 'bg-emerald-50/[0.15] text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300 dark:ring-emerald-800'
-                  : 'surface-inset text-gray-500 dark:surface-inset dark:text-dark-400'
-              ]"
-            >
-              {{ value ?? 0 }}
+            <span v-if="isAutoRouting(row)" data-testid="api-key-auto-routing-badge" class="inline-flex items-center rounded bg-violet-100 px-2 py-1 text-xs font-medium text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+              {{ t('keys.routingMode.auto') }}
             </span>
-          </template>
-
-          <template #cell-usage="{ row }">
-            <div class="text-sm">
-              <div class="flex items-center gap-1.5">
-                <span class="surface-muted">{{ t('keys.today') }}:</span>
-                <span
-                  v-if="usageLoading && !usageStats[row.id]"
-                  data-test="usage-pending"
-                  class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
-                />
-                <span v-else class="font-medium text-gray-900 dark:text-white">
-                  {{ withCreditUnit((usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4)) }}
-                </span>
-              </div>
-              <div class="mt-0.5 flex items-center gap-1.5">
-                <span class="surface-muted">{{ t('keys.total') }}:</span>
-                <span
-                  v-if="usageLoading && !usageStats[row.id]"
-                  class="inline-block h-3 w-14 animate-pulse rounded bg-gray-200 dark:bg-dark-600"
-                />
-                <span v-else class="font-medium text-gray-900 dark:text-white">
-                  {{ withCreditUnit((usageStats[row.id]?.total_actual_cost ?? 0).toFixed(4)) }}
-                </span>
-              </div>
-              <!-- Quota progress (if quota is set) -->
-              <div v-if="row.quota > 0" class="mt-1.5">
-                <div class="flex items-center gap-1.5">
-                  <span class="surface-muted">{{ t('keys.quota') }}:</span>
-                  <span :class="[
-                    'font-medium',
-                    row.quota_used >= row.quota ? 'text-red-500' :
-                    row.quota_used >= row.quota * 0.8 ? 'text-yellow-500' :
-                    'text-gray-900 dark:text-white'
-                  ]">
-                    {{ withCreditUnit(row.quota_used?.toFixed(2) || '0.00') }} / {{ withCreditUnit(row.quota?.toFixed(2)) }}
-                  </span>
-                </div>
-                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      row.quota_used >= row.quota ? 'bg-red-500' :
-                      row.quota_used >= row.quota * 0.8 ? 'bg-yellow-500' :
-                      'bg-primary-500'
-                    ]"
-                    :style="{ width: Math.min((row.quota_used / row.quota) * 100, 100) + '%' }"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template #cell-rate_limit="{ row }">
-            <div v-if="row.rate_limit_5h > 0 || row.rate_limit_1d > 0 || row.rate_limit_7d > 0" class="space-y-1.5 min-w-[140px]">
-              <!-- 5h window -->
-              <div v-if="row.rate_limit_5h > 0">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="surface-muted">5h</span>
-                  <span :class="[
-                    'font-medium tabular-nums',
-                    row.usage_5h >= row.rate_limit_5h ? 'text-red-500' :
-                    row.usage_5h >= row.rate_limit_5h * 0.8 ? 'text-yellow-500' :
-                    'surface-muted'
-                  ]">
-                    {{ withCreditUnit(row.usage_5h?.toFixed(2) || '0.00') }}/{{ withCreditUnit(row.rate_limit_5h?.toFixed(2)) }}
-                  </span>
-                </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      row.usage_5h >= row.rate_limit_5h ? 'bg-red-500' :
-                      row.usage_5h >= row.rate_limit_5h * 0.8 ? 'bg-yellow-500' :
-                      'bg-emerald-500'
-                    ]"
-                    :style="{ width: Math.min((row.usage_5h / row.rate_limit_5h) * 100, 100) + '%' }"
-                  />
-                </div>
-                <div v-if="row.reset_5h_at && formatResetTime(row.reset_5h_at)" class="text-[10px] tabular-nums surface-muted">
-                  ⟳ {{ formatResetTime(row.reset_5h_at) }}
-                </div>
-              </div>
-              <!-- 1d window -->
-              <div v-if="row.rate_limit_1d > 0">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="surface-muted">1d</span>
-                  <span :class="[
-                    'font-medium tabular-nums',
-                    row.usage_1d >= row.rate_limit_1d ? 'text-red-500' :
-                    row.usage_1d >= row.rate_limit_1d * 0.8 ? 'text-yellow-500' :
-                    'surface-muted'
-                  ]">
-                    {{ withCreditUnit(row.usage_1d?.toFixed(2) || '0.00') }}/{{ withCreditUnit(row.rate_limit_1d?.toFixed(2)) }}
-                  </span>
-                </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      row.usage_1d >= row.rate_limit_1d ? 'bg-red-500' :
-                      row.usage_1d >= row.rate_limit_1d * 0.8 ? 'bg-yellow-500' :
-                      'bg-emerald-500'
-                    ]"
-                    :style="{ width: Math.min((row.usage_1d / row.rate_limit_1d) * 100, 100) + '%' }"
-                  />
-                </div>
-                <div v-if="row.reset_1d_at && formatResetTime(row.reset_1d_at)" class="text-[10px] tabular-nums surface-muted">
-                  ⟳ {{ formatResetTime(row.reset_1d_at) }}
-                </div>
-              </div>
-              <!-- 7d window -->
-              <div v-if="row.rate_limit_7d > 0">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="surface-muted">7d</span>
-                  <span :class="[
-                    'font-medium tabular-nums',
-                    row.usage_7d >= row.rate_limit_7d ? 'text-red-500' :
-                    row.usage_7d >= row.rate_limit_7d * 0.8 ? 'text-yellow-500' :
-                    'surface-muted'
-                  ]">
-                    {{ withCreditUnit(row.usage_7d?.toFixed(2) || '0.00') }}/{{ withCreditUnit(row.rate_limit_7d?.toFixed(2)) }}
-                  </span>
-                </div>
-                <div class="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      row.usage_7d >= row.rate_limit_7d ? 'bg-red-500' :
-                      row.usage_7d >= row.rate_limit_7d * 0.8 ? 'bg-yellow-500' :
-                      'bg-emerald-500'
-                    ]"
-                    :style="{ width: Math.min((row.usage_7d / row.rate_limit_7d) * 100, 100) + '%' }"
-                  />
-                </div>
-                <div v-if="row.reset_7d_at && formatResetTime(row.reset_7d_at)" class="text-[10px] tabular-nums surface-muted">
-                  ⟳ {{ formatResetTime(row.reset_7d_at) }}
-                </div>
-              </div>
-              <!-- Reset button -->
-              <button
-                v-if="row.usage_5h > 0 || row.usage_1d > 0 || row.usage_7d > 0"
-                v-support-readonly @click.stop="confirmResetRateLimitFromTable(row)"
-                class="mt-0.5 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs transition-colors hover:surface-hover hover:text-primary-600 dark:hover:text-primary-400 surface-control surface-muted"
-                :title="t('keys.resetRateLimitUsage')"
-              >
-                <Icon name="refresh" size="xs" />
-                {{ t('keys.resetUsage') }}
-              </button>
-            </div>
-            <span v-else class="text-sm surface-muted">-</span>
-          </template>
-
-          <template #cell-expires_at="{ value }">
-            <span v-if="value" :class="[
-              'text-sm',
-              new Date(value) < new Date() ? 'text-red-500 dark:text-red-400' : 'surface-muted'
-            ]">
-              {{ formatDateTime(value) }}
-            </span>
-            <span v-else class="text-sm surface-muted">{{ t('keys.noExpiration') }}</span>
-          </template>
-
-          <template #cell-status="{ value }">
-            <span :class="[
-              'badge',
-              value === 'active' ? 'badge-success' :
-              value === 'quota_exhausted' ? 'badge-warning' :
-              value === 'expired' ? 'badge-danger' :
-              'badge-gray'
-            ]">
-              {{ t('keys.status.' + value) }}
-            </span>
+            <GroupBadge
+              v-else-if="row.group"
+              :name="row.group.name"
+              :show-rate="row.group.platform !== 'composite'"
+              :platform="row.group.platform"
+              :subscription-type="row.group.subscription_type"
+              :rate-multiplier="row.group.rate_multiplier"
+              :user-rate-multiplier="userGroupRates[row.group.id]"
+              :peak-rate-enabled="row.group.peak_rate_enabled"
+              :peak-start="row.group.peak_start"
+              :peak-end="row.group.peak_end"
+              :peak-rate-multiplier="row.group.peak_rate_multiplier"
+            />
+            <span v-else class="text-sm surface-muted">{{
+              row.group_binding_mode === 'all' ? t('keys.aggregateAll') : row.group_binding_mode === 'custom' ? t('keys.aggregateCustomCount', { count: row.aggregate_group_ids?.length || 0 }) : t('keys.noGroup')
+            }}</span>
           </template>
 
           <template #cell-last_used_at="{ value }">
-            <span v-if="value" class="text-sm surface-muted">
-              {{ formatDateTime(value) }}
-            </span>
-            <span v-else class="text-sm surface-muted">-</span>
+            <span class="text-sm surface-muted gc-num">{{ value ? formatDateTime(value) : t('keyConsole.detail.neverUsed') }}</span>
           </template>
 
-          <template #cell-last_used_ip="{ value }">
-            <span v-if="value" class="text-sm surface-muted">
-              {{ value }}
-            </span>
-            <span v-else class="text-sm surface-muted">-</span>
-          </template>
-
-          <template #cell-created_at="{ value }">
-            <span class="text-sm surface-muted">{{ formatDateTime(value) }}</span>
-          </template>
-
-          <template #cell-actions="{ row }">
-            <div class="table-actions">
-              <!-- Test Button -->
-              <button
-                @click="openTestModal(row)"
-                class="table-action"
-                data-testid="test-key-action"
-              >
-                <Icon name="beaker" size="sm" />
-                <span class="text-xs">{{ t('keys.testKey') }}</span>
-              </button>
-              <!-- Use Key Button -->
-              <button
-                v-if="canUseClientConfig(row)"
-                @click="openUseKeyModal(row)"
-                class="table-action"
-                data-test="use-key-action"
-              >
-                <Icon name="terminal" size="sm" />
-                <span class="text-xs">{{ t('keys.useKey') }}</span>
-              </button>
-              <ActionMenu :items="keyRowActions(row)" @select="handleKeyRowAction(row, $event)" />
+          <template #cell-today="{ row }">
+            <div class="keys-today">
+              <span v-if="usageLoading && !usageStats[row.id]" data-test="usage-pending" class="gc-skeleton inline-block h-3.5 w-16"></span>
+              <span v-else class="font-medium text-gray-900 dark:text-white gc-num">{{ withCreditUnit((usageStats[row.id]?.today_actual_cost ?? 0).toFixed(4)) }}</span>
+              <Icon name="chevronRight" size="sm" class="keys-row-chevron" />
             </div>
           </template>
 
           <template #empty>
             <EmptyState v-support-readonly
-              :title="t('keys.noKeysYet')"
-              :description="t('keys.createFirstKey')"
+              :title="apiKeys.length ? t('keyConsole.list.noMatch') : t('keys.noKeysYet')"
+              :description="apiKeys.length ? t('keyConsole.list.noMatchHint') : t('keys.createFirstKey')"
               :action-text="t('keys.createKey')"
               @action="showCreateModal = true"
             />
@@ -472,148 +162,166 @@
 
       <template #pagination>
         <Pagination
-          :page="pagination.page"
-          :total="pagination.total"
-          :page-size="pagination.page_size"
+          :page="page"
+          :total="filteredKeys.length"
+          :page-size="pageSize"
           @update:page="handlePageChange"
           @update:pageSize="handlePageSizeChange"
         />
       </template>
     </TablePageLayout>
 
-    <!-- Create/Edit Modal -->
+    <!-- Create/Edit Modal; a successful create turns into the success page in place. -->
     <BaseDialog
       :show="showCreateModal || showEditModal"
-      :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
+      :title="createdKey ? t('keyConsole.created.title') : showEditModal ? t('keys.editKey') : t('keys.createKey')"
       width="normal"
       @close="!submitting && closeModals()"
     >
-      <form v-support-readonly id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
+      <div class="gc-collapse" :data-open="!createdKey" :inert="!!createdKey || undefined">
         <div>
-          <label class="input-label">{{ t('keys.nameLabel') }}</label>
-          <input
-            v-model="formData.name"
-            type="text"
-            required
-            class="input"
-            :placeholder="t('keys.namePlaceholder')"
-            data-tour="key-form-name"
-          />
-        </div>
-
-        <fieldset v-if="!showEditModal && formData.group_binding_mode === 'single'" data-tour="key-form-provider">
-          <legend class="input-label">{{ t('keys.providerLabel') }}</legend>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label
-              v-for="provider in createProviderOptions"
-              :key="provider.value"
-              class="relative min-w-0"
-              :class="provider.count === 0 ? 'cursor-not-allowed' : 'cursor-pointer'"
-            >
+          <form v-support-readonly id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
+            <div>
+              <label class="input-label">{{ t('keys.nameLabel') }}</label>
               <input
-                type="radio"
-                name="key-provider"
-                :value="provider.value"
-                :checked="createProvider === provider.value"
-                :disabled="provider.count === 0"
-                class="peer sr-only"
-                @change="selectCreateProvider(provider.value)"
+                v-model="formData.name"
+                type="text"
+                required
+                class="input"
+                :placeholder="t('keys.namePlaceholder')"
+                data-tour="key-form-name"
               />
-              <span
-                class="flex h-full flex-col items-center gap-2 rounded-lg border border-gray-200 surface-inset px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:peer-checked:bg-primary-500/10"
-                :class="provider.count > 0 && 'hover:border-primary-300 dark:hover:border-primary-700'"
-              >
-                <span class="flex h-8 items-center justify-center gap-1.5" aria-hidden="true">
+            </div>
+
+            <fieldset v-if="!showEditModal && formData.group_binding_mode === 'single'" data-tour="key-form-provider">
+              <legend class="input-label">{{ t('keys.providerLabel') }}</legend>
+              <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <label
+                  v-for="provider in createProviderOptions"
+                  :key="provider.value"
+                  class="relative min-w-0"
+                  :class="provider.count === 0 ? 'cursor-not-allowed' : 'cursor-pointer'"
+                >
+                  <input
+                    type="radio"
+                    name="key-provider"
+                    :value="provider.value"
+                    :checked="createProvider === provider.value"
+                    :disabled="provider.count === 0"
+                    class="peer sr-only"
+                    @change="selectCreateProvider(provider.value)"
+                  />
                   <span
-                    v-for="platform in KEY_GROUP_PROVIDER_ICONS[provider.value]"
-                    :key="platform"
-                    class="flex h-8 w-8 items-center justify-center rounded-lg"
-                    :class="platformBadgeLightClass(platform)"
+                    class="flex h-full flex-col items-center gap-2 rounded-lg border border-gray-200 surface-inset px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:peer-checked:bg-primary-500/10"
+                    :class="provider.count > 0 && 'hover:border-primary-300 dark:hover:border-primary-700'"
                   >
-                    <PlatformIcon :platform="platform" size="lg" />
+                    <span class="flex h-8 items-center justify-center gap-1.5" aria-hidden="true">
+                      <span
+                        v-for="platform in KEY_GROUP_PROVIDER_ICONS[provider.value]"
+                        :key="platform"
+                        class="flex h-8 w-8 items-center justify-center rounded-lg"
+                        :class="platformBadgeLightClass(platform)"
+                      >
+                        <PlatformIcon :platform="platform" size="lg" />
+                      </span>
+                    </span>
+                    <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ provider.label }}</span>
                   </span>
-                </span>
-                <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ provider.label }}</span>
-              </span>
-              <span
-                v-if="createProvider === provider.value"
-                class="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary-500 text-white"
-                aria-hidden="true"
+                  <span
+                    v-if="createProvider === provider.value"
+                    class="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary-500 text-white"
+                    aria-hidden="true"
+                  >
+                    <Icon name="check" size="xs" :stroke-width="3" />
+                  </span>
+                </label>
+              </div>
+              <p class="mt-2 text-xs leading-5 surface-muted" aria-live="polite">
+                {{ groups.length === 0 ? t('common.noGroupsAvailable') : t(`keys.providerHints.${createProvider}`) }}
+              </p>
+            </fieldset>
+
+            <div v-if="formData.group_binding_mode === 'single'">
+              <label class="input-label">{{ t('keys.routingMode.label') }}</label>
+              <div
+                class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
+                role="radiogroup"
+                :aria-label="t('keys.routingMode.label')"
               >
-                <Icon name="check" size="xs" :stroke-width="3" />
-              </span>
-            </label>
-          </div>
-          <p class="mt-2 text-xs leading-5 surface-muted" aria-live="polite">
-            {{ groups.length === 0 ? t('common.noGroupsAvailable') : t(`keys.providerHints.${createProvider}`) }}
-          </p>
-        </fieldset>
+                <button
+                  type="button"
+                  role="radio"
+                  data-test="key-routing-fixed"
+                  :aria-checked="formData.routing_mode === 'fixed'"
+                  :class="[
+                    'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    formData.routing_mode === 'fixed'
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
+                  ]"
+                  @click="setFormRoutingMode('fixed')"
+                >
+                  {{ t('keys.routingMode.fixed') }}
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  data-test="key-routing-auto"
+                  :aria-checked="formData.routing_mode === 'auto'"
+                  :class="[
+                    'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    formData.routing_mode === 'auto'
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
+                  ]"
+                  @click="setFormRoutingMode('auto')"
+                >
+                  {{ t('keys.routingMode.auto') }}
+                </button>
+              </div>
+              <p class="input-hint">
+                {{ formData.routing_mode === 'auto' ? t('keys.routingMode.autoHint') : t('keys.routingMode.fixedHint') }}
+              </p>
+            </div>
 
-        <div v-if="formData.group_binding_mode === 'single'">
-          <label class="input-label">{{ t('keys.routingMode.label') }}</label>
-          <div
-            class="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"
-            role="radiogroup"
-            :aria-label="t('keys.routingMode.label')"
-          >
-            <button
-              type="button"
-              role="radio"
-              data-test="key-routing-fixed"
-              :aria-checked="formData.routing_mode === 'fixed'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                formData.routing_mode === 'fixed'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="setFormRoutingMode('fixed')"
-            >
-              {{ t('keys.routingMode.fixed') }}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              data-test="key-routing-auto"
-              :aria-checked="formData.routing_mode === 'auto'"
-              :class="[
-                'rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                formData.routing_mode === 'auto'
-                  ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                  : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-              ]"
-              @click="setFormRoutingMode('auto')"
-            >
-              {{ t('keys.routingMode.auto') }}
-            </button>
-          </div>
-          <p class="input-hint">
-            {{ formData.routing_mode === 'auto' ? t('keys.routingMode.autoHint') : t('keys.routingMode.fixedHint') }}
-          </p>
-        </div>
+            <RoutingPriorityPanel
+              v-if="(showCreateModal || showEditModal) && formData.group_binding_mode === 'single' && formData.routing_mode === 'auto'"
+              :key="showEditModal ? selectedKey?.id : 'create'"
+              ref="routingPriorityPanel"
+              :key-id="showEditModal ? selectedKey?.id : undefined"
+              :disabled="submitting"
+              :scope="scope"
+            />
 
-        <RoutingPriorityPanel
-          v-if="(showCreateModal || showEditModal) && formData.group_binding_mode === 'single' && formData.routing_mode === 'auto'"
-          :key="showEditModal ? selectedKey?.id : 'create'"
-          ref="routingPriorityPanel"
-          :key-id="showEditModal ? selectedKey?.id : undefined"
-          :disabled="submitting"
-          :scope="scope"
-        />
-
-        <div v-if="formData.group_binding_mode !== 'single'" class="space-y-3" data-testid="aggregate-key-fields">
-          <div>
-            <label class="input-label" for="key-aggregate-mode">{{ t('keys.aggregateScope') }}</label>
-            <Select id="key-aggregate-mode" v-model="formData.group_binding_mode" :options="aggregateModeOptions" :searchable="false" />
-          </div>
-          <p class="text-sm surface-muted">{{ t('keys.aggregateHint') }}</p>
-          <CheckboxDropdown v-if="formData.group_binding_mode === 'custom'" v-model="formData.aggregate_group_ids" :options="aggregateGroupOptions" :label="t('keys.selectAggregateGroups')" searchable :search-placeholder="t('keys.searchGroup')">
-            <template #selected="{ options }">
-              <span class="flex min-w-0 flex-wrap gap-1.5">
-                <template v-for="option in options" :key="option.value">
+            <div v-if="formData.group_binding_mode !== 'single'" class="space-y-3" data-testid="aggregate-key-fields">
+              <div>
+                <label class="input-label" for="key-aggregate-mode">{{ t('keys.aggregateScope') }}</label>
+                <Select id="key-aggregate-mode" v-model="formData.group_binding_mode" :options="aggregateModeOptions" :searchable="false" />
+              </div>
+              <p class="text-sm surface-muted">{{ t('keys.aggregateHint') }}</p>
+              <CheckboxDropdown v-if="formData.group_binding_mode === 'custom'" v-model="formData.aggregate_group_ids" :options="aggregateGroupOptions" :label="t('keys.selectAggregateGroups')" searchable :search-placeholder="t('keys.searchGroup')">
+                <template #selected="{ options }">
+                  <span class="flex min-w-0 flex-wrap gap-1.5">
+                    <template v-for="option in options" :key="option.value">
+                      <GroupBadge
+                        v-if="option.group"
+                        data-testid="aggregate-selected-group"
+                        class="min-w-0 max-w-full"
+                        :name="option.group.name"
+                        :platform="option.group.platform"
+                        :subscription-type="option.group.subscription_type"
+                        :rate-multiplier="option.group.rate_multiplier"
+                        :user-rate-multiplier="userGroupRates[option.value]"
+                        :truncate="false"
+                      />
+                      <span v-else class="surface-muted">{{ option.label }}</span>
+                    </template>
+                  </span>
+                </template>
+                <template #option="{ option }">
                   <GroupBadge
                     v-if="option.group"
-                    data-testid="aggregate-selected-group"
+                    data-testid="aggregate-group-option"
                     class="min-w-0 max-w-full"
                     :name="option.group.name"
                     :platform="option.group.platform"
@@ -624,422 +332,422 @@
                   />
                   <span v-else class="surface-muted">{{ option.label }}</span>
                 </template>
-              </span>
-            </template>
-            <template #option="{ option }">
-              <GroupBadge
-                v-if="option.group"
-                data-testid="aggregate-group-option"
-                class="min-w-0 max-w-full"
-                :name="option.group.name"
-                :platform="option.group.platform"
-                :subscription-type="option.group.subscription_type"
-                :rate-multiplier="option.group.rate_multiplier"
-                :user-rate-multiplier="userGroupRates[option.value]"
-                :truncate="false"
-              />
-              <span v-else class="surface-muted">{{ option.label }}</span>
-            </template>
-          </CheckboxDropdown>
-          <p v-if="formData.group_binding_mode === 'custom' && aggregateGroupOptions.length === 0" class="text-sm surface-muted">{{ t('common.noGroupsAvailable') }}</p>
-        </div>
+              </CheckboxDropdown>
+              <p v-if="formData.group_binding_mode === 'custom' && aggregateGroupOptions.length === 0" class="text-sm surface-muted">{{ t('common.noGroupsAvailable') }}</p>
+            </div>
 
-        <div v-else-if="formData.routing_mode === 'fixed'">
-          <label class="input-label" for="key-form-group">{{ t('keys.groupLabel') }}</label>
-          <Select
-            :key="showEditModal ? 'edit' : createProvider"
-            id="key-form-group"
-            :aria-label="t('keys.groupLabel')"
-            v-model="formData.group_id"
-            :options="formGroupOptions"
-            :placeholder="t('keys.selectGroup')"
-            :empty-text="t('common.noGroupsAvailable')"
-            :searchable="true"
-            :search-placeholder="t('keys.searchGroup')"
-            data-tour="key-form-group"
-          >
-            <template #selected="{ option }">
-              <GroupBadge
-                v-if="option"
-                :name="(option as unknown as GroupOption).label"
-                :show-rate="false"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-              />
-              <span v-else class="surface-muted">{{ t('keys.selectGroup') }}</span>
-            </template>
-            <template #option="{ option, selected }">
-              <GroupOptionItem
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-                :description="(option as unknown as GroupOption).description"
-                :selected="selected"
+            <div v-else-if="formData.routing_mode === 'fixed'">
+              <label class="input-label" for="key-form-group">{{ t('keys.groupLabel') }}</label>
+              <Select
+                :key="showEditModal ? 'edit' : createProvider"
+                id="key-form-group"
+                :aria-label="t('keys.groupLabel')"
+                v-model="formData.group_id"
+                :options="formGroupOptions"
+                :placeholder="t('keys.selectGroup')"
+                :empty-text="t('common.noGroupsAvailable')"
+                :searchable="true"
+                :search-placeholder="t('keys.searchGroup')"
+                data-tour="key-form-group"
               >
-                <template #rates><GroupRateSummary :group="quoteFor((option as unknown as GroupOption).value)" :loading="quotesLoading" :failed="quotesFailed" compact /></template>
-              </GroupOptionItem>
-            </template>
-          </Select>
-          <GroupRateSummary v-if="formData.group_id" class="mt-3 rounded-lg surface-inset p-3" :group="quoteFor(formData.group_id)" :loading="quotesLoading" :failed="quotesFailed" @retry="refreshQuotes" />
-        </div>
-
-        <NativeAccessFields v-if="formData.group_binding_mode === 'single' && groups.find(group => group.id === formData.group_id)?.platform === 'composite'" ref="nativeAccessFields" v-model:conversion-enabled="formData.conversion_enabled" v-model:client="formData.default_client" v-model:endpoint="formData.default_endpoint" :group-id="formData.group_id" :base-url="publicSettings?.api_base_url" />
-
-        <!-- Custom Key Section (only for create) -->
-        <div v-if="!showEditModal" class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.customKeyLabel') }}</label>
-            <Toggle
-              v-model="formData.use_custom_key"
-            />
-          </div>
-          <div v-if="formData.use_custom_key">
-            <input
-              v-model="formData.custom_key"
-              type="text"
-              class="input font-mono"
-              :placeholder="t('keys.customKeyPlaceholder')"
-              :class="{ 'border-red-500 dark:border-red-500': customKeyError }"
-            />
-            <p v-if="customKeyError" class="mt-1 text-sm text-red-500">{{ customKeyError }}</p>
-            <p v-else class="input-hint">{{ t('keys.customKeyHint') }}</p>
-          </div>
-        </div>
-
-        <div v-if="showEditModal">
-          <label class="input-label">{{ t('keys.statusLabel') }}</label>
-          <Select
-            v-model="formData.status"
-            :options="statusOptions"
-            :placeholder="t('keys.selectStatus')"
-          />
-        </div>
-
-        <!-- IP Restriction Section -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.ipRestriction') }}</label>
-            <Toggle
-              v-model="formData.enable_ip_restriction"
-            />
-          </div>
-
-          <div v-if="formData.enable_ip_restriction" class="space-y-4 pt-2">
-            <div>
-              <label class="input-label">{{ t('keys.ipWhitelist') }}</label>
-              <textarea
-                v-model="formData.ip_whitelist"
-                rows="3"
-                class="input font-mono text-sm"
-                :placeholder="t('keys.ipWhitelistPlaceholder')"
-              />
-              <p class="input-hint">{{ t('keys.ipWhitelistHint') }}</p>
+                <template #selected="{ option }">
+                  <GroupBadge
+                    v-if="option"
+                    :name="(option as unknown as GroupOption).label"
+                    :show-rate="false"
+                    :platform="(option as unknown as GroupOption).platform"
+                    :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                    :rate-multiplier="(option as unknown as GroupOption).rate"
+                    :user-rate-multiplier="(option as unknown as GroupOption).userRate"
+                    :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
+                    :peak-start="(option as unknown as GroupOption).peakStart"
+                    :peak-end="(option as unknown as GroupOption).peakEnd"
+                    :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+                  />
+                  <span v-else class="surface-muted">{{ t('keys.selectGroup') }}</span>
+                </template>
+                <template #option="{ option, selected }">
+                  <GroupOptionItem
+                    :name="(option as unknown as GroupOption).label"
+                    :platform="(option as unknown as GroupOption).platform"
+                    :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                    :rate-multiplier="(option as unknown as GroupOption).rate"
+                    :user-rate-multiplier="(option as unknown as GroupOption).userRate"
+                    :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
+                    :peak-start="(option as unknown as GroupOption).peakStart"
+                    :peak-end="(option as unknown as GroupOption).peakEnd"
+                    :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
+                    :description="(option as unknown as GroupOption).description"
+                    :selected="selected"
+                  >
+                    <template #rates><GroupRateSummary :group="quoteFor((option as unknown as GroupOption).value)" :loading="quotesLoading" :failed="quotesFailed" compact /></template>
+                  </GroupOptionItem>
+                </template>
+              </Select>
+              <GroupRateSummary v-if="formData.group_id" class="mt-3 rounded-lg surface-inset p-3" :group="quoteFor(formData.group_id)" :loading="quotesLoading" :failed="quotesFailed" @retry="refreshQuotes" />
             </div>
 
-            <div>
-              <label class="input-label">{{ t('keys.ipBlacklist') }}</label>
-              <textarea
-                v-model="formData.ip_blacklist"
-                rows="3"
-                class="input font-mono text-sm"
-                :placeholder="t('keys.ipBlacklistPlaceholder')"
-              />
-              <p class="input-hint">{{ t('keys.ipBlacklistHint') }}</p>
-            </div>
-          </div>
-        </div>
+            <NativeAccessFields v-if="formData.group_binding_mode === 'single' && groups.find(group => group.id === formData.group_id)?.platform === 'composite'" ref="nativeAccessFields" v-model:conversion-enabled="formData.conversion_enabled" v-model:client="formData.default_client" v-model:endpoint="formData.default_endpoint" :group-id="formData.group_id" :base-url="endpointBaseUrl" />
 
-        <!-- Quota Limit Section -->
-        <div class="space-y-3">
-          <label class="input-label">{{ t('keys.quotaLimit') }}</label>
-          <!-- Switch commented out - always show input, 0 = unlimited
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.quotaLimit') }}</label>
-            <Toggle
-              v-model="formData.enable_quota"
-            />
-          </div>
-          -->
-
-          <div class="space-y-4">
-            <div>
-              <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
-                <input
-                  v-model.number="formData.quota"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pr-20"
-                  :placeholder="t('keys.quotaAmountPlaceholder')"
+            <!-- Custom Key Section (only for create) -->
+            <div v-if="!showEditModal" class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="input-label mb-0">{{ t('keys.customKeyLabel') }}</label>
+                <Toggle
+                  v-model="formData.use_custom_key"
                 />
               </div>
-              <p class="input-hint">{{ t('keys.quotaAmountHint') }}</p>
+              <div v-if="formData.use_custom_key">
+                <input
+                  v-model="formData.custom_key"
+                  type="text"
+                  class="input font-mono"
+                  :placeholder="t('keys.customKeyPlaceholder')"
+                  :class="{ 'border-red-500 dark:border-red-500': customKeyError }"
+                />
+                <p v-if="customKeyError" class="mt-1 text-sm text-red-500">{{ customKeyError }}</p>
+                <p v-else class="input-hint">{{ t('keys.customKeyHint') }}</p>
+              </div>
             </div>
 
-            <!-- Quota used display (only in edit mode) -->
-            <div v-if="showEditModal && selectedKey && selectedKey.quota > 0">
-              <label class="input-label">{{ t('keys.quotaUsed') }}</label>
-              <div class="flex items-center gap-2">
-                <div class="flex-1 rounded-lg surface-inset px-3 py-2">
+            <div v-if="showEditModal">
+              <label class="input-label">{{ t('keys.statusLabel') }}</label>
+              <Select
+                v-model="formData.status"
+                :options="statusOptions"
+                :placeholder="t('keys.selectStatus')"
+              />
+            </div>
+
+            <!-- IP Restriction Section -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="input-label mb-0">{{ t('keys.ipRestriction') }}</label>
+                <Toggle
+                  v-model="formData.enable_ip_restriction"
+                />
+              </div>
+
+              <div v-if="formData.enable_ip_restriction" class="space-y-4 pt-2">
+                <div>
+                  <label class="input-label">{{ t('keys.ipWhitelist') }}</label>
+                  <textarea
+                    v-model="formData.ip_whitelist"
+                    rows="3"
+                    class="input font-mono text-sm"
+                    :placeholder="t('keys.ipWhitelistPlaceholder')"
+                  />
+                  <p class="input-hint">{{ t('keys.ipWhitelistHint') }}</p>
+                </div>
+
+                <div>
+                  <label class="input-label">{{ t('keys.ipBlacklist') }}</label>
+                  <textarea
+                    v-model="formData.ip_blacklist"
+                    rows="3"
+                    class="input font-mono text-sm"
+                    :placeholder="t('keys.ipBlacklistPlaceholder')"
+                  />
+                  <p class="input-hint">{{ t('keys.ipBlacklistHint') }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quota Limit Section -->
+            <div class="space-y-3">
+              <label class="input-label">{{ t('keys.quotaLimit') }}</label>
+              <!-- Switch commented out - always show input, 0 = unlimited
+              <div class="flex items-center justify-between">
+                <label class="input-label mb-0">{{ t('keys.quotaLimit') }}</label>
+                <Toggle
+                  v-model="formData.enable_quota"
+                />
+              </div>
+              -->
+
+              <div class="space-y-4">
+                <div>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
+                    <input
+                      v-model.number="formData.quota"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input pr-20"
+                      :placeholder="t('keys.quotaAmountPlaceholder')"
+                    />
+                  </div>
+                  <p class="input-hint">{{ t('keys.quotaAmountHint') }}</p>
+                </div>
+
+                <!-- Quota used display (only in edit mode) -->
+                <div v-if="showEditModal && selectedKey && selectedKey.quota > 0">
+                  <label class="input-label">{{ t('keys.quotaUsed') }}</label>
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 rounded-lg surface-inset px-3 py-2">
+                      <span class="font-medium text-gray-900 dark:text-white">
+                        {{ withCreditUnit(selectedKey.quota_used?.toFixed(4) || '0.0000') }}
+                      </span>
+                      <span class="mx-2 surface-muted">/</span>
+                      <span class="surface-muted">
+                        {{ withCreditUnit(selectedKey.quota?.toFixed(2) || '0.00') }}
+                      </span>
+                    </div>
+                    <button v-support-readonly
+                      type="button"
+                      @click="confirmResetQuota"
+                      class="btn btn-secondary text-sm"
+                      :title="t('keys.resetQuotaUsed')"
+                    >
+                      {{ t('keys.reset') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rate Limit Section -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="input-label mb-0">{{ t('keys.rateLimitSection') }}</label>
+                <Toggle
+                  v-model="formData.enable_rate_limit"
+                />
+              </div>
+
+              <div v-if="formData.enable_rate_limit" class="space-y-4 pt-2">
+                <p class="input-hint -mt-2">{{ t('keys.rateLimitHint') }}</p>
+                <!-- 5-Hour Limit -->
+                <div>
+                  <label class="input-label">{{ t('keys.rateLimit5h') }}</label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
+                    <input
+                      v-model.number="formData.rate_limit_5h"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input pr-20"
+                      :placeholder="'0'"
+                    />
+                  </div>
+                  <!-- Usage info (edit mode only) -->
+                  <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_5h > 0" class="mt-2">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
+                        <span :class="[
+                          'font-medium',
+                          selectedKey.usage_5h >= selectedKey.rate_limit_5h ? 'text-red-500' :
+                          selectedKey.usage_5h >= selectedKey.rate_limit_5h * 0.8 ? 'text-yellow-500' :
+                          'text-gray-900 dark:text-white'
+                        ]">
+                          {{ withCreditUnit(selectedKey.usage_5h?.toFixed(4) || '0.0000') }}
+                        </span>
+                        <span class="mx-2 surface-muted">/</span>
+                        <span class="surface-muted">
+                          {{ withCreditUnit(selectedKey.rate_limit_5h?.toFixed(2) || '0.00') }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                      <div
+                        :class="[
+                          'console-data-mark h-full rounded-full transition-all',
+                          selectedKey.usage_5h >= selectedKey.rate_limit_5h ? 'bg-red-500' :
+                          selectedKey.usage_5h >= selectedKey.rate_limit_5h * 0.8 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        ]"
+                        :style="{ width: Math.min((selectedKey.usage_5h / selectedKey.rate_limit_5h) * 100, 100) + '%' }"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Daily Limit -->
+                <div>
+                  <label class="input-label">{{ t('keys.rateLimit1d') }}</label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
+                    <input
+                      v-model.number="formData.rate_limit_1d"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input pr-20"
+                      :placeholder="'0'"
+                    />
+                  </div>
+                  <!-- Usage info (edit mode only) -->
+                  <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_1d > 0" class="mt-2">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
+                        <span :class="[
+                          'font-medium',
+                          selectedKey.usage_1d >= selectedKey.rate_limit_1d ? 'text-red-500' :
+                          selectedKey.usage_1d >= selectedKey.rate_limit_1d * 0.8 ? 'text-yellow-500' :
+                          'text-gray-900 dark:text-white'
+                        ]">
+                          {{ withCreditUnit(selectedKey.usage_1d?.toFixed(4) || '0.0000') }}
+                        </span>
+                        <span class="mx-2 surface-muted">/</span>
+                        <span class="surface-muted">
+                          {{ withCreditUnit(selectedKey.rate_limit_1d?.toFixed(2) || '0.00') }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                      <div
+                        :class="[
+                          'console-data-mark h-full rounded-full transition-all',
+                          selectedKey.usage_1d >= selectedKey.rate_limit_1d ? 'bg-red-500' :
+                          selectedKey.usage_1d >= selectedKey.rate_limit_1d * 0.8 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        ]"
+                        :style="{ width: Math.min((selectedKey.usage_1d / selectedKey.rate_limit_1d) * 100, 100) + '%' }"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 7-Day Limit -->
+                <div>
+                  <label class="input-label">{{ t('keys.rateLimit7d') }}</label>
+                  <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
+                    <input
+                      v-model.number="formData.rate_limit_7d"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input pr-20"
+                      :placeholder="'0'"
+                    />
+                  </div>
+                  <!-- Usage info (edit mode only) -->
+                  <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_7d > 0" class="mt-2">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
+                        <span :class="[
+                          'font-medium',
+                          selectedKey.usage_7d >= selectedKey.rate_limit_7d ? 'text-red-500' :
+                          selectedKey.usage_7d >= selectedKey.rate_limit_7d * 0.8 ? 'text-yellow-500' :
+                          'text-gray-900 dark:text-white'
+                        ]">
+                          {{ withCreditUnit(selectedKey.usage_7d?.toFixed(4) || '0.0000') }}
+                        </span>
+                        <span class="mx-2 surface-muted">/</span>
+                        <span class="surface-muted">
+                          {{ withCreditUnit(selectedKey.rate_limit_7d?.toFixed(2) || '0.00') }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                      <div
+                        :class="[
+                          'console-data-mark h-full rounded-full transition-all',
+                          selectedKey.usage_7d >= selectedKey.rate_limit_7d ? 'bg-red-500' :
+                          selectedKey.usage_7d >= selectedKey.rate_limit_7d * 0.8 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        ]"
+                        :style="{ width: Math.min((selectedKey.usage_7d / selectedKey.rate_limit_7d) * 100, 100) + '%' }"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reset Rate Limit button (edit mode only) -->
+                <div v-if="showEditModal && selectedKey && (selectedKey.rate_limit_5h > 0 || selectedKey.rate_limit_1d > 0 || selectedKey.rate_limit_7d > 0)">
+                  <button v-support-readonly
+                    type="button"
+                    @click="confirmResetRateLimit"
+                    class="btn btn-secondary text-sm"
+                  >
+                    {{ t('keys.resetRateLimitUsage') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expiration Section -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="input-label mb-0">{{ t('keys.expiration') }}</label>
+                <Toggle
+                  v-model="formData.enable_expiration"
+                />
+              </div>
+
+              <div v-if="formData.enable_expiration" class="space-y-4 pt-2">
+                <!-- Quick select buttons (for both create and edit mode) -->
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="days in ['7', '30', '90']"
+                    :key="days"
+                    type="button"
+                    @click="setExpirationDays(parseInt(days))"
+                    :class="[
+                      'rounded-lg px-3 py-1.5 text-sm transition-colors',
+                      formData.expiration_preset === days
+                        ? 'bg-primary-100/[0.15] text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                        : 'surface-inset text-gray-600 hover:surface-hover dark:surface-inset dark:text-gray-400 dark:hover:surface-hover'
+                    ]"
+                  >
+                    {{ showEditModal ? t('keys.extendDays', { days }) : t('keys.expiresInDays', { days }) }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="formData.expiration_preset = 'custom'"
+                    :class="[
+                      'rounded-lg px-3 py-1.5 text-sm transition-colors',
+                      formData.expiration_preset === 'custom'
+                        ? 'bg-primary-100/[0.15] text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                        : 'surface-inset text-gray-600 hover:surface-hover dark:surface-inset dark:text-gray-400 dark:hover:surface-hover'
+                    ]"
+                  >
+                    {{ t('keys.customDate') }}
+                  </button>
+                </div>
+
+                <!-- Date picker (always show for precise adjustment) -->
+                <div>
+                  <label class="input-label">{{ t('keys.expirationDate') }}</label>
+                  <DateTimePicker :aria-label="t('keys.expirationDate')"
+                    v-model="formData.expiration_date"
+                    type="datetime-local"
+                    class="input"
+                  />
+                  <p class="input-hint">{{ t('keys.expirationDateHint') }}</p>
+                </div>
+
+                <!-- Current expiration display (only in edit mode) -->
+                <div v-if="showEditModal && selectedKey?.expires_at" class="text-sm">
+                  <span class="surface-muted">{{ t('keys.currentExpiration') }}: </span>
                   <span class="font-medium text-gray-900 dark:text-white">
-                    {{ withCreditUnit(selectedKey.quota_used?.toFixed(4) || '0.0000') }}
-                  </span>
-                  <span class="mx-2 surface-muted">/</span>
-                  <span class="surface-muted">
-                    {{ withCreditUnit(selectedKey.quota?.toFixed(2) || '0.00') }}
+                    {{ formatDateTime(selectedKey.expires_at) }}
                   </span>
                 </div>
-                <button v-support-readonly
-                  type="button"
-                  @click="confirmResetQuota"
-                  class="btn btn-secondary text-sm"
-                  :title="t('keys.resetQuotaUsed')"
-                >
-                  {{ t('keys.reset') }}
-                </button>
               </div>
             </div>
-          </div>
+          </form>
         </div>
-
-        <!-- Rate Limit Section -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.rateLimitSection') }}</label>
-            <Toggle
-              v-model="formData.enable_rate_limit"
-            />
-          </div>
-
-          <div v-if="formData.enable_rate_limit" class="space-y-4 pt-2">
-            <p class="input-hint -mt-2">{{ t('keys.rateLimitHint') }}</p>
-            <!-- 5-Hour Limit -->
-            <div>
-              <label class="input-label">{{ t('keys.rateLimit5h') }}</label>
-              <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
-                <input
-                  v-model.number="formData.rate_limit_5h"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pr-20"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_5h > 0" class="mt-2">
-                <div class="flex items-center gap-2">
-                  <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
-                    <span :class="[
-                      'font-medium',
-                      selectedKey.usage_5h >= selectedKey.rate_limit_5h ? 'text-red-500' :
-                      selectedKey.usage_5h >= selectedKey.rate_limit_5h * 0.8 ? 'text-yellow-500' :
-                      'text-gray-900 dark:text-white'
-                    ]">
-                      {{ withCreditUnit(selectedKey.usage_5h?.toFixed(4) || '0.0000') }}
-                    </span>
-                    <span class="mx-2 surface-muted">/</span>
-                    <span class="surface-muted">
-                      {{ withCreditUnit(selectedKey.rate_limit_5h?.toFixed(2) || '0.00') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      selectedKey.usage_5h >= selectedKey.rate_limit_5h ? 'bg-red-500' :
-                      selectedKey.usage_5h >= selectedKey.rate_limit_5h * 0.8 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    ]"
-                    :style="{ width: Math.min((selectedKey.usage_5h / selectedKey.rate_limit_5h) * 100, 100) + '%' }"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Daily Limit -->
-            <div>
-              <label class="input-label">{{ t('keys.rateLimit1d') }}</label>
-              <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
-                <input
-                  v-model.number="formData.rate_limit_1d"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pr-20"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_1d > 0" class="mt-2">
-                <div class="flex items-center gap-2">
-                  <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
-                    <span :class="[
-                      'font-medium',
-                      selectedKey.usage_1d >= selectedKey.rate_limit_1d ? 'text-red-500' :
-                      selectedKey.usage_1d >= selectedKey.rate_limit_1d * 0.8 ? 'text-yellow-500' :
-                      'text-gray-900 dark:text-white'
-                    ]">
-                      {{ withCreditUnit(selectedKey.usage_1d?.toFixed(4) || '0.0000') }}
-                    </span>
-                    <span class="mx-2 surface-muted">/</span>
-                    <span class="surface-muted">
-                      {{ withCreditUnit(selectedKey.rate_limit_1d?.toFixed(2) || '0.00') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      selectedKey.usage_1d >= selectedKey.rate_limit_1d ? 'bg-red-500' :
-                      selectedKey.usage_1d >= selectedKey.rate_limit_1d * 0.8 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    ]"
-                    :style="{ width: Math.min((selectedKey.usage_1d / selectedKey.rate_limit_1d) * 100, 100) + '%' }"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- 7-Day Limit -->
-            <div>
-              <label class="input-label">{{ t('keys.rateLimit7d') }}</label>
-              <div class="relative">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 surface-muted">{{ creditUnit() }}</span>
-                <input
-                  v-model.number="formData.rate_limit_7d"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pr-20"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div v-if="showEditModal && selectedKey && selectedKey.rate_limit_7d > 0" class="mt-2">
-                <div class="flex items-center gap-2">
-                  <div class="flex-1 rounded-lg surface-inset px-3 py-2 text-sm">
-                    <span :class="[
-                      'font-medium',
-                      selectedKey.usage_7d >= selectedKey.rate_limit_7d ? 'text-red-500' :
-                      selectedKey.usage_7d >= selectedKey.rate_limit_7d * 0.8 ? 'text-yellow-500' :
-                      'text-gray-900 dark:text-white'
-                    ]">
-                      {{ withCreditUnit(selectedKey.usage_7d?.toFixed(4) || '0.0000') }}
-                    </span>
-                    <span class="mx-2 surface-muted">/</span>
-                    <span class="surface-muted">
-                      {{ withCreditUnit(selectedKey.rate_limit_7d?.toFixed(2) || '0.00') }}
-                    </span>
-                  </div>
-                </div>
-                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
-                  <div
-                    :class="[
-                      'console-data-mark h-full rounded-full transition-all',
-                      selectedKey.usage_7d >= selectedKey.rate_limit_7d ? 'bg-red-500' :
-                      selectedKey.usage_7d >= selectedKey.rate_limit_7d * 0.8 ? 'bg-yellow-500' :
-                      'bg-green-500'
-                    ]"
-                    :style="{ width: Math.min((selectedKey.usage_7d / selectedKey.rate_limit_7d) * 100, 100) + '%' }"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Reset Rate Limit button (edit mode only) -->
-            <div v-if="showEditModal && selectedKey && (selectedKey.rate_limit_5h > 0 || selectedKey.rate_limit_1d > 0 || selectedKey.rate_limit_7d > 0)">
-              <button v-support-readonly
-                type="button"
-                @click="confirmResetRateLimit"
-                class="btn btn-secondary text-sm"
-              >
-                {{ t('keys.resetRateLimitUsage') }}
-              </button>
-            </div>
-          </div>
+      </div>
+      <div class="gc-collapse" :data-open="!!createdKey">
+        <div>
+          <KeyCreatedPanel v-if="createdKey" :api-key="createdKey" :base-url="endpointBaseUrl" />
         </div>
-
-        <!-- Expiration Section -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="input-label mb-0">{{ t('keys.expiration') }}</label>
-            <Toggle
-              v-model="formData.enable_expiration"
-            />
-          </div>
-
-          <div v-if="formData.enable_expiration" class="space-y-4 pt-2">
-            <!-- Quick select buttons (for both create and edit mode) -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="days in ['7', '30', '90']"
-                :key="days"
-                type="button"
-                @click="setExpirationDays(parseInt(days))"
-                :class="[
-                  'rounded-lg px-3 py-1.5 text-sm transition-colors',
-                  formData.expiration_preset === days
-                    ? 'bg-primary-100/[0.15] text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                    : 'surface-inset text-gray-600 hover:surface-hover dark:surface-inset dark:text-gray-400 dark:hover:surface-hover'
-                ]"
-              >
-                {{ showEditModal ? t('keys.extendDays', { days }) : t('keys.expiresInDays', { days }) }}
-              </button>
-              <button
-                type="button"
-                @click="formData.expiration_preset = 'custom'"
-                :class="[
-                  'rounded-lg px-3 py-1.5 text-sm transition-colors',
-                  formData.expiration_preset === 'custom'
-                    ? 'bg-primary-100/[0.15] text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                    : 'surface-inset text-gray-600 hover:surface-hover dark:surface-inset dark:text-gray-400 dark:hover:surface-hover'
-                ]"
-              >
-                {{ t('keys.customDate') }}
-              </button>
-            </div>
-
-            <!-- Date picker (always show for precise adjustment) -->
-            <div>
-              <label class="input-label">{{ t('keys.expirationDate') }}</label>
-              <DateTimePicker :aria-label="t('keys.expirationDate')"
-                v-model="formData.expiration_date"
-                type="datetime-local"
-                class="input"
-              />
-              <p class="input-hint">{{ t('keys.expirationDateHint') }}</p>
-            </div>
-
-            <!-- Current expiration display (only in edit mode) -->
-            <div v-if="showEditModal && selectedKey?.expires_at" class="text-sm">
-              <span class="surface-muted">{{ t('keys.currentExpiration') }}: </span>
-              <span class="font-medium text-gray-900 dark:text-white">
-                {{ formatDateTime(selectedKey.expires_at) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </form>
+      </div>
       <template #footer>
-        <div class="flex justify-end gap-3">
+        <div v-if="createdKey" :key="'created'" class="gc-reveal flex flex-wrap justify-end gap-3">
+          <button v-if="showCcs" type="button" class="btn btn-secondary" data-test="key-created-ccs" @click="openCcSwitch(createdKey)">
+            <Icon name="upload" size="sm" />
+            {{ t('keyConsole.ccs.oneClick') }}
+          </button>
+          <button type="button" class="btn btn-primary" data-test="key-created-done" @click="closeModals">
+            {{ t('keyConsole.created.done') }}
+          </button>
+        </div>
+        <div v-else class="flex justify-end gap-3">
           <button @click="closeModals" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
@@ -1081,6 +789,34 @@
         </div>
       </template>
     </BaseDialog>
+
+    <KeyDetailDialog
+      :show="detailKey !== null"
+      :api-key="detailKey"
+      :usage="detailKey ? usageStats[detailKey.id] : undefined"
+      :usage-loading="usageLoading"
+      :user-rate="detailKey?.group ? userGroupRates[detailKey.group.id] ?? null : null"
+      :can-configure="detailKey ? canUseClientConfig(detailKey) : false"
+      :show-ccs="showCcs"
+      :toggling="toggling"
+      @close="detailKeyId = null"
+      @copy="detailKey && copyKey(detailKey)"
+      @ccswitch="detailKey && openCcSwitch(detailKey)"
+      @use="detailKey && openUseKeyModal(detailKey)"
+      @test="detailKey && openTestModal(detailKey)"
+      @edit="detailKey && editKey(detailKey)"
+      @toggle="detailKey && toggleKeyStatus(detailKey)"
+      @logs="detailKey && openLogs(detailKey)"
+      @delete="detailKey && confirmDelete(detailKey)"
+    />
+
+    <CcSwitchImportDialog
+      :show="ccsKey !== null"
+      :api-key="ccsKey"
+      :base-url="endpointBaseUrl"
+      :homepage="publicSettings?.api_base_url || windowOrigin"
+      @close="ccsKey = null"
+    />
 
     <BulkEditKeysModal
       :show="showBulkEditModal"
@@ -1177,18 +913,18 @@
     <!-- Use Key Modal -->
     <UseKeyModal
       :show="showUseKeyModal"
-      :aggregate-key-id="selectedKey?.group_binding_mode === 'all' || selectedKey?.group_binding_mode === 'custom' ? selectedKey.id : undefined"
-      :api-key="selectedKey?.key || ''"
-      :api-key-id="selectedKey?.id"
-      :base-url="publicSettings?.api_base_url || ''"
-      :platform="selectedKey?.group?.platform || null"
-      :group-id="selectedKey?.group_id || null"
-      :conversion-enabled="selectedKey?.conversion_enabled || false"
-      :default-client="selectedKey?.default_client || ''"
-      :default-endpoint="selectedKey?.default_endpoint || ''"
-      :claude-code-only="selectedKey?.group?.claude_code_only || false"
-      :routing-mode="selectedKey?.routing_mode || 'fixed'"
-      :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
+      :aggregate-key-id="useKey?.group_binding_mode === 'all' || useKey?.group_binding_mode === 'custom' ? useKey.id : undefined"
+      :api-key="useKey?.key || ''"
+      :api-key-id="useKey?.id"
+      :base-url="endpointBaseUrl"
+      :platform="useKey?.group?.platform || null"
+      :group-id="useKey?.group_id || null"
+      :conversion-enabled="useKey?.conversion_enabled || false"
+      :default-client="useKey?.default_client || ''"
+      :default-endpoint="useKey?.default_endpoint || ''"
+      :claude-code-only="useKey?.group?.claude_code_only || false"
+      :routing-mode="useKey?.routing_mode || 'fixed'"
+      :allow-messages-dispatch="useKey?.group?.allow_messages_dispatch || false"
       @close="closeUseKeyModal"
     />
 
@@ -1199,149 +935,6 @@
       :base-url="publicSettings?.api_base_url || ''"
       @close="closeTestModal"
     />
-
-    <!-- CCS Client Selection Dialog for Antigravity -->
-    <BaseDialog
-      :show="showCcsClientSelect"
-      :title="t('keys.ccsClientSelect.title')"
-      width="narrow"
-      @close="closeCcsClientSelect"
-    >
-      <div class="space-y-4">
-        <p class="text-sm surface-muted">
-          {{ t('keys.ccsClientSelect.description') }}
-	        </p>
-	        <div class="grid grid-cols-2 gap-3">
-	          <button
-	            @click="handleCcsClientSelect('claude')"
-	            class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-dark-600 hover:border-primary-500 hover:bg-primary-50/25 dark:hover:bg-primary-900/20 transition-all surface-control"
-	          >
-	            <Icon name="terminal" size="xl" class="surface-muted" />
-	            <span class="font-medium text-gray-900 dark:text-white">{{
-	              t('keys.ccsClientSelect.claudeCode')
-	            }}</span>
-	            <span class="text-xs surface-muted">{{
-	              t('keys.ccsClientSelect.claudeCodeDesc')
-	            }}</span>
-	          </button>
-	          <button
-	            @click="handleCcsClientSelect('gemini')"
-	            class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-dark-600 hover:border-primary-500 hover:bg-primary-50/25 dark:hover:bg-primary-900/20 transition-all surface-control"
-	          >
-	            <Icon name="sparkles" size="xl" class="surface-muted" />
-	            <span class="font-medium text-gray-900 dark:text-white">{{
-	              t('keys.ccsClientSelect.geminiCli')
-	            }}</span>
-	            <span class="text-xs surface-muted">{{
-	              t('keys.ccsClientSelect.geminiCliDesc')
-	            }}</span>
-	          </button>
-	        </div>
-	      </div>
-      <template #footer>
-        <div class="flex justify-end">
-          <button @click="closeCcsClientSelect" class="btn btn-secondary">
-            {{ t('common.cancel') }}
-          </button>
-        </div>
-      </template>
-    </BaseDialog>
-
-    <!-- Group Selector Dropdown (Teleported to body to avoid overflow clipping) -->
-    <Teleport to="body">
-      <div
-        v-if="groupSelectorKeyId !== null && dropdownPosition"
-        data-test="key-inline-group-selector"
-        ref="dropdownRef"
-        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max max-w-[calc(100vw-16px)] overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5 duration-200 sm:min-w-[380px] dark:ring-white/10 surface-panel"
-        style="pointer-events: auto !important;"
-        :style="{
-          top: dropdownPosition.top !== undefined ? dropdownPosition.top + 'px' : undefined,
-          bottom: dropdownPosition.bottom !== undefined ? dropdownPosition.bottom + 'px' : undefined,
-          left: dropdownPosition.left + 'px'
-        }"
-      >
-        <!-- Search box -->
-        <div class="border-b border-gray-100 p-2 dark:border-dark-700">
-          <div class="relative">
-            <svg class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              v-model="groupSearchQuery"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 surface-inset py-1.5 pl-8 pr-3 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-primary-300 focus:ring-1 focus:ring-primary-300 dark:border-dark-600 dark:text-white dark:placeholder-gray-500 dark:focus:border-primary-600 dark:focus:ring-primary-600"
-              :placeholder="t('keys.searchGroup')"
-              @click.stop
-            />
-          </div>
-        </div>
-        <!-- Group list -->
-        <div class="max-h-80 overflow-y-auto p-1.5">
-          <button v-support-readonly
-            type="button"
-            data-test="inline-routing-auto"
-            @click="changeRouting(selectedKeyForGroup!, 'auto')"
-            :class="[
-              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
-              'border-b border-gray-100 dark:border-dark-700',
-              isAutoRouting(selectedKeyForGroup)
-                ? 'bg-primary-50 dark:bg-primary-900/20'
-                : 'hover:bg-gray-100 dark:hover:bg-dark-700'
-            ]"
-          >
-            <span class="font-medium text-violet-700 dark:text-violet-300">{{ t('keys.routingMode.auto') }}</span>
-            <Icon
-              v-if="isAutoRouting(selectedKeyForGroup)"
-              name="check"
-              size="sm"
-              class="text-primary-500"
-              :stroke-width="2"
-            />
-          </button>
-          <button v-support-readonly
-            v-for="option in filteredGroupOptions"
-            :key="option.value ?? 'null'"
-            @click="changeRouting(selectedKeyForGroup!, 'fixed', option.value)"
-            :class="[
-              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
-              'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
-              (!selectedKeyForGroup?.group_id && option.value === null)
-              )
-                ? 'bg-primary-50 dark:bg-primary-900/20'
-                : 'hover:surface-hover surface-control'
-            ]"
-            :title="option.description || undefined"
-          >
-            <GroupOptionItem
-              :name="option.label"
-              :platform="option.platform"
-              :subscription-type="option.subscriptionType"
-              :rate-multiplier="option.rate"
-              :user-rate-multiplier="option.userRate"
-              :peak-rate-enabled="option.peakRateEnabled"
-              :peak-start="option.peakStart"
-              :peak-end="option.peakEnd"
-              :peak-rate-multiplier="option.peakRateMultiplier"
-              :description="option.description"
-              :selected="
-                !isAutoRouting(selectedKeyForGroup) && (selectedKeyForGroup?.group_id === option.value ||
-                (!selectedKeyForGroup?.group_id && option.value === null)
-                )
-              "
-            >
-              <template #rates><GroupRateSummary :group="quoteFor(option.value)" :loading="quotesLoading" :failed="quotesFailed" compact /></template>
-            </GroupOptionItem>
-          </button>
-          <!-- Empty state when search has no results -->
-          <div v-if="filteredGroupOptions.length === 0" class="py-4 text-center text-sm surface-muted">
-            {{ t('keys.noGroupFound') }}
-          </div>
-          <button v-if="quotesFailed" type="button" class="btn btn-secondary btn-sm m-2" @click.stop="refreshQuotes">{{ t('billingRates.retry') }}</button>
-        </div>
-      </div>
-    </Teleport>
   </AppLayout>
 </template>
 
@@ -1351,19 +944,16 @@ import DateTimePicker from '@/components/common/DateTimePicker.vue'
 import { useLocaleRefresh } from '@/utils/localeRefresh'
 import { supportReadonly as vSupportReadonly } from '@/directives/supportReadonly'
 import Toggle from '@/components/common/Toggle.vue'
-	import { ref, reactive, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
-	import { useI18n } from 'vue-i18n'
-	import { useRoute, useRouter } from 'vue-router'
-	import { useAppStore } from '@/stores/app'
-	import { useOnboardingStore } from '@/stores/onboarding'
-	import { useClipboard } from '@/composables/useClipboard'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { useOnboardingStore } from '@/stores/onboarding'
+import { useClipboard } from '@/composables/useClipboard'
 import { clearAutoRoutingCapabilities } from '@/composables/useAsyncImageAccess'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useApiEndpoint } from '@/composables/useApiEndpoint'
 import RoutingPriorityPanel from '@/components/keys/RoutingPriorityPanel.vue'
-const routingPriorityPanel = ref<InstanceType<typeof RoutingPriorityPanel> | null>(null)
-const createdKeyForRetry = ref<ApiKey | null>(null)
-
-const { t } = useI18n()
 import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1373,7 +963,6 @@ import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import ActionMenu, { type ActionMenuItem } from '@/components/common/ActionMenu.vue'
 import Select from '@/components/common/Select.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -1381,27 +970,32 @@ import NativeAccessFields from '@/components/keys/NativeAccessFields.vue'
 import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 import KeyTestModal from '@/components/keys/KeyTestModal.vue'
 import CheckboxDropdown from '@/components/common/CheckboxDropdown.vue'
-import EndpointPopover from '@/components/keys/EndpointPopover.vue'
+import ApiEndpointBar from '@/components/keys/ApiEndpointBar.vue'
+import KeyStatsBar, { type KeyStat } from '@/components/keys/KeyStatsBar.vue'
+import KeyDetailDialog from '@/components/keys/KeyDetailDialog.vue'
+import KeyCreatedPanel from '@/components/keys/KeyCreatedPanel.vue'
+import CcSwitchImportDialog from '@/components/keys/CcSwitchImportDialog.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import GroupRateSummary from '@/components/keys/GroupRateSummary.vue'
+import { vSegmented } from '@/components/gotocc/vSegmented'
 import { useGroupRateQuotes } from '@/composables/useGroupRateQuotes'
 import { useQuoteRefresh } from '@/composables/useQuoteRefresh'
 import type { ApiKey, ApiKeyRoutingMode, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import ScopeDropdown, { type DataScope } from '@/components/team/ScopeDropdown.vue'
 import type { Column } from '@/components/common/types'
-import type { BatchApiKeyUsageStats } from '@/api/usage'
+import type { BatchApiKeyUsageStats, UserDashboardStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
-import { platformBadgeLightClass } from '@/utils/platformColors'
+import { platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import { KEY_GROUP_PROVIDERS, KEY_GROUP_PROVIDER_ICONS, getKeyGroupProvider, type KeyGroupProvider } from '@/utils/keyGroupProviders'
-import {
-  CC_SWITCH_USAGE_SCRIPT,
-  buildCcSwitchImportDeeplink,
-  type CcSwitchClientType
-} from '@/utils/ccswitchImport'
+
+const routingPriorityPanel = ref<InstanceType<typeof RoutingPriorityPanel> | null>(null)
+const createdKeyForRetry = ref<ApiKey | null>(null)
+
+const { t } = useI18n()
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
@@ -1434,107 +1028,174 @@ const { groups: quotedGroups, loading: quotesLoading, failed: quotesFailed, refr
 const quoteFor = (id: number | null) => quotedGroups.value.find(group => group.id === id)
 useQuoteRefresh(refreshQuotes)
 
-const allColumns = computed<Column[]>(() => [
-  { key: 'name', label: t('common.name'), sortable: true },
-  { key: 'id', label: t('keys.id'), sortable: true },
-  { key: 'key', label: t('keys.apiKey'), sortable: false },
-  { key: 'group', label: t('keys.group'), sortable: true },
-  { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
-  { key: 'usage', label: t('keys.usage'), sortable: false },
-  { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
-  { key: 'expires_at', label: t('keys.expiresAt'), sortable: true },
-  { key: 'status', label: t('common.status'), sortable: true },
-  { key: 'last_used_at', label: t('keys.lastUsedAt'), sortable: true },
-  { key: 'last_used_ip', label: t('keys.lastUsedIP'), sortable: false },
-  { key: 'created_at', label: t('keys.created'), sortable: true },
-  { key: 'actions', label: t('common.actions'), sortable: false }
-])
+const publicSettings = ref<PublicSettings | null>(null)
+const teamFeatureEnabled = computed(() => publicSettings.value?.team_enabled !== false)
+const showCcs = computed(() => !publicSettings.value?.hide_ccs_import_button)
+const windowOrigin = window.location.origin
+// Every Base URL shown or copied on this page follows the entry chosen in the endpoint bar.
+const { baseUrl: endpointBaseUrl } = useApiEndpoint(publicSettings)
 
-const ALWAYS_VISIBLE_COLUMNS = new Set(['name', 'actions'])
-const DEFAULT_HIDDEN_COLUMNS = ['id', 'rate_limit', 'last_used_at', 'last_used_ip']
-const HIDDEN_COLUMNS_KEY = 'api-key-hidden-columns'
-const COLUMN_SETTINGS_VERSION_KEY = 'api-key-column-settings-version'
-const COLUMN_SETTINGS_VERSION = 3
-const VERSION_NEW_HIDDEN_COLUMNS: Record<number, string[]> = {
-  2: ['last_used_ip'],
-  3: ['id']
-}
-
-const toggleableColumns = computed(() =>
-  allColumns.value.filter((col) => !ALWAYS_VISIBLE_COLUMNS.has(col.key))
-)
-
-const hiddenColumns = reactive<Set<string>>(new Set())
-
-const saveColumnsToStorage = () => {
-  try {
-    localStorage.setItem(HIDDEN_COLUMNS_KEY, JSON.stringify([...hiddenColumns]))
-    localStorage.setItem(COLUMN_SETTINGS_VERSION_KEY, String(COLUMN_SETTINGS_VERSION))
-  } catch (error) {
-    console.error('Failed to save API key table columns:', error)
-  }
-}
-
-const loadSavedColumns = () => {
-  hiddenColumns.clear()
-  try {
-    const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved) as string[]
-      const validColumnKeys = new Set(allColumns.value.map((col) => col.key))
-      parsed
-        .filter((key) =>
-          typeof key === 'string' &&
-          validColumnKeys.has(key) &&
-          !ALWAYS_VISIBLE_COLUMNS.has(key)
-        )
-        .forEach((key) => hiddenColumns.add(key))
-      const storedVersion = Number(localStorage.getItem(COLUMN_SETTINGS_VERSION_KEY) ?? '1')
-      if (storedVersion < COLUMN_SETTINGS_VERSION) {
-        for (let v = storedVersion + 1; v <= COLUMN_SETTINGS_VERSION; v++) {
-          for (const key of VERSION_NEW_HIDDEN_COLUMNS[v] ?? []) {
-            if (validColumnKeys.has(key) && !ALWAYS_VISIBLE_COLUMNS.has(key)) {
-              hiddenColumns.add(key)
-            }
-          }
-        }
-        saveColumnsToStorage()
-      } else {
-        localStorage.setItem(COLUMN_SETTINGS_VERSION_KEY, String(COLUMN_SETTINGS_VERSION))
-      }
-    } else {
-      DEFAULT_HIDDEN_COLUMNS.forEach((key) => hiddenColumns.add(key))
-      localStorage.setItem(COLUMN_SETTINGS_VERSION_KEY, String(COLUMN_SETTINGS_VERSION))
-    }
-  } catch (error) {
-    console.error('Failed to load API key table columns:', error)
-    DEFAULT_HIDDEN_COLUMNS.forEach((key) => hiddenColumns.add(key))
-  }
-}
-
-const toggleColumn = (key: string) => {
-  if (ALWAYS_VISIBLE_COLUMNS.has(key)) return
-  if (hiddenColumns.has(key)) {
-    hiddenColumns.delete(key)
-  } else {
-    hiddenColumns.add(key)
-  }
-  saveColumnsToStorage()
-}
-
-const isColumnVisible = (key: string) => !hiddenColumns.has(key)
-
-const columns = computed<Column[]>(() =>
-  allColumns.value.filter((col) => ALWAYS_VISIBLE_COLUMNS.has(col.key) || !hiddenColumns.has(col.key))
-)
+// ==================== Key list ====================
+// The whole scope is loaded once (the API allows 1000 per page) so platform tabs,
+// search, status and paging switch instantly on the client.
+const KEY_LIST_LIMIT = 1000
 
 const apiKeys = ref<ApiKey[]>([])
+const groups = ref<Group[]>([])
+const loading = ref(false)
+const submitting = ref(false)
+const toggling = ref(false)
+const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({})
+const usageLoading = ref(false)
+const dashboardStats = ref<UserDashboardStats | null>(null)
+const userGroupRates = ref<Record<number, number>>({})
+let abortController: AbortController | null = null
+
+const filterSearch = ref('')
+const filterStatus = ref('')
+const platformTab = ref('all')
+const page = ref(1)
+const pageSize = ref(getPersistedPageSize())
+const sortState = ref({ key: 'name', order: 'asc' as 'asc' | 'desc' })
+
+const columns = computed<Column[]>(() => [
+  { key: 'name', label: t('common.name'), sortable: true },
+  { key: 'group', label: t('keys.group'), sortable: false },
+  { key: 'last_used_at', label: t('keys.lastUsedAt'), sortable: true },
+  { key: 'today', label: t('keyConsole.stats.today'), sortable: true }
+])
+
+const isAggregate = (key: ApiKey) => key.group_binding_mode === 'all' || key.group_binding_mode === 'custom'
+const isAutoRouting = (key: Pick<ApiKey, 'routing_mode'> | null | undefined) => key?.routing_mode === 'auto'
+const keyCategory = (key: ApiKey): string =>
+  isAggregate(key) ? 'aggregate' : isAutoRouting(key) ? 'auto' : key.group?.platform ?? 'none'
+const keyTail = (key: string) => `…${key.slice(-4)}`
+
+const platformTabs = computed(() => {
+  const counts = new Map<string, number>()
+  for (const key of apiKeys.value) counts.set(keyCategory(key), (counts.get(keyCategory(key)) ?? 0) + 1)
+  const label = (id: string) =>
+    id === 'aggregate' ? t('keyConsole.list.aggregate')
+      : id === 'auto' ? t('keys.routingMode.auto')
+        : id === 'none' ? t('keys.noGroup')
+          : platformLabel(id)
+  const special = new Set(['aggregate', 'auto', 'none'])
+  return [
+    { id: 'all', label: t('keyConsole.list.all'), count: apiKeys.value.length, platform: undefined },
+    ...[...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || label(a[0]).localeCompare(label(b[0])))
+      .map(([id, count]) => ({ id, label: label(id), count, platform: special.has(id) ? undefined : id as GroupPlatform }))
+  ]
+})
+
+const filteredKeys = computed(() => {
+  const query = filterSearch.value.trim().toLowerCase()
+  const list = apiKeys.value.filter(key =>
+    (platformTab.value === 'all' || keyCategory(key) === platformTab.value) &&
+    (!filterStatus.value || key.status === filterStatus.value) &&
+    (!query || key.name.toLowerCase().includes(query) || key.key.toLowerCase().includes(query) || (key.group?.name.toLowerCase().includes(query) ?? false))
+  )
+  const direction = sortState.value.order === 'asc' ? 1 : -1
+  const sortValue = (key: ApiKey): string | number =>
+    sortState.value.key === 'today' ? usageStats.value[key.id]?.today_actual_cost ?? 0
+      : sortState.value.key === 'last_used_at' ? (key.last_used_at ? new Date(key.last_used_at).getTime() : 0)
+        : key.name.toLowerCase()
+  return [...list].sort((a, b) => {
+    const left = sortValue(a)
+    const right = sortValue(b)
+    return (left < right ? -1 : left > right ? 1 : 0) * direction
+  })
+})
+
+const pageKeys = computed(() => filteredKeys.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+
+const statusFilterOptions = computed(() => [
+  { value: '', label: t('keys.allStatus') },
+  { value: 'active', label: t('keys.status.active') },
+  { value: 'inactive', label: t('keys.status.inactive') },
+  { value: 'disabled', label: t('keys.status.disabled') },
+  { value: 'quota_exhausted', label: t('keys.status.quota_exhausted') },
+  { value: 'expired', label: t('keys.status.expired') }
+])
+
+const onFilterChange = () => {
+  selectedIds.value = []
+  page.value = 1
+}
+
+const onStatusFilterChange = (value: string | number | boolean | null) => {
+  filterStatus.value = value as string
+  onFilterChange()
+}
+
+const selectPlatformTab = (id: string) => {
+  platformTab.value = id
+  onFilterChange()
+}
+
+watch(filterSearch, onFilterChange)
+
+const handlePageChange = (value: number) => {
+  selectedIds.value = []
+  page.value = value
+}
+
+const handlePageSizeChange = (value: number) => {
+  selectedIds.value = []
+  pageSize.value = value
+  page.value = 1
+}
+
+const handleSort = (key: string, order: 'asc' | 'desc') => {
+  selectedIds.value = []
+  sortState.value = { key, order }
+  page.value = 1
+}
+
+// ==================== Overview stats ====================
+const overviewStats = computed<KeyStat[]>(() => {
+  const personal = scope.value === 'personal'
+  const keyStats = Object.values(usageStats.value)
+  const sum = (pick: (stat: BatchApiKeyUsageStats) => number) => keyStats.reduce((total, stat) => total + pick(stat), 0)
+  const lastUsed = apiKeys.value.reduce<string | null>((latest, key) =>
+    key.last_used_at && (!latest || key.last_used_at > latest) ? key.last_used_at : latest, null)
+  const statsLoading = personal ? dashboardStats.value === null : usageLoading.value
+  return [
+    {
+      key: 'today',
+      label: t('keyConsole.stats.today'),
+      value: withCreditUnit((personal ? dashboardStats.value?.today_actual_cost ?? 0 : sum(stat => stat.today_actual_cost)).toFixed(2)),
+      loading: statsLoading
+    },
+    {
+      key: 'total',
+      // The batch per-key endpoint covers 30 days; only the personal dashboard has an all-time total.
+      label: personal ? t('keyConsole.stats.total') : t('keyConsole.stats.last30'),
+      value: withCreditUnit((personal ? dashboardStats.value?.total_actual_cost ?? 0 : sum(stat => stat.total_actual_cost)).toFixed(2)),
+      loading: statsLoading
+    },
+    {
+      key: 'active',
+      label: t('keyConsole.stats.active'),
+      value: `${apiKeys.value.filter(key => key.status === 'active').length} / ${apiKeys.value.length}`,
+      loading: loading.value && apiKeys.value.length === 0
+    },
+    {
+      key: 'lastUsed',
+      label: t('keyConsole.stats.lastUsed'),
+      value: lastUsed ? formatDateTime(lastUsed) : t('keyConsole.detail.neverUsed'),
+      loading: loading.value && apiKeys.value.length === 0
+    }
+  ]
+})
+
+// ==================== Selection & bulk edit ====================
 const selectedIds = ref<number[]>([])
 const showBulkEditModal = ref(false)
 const selectedApiKeys = computed(() => apiKeys.value.filter((key) => selectedIds.value.includes(key.id)))
 
 const handleSelectionChange = (ids: Array<string | number>) => {
-  const visibleIds = new Set(apiKeys.value.map((key) => key.id))
+  const visibleIds = new Set(pageKeys.value.map((key) => key.id))
   selectedIds.value = [...new Set(ids.map(Number))].filter((id) => visibleIds.has(id))
 }
 
@@ -1544,32 +1205,7 @@ const handleBulkUpdated = (succeededIds: number[]) => {
   loadApiKeys()
 }
 
-const groups = ref<Group[]>([])
-const loading = ref(false)
-const submitting = ref(false)
-const now = ref(new Date())
-let resetTimer: ReturnType<typeof setInterval> | null = null
-const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({})
-const usageLoading = ref(false)
-const userGroupRates = ref<Record<number, number>>({})
-
-const pagination = ref({
-  page: 1,
-  page_size: getPersistedPageSize(),
-  total: 0,
-  pages: 0
-})
-const sortState = ref({
-  sort_by: 'name',
-  sort_order: 'asc' as 'asc' | 'desc'
-})
-
-// Filter state
-const filterSearch = ref('')
-const filterStatus = ref('')
-const filterGroupId = ref<string | number>('')
-const filterRoutingMode = ref<'' | ApiKeyRoutingMode>('')
-
+// ==================== Dialog state ====================
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
@@ -1578,29 +1214,15 @@ const showResetRateLimitDialog = ref(false)
 const showUseKeyModal = ref(false)
 const showOneClickKeySelect = ref(false)
 const showTestModal = ref(false)
-const showCcsClientSelect = ref(false)
-const showColumnDropdown = ref(false)
-const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
+const useKey = ref<ApiKey | null>(null)
 const selectedTestKey = ref<ApiKey | null>(null)
+const detailKeyId = ref<number | null>(null)
+const detailKey = computed(() => apiKeys.value.find(key => key.id === detailKeyId.value) ?? null)
+const ccsKey = ref<ApiKey | null>(null)
+const createdKey = ref<ApiKey | null>(null)
 const editingAggregateGroupIDs = ref<number[]>([])
 let keyEditRequestID = 0
-const copiedKeyId = ref<number | null>(null)
-const changingGroupIds = ref(new Set<number>())
-const groupSelectorKeyId = ref<number | null>(null)
-const publicSettings = ref<PublicSettings | null>(null)
-const teamFeatureEnabled = computed(() => publicSettings.value?.team_enabled !== false)
-const dropdownRef = ref<HTMLElement | null>(null)
-const columnDropdownRef = ref<HTMLElement | null>(null)
-const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
-const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
-let abortController: AbortController | null = null
-
-// Get the currently selected key for group change
-const selectedKeyForGroup = computed(() => {
-  if (groupSelectorKeyId.value === null) return null
-  return apiKeys.value.find((k) => k.id === groupSelectorKeyId.value) || null
-})
 
 const canUseClientConfig = (key: ApiKey) => {
   const isTeamKey = key.scope === 'team' || key.team_id != null
@@ -1609,16 +1231,26 @@ const canUseClientConfig = (key: ApiKey) => {
 
 const clientConfigKeys = computed(() => apiKeys.value.filter(canUseClientConfig))
 
-const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance | null) => {
-  if (el instanceof HTMLElement) {
-    groupButtonRefs.value.set(keyId, el)
-  } else {
-    groupButtonRefs.value.delete(keyId)
-  }
+const openDetail = (key: ApiKey) => {
+  detailKeyId.value = key.id
+}
+
+const copyKey = (key: ApiKey) => {
+  void clipboardCopy(key.key, t('keys.copied'))
+}
+
+const openCcSwitch = (key: ApiKey) => {
+  detailKeyId.value = null
+  closeModals()
+  ccsKey.value = key
+}
+
+const openLogs = (key: ApiKey) => {
+  void router.push({ path: '/usage', query: { api_key_id: String(key.id) } })
 }
 
 const nativeAccessFields = ref<InstanceType<typeof NativeAccessFields> | null>(null)
-const formData = ref({
+const emptyForm = () => ({
   group_binding_mode: 'single' as 'single' | 'all' | 'custom',
   aggregate_group_ids: [] as number[],
   name: '',
@@ -1645,6 +1277,7 @@ const formData = ref({
   expiration_preset: '30' as '7' | '30' | '90' | 'custom',
   expiration_date: ''
 })
+const formData = ref(emptyForm())
 
 // 自定义Key验证
 const customKeyError = computed(() => {
@@ -1672,49 +1305,6 @@ const shouldSubmitEditStatus = (key: ApiKey, status: 'active' | 'inactive') => {
     return status === 'active'
   }
   return true
-}
-
-// Filter dropdown options
-const groupFilterOptions = computed(() => [
-  { value: '', label: t('keys.allGroups') },
-  { value: 0, label: t('keys.noGroup') },
-  ...groups.value.map((g) => ({ value: g.id, label: g.name }))
-])
-
-const routingModeFilterOptions = computed(() => [
-  { value: '', label: t('keys.allRoutingModes') },
-  { value: 'fixed', label: t('keys.routingMode.fixed') },
-  { value: 'auto', label: t('keys.routingMode.auto') },
-])
-
-const statusFilterOptions = computed(() => [
-  { value: '', label: t('keys.allStatus') },
-  { value: 'active', label: t('keys.status.active') },
-  { value: 'inactive', label: t('keys.status.inactive') },
-  { value: 'disabled', label: t('keys.status.disabled') },
-  { value: 'quota_exhausted', label: t('keys.status.quota_exhausted') },
-  { value: 'expired', label: t('keys.status.expired') }
-])
-
-const onFilterChange = () => {
-  selectedIds.value = []
-  pagination.value.page = 1
-  loadApiKeys()
-}
-
-const onGroupFilterChange = (value: string | number | boolean | null) => {
-  filterGroupId.value = value as string | number
-  onFilterChange()
-}
-
-const onStatusFilterChange = (value: string | number | boolean | null) => {
-  filterStatus.value = value as string
-  onFilterChange()
-}
-
-const onRoutingModeFilterChange = (value: string | number | boolean | null) => {
-  filterRoutingMode.value = value === 'auto' || value === 'fixed' ? value : ''
-  onFilterChange()
 }
 
 // Convert groups to Select options format with rate multiplier and subscription type
@@ -1782,35 +1372,11 @@ watch([showCreateModal, createProviderOptions], ([isOpen, providers], [wasOpen])
   }
 })
 
-// Group dropdown search
-const groupSearchQuery = ref('')
-const filteredGroupOptions = computed(() => {
-  const query = groupSearchQuery.value.trim().toLowerCase()
-  if (!query) return groupOptions.value
-  return groupOptions.value.filter((opt) => {
-    return opt.label.toLowerCase().includes(query) ||
-      (opt.description && opt.description.toLowerCase().includes(query))
-  })
-})
-
-const isAutoRouting = (key: Pick<ApiKey, 'routing_mode'> | null | undefined) =>
-  key?.routing_mode === 'auto'
-
 const setFormRoutingMode = (routingMode: ApiKeyRoutingMode) => {
   if (submitting.value) return
   formData.value.routing_mode = routingMode
   if (routingMode === 'auto') {
     formData.value.group_id = null
-  }
-}
-
-const copyToClipboard = async (text: string, keyId: number) => {
-  const success = await clipboardCopy(text, t('keys.copied'))
-  if (success) {
-    copiedKeyId.value = keyId
-    setTimeout(() => {
-      copiedKeyId.value = null
-    }, 800)
   }
 }
 
@@ -1820,42 +1386,23 @@ const isAbortError = (error: unknown) => {
   return name === 'AbortError' || code === 'ERR_CANCELED'
 }
 
+// ==================== Loading ====================
 const loadApiKeys = async () => {
   abortController?.abort()
   const controller = new AbortController()
   abortController = controller
   const { signal } = controller
   loading.value = true
-  usageLoading.value = false
   try {
-    // Build filters
-    const filters: {
-      search?: string
-      status?: string
-      group_id?: number | string
-      routing_mode?: ApiKeyRoutingMode
-      sort_by?: string
-      sort_order?: 'asc' | 'desc'
-      scope?: DataScope
-    } = {}
-    if (filterSearch.value) filters.search = filterSearch.value
-    if (filterStatus.value) filters.status = filterStatus.value
-    if (filterGroupId.value !== '') filters.group_id = filterGroupId.value
-    if (filterRoutingMode.value) filters.routing_mode = filterRoutingMode.value
-    filters.sort_by = sortState.value.sort_by
-    filters.sort_order = sortState.value.sort_order
-    filters.scope = scope.value
-
-    const response = await keysAPI.list(pagination.value.page, pagination.value.page_size, filters, {
-      signal
-    })
+    const response = await keysAPI.list(1, KEY_LIST_LIMIT, { scope: scope.value, sort_by: 'name', sort_order: 'asc' }, { signal })
     if (signal.aborted) return
     apiKeys.value = response.items
     handleSelectionChange(selectedIds.value)
-    pagination.value.total = response.total
-    pagination.value.pages = response.pages
+    if (!platformTabs.value.some(tab => tab.id === platformTab.value)) platformTab.value = 'all'
+    const pages = Math.max(Math.ceil(filteredKeys.value.length / pageSize.value), 1)
+    if (page.value > pages) page.value = pages
 
-    // 用量统计要聚合 30 天的 usage_logs，可能比列表慢很多：不阻塞表格渲染，单独加载
+    // 用量统计要聚合 30 天的 usage_logs，可能比列表慢很多：不阻塞列表渲染，单独加载
     usageLoading.value = response.items.length > 0
     if (response.items.length > 0) {
       void loadUsageStats(response.items.map((k) => k.id), signal)
@@ -1889,6 +1436,10 @@ const loadUsageStats = async (keyIds: number[], signal: AbortSignal) => {
   }
 }
 
+const loadDashboardStats = async () => {
+  dashboardStats.value = await usageAPI.getDashboardStats()
+}
+
 const loadGroups = async () => {
   const request = ++groupsRequest
   try {
@@ -1916,9 +1467,11 @@ const loadPublicSettings = async () => {
   }
 }
 
+// ==================== Client config, test ====================
 const openUseKeyModal = (key: ApiKey) => {
   if (!canUseClientConfig(key)) return
-  selectedKey.value = key
+  detailKeyId.value = null
+  useKey.value = key
   showUseKeyModal.value = true
 }
 
@@ -1942,10 +1495,11 @@ const selectOneClickKey = (key: ApiKey) => {
 
 const closeUseKeyModal = () => {
   showUseKeyModal.value = false
-  selectedKey.value = null
+  useKey.value = null
 }
 
 const openTestModal = (key: ApiKey) => {
+  detailKeyId.value = null
   selectedTestKey.value = key
   showTestModal.value = true
 }
@@ -1955,28 +1509,9 @@ const closeTestModal = () => {
   selectedTestKey.value = null
 }
 
-const handlePageChange = (page: number) => {
-  selectedIds.value = []
-  pagination.value.page = page
-  loadApiKeys()
-}
-
-const handlePageSizeChange = (pageSize: number) => {
-  selectedIds.value = []
-  pagination.value.page_size = pageSize
-  pagination.value.page = 1
-  loadApiKeys()
-}
-
-const handleSort = (key: string, order: 'asc' | 'desc') => {
-  selectedIds.value = []
-  sortState.value.sort_by = key
-  sortState.value.sort_order = order
-  pagination.value.page = 1
-  loadApiKeys()
-}
-
+// ==================== Edit, status, delete ====================
 const editKey = async (key: ApiKey) => {
+  detailKeyId.value = null
   const requestID = ++keyEditRequestID
   selectedKey.value = key
   // The list hides groups the user can no longer use, but the stored aggregate
@@ -2028,102 +1563,18 @@ const editKey = async (key: ApiKey) => {
 
 const toggleKeyStatus = async (key: ApiKey) => {
   const newStatus = key.status === 'active' ? 'inactive' : 'active'
+  toggling.value = true
   try {
     await keysAPI.toggleStatus(key.id, newStatus)
     appStore.showSuccess(
       newStatus === 'active' ? t('keys.keyEnabledSuccess') : t('keys.keyDisabledSuccess')
     )
-    loadApiKeys()
+    await loadApiKeys()
   } catch (error) {
     appStore.showError(t('keys.failedToUpdateStatus'))
-  }
-}
-
-const openGroupSelector = (key: ApiKey) => {
-  if (key.group_binding_mode === 'all' || key.group_binding_mode === 'custom') { editKey(key); return }
-  if (groupSelectorKeyId.value === key.id) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  } else {
-    const buttonEl = groupButtonRefs.value.get(key.id)
-    if (buttonEl) {
-      const rect = buttonEl.getBoundingClientRect()
-      const dropdownEstHeight = 400 // estimated max dropdown height
-      const dropdownEstWidth = Math.min(380, window.innerWidth - 16)
-      const spaceBelow = window.innerHeight - rect.bottom
-      const spaceAbove = rect.top
-      // 夹取 left，避免窄屏下浮层超出视口右缘
-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - dropdownEstWidth - 8))
-
-      if (spaceBelow < dropdownEstHeight && spaceAbove > spaceBelow) {
-        // Not enough space below, pop upward
-        dropdownPosition.value = {
-          bottom: window.innerHeight - rect.top + 4,
-          left
-        }
-      } else {
-        // Default: pop downward
-        dropdownPosition.value = {
-          top: rect.bottom + 4,
-          left
-        }
-      }
-    }
-    groupSelectorKeyId.value = key.id
-    groupSearchQuery.value = ''
-  }
-}
-
-const changeRouting = async (
-  key: ApiKey,
-  routingMode: ApiKeyRoutingMode,
-  newGroupId: number | null = null,
-) => {
-  groupSelectorKeyId.value = null
-  dropdownPosition.value = null
-  const groupID = routingMode === 'auto' ? null : newGroupId
-  if (changingGroupIds.value.has(key.id) || (isAutoRouting(key) === (routingMode === 'auto') && key.group_id === groupID)) return
-
-  changingGroupIds.value.add(key.id)
-  try {
-    await keysAPI.update(key.id, { routing_mode: routingMode, group_id: groupID })
-    clearAutoRoutingCapabilities()
-    appStore.showSuccess(t('keys.routingChangedSuccess'))
-    loadApiKeys()
-  } catch (error) {
-    appStore.showError(t('keys.failedToChangeGroup'))
   } finally {
-    changingGroupIds.value.delete(key.id)
+    toggling.value = false
   }
-}
-
-const closeGroupSelector = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  // Check if click is inside the dropdown or the trigger button
-  if (!target.closest('.group\\/dropdown') && !dropdownRef.value?.contains(target)) {
-    groupSelectorKeyId.value = null
-    dropdownPosition.value = null
-  }
-  if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
-    showColumnDropdown.value = false
-  }
-}
-
-// Each row shows its two everyday actions; the rest live in one "more" menu.
-const keyRowActions = (key: ApiKey): ActionMenuItem[] => [
-  { key: 'edit', label: t('common.edit'), icon: 'edit' },
-  { key: 'ccswitch', label: t('keys.importToCcSwitch'), icon: 'upload', hidden: !canUseClientConfig(key) || !!publicSettings.value?.hide_ccs_import_button },
-  key.status === 'active'
-    ? { key: 'toggle', label: t('keys.disable'), icon: 'ban', tone: 'warning', mutates: true }
-    : { key: 'toggle', label: t('keys.enable'), icon: 'checkCircle', mutates: true },
-  { key: 'delete', label: t('common.delete'), icon: 'trash', tone: 'danger', mutates: true },
-]
-
-const handleKeyRowAction = (key: ApiKey, action: string) => {
-  if (action === 'edit') void editKey(key)
-  else if (action === 'ccswitch') importToCcswitch(key)
-  else if (action === 'toggle') void toggleKeyStatus(key)
-  else if (action === 'delete') confirmDelete(key)
 }
 
 const confirmDelete = (key: ApiKey) => {
@@ -2229,6 +1680,7 @@ const handleSubmit = async () => {
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(targetKey.id)
       clearAutoRoutingCapabilities()
       appStore.showSuccess(t('keys.keyUpdatedSuccess'))
+      closeModals()
     } else {
       const customKey = formData.value.use_custom_key ? formData.value.custom_key : undefined
       const created = await keysAPI.create(
@@ -2249,13 +1701,13 @@ const handleSubmit = async () => {
       keyFieldsSaved = true
       createdKeyForRetry.value = created
       if (formData.value.routing_mode === 'auto') await routingPriorityPanel.value?.save?.(created.id)
-      appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
       if (onboardingStore.isCurrentStep('[data-tour="key-form-submit"]')) {
         onboardingStore.nextStep(500)
       }
+      // The dialog turns into the success page in place.
+      createdKey.value = { ...created, group: created.group ?? groups.value.find(group => group.id === created.group_id) }
     }
-    closeModals()
     loadApiKeys()
   } catch (error: unknown) {
     if (keyFieldsSaved) void loadApiKeys()
@@ -2269,10 +1721,10 @@ const handleSubmit = async () => {
 const onScopeChange = async () => {
   closeOneClickKeySelect()
   closeUseKeyModal()
-  closeCcsClientSelect()
-  pagination.value.page = 1
-  filterGroupId.value = ''
-  filterRoutingMode.value = ''
+  detailKeyId.value = null
+  ccsKey.value = null
+  page.value = 1
+  platformTab.value = 'all'
   await router.replace({ query: { ...route.query, scope: scope.value } })
   await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates(), refreshQuotes()])
 }
@@ -2289,6 +1741,7 @@ const handleDelete = async () => {
     await keysAPI.delete(selectedKey.value.id)
     appStore.showSuccess(t('keys.keyDeletedSuccess'))
     showDeleteDialog.value = false
+    if (detailKeyId.value === selectedKey.value.id) detailKeyId.value = null
     loadApiKeys()
   } catch (error: any) {
     // 优先使用后端返回的错误消息，提供更具体的错误信息给用户
@@ -2299,35 +1752,12 @@ const handleDelete = async () => {
 
 const closeModals = () => {
   createdKeyForRetry.value = null
+  createdKey.value = null
   keyEditRequestID++
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null
-  formData.value = {
-    group_binding_mode: 'single',
-    aggregate_group_ids: [],
-    name: '',
-    conversion_enabled: false,
-  default_client: '',
-    default_endpoint: '',
-    group_id: null,
-    routing_mode: 'fixed',
-    status: 'active',
-    use_custom_key: false,
-    custom_key: '',
-    enable_ip_restriction: false,
-    ip_whitelist: '',
-    ip_blacklist: '',
-    enable_quota: false,
-    quota: null,
-    enable_rate_limit: false,
-    rate_limit_5h: null,
-    rate_limit_1d: null,
-    rate_limit_7d: null,
-    enable_expiration: false,
-    expiration_preset: '30',
-    expiration_date: ''
-  }
+  formData.value = emptyForm()
 }
 
 // Show reset quota confirmation dialog
@@ -2369,12 +1799,6 @@ const confirmResetRateLimit = () => {
   showResetRateLimitDialog.value = true
 }
 
-// Show reset rate limit confirmation dialog (from table row)
-const confirmResetRateLimitFromTable = (row: ApiKey) => {
-  selectedKey.value = row
-  showResetRateLimitDialog.value = true
-}
-
 // Reset rate limit usage for an API key
 const resetRateLimitUsage = async () => {
   if (!selectedKey.value) return
@@ -2395,90 +1819,44 @@ const resetRateLimitUsage = async () => {
   }
 }
 
-const importToCcswitch = (row: ApiKey) => {
-  if (row.group_binding_mode === 'all' || row.group_binding_mode === 'custom') { openUseKeyModal(row); return }
-  if (!canUseClientConfig(row)) return
-  const platform = row.group?.platform || 'anthropic'
-
-  // For antigravity platform, show client selection dialog
-  if (platform === 'antigravity') {
-    pendingCcsRow.value = row
-    showCcsClientSelect.value = true
-    return
-  }
-
-  // For other platforms, execute directly
-  executeCcsImport(row, platform === 'gemini' ? 'gemini' : 'claude')
-}
-
-const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
-  if (!canUseClientConfig(row)) return
-  const baseUrl = publicSettings.value?.api_base_url || window.location.origin
-  const platform = row.group?.platform || 'anthropic'
-
-  const usageScript = CC_SWITCH_USAGE_SCRIPT
-  const providerName = (publicSettings.value?.site_name || 'sub2api').trim() || 'sub2api'
-  const deeplink = buildCcSwitchImportDeeplink({
-    baseUrl,
-    platform,
-    clientType,
-    providerName,
-    apiKey: row.key,
-    usageScript
-  })
-
-  try {
-    window.open(deeplink, '_self')
-
-    // Check if the protocol handler worked by detecting if we're still focused
-    setTimeout(() => {
-      if (document.hasFocus()) {
-        // Still focused means the protocol handler likely failed
-        appStore.showError(t('keys.ccSwitchNotInstalled'))
-      }
-    }, 100)
-  } catch (error) {
-    appStore.showError(t('keys.ccSwitchNotInstalled'))
+const loadScopeStats = () => {
+  if (scope.value === 'personal') {
+    dashboardStats.value = null
+    void loadDashboardStats()
   }
 }
 
-const handleCcsClientSelect = (clientType: CcSwitchClientType) => {
-  if (pendingCcsRow.value) {
-    executeCcsImport(pendingCcsRow.value, clientType)
-  }
-  showCcsClientSelect.value = false
-  pendingCcsRow.value = null
-}
-
-const closeCcsClientSelect = () => {
-  showCcsClientSelect.value = false
-  pendingCcsRow.value = null
-}
-
-function formatResetTime(resetAt: string | null): string {
-  if (!resetAt) return ''
-  const diff = new Date(resetAt).getTime() - now.value.getTime()
-  if (diff <= 0) return t('keys.resetNow')
-  const days = Math.floor(diff / 86400000)
-  const hours = Math.floor((diff % 86400000) / 3600000)
-  const mins = Math.floor((diff % 3600000) / 60000)
-  if (days > 0) return `${days}d ${hours}h`
-  if (hours > 0) return `${hours}h ${mins}m`
-  return `${mins}m`
-}
+watch(scope, loadScopeStats)
 
 onMounted(async () => {
-  loadSavedColumns()
   void refreshQuotes()
-  document.addEventListener('click', closeGroupSelector)
-  resetTimer = setInterval(() => { now.value = new Date() }, 60000)
+  loadScopeStats()
   await loadPublicSettings()
   await Promise.all([loadApiKeys(), loadGroups(), loadUserGroupRates()])
 })
 
-onUnmounted(() => {
-  document.removeEventListener('click', closeGroupSelector)
-  if (resetTimer) clearInterval(resetTimer)
-})
 useLocaleRefresh(() => Promise.all([loadApiKeys(), loadGroups(), refreshQuotes()]))
 </script>
+
+<style scoped>
+.keys-overview { display: flex; flex-direction: column; gap: 14px; }
+.keys-overview-top { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
+.keys-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.keys-filters { display: flex; flex-direction: column; gap: 12px; }
+.keys-tabs-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.keys-tab { display: inline-flex; height: 32px; align-items: center; gap: 6px; padding-inline: 12px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.keys-tab-count { min-width: 18px; padding: 0 5px; border-radius: 9999px; background: var(--surface-soft); font-size: 11px; line-height: 18px; text-align: center; color: var(--surface-muted); }
+.keys-name { display: flex; align-items: center; gap: 8px; }
+.keys-tail { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--surface-muted); }
+.keys-status-dot { height: 8px; width: 8px; flex: none; border-radius: 9999px; background: theme('colors.gray.400'); }
+.keys-status-dot[data-status='active'] { background: theme('colors.emerald.500'); box-shadow: 0 0 0 3px rgb(16 185 129 / 16%); }
+.keys-status-dot[data-status='quota_exhausted'] { background: theme('colors.amber.500'); }
+.keys-status-dot[data-status='expired'] { background: theme('colors.red.500'); }
+.keys-today { display: flex; align-items: center; gap: 10px; }
+.keys-row-chevron { margin-left: auto; color: var(--surface-muted); opacity: .45; transition: opacity var(--motion-fast) var(--motion-ease), transform var(--motion-fast) var(--motion-ease); }
+:deep(.table-data-row:hover) .keys-row-chevron { opacity: 1; transform: translateX(2px); }
+@media (max-width: 640px) {
+  .keys-actions { justify-content: flex-start; }
+  .keys-actions :deep(.btn) { flex: 1 1 auto; }
+}
+</style>

@@ -25,6 +25,7 @@ import fingerprint from './fingerprint'
 import inspection from './inspection'
 import billingRates from './billingRates'
 import nativeAccess from './nativeAccess'
+import keyConsole from './keyConsole'
 
 export default {
   ...workspace,
@@ -32,6 +33,7 @@ export default {
   ...inspection,
   ...billingRates,
   ...nativeAccess,
+  ...keyConsole,
   ...featureExtensions,
   ...canvasCard,
   ...balanceCashback,

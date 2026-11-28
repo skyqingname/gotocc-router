@@ -4,11 +4,11 @@
       <div v-for="i in 5" :key="i" class="glass-inset rounded-xl border border-gray-200 p-4 dark:border-dark-700">
         <div class="space-y-3">
           <div v-for="column in dataColumns" :key="column.key" class="flex justify-between">
-            <div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
-            <div class="h-4 w-32 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+            <div class="gc-skeleton h-4 w-20"></div>
+            <div class="gc-skeleton h-4 w-32"></div>
           </div>
           <div v-if="hasActionsColumn" class="border-t border-gray-200 pt-3 dark:border-dark-700">
-            <div class="h-8 w-full animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+            <div class="gc-skeleton h-8 w-full"></div>
           </div>
         </div>
       </div>
@@ -179,12 +179,10 @@
         <!-- Loading skeleton -->
         <tr v-if="loading && !data?.length" v-for="i in 5" :key="i">
           <td v-if="selectable" class="w-11 min-w-11 px-3 py-4">
-            <div class="mx-auto h-4 w-4 animate-pulse rounded bg-gray-200 dark:bg-dark-700"></div>
+            <div class="gc-skeleton mx-auto h-4 w-4"></div>
           </td>
           <td v-for="column in columns" :key="column.key" :class="['whitespace-nowrap py-4', getAdaptivePaddingClass()]">
-            <div class="animate-pulse">
-              <div class="h-4 w-3/4 rounded bg-gray-200 dark:bg-dark-700"></div>
-            </div>
+            <div class="gc-skeleton h-4 w-3/4"></div>
           </td>
         </tr>
 

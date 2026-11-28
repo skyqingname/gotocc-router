@@ -1,5 +1,8 @@
 <template>
   <div class="app-layout" :class="{ 'sidebar-is-collapsed': sidebarCollapsed, 'app-layout-workspace': workspace, 'app-layout-user': appearance === 'user', 'app-layout-admin': appearance === 'admin' }">
+    <!-- 首次进入控制台时外壳上的光流，播完即移除（styles/console-glass.css）。 -->
+    <div v-if="playFlow" class="console-flow" aria-hidden="true" @animationend="playFlow = false"></div>
+
     <!-- Sidebar -->
     <AppSidebar />
 
@@ -26,9 +29,14 @@
   </div>
 </template>
 
+<script lang="ts">
+// 每个页面各自包一层 AppLayout；光流只在本次打开控制台的第一个页面播放。
+let flowPlayed = false
+</script>
+
 <script setup lang="ts">
 import '@/styles/onboarding.css'
-import { computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
@@ -50,6 +58,9 @@ const props = withDefaults(defineProps<{ workspace?: boolean; appearance?: 'user
 })
 useProductAppearance()
 provide(USER_TABLE_LAYOUT_KEY, computed(() => props.appearance === 'user'))
+
+const playFlow = ref(!flowPlayed)
+flowPlayed = true
 
 const appStore = useAppStore()
 const authStore = useAuthStore()
