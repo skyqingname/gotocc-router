@@ -7,6 +7,11 @@
       </div>
       <div v-else-if="error && !overview && !affiliate" class="card p-6"><p role="alert" class="text-red-600">{{ error }}</p><button class="btn btn-secondary mt-4" @click="load">{{ tr('重试', 'Retry') }}</button></div>
       <template v-else>
+        <div v-if="balanceEmpty" role="alert" class="hub-alert">
+          <Icon name="exclamationTriangle" size="md" class="shrink-0" />
+          <span class="min-w-0 flex-1">{{ tr('你的平台余额已用完：客户的请求会因站长余额不足而失败。', 'Your platform balance is used up: customer requests will fail until you top up.') }}</span>
+          <RouterLink to="/wallet" class="btn btn-primary btn-sm">{{ tr('去充值', 'Top up') }}</RouterLink>
+        </div>
         <!-- 两种赚钱方式，各用各的邀请链接 -->
         <p class="hub-lead">
           <template v-if="resellerOn && affiliateOn">{{ tr('这里有两种赚钱方式，各用各的邀请链接，别发错：', 'Two ways to earn here, each with its own invitation link. Keep them apart:') }}</template>
@@ -72,11 +77,6 @@
           </div>
           <div v-if="resellerOn && overview" class="hub-group">
             <h3 class="hub-group-title">{{ tr('客户经营 · 本月', 'Customers · this month') }}</h3>
-            <div v-if="balanceEmpty" role="alert" class="hub-alert">
-              <Icon name="exclamationTriangle" size="md" class="shrink-0" />
-              <span class="min-w-0 flex-1">{{ tr('你的平台余额已用完：客户的请求会因站长余额不足而失败。', 'Your platform balance is used up: customer requests will fail until you top up.') }}</span>
-              <RouterLink to="/wallet" class="btn btn-primary btn-sm">{{ tr('去充值', 'Top up') }}</RouterLink>
-            </div>
             <div class="hub-tiles hub-tiles-6">
               <div v-for="tile in customerTiles" :key="tile.key" class="card gc-stat hub-tile" :class="{ 'hub-tile-danger': tile.key === 'balance' && balanceEmpty }" :data-tip="tile.tip">
                 <span class="hub-tile-label">{{ tile.label }}</span>
@@ -310,7 +310,7 @@ watch(() => customerSteps.value.every(step => step.done), done => { guideOpen.cu
 const affiliateTiles = computed(() => {
   const detail = affiliate.value!
   return [
-    { key: 'available', label: tr('可转返利', 'Transferable rebate'), value: money(detail.aff_quota), tone: 'hub-tone-good', hint: tr('可以转入余额', 'Ready to move to balance'), tip: `${tr('已过冻结期、还没转入余额的返利', 'Rebates past the freeze period and not yet moved to your balance')}\n${exactCredit(detail.aff_quota)}` },
+    { key: 'available', label: tr('可转返利', 'Transferable rebate'), value: money(detail.aff_quota), tone: detail.aff_quota > 0 ? 'hub-tone-good' : '', hint: tr('可以转入余额', 'Ready to move to balance'), tip: `${tr('已过冻结期、还没转入余额的返利', 'Rebates past the freeze period and not yet moved to your balance')}\n${exactCredit(detail.aff_quota)}` },
     { key: 'total', label: tr('累计返利', 'Total rebates'), value: money(detail.aff_history_quota), tone: '', hint: detail.aff_frozen_quota > 0 ? tr(`冻结中 ${money(detail.aff_frozen_quota)}`, `${money(detail.aff_frozen_quota)} frozen`) : tr('开通以来的全部返利', 'All rebates since you started'), tip: `${tr('开通以来得到的全部返利，含已转入和冻结中的', 'All rebates earned, including transferred and frozen')}\n${exactCredit(detail.aff_history_quota)}` },
     { key: 'invited', label: tr('邀请人数', 'Invitees'), value: detail.aff_count.toLocaleString(), tone: '', hint: tr('通过你的主站链接注册', 'Signed up via your main-site link'), tip: tr('用你的邀请码在主站注册的人数', 'People who signed up on the main site with your code') },
   ]

@@ -106,7 +106,8 @@ import { adminSupportContext } from '@/utils/adminSupportContext'
 import { exactCredit } from '@/utils/consoleTips'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 import { formatNumberLocaleString as formatNumber, formatTokensK } from '@/utils/format'
-import { formatCostAuto, formatUsd } from './format'
+import { withCreditUnit } from '@/utils/credits'
+import { formatCostAuto } from './format'
 import { COUNT_UP_MS } from './motion'
 import { METRIC_TONES } from './tones'
 import { useCountUp } from './useCountUp'
@@ -135,7 +136,8 @@ const balance = computed(() => Number(view.user?.balance ?? 0))
 const frozen = computed(() => Number(view.user?.frozen_balance ?? 0))
 const animatedBalance = useCountUp(balance, COUNT_UP_MS)
 const animatedTodayCost = useCountUp(() => stats.value?.today_actual_cost ?? 0, COUNT_UP_MS)
-const money = (value: number) => formatUsd(value, 2)
+// 与页眉余额同一种两位小数写法，避免同一个数显示得不一样。
+const money = (value: number) => withCreditUnit(value.toFixed(2))
 const balanceTip = computed(() => t('consoleTips.header.balance', {
   available: exactCredit(balance.value),
   frozen: exactCredit(frozen.value),
