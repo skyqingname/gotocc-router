@@ -859,6 +859,9 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			s.coolOpenAIImagesInsufficientBalance(upstreamCtx, account)
 			return nil, newOpenAIImagesInsufficientBalanceFailoverError(resp.StatusCode, resp.Header, respBody)
 		}
+		if failure := s.openAIUpstreamUnavailableHTTPFailover(upstreamCtx, c, account, resp, respBody, false); failure != nil {
+			return nil, failure
+		}
 		if s.shouldFailoverOpenAIUpstreamResponse(account, resp.StatusCode, upstreamMsg, respBody) {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 				ProxyID:            opsUpstreamProxyID(account),
@@ -874,7 +877,7 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 			})
 			shouldDisable := s.handleFailoverSideEffects(upstreamCtx, resp, account, respBody, upstreamModel)
 			retryableOnSameAccount := !shouldDisable && account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode)
-			if account.IsOpenAIOAuthLike() && resp.StatusCode == http.StatusTooManyRequests {
+			if isOpenAIRelayIncompatible400(account, resp.StatusCode, upstreamMsg, respBody) || account.IsOpenAIOAuthLike() && resp.StatusCode == http.StatusTooManyRequests {
 				return nil, s.newOpenAIAccountFailoverError(account, resp.StatusCode, resp.Header, respBody, upstreamMsg, shouldDisable, retryableOnSameAccount)
 			}
 			if isOpenAIHTTPUpstreamAccessStateError(resp.StatusCode, upstreamMsg, respBody) {

@@ -246,6 +246,8 @@ func (e *OpenAIWSClientCloseError) Reason() string {
 
 // OpenAIWSIngressHooks 定义入站 WS 每个 turn 的生命周期回调。
 type OpenAIWSIngressHooks struct {
+	// OnAvailabilityHTTPFallback updates the account reservation for the HTTP wire model before replay.
+	OnAvailabilityHTTPFallback func() error
 	// ClientLifecycleContext is the request context before an ingress lease
 	// adds its independent cancellation signal. Downstream writes bind to it
 	// so shutdown and disconnect cancellation remain direct during lease loss.

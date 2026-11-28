@@ -1179,7 +1179,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					switchCount++
-					if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+					if !failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() && h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -1806,7 +1806,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						return
 					}
 					switchCount++
-					if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+					if !failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() && h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
 						h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -1930,6 +1930,12 @@ func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, 
 			status = http.StatusServiceUnavailable
 		}
 		h.anthropicStreamingAwareError(c, status, "api_error", failoverErr.ClientMessage, streamStarted)
+		return
+	}
+	if failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() {
+		failoverErr.SetOpenAIErrorMessageSource(c)
+		errType, _, message, _ := service.CodexPublicErrorFinalFields(c)
+		h.anthropicStreamingAwareError(c, failoverErr.ClientStatusCode, errType, message, streamStarted)
 		return
 	}
 	// A failed or error frame that triggered the failover no longer reaches the
@@ -2916,7 +2922,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			return false
 		}
 		switchCount++
-		if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
+		if !failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() && h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount, &oauth429FailoverState) {
 			h.closeOpenAIWSFailoverExhausted(c, wsConn, failoverErr)
 			return false
 		}
@@ -3241,6 +3247,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		var aggregateTurnKey atomic.Pointer[service.APIKey]
 		aggregateTurnKey.Store(apiKey)
 		hooks := &service.OpenAIWSIngressHooks{
+			OnAvailabilityHTTPFallback: func() error {
+				ctx = service.WithOpenAIWSAvailabilityHTTPFallback(ctx, account.ID)
+				if err := prepareAttemptInflight(account, wsFirstMessage); err != nil {
+					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "billing check failed", err)
+				}
+				return nil
+			},
 			ClientLifecycleContext:      clientLifecycleCtx,
 			InitialRequestModel:         reqModel,
 			InitialTurnStartedAt:        firstTurnStartedAt,
@@ -4117,6 +4130,11 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 	// though the upstream status was 401/402/403. Other providers keep their
 	// own existing mapping.
 	failoverErr.SetOpenAIErrorMessageSource(c)
+	if failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() {
+		errType, code, message, _ := service.CodexPublicErrorFinalFields(c)
+		h.handleStreamingAwareErrorWithCode(c, failoverErr.ClientStatusCode, errType, code, message, streamStarted, false)
+		return
+	}
 	publicStatus := failoverErr.StatusCode
 	openAIPublicError := c.GetString(string(ctxkey.Platform)) == service.PlatformOpenAI
 	if openAIPublicError {
@@ -4755,6 +4773,9 @@ func (h *OpenAIGatewayHandler) closeOpenAIWSFailoverExhausted(c *gin.Context, co
 	if statusCode == 0 && stage == service.GatewayFailureStageAccountAuth {
 		key, publicStatus = service.ClassifyCodexPublicFailureKey(0, "credential_unavailable")
 	}
+	if failoverErr.IsOpenAIUpstreamTemporarilyUnavailable() {
+		key, publicStatus = service.OpenAIUpstreamUnavailablePublicKey, failoverErr.ClientStatusCode
+	}
 	// Resolve the effective text once; the error event and the close reason
 	// must come from the same configuration snapshot.
 	message := ""
@@ -4768,7 +4789,9 @@ func (h *OpenAIGatewayHandler) closeOpenAIWSFailoverExhausted(c *gin.Context, co
 	if !ok || errCode == "" {
 		errType, errCode = "server_error", "service_error"
 	}
-	errorObject := gin.H{"type": errType, "code": errCode, "message": message}
+	failoverErr.SetOpenAIErrorMessageSource(c)
+	publicMessage := service.CodexPublicErrorFinalMessage(c, key, message)
+	errorObject := gin.H{"type": errType, "code": errCode, "message": publicMessage}
 	if key == "policy_capacity_unavailable" && failoverErr != nil {
 		retryAdvice := make(map[string]string)
 		for _, name := range []string{"Retry-After", "Retry-After-Ms"} {

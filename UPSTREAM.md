@@ -8,9 +8,10 @@ publication status. Release naming and procedures live in
 
 GoToCC `0.2.25+custom.003` is a local candidate based on owned main
 `3618610ad424df4d995cc0e18e449aacc7747b6b` and retains the Plus
-`v0.2.25+custom.001` baseline below. It reworks the user console shell and
-the API key page in the frontend only, without backend or database schema
-changes; it does not include the separate `0.2.25+custom.002` candidate.
+`v0.2.25+custom.001` baseline below. It includes the `0.2.25+custom.002`
+OpenAI relay failover and public request-rejection text, and reworks the
+user console shell and the API key page in the frontend, without database
+schema changes.
 
 GoToCC `skyqingname/gotocc-router@v0.2.25+custom.001` starts from owned main
 `880dcfeeae459753e33272e0d6af7b925eb6160a` (`skyqingname/gotocc-router@v0.2.22+custom.001`,

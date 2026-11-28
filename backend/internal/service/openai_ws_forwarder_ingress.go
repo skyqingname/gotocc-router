@@ -82,6 +82,29 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 	defer finishRoute()
 	defer func() { returnErr = openAISessionRouteForwardError(ctx, account, returnErr, nil, false) }()
+
+	err := s.proxyResponsesWebSocketFromClient(ctx, c, clientConn, account, token, firstClientMessage, hooks)
+	if !IsOpenAIWSAvailabilityFallback(err) {
+		return err
+	}
+	if hooks != nil && hooks.OnAvailabilityHTTPFallback != nil {
+		if err := hooks.OnAvailabilityHTTPFallback(); err != nil {
+			return err
+		}
+	}
+	ctx = WithOpenAIWSAvailabilityHTTPFallback(ctx, account.ID)
+	return s.proxyResponsesWebSocketFromClient(ctx, c, clientConn, account, token, firstClientMessage, hooks)
+}
+
+func (s *OpenAIGatewayService) proxyResponsesWebSocketFromClient(
+	ctx context.Context,
+	c *gin.Context,
+	clientConn OpenAIWSIngressConn,
+	account *Account,
+	token string,
+	firstClientMessage []byte,
+	hooks *OpenAIWSIngressHooks,
+) (returnErr error) {
 	stageOpenAICodexTurnStateScope(c, firstClientMessage)
 	ctx = WithOutboundIdentityScope(ctx, c)
 	ctx = WithAccountOutboundIdentity(ctx, account)
@@ -147,6 +170,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 
 	wsDecision := s.getOpenAIWSProtocolResolver().Resolve(account)
 	forceHTTPBridge := s.responsesWSForceHTTPBridge(ctx, account)
+	if account.IsOpenAI() && s.openAIWSFallbackCoolingReason(account.ID) == openAIWSAvailabilityFallbackReason {
+		ctx = WithOpenAIWSAvailabilityHTTPFallback(ctx, account.ID)
+	}
 	modeRouterV2Enabled := s != nil && s.cfg != nil && s.cfg.Gateway.OpenAIWS.ModeRouterV2Enabled
 	ingressMode := OpenAIWSIngressModeCtxPool
 	if account.IsOpenAI() && forceHTTPBridge {
@@ -1058,6 +1084,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				return nil, errOpenAIWSSessionPreempted
 			}
 			canonicalModel := canonicalOpenAIAccountSchedulingModel(account, ingressSessionOriginalModel)
+			if turn == 1 {
+				if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, nil, acquireErr, false); fallback != nil {
+					return nil, fallback
+				}
+			}
 			s.handleOpenAIWSDialTransientFailure(ctx, account, canonicalModel, acquireErr)
 			dialStatus, dialClass, dialCloseStatus, dialCloseReason, dialRespServer, dialRespVia, dialRespCFRay, dialRespReqID := summarizeOpenAIWSDialError(acquireErr)
 			logOpenAIWSModeInfo(
@@ -1080,6 +1111,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				wsPath,
 				account.ProxyID != nil && account.Proxy != nil,
 			)
+			if failure := s.openAIWSDialFailover(ctx, c, account, acquireErr, false); failure != nil {
+				return nil, failure
+			}
 			var dialErr *openAIWSDialError
 			if errors.As(acquireErr, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 				s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(acquireErr.Error()), canonicalModel)
@@ -1159,6 +1193,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			return nil, newOpenAIWSDeclaredLimitClientClose(limitErr)
 		}
 		if err := lease.WriteJSONWithContextTimeout(ctx, json.RawMessage(payload), s.openAIWSWriteTimeout()); err != nil {
+			if turn == 1 {
+				if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), err, false); fallback != nil {
+					return nil, fallback
+				}
+			}
 			return nil, wrapOpenAIWSIngressTurnError(
 				"write_upstream",
 				fmt.Errorf("write upstream websocket request: %w", err),
@@ -1215,6 +1254,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			frameReceivedAt := time.Now()
 			if readErr != nil {
 				lease.MarkBroken()
+				if turn == 1 && !wroteDownstream {
+					if fallback := s.openAIUpstreamUnavailableWSFallback(c, account, lease.HandshakeHeaders(), readErr, false); fallback != nil {
+						return nil, fallback
+					}
+				}
 				return nil, wrapOpenAIWSIngressTurnError(
 					"read_upstream",
 					fmt.Errorf("read upstream websocket event: %w", readErr),
@@ -1249,6 +1293,12 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 			if eventType == "error" || eventType == "response.failed" {
 				markOpenAICyberPolicyEvent(c, upstreamMessage, http.StatusOK, &usage)
+			}
+			if !wroteDownstream && (eventType == "error" || eventType == "response.failed") {
+				if failure := s.openAIRelayEventFailover(c, account, lease.HandshakeHeaders(), upstreamMessage, false); failure != nil {
+					lease.MarkBroken()
+					return nil, failure
+				}
 			}
 			if eventType == "error" {
 				s.handleOpenAIWSErrorEventTransientFailure(ctx, account, mappedModel, lease.HandshakeHeaders(), upstreamMessage)
@@ -2075,6 +2125,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				currentPayload = append([]byte(nil), rejectedFieldErr.body...)
 				currentPayloadBytes = len(currentPayload)
 				continue
+			}
+			if IsOpenAIWSAvailabilityFallback(relayErr) {
+				return relayErr
 			}
 			if recoverIngressPrevResponseNotFound(relayErr, turn, connID) {
 				continue

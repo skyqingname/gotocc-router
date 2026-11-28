@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/LuckyKuang/sub2api-plus/internal/pkg/ctxkey"
@@ -13,10 +14,11 @@ import (
 )
 
 type openAIErrorMessageSource struct {
-	code          string
-	generatedCode string
-	key           string
-	status        int
+	code            string
+	generatedCode   string
+	upstreamMessage string
+	key             string
+	status          int
 	// recorded marks a confirmed final failure observed at its real exit. It
 	// is never set for a retry candidate or a local denial.
 	recorded bool
@@ -42,17 +44,21 @@ func isLocalOpenAIError(c *gin.Context) bool {
 	return ok && marked
 }
 
-// SetOpenAIErrorMessageSource keeps only the trusted classification needed for
-// display, never the private upstream body. Call only when committing a final
+// SetOpenAIErrorMessageSource keeps the trusted classification and the display
+// text needed for a rejected request. Call only when committing a final
 // error, not while classifying retry candidates: a recovered account must not
 // supply the source for a later failure. status is the real final upstream
 // status, not the downstream writer's not-yet-committed status.
 func SetOpenAIErrorMessageSource(c *gin.Context, status int, payload []byte) {
+	setOpenAIErrorMessageSource(c, status, payload, nil)
+}
+
+func setOpenAIErrorMessageSource(c *gin.Context, status int, payload []byte, account *Account) {
 	if c == nil {
 		return
 	}
 	key, _ := ClassifyCodexPublicFailure(status, payload)
-	source := openAIErrorMessageSource{status: status, recorded: true, key: key}
+	source := openAIErrorMessageSource{status: status, recorded: true, key: key, upstreamMessage: sanitizeOpenAIPassthroughClientErrorText(account, codexRequestRejectionMessage(status, payload))}
 	if code := openAIErrorMessageCode(payload); code != "" {
 		source.code = code
 	}
@@ -74,7 +80,7 @@ func CodexPublicErrorFinalFields(c *gin.Context) (errorType, publicCode, message
 	if !ok {
 		return "", "", "", false
 	}
-	return definition.ErrorType, definition.PublicCode, definition.DefaultMessage, true
+	return definition.ErrorType, definition.PublicCode, codexPublicErrorMessageWithUpstream(key, definition.DefaultMessage, source.upstreamMessage), true
 }
 
 // CodexPublicErrorFinalStatus returns the public HTTP status for a recorded
@@ -175,6 +181,12 @@ func (e *UpstreamFailoverError) SetOpenAIErrorMessageSource(c *gin.Context) {
 	if e == nil || c == nil {
 		return
 	}
+	if e.IsOpenAIUpstreamTemporarilyUnavailable() {
+		c.Set("openai_error_message_source", openAIErrorMessageSource{
+			status: e.ClientStatusCode, recorded: true, key: OpenAIUpstreamUnavailablePublicKey, upstreamMessage: e.ClientMessage,
+		})
+		return
+	}
 	status := e.StatusCode
 	key := ""
 	if e.openAIErrorMessageCode != "" {
@@ -185,7 +197,10 @@ func (e *UpstreamFailoverError) SetOpenAIErrorMessageSource(c *gin.Context) {
 	if key == "" {
 		key, _ = ClassifyCodexPublicFailure(status, e.ResponseBody)
 	}
-	source := openAIErrorMessageSource{status: status, recorded: true, key: key}
+	source := openAIErrorMessageSource{status: status, recorded: true, key: key, upstreamMessage: codexRequestRejectionMessage(status, e.ResponseBody)}
+	if e.Reason == openAIRelayIncompatibleReason {
+		source.upstreamMessage = e.ClientMessage
+	}
 	if e.openAIErrorMessageCode != "" {
 		source.code = e.openAIErrorMessageCode
 	}
@@ -266,6 +281,7 @@ func normalizeOpenAIErrorMessageWithResolver(payload []byte, source openAIErrorM
 	if message == "" {
 		message = definition.DefaultMessage
 	}
+	message = codexPublicErrorMessageWithUpstream(key, message, source.upstreamMessage)
 	param := ""
 	if json.Valid(payload) {
 		_, errorObject := openAIProtocolError(gjson.ParseBytes(payload))
@@ -467,10 +483,53 @@ func (s *OpenAIGatewayService) projectCodexPublicErrorPayload(ctx context.Contex
 	})
 }
 
+func codexRequestRejectionMessage(status int, payload []byte) string {
+	if status != http.StatusBadRequest && status != http.StatusUnprocessableEntity {
+		return ""
+	}
+	message := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(payload)))
+	if message == "" {
+		message = extractOpenAISSEErrorMessage(payload)
+	}
+	return message
+}
+
+func codexPublicErrorMessageWithUpstream(key, message, upstreamMessage string) string {
+	if upstreamMessage == "" {
+		return message
+	}
+	switch key {
+	case "request_rejected":
+		return "本次请求未被接受：" + upstreamMessage
+	case OpenAIUpstreamUnavailablePublicKey:
+		return strings.TrimSuffix(message, "。") + "：" + upstreamMessage
+	default:
+		return message
+	}
+}
+
+// CodexPublicErrorResponseMessage applies upstream rejection text to a public message.
+func CodexPublicErrorResponseMessage(key, message string, status int, payload []byte) string {
+	return codexPublicErrorMessageWithUpstream(key, message, codexRequestRejectionMessage(status, payload))
+}
+
+// CodexPublicErrorFinalMessage applies the final upstream text to an effective catalog message.
+func CodexPublicErrorFinalMessage(c *gin.Context, key, message string) string {
+	return codexPublicErrorMessageWithUpstream(key, message, getOpenAIErrorMessageSource(c).upstreamMessage)
+}
+
 func (s *OpenAIGatewayService) projectOpenAIWebSocketOutput(ctx context.Context, c *gin.Context, account *Account, payload []byte) []byte {
 	payload = s.projectCodexSafetyBufferingOutput(ctx, c, account, payload, "websocket")
 	if account != nil && account.Platform == PlatformOpenAI && s.settingService != nil && !isLocalOpenAIError(c) {
-		return normalizeOpenAIErrorMessageWithResolver(payload, getOpenAIErrorMessageSource(c), func(key string) string {
+		source := getOpenAIErrorMessageSource(c)
+		if !source.recorded && hasOpenAIProtocolError(payload) {
+			status := openAIWSRejectionStatus(payload)
+			if status == http.StatusBadRequest || status == http.StatusUnprocessableEntity {
+				key, _ := ClassifyCodexPublicFailure(status, payload)
+				source = openAIErrorMessageSource{status: status, key: key, upstreamMessage: sanitizeOpenAIPassthroughClientErrorText(account, codexRequestRejectionMessage(status, payload))}
+			}
+		}
+		return normalizeOpenAIErrorMessageWithResolver(payload, source, func(key string) string {
 			return s.settingService.CodexPublicErrorMessage(ctx, key)
 		})
 	}

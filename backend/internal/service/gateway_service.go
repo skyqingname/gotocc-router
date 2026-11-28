@@ -903,7 +903,7 @@ func (e *UpstreamFailoverError) ShouldReportAccountScheduleFailure() bool {
 	if e == nil {
 		return false
 	}
-	if e.RequestScopedTransient || e.Scope == GatewayFailureScopeProvider || e.Scope == GatewayFailureScopeRequest {
+	if e.isOpenAIAvailabilityFailover() || e.RequestScopedTransient || e.Scope == GatewayFailureScopeProvider || e.Scope == GatewayFailureScopeRequest {
 		return false
 	}
 	return !e.IsCredentialFailure() || e.Scope == GatewayFailureScopeAccount

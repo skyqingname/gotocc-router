@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -99,7 +99,7 @@ func openAISessionRouteForwardError(ctx context.Context, account *Account, err e
 
 	}
 	var failover *UpstreamFailoverError
-	if account != nil && account.Platform == PlatformOpenAI && errors.As(err, &failover) && failover.StatusCode == http.StatusTooManyRequests {
+	if account != nil && account.Platform == PlatformOpenAI && errors.As(err, &failover) && failover.StatusCode == http.StatusTooManyRequests && !failover.IsOpenAIUpstreamTemporarilyUnavailable() {
 		body, classificationHeaders := failover.ResponseBody, failover.ResponseHeaders
 		if frame := failover.StreamFailedFrame; frame != nil {
 			body, classificationHeaders = frame.Payload, nil

@@ -868,6 +868,12 @@ func shouldFailoverOpenAIPassthroughResponse(account *Account, statusCode int, r
 	if isOpenAIContextWindowError("", responseBody) {
 		return false
 	}
+	if _, unavailable := openAIUpstreamUnavailableHTTPMessage(account, statusCode, responseBody, false); unavailable {
+		return true
+	}
+	if isOpenAIRelayIncompatible400(account, statusCode, "", responseBody) {
+		return true
+	}
 	if isOpenAIHTTPUpstreamAccessStateError(statusCode, "", responseBody) {
 		return true
 	}
@@ -964,12 +970,12 @@ func writeOpenAIPassthroughErrorEnvelope(c *gin.Context, downstreamStatus int, u
 	}
 	errorType := "upstream_error"
 	publicCode := ""
-	if definition, ok := codexPublicErrorByKey(getOpenAIErrorMessageSource(c).key); ok {
+	if finalType, finalCode, finalMessage, ok := CodexPublicErrorFinalFields(c); ok {
 		// Direct service callers (and the output middleware) see the same
 		// public type/code/message. Custom text is applied by the middleware.
-		errorType = definition.ErrorType
-		publicCode = definition.PublicCode
-		message = definition.DefaultMessage
+		errorType = finalType
+		publicCode = finalCode
+		message = finalMessage
 	}
 	errorObject := gin.H{
 		"type":    errorType,
@@ -995,6 +1001,9 @@ func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(
 	responseBody []byte,
 ) error {
 	body := s.redactAgentIdentitySensitiveBody(ctx, account, responseBody)
+	if failure := s.openAIUpstreamUnavailableHTTPFailover(ctx, c, account, resp, body, true); failure != nil {
+		return failure
+	}
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
@@ -1109,11 +1118,10 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(
 	// 已保证不切号），其文案对客户端可操作（如触发自动压缩）；在净化信封内保留
 	// 脱敏后的上游消息，而不是抹成通用文案。
 	publicStatus := resp.StatusCode
+	setOpenAIErrorMessageSource(c, resp.StatusCode, body, account)
 	if key, classified, ok := classifyOpenAIFinalFailure(account, resp.StatusCode, upstreamMsg, body); ok {
 		publicStatus = classified
 		SetCodexPublicErrorFinal(c, key, classified)
-	} else {
-		SetOpenAIErrorMessageSource(c, resp.StatusCode, body)
 	}
 	clientMsg := sanitizeOpenAIPassthroughClientErrorText(account, upstreamMsg)
 	if isOpenAIModelNotFoundError(resp.StatusCode, body) || openAIInputTerminalCode(resp.StatusCode, body) != "" ||
@@ -2080,18 +2088,21 @@ func (s *OpenAIGatewayService) nonStreamingTerminalFailureFailover(
 	if account == nil || IsResponseCommitted(c) {
 		return nil
 	}
+	var headers http.Header
+	upstreamRequestID := ""
+	if resp != nil {
+		headers = resp.Header
+		upstreamRequestID = strings.TrimSpace(resp.Header.Get("x-request-id"))
+	}
+	if relayFailure := s.openAIRelayEventFailover(c, account, headers, payload, passthrough); relayFailure != nil {
+		return relayFailure
+	}
 	shouldFailover := openAIStreamFailedEventShouldFailover(payload, message)
 	if terminalType == "error" {
 		shouldFailover = openAIStreamErrorEventShouldFailover(payload, message)
 	}
 	if !shouldFailover {
 		return nil
-	}
-	var headers http.Header
-	upstreamRequestID := ""
-	if resp != nil {
-		headers = resp.Header
-		upstreamRequestID = strings.TrimSpace(resp.Header.Get("x-request-id"))
 	}
 	return s.newOpenAIStreamFailoverErrorWithModel(c, account, passthrough, upstreamRequestID, payload, message, firstNonEmpty(canonicalModel...), headers)
 }
@@ -2413,6 +2424,9 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 					}
 				}
 				if !outputStarted {
+					if relayFailure := s.openAIRelayEventFailover(c, account, resp.Header, dataBytes, true); !cyberHit && relayFailure != nil {
+						return resultWithUsage(), relayFailure
+					}
 					shouldFailover := false
 					if !cyberHit {
 						if eventType == "error" {

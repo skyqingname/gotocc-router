@@ -3019,8 +3019,12 @@ func (s *OpenAIGatewayService) isOpenAIAccountTransportCompatible(account *Accou
 }
 
 func (s *OpenAIGatewayService) ReportOpenAIAccountScheduleResult(account *Account, model string, success bool, firstTokenMs *int, observedErr ...error) bool {
-	if len(observedErr) > 0 && (errors.Is(observedErr[0], ErrOpenAIClientDisconnected) || isOpenAIRequestTerminalError(observedErr[0])) {
-		return false
+	if len(observedErr) > 0 {
+		var failoverErr *UpstreamFailoverError
+		if errors.Is(observedErr[0], ErrOpenAIClientDisconnected) || isOpenAIRequestTerminalError(observedErr[0]) ||
+			errors.As(observedErr[0], &failoverErr) && failoverErr.isOpenAIAvailabilityFailover() {
+			return false
+		}
 	}
 	if account == nil {
 		return false
@@ -3053,6 +3057,10 @@ func (s *OpenAIGatewayService) ObserveOpenAIAccountHealthFailure(ctx context.Con
 		return false
 	}
 	if s == nil || s.rateLimitService == nil || account == nil || observedErr == nil {
+		return false
+	}
+	var failoverErr *UpstreamFailoverError
+	if errors.As(observedErr, &failoverErr) && failoverErr.isOpenAIAvailabilityFailover() {
 		return false
 	}
 	return s.rateLimitService.ObserveOpenAIAPIKeyHealthFailure(ctx, account, observedErr)

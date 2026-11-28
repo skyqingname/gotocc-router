@@ -375,7 +375,7 @@ const flagTeam = () => appStore.cachedPublicSettings?.team_enabled !== false
 
 // buildSelfNavItems 构造用户端的个人导航项。
 //
-// 条目顺序：密钥 → 用量 → 可用渠道 → 渠道状态 → 订阅/支付 → 兑换/资料。
+// 条目顺序：仪表盘 → 模型广场 → API 密钥 → 用户自定义菜单（如小铺充值） → 我的团队 → 走进画布 → 任务/用量 → 渠道 → 订阅/支付/兑换/资料 → 创作台。
 // 可用渠道紧挨渠道状态之上，让用户"先看自己能用什么、再看对应状态"。
 function buildSelfNavItems(): NavItem[] {
   const items: NavItem[] = [
@@ -385,9 +385,14 @@ function buildSelfNavItems(): NavItem[] {
     // 带 embedded=1 在后台布局内打开，与页眉入口一致。
     { path: '/model-plaza?embedded=1', label: t('nav.modelPlaza'), icon: ModelPlazaIcon, featureFlag: flagModelPlaza },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    ...customMenuItemsForUser.value.map((item): NavItem => ({
+      path: `/custom/${item.id}`,
+      label: item.label,
+      icon: null,
+      iconSvg: item.icon_svg,
+    })),
     { path: '/team', label: t('nav.team'), icon: TeamIcon, hideInSimpleMode: true, featureFlag: flagTeam },
     { path: navigationLinks.canvas_url, label: t('nav.enterCanvas'), icon: CanvasIcon, external: true, hideInSimpleMode: true },
-    { path: '/async-image', label: t('creative.title'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
     { path: '/tasks', label: t('gotocc.taskCenter.title'), icon: TaskCenterIcon, hideInSimpleMode: true },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
@@ -401,12 +406,7 @@ function buildSelfNavItems(): NavItem[] {
     ...(resellerAccess.enabled.value ? [{ path: '/reseller', label: t('nav.reseller'), icon: ResellerIcon, hideInSimpleMode: true }] : []),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     { path: '/settings/mcp', label: t('mcp.title'), icon: MCPIcon, featureFlag: flagMCP },
-    ...customMenuItemsForUser.value.map((item): NavItem => ({
-      path: `/custom/${item.id}`,
-      label: item.label,
-      icon: null,
-      iconSvg: item.icon_svg,
-    })),
+    { path: '/async-image', label: t('creative.title'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagAsyncImageAccess },
   )
   return items
 }
