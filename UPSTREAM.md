@@ -6,6 +6,12 @@ publication status. Release naming and procedures live in
 
 ## Integrated Baseline
 
+GoToCC `0.2.25+custom.005` is a local candidate based on owned main
+`598962887` and retains the Plus `v0.2.25+custom.001` baseline below.
+Direct platform users gain default reseller access with on-demand profile
+creation. Existing reseller and customer records keep their stored ownership
+and billing relationships.
+
 GoToCC `0.2.25+custom.004` is a local candidate on top of the `0.2.25+custom.003`
 candidate (owned main `bd8fc6b19`, which also carries `0.2.25+custom.002`). It adds console onboarding, request-ID lookup with
 plain-language failure causes, and an in-console low-balance reminder; the
