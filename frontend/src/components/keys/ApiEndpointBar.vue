@@ -16,7 +16,7 @@
 
     <div class="endpoint-bar-body">
       <div class="endpoint-url">
-        <code :key="current.url" class="gc-reveal endpoint-url-text" :title="current.url">{{ current.url }}</code>
+        <code :key="current.url" class="gc-reveal endpoint-url-text" :data-tip="`${current.url}\n${t('consoleTips.keys.endpoint')}`">{{ current.url }}</code>
         <button
           type="button"
           class="endpoint-icon-btn"
@@ -43,7 +43,7 @@
             @click="select(endpoint.url)"
           >
             <span>{{ endpointName(endpoint) }}</span>
-            <span v-if="probes[endpoint.url]" :key="probeLabel(endpoint.url)" class="endpoint-latency gc-reveal gc-num" :data-state="probes[endpoint.url].state">
+            <span v-if="probes[endpoint.url]" :key="probeLabel(endpoint.url)" class="endpoint-latency gc-reveal gc-num" :data-state="probes[endpoint.url].state" :data-tip="`${probeLabel(endpoint.url)} · ${t('consoleTips.keys.probe')}`">
               {{ probeLabel(endpoint.url) }}
             </span>
           </button>

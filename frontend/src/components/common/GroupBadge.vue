@@ -4,6 +4,7 @@
       'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
       badgeClass
     ]"
+    :data-tip="badgeTip"
   >
     <!-- Platform logo -->
     <PlatformIcon v-if="platform" :platform="platform" size="sm" />
@@ -33,6 +34,7 @@ import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import PlatformIcon from './PlatformIcon.vue'
+import { platformLabel } from '@/utils/platformColors'
 
 interface Props {
   name: string
@@ -184,6 +186,16 @@ const labelClass = computed(() => {
     return `${base} bg-cyan-200/70 text-cyan-900 dark:bg-cyan-900/50 dark:text-cyan-300`
   }
   return `${base} bg-violet-200/60 text-violet-800 dark:bg-violet-800/40 dark:text-violet-300`
+})
+
+// 悬停提示：分组、平台和倍率各是什么意思。
+const badgeTip = computed(() => {
+  const lines = [t('consoleTips.group.name', { name: props.name })]
+  if (props.platform) lines.push(t('consoleTips.group.platform', { platform: platformLabel(props.platform) }))
+  if (props.showRate && isSubscription.value && !props.alwaysShowRate) lines.push(t('consoleTips.group.subscription'))
+  else if (props.showRate && hasCustomRate.value) lines.push(t('consoleTips.group.customRate', { rate: props.userRateMultiplier, base: props.rateMultiplier }))
+  else if (props.showRate && props.rateMultiplier !== undefined) lines.push(t('consoleTips.group.rate', { rate: props.rateMultiplier }))
+  return lines.join('\n')
 })
 
 const peakRateClass = computed(() => {

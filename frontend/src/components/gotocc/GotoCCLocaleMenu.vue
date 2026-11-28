@@ -2,7 +2,7 @@
 <template>
   <div ref="rootRef" class="relative">
     <!-- 顶栏入口：语言动效图标加当前语言名（窄顶栏只留图标），展开时保持主色 -->
-    <button type="button" class="header-nav-link" aria-haspopup="menu" :aria-expanded="open" :title="currentLocale.name" :aria-label="currentLocale.name" @click="open = !open">
+    <button type="button" class="header-nav-link" aria-haspopup="menu" :aria-expanded="open" :data-tip="t('consoleTips.header.language')" data-tip-side="bottom" :aria-label="currentLocale.name" @click="open = !open">
       <LanguagesIcon /><span class="header-nav-label">{{ currentLocale.name }}</span>
     </button>
 
@@ -36,7 +36,7 @@ import { LanguagesIcon } from '@/components/gotocc/navIcons'
 import { availableLocales, setLocale } from '@/i18n'
 
 // 顶栏语言入口：与公告、文档、模型广场一样是动效图标加文字，点开是与用户菜单同样的内缩菜单；切换沿用 i18n 的 setLocale。
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const open = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
 const currentLocale = computed(() => availableLocales.find((option) => option.code === locale.value)!)
