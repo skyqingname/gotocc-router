@@ -37,8 +37,6 @@ export default {
       tokens: 'Input, output and cache tokens in the selected range',
       cost: 'Total charged in the selected range',
       cacheHitRate: 'Cache-read tokens as a share of input-side tokens; higher saves more',
-      delta: 'Change versus the previous range of the same length',
-      sparkline: 'Trend across the selected range',
     },
     keys: {
       today: 'Total charged across all keys since midnight today',

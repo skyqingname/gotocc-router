@@ -37,8 +37,6 @@ export default {
       tokens: '所选时间范围内输入、输出和缓存 Token 的合计',
       cost: '所选时间范围内实际扣费的合计',
       cacheHitRate: '缓存读取 Token 占输入侧 Token 的比例，越高越省钱',
-      delta: '和上一个同样长的周期相比的变化',
-      sparkline: '所选时间范围内每个时段的走势',
     },
     keys: {
       today: '今天 0 点起所有密钥实际扣费的合计',
